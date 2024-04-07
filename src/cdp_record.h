@@ -58,7 +58,7 @@
     The system is optimized for efficient storage and access, fitting within 
     processor cache lines to enhance performance. It supports navigating from 
     any record to the root of the database, reconstructing paths within the 
-    data hierarchy based on unique field identifiers in parent records.
+    data hierarchy based on field identifiers in parent records.
 
     Goals
     -----
@@ -139,37 +139,53 @@
 #define CDP_FLAG_PRIVATE            0x02    // Record and all its children are private (unlockable).
 
 enum {
-    CDP_REC_CAT_BOOK,
-    CDP_REC_CAT_REGISTER,
-    CDP_REC_CAT_LINK
+    CDP_REC_STYLE_BOOK,
+    CDP_REC_STYLE_REGISTER,
+    CDP_REC_STYLE_LINK,
+    //
+    CDP_REC_STYLE_COUNT
 };
 
 enum {
-    CDP_BOOK_UNSORTED = 0,      // Book keeps its fields unsorted so nameID fields may be duplicated.
-    CDP_BOOK_SORTED_BY_NAME,    // Book sorts its children by their (unique) nameID.
-    CDP_BOOK_SORTED_BY_DATA     // Book sorts its children by a register data (key) of a grand-child nameID.
+    CDP_BOOK_SORT_NONE,         // Book keeps its fields unsorted.
+    CDP_BOOK_SORT_BY_NAME,      // Book sorts its children by their (unique) nameID.
+    CDP_BOOK_SORT_BY_DATA,      // Book sorts its children by their own register data (useful for making indexes).
+    CDP_BOOK_SORT_BY_KEY,       // Book sorts its children by a register data (key) found on a grand-child nameID.
+    //
+    CDP_BOOK_SORT_COUNT
 };
 
+#define CDP_BOOK_SORTED     CDP_BOOK_SORT_BY_NAME
+
 enum {
-    CDP_CHD_STO_ARRAY,          // Children stored in an array.
+    // Unsortable and pushable:
     CDP_CHD_STO_CIRC_BUFFER,    // Children stored in a circular buffer.
     CDP_CHD_STO_LINKED_LIST,    // Children stored in a doubly linked list.
+    
+    // Sortable and pushable:
+    CDP_CHD_STO_ARRAY,          // Children stored in an array.
     CDP_CHD_STO_PACKED_LIST,    // Children stored in a packed list.
-    CDP_CHD_STO_RED_BLACK_T,    // Children stored in a red-black tree (requires unique fields).
-    CDP_CHD_STO_B_TREE          // Children stored in a B-tree (requires unique fields).
+    
+    // Sorted and non-pushable:
+    CDP_CHD_STO_RED_BLACK_T,    // Children stored in a red-black tree (requires sorted books).
+    CDP_CHD_STO_B_TREE,         // Children stored in a B-tree (requires sorted books).
+    //
+    CDP_CHD_STO_COUNT
 };
+
+#define CDP_CHD_SORTABLE        CDP_CHD_STO_ARRAY
+#define CDP_CHD_NON_PUSHABLE    CDP_CHD_STO_RED_BLACK_T
 
 typedef uint32_t cdpNameID;
 
 typedef struct {
-    uint32_t  propFl: 2,        // Flags for record properties (multiple parents, private).
-              recCat: 2,        // Category of the record (book, register or link)
+    uint32_t  propFg: 2,        // Flags for record properties (multiple parents, private).
+              rStyle: 2,        // Style of the record (book, register or link)
               sorted: 2,        // Children ordering method (sorted, unsorted, etc).
               chdSto: 3,        // Children storage technique (array, circular buffer, linked list, etc.)
               typeID: 23;       // Type identifier for the record.
     cdpNameID nameID;           // Name/field identifier in the parent record.
 } cdpRecordMetadata;
-
 
 
 /*
@@ -207,7 +223,6 @@ typedef struct cdpRecordStruct {
     cdpRecordMetadata metadata;             // Metadata including flags and nameID
     cdpRecordData     recData;              // Data, either a book or register
 } cdpRecord;
-
 
 
 /*
@@ -273,53 +288,92 @@ typedef struct {
 } cdpRecChdBeTree;
 
 
+/*
+ * Other C Data Types
+ */
+typedef struct {
+    unsigned  length;
+    unsigned  capacity;
+    cdpNameID nameID[];
+} cdpPath;
+
+
+typedef struct {
+    cdpRecord* record;
+    cdpRecord* parent;
+    cdpRecord* next;
+    cdpRecord* prev;
+    size_t     index;
+} cdpBookEntry;
+
+typedef bool (*cdpRecordTraverse)(cdpBookEntry*, unsigned, void*);
+
 
 /*
  * Record Operations
  */
- 
-// Property check
-static inline bool cdp_record_is_register(cdpRecord* record)  {return (record->metadata.recCat == CDP_REC_CAT_REGISTER);}
-static inline bool cdp_record_is_link    (cdpRecord* record)  {return (record->metadata.recCat == CDP_REC_CAT_LINK);}
-static inline bool cdp_record_is_book    (cdpRecord* record)  {return (record->metadata.recCat == CDP_REC_CAT_BOOK);}
-static inline bool cdp_record_is_private (cdpRecord* record)  {return (record->metadata.propFl & CDP_FLAG_PRIVATE) != 0;}
 
-// Gets the child sorting method of a book
-static inline int cdp_record_book_sorting(cdpRecord* record) {
-    CDP_CK(cdp_record_is_book(record));    
-    return record->metadata.sorted;
+// General property check
+static inline bool cdp_record_is_register(cdpRecord* record)  {assert(record);  return (record->metadata.rStyle == CDP_REC_STYLE_REGISTER);}
+static inline bool cdp_record_is_link    (cdpRecord* record)  {assert(record);  return (record->metadata.rStyle == CDP_REC_STYLE_LINK);}
+static inline bool cdp_record_is_book    (cdpRecord* record)  {assert(record);  return (record->metadata.rStyle == CDP_REC_STYLE_BOOK);}
+static inline bool cdp_record_is_private (cdpRecord* record)  {assert(record);  return (record->metadata.propFg & CDP_FLAG_PRIVATE) != 0;}
+static inline bool cdp_record_w_coparents(cdpRecord* record)  {assert(record);  return (record->metadata.propFg & CDP_FLAG_MULTIPLE_PARENTS) != 0;}
+
+// Register property check
+static inline bool cdp_record_register_borrowed(cdpRecord* reg)  {assert(cdp_record_is_register(reg));  return reg->metadata.chdSto != 0;}
+
+
+// Book property check
+static inline int cdp_record_book_sorting(cdpRecord* book) {
+    assert(cdp_record_is_book(book));
+    return book->metadata.sorted;
+}
+#define cdp_record_book_sorted(book)    (cdp_record_book_sorting(book) >= CDP_BOOK_SORTED && (book)->metadata.chdSto >= CDP_CHD_SORTABLE)
+
+static inline bool cdp_record_book_pushable(cdpRecord* book) {
+    assert(cdp_record_is_book(book));
+    return (book->metadata.chdSto < CDP_CHD_NON_PUSHABLE);
 }
 
-// Appends/inserts (or pushes) a new register record.
-cdpRecord* cdp_record_add_register(cdpRecord* book, cdpNameID nameID, uint32_t typeID, const void* data, size_t size, bool push);
+
+// Appends/inserts (or pushes) a new record.
+cdpRecord* cdp_record_create(cdpRecord* parent, unsigned style, cdpNameID nameID, uint32_t typeID, bool push, bool priv, ...);
+#define cdp_record_add_register(parent, nameID, typeID, data, size)         cdp_record_create(parent, CDP_REC_STYLE_REGISTER, nameID, typeID, false, false, data, size)
+#define cdp_record_push_register(parent, nameID, typeID, data, size)        cdp_record_create(parent, CDP_REC_STYLE_REGISTER, nameID, typeID,  true, false, data, size)
+#define cdp_record_add_register_priv(parent, nameID, typeID, data, size)    cdp_record_create(parent, CDP_REC_STYLE_REGISTER, nameID, typeID, false,  true, data, size)
+#define cdp_record_push_register_priv(parent, nameID, typeID, data, size)   cdp_record_create(parent, CDP_REC_STYLE_REGISTER, nameID, typeID,  true,  true, data, size)
+
+
+#define cdp_record_add_book(parent, nameID, typeID, chdStorage, chdSort, ...)       cdp_record_create(parent, CDP_REC_STYLE_BOOK, nameID, typeID, false, false, chdStorage, chdSort, __VA_ARGS__)
+#define cdp_record_push_book(parent, nameID, typeID, chdStorage, chdSort, ...)      cdp_record_create(parent, CDP_REC_STYLE_BOOK, nameID, typeID,  true, false, chdStorage, chdSort, __VA_ARGS__)
+#define cdp_record_add_book_priv(parent, nameID, typeID, chdStorage, chdSort, ...)  cdp_record_create(parent, CDP_REC_STYLE_BOOK, nameID, typeID, false,  true, chdStorage, chdSort, __VA_ARGS__)
+#define cdp_record_push_book_priv(parent, nameID, typeID, chdStorage, chdSort, ...) cdp_record_create(parent, CDP_REC_STYLE_BOOK, nameID, typeID,  true,  true, chdStorage, chdSort, __VA_ARGS__)
 
 // Accessing registers
 bool cdp_record_register_read (cdpRecord* reg, size_t position, void* data, size_t* size);        // Reads register data from position and puts it on data buffer (atomically).
 bool cdp_record_register_write(cdpRecord* reg, size_t position, const void* data, size_t size);   // Writes the data of a register record at position (atomically and it may reallocate memory).
 #define cdp_record_register_update(reg, data, size)   cdp_record_register_write(reg, 0, data, size)
 
-// Appends/inserts (or pushes) a new book to a specified parent.
-cdpRecord* cdp_record_add_book(cdpRecord* parent, cdpNameID nameID, uint32_t typeID, int chdStorage, int chdSort, bool push);
-
-// Appends/inserts a new book to a specified parent using keys stored on the siblingKeyID field of siblings.
-cdpRecord* cdp_record_add_book_w_key(cdpRecord* parent, cdpNameID nameID, uint32_t typeID, int chdStorage, int chdSort, cdpNameID siblingKeyID, cdpCmp compare, const void* key, size_t kSize);
-
 // Constructs the full path (sequence of nameIDs) for a given record, returning the depth.
-unsigned cdp_record_build_path(cdpRecord* record, cdpNameID** path);
+bool cdp_record_path(cdpRecord* record, cdpPath** path);
 
 // Accessing books
-cdpRecord* cdp_record_child   (cdpRecord* book, cdpNameID nameID, uintptr_t* childIdx);   // Retrieves the first/next child record by its nameID.
 cdpRecord* cdp_record_top     (cdpRecord* book, bool last);                               // Gets the first (or last) record from book.
-cdpRecord* cdp_record_by_index(cdpRecord* book, size_t index);                            // Gets the record at index position from book.
-cdpRecord* cdp_record_by_path (cdpRecord* start, cdpNameID* path, uintptr_t* childIdx);   // Finds the first/next record based on a path of nameIDs starting from the root or a given book.
+cdpRecord* cdp_record_by_name (cdpRecord* book, cdpNameID nameID);                        // Retrieves a child record by its nameID.
 cdpRecord* cdp_record_by_key  (cdpRecord* book, cdpNameID siblingKeyID, cdpCmp compare, const void* key, size_t kSize);  // Finds a child record based on specified key.
+cdpRecord* cdp_record_by_index(cdpRecord* book, size_t index);                            // Gets the child record at index position from book.
+cdpRecord* cdp_record_by_path (cdpRecord* start, cdpPath** path);                         // Finds a child record based on a path of nameIDs starting from the root or a given book.
 
-int cdp_record_traverse(cdpRecord* book, int (*func)(cdpRecord*, void*), void* context);  // Traverses the children of a book record, applying a function to each.
+cdpRecord* cdp_record_next_by_name(cdpRecord* book, cdpNameID nameID, uintptr_t* prev);   // Retrieves the first/next (unsorted) child record by its nameID.
+cdpRecord* cdp_record_next_by_path(cdpRecord* start, cdpPath** path, uintptr_t* prev);    // Finds the first/next (unsorted) record based on a path of nameIDs starting from the root or a given book.
+
+bool cdp_record_traverse     (cdpRecord* book, cdpRecordTraverse func, void* context);    // Traverses the children of a book record, applying a function to each.
+bool cdp_record_deep_traverse(cdpRecord* book, unsigned maxDepth, cdpRecordTraverse func, cdpRecordTraverse listEnd, void* context);  // Traverses each sub-branch of a book record.
 
 // Removing records
-bool cdp_record_delete(cdpRecord* record, bool delChildren);                          // Deletes a record and optionally all its children.
-bool cdp_record_remove(cdpRecord* book, cdpNameID nameID, void* data, size_t* size);  // Finds and removes the (unique) nameID record from book, saving register data if necessary.
-bool cdp_record_pop   (cdpRecord* book, void* data, size_t* size, bool last);         // Removes the first (or last) record from book, saving register data if necessary.
+bool cdp_record_delete(cdpRecord* record, unsigned maxDepth);                     // Deletes a record and all its children re-organizing sibling storage.
+#define cdp_record_delete_register(reg)   cdp_record_delete(reg, 0)
 
 // To manage concurrent access to records safely.
 bool cdp_record_lock(cdpRecord* record);
@@ -333,6 +387,10 @@ cdpRecord* cdp_record_add_copy(const cdpRecord* book, cdpNameID nameID, cdpRecor
 
 // Creates a new link to a record and adds/inserts it (or pushes it) to a book under nameID, updating the source record parent list as necessary.
 cdpRecord* cdp_record_add_link(cdpRecord* book, cdpNameID nameID, cdpRecord* record, bool push);
+
+
+CDP_FUNC_CMPi_(cdp_record_compare_by_name, cdpRecord, metadata.nameID)
+
 
 
 #endif
