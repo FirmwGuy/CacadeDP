@@ -109,10 +109,6 @@
       Red-Black Tree: Ensures balanced tree structure for ordered data, 
       offering logarithmic time complexity for insertions, deletions, and 
       lookups. Particularly useful for datasets requiring sorted access.
-      
-      B-tree: Similar to Red-Black trees in providing sorted access but 
-      optimized for scenarios involving large datasets and minimizing page 
-      loads, which is crucial for disk-based storage systems.
     
     * Locking System: The lock mechanism is implemented by serializing all IOs 
     and keeping a list of currently locked book paths and a list of locked 
@@ -129,6 +125,10 @@
 
 
 #include "cdp_util.h"
+
+
+typedef struct _cdpRecord   cdpRecord;
+typedef struct _cdpPath     cdpPath;
 
 
 /*
@@ -150,7 +150,7 @@ enum {
     CDP_BOOK_SORT_NONE,         // Book keeps its fields unsorted.
     CDP_BOOK_SORT_BY_NAME,      // Book sorts its children by their (unique) nameID.
     CDP_BOOK_SORT_BY_DATA,      // Book sorts its children by their own register data (useful for making indexes).
-    CDP_BOOK_SORT_BY_KEY,       // Book sorts its children by a register data (key) found on a grand-child nameID.
+    CDP_BOOK_SORT_BY_FUNC,      // Book sorts its children by a user provided comparator function.
     //
     CDP_BOOK_SORT_COUNT
 };
@@ -158,31 +158,38 @@ enum {
 #define CDP_BOOK_SORTED     CDP_BOOK_SORT_BY_NAME
 
 enum {
-    // Unsortable and pushable:
-    CDP_CHD_STO_CIRC_BUFFER,    // Children stored in a circular buffer.
+    // Queues (no keys):
     CDP_CHD_STO_LINKED_LIST,    // Children stored in a doubly linked list.
+    CDP_CHD_STO_CIRC_BUFFER,    // Children stored in a circular buffer.
     
-    // Sortable and pushable:
+    // Lists (may be sorted by key):
     CDP_CHD_STO_ARRAY,          // Children stored in an array.
     CDP_CHD_STO_PACKED_LIST,    // Children stored in a packed list.
     
-    // Sorted and non-pushable:
-    CDP_CHD_STO_RED_BLACK_T,    // Children stored in a red-black tree (requires sorted books).
-    CDP_CHD_STO_B_TREE,         // Children stored in a B-tree (requires sorted books).
+    // Dictionary (always sorted by key):
+    CDP_CHD_STO_RED_BLACK_T,    // Children stored in a red-black tree.
     //
     CDP_CHD_STO_COUNT
 };
 
-#define CDP_CHD_SORTABLE        CDP_CHD_STO_ARRAY
-#define CDP_CHD_NON_PUSHABLE    CDP_CHD_STO_RED_BLACK_T
+#define CDP_CHD_NON_PUSHABLE    CDP_CHD_STO_ARRAY
+#define CDP_CHD_ALWAYS_SORTED   CDP_CHD_STO_RED_BLACK_T
+
+enum {
+    CDP_REG_STO_OWNED,          // Register owns its own data.
+    CDP_REG_STO_BORROWED,       // Register has borrowed data (only for private records).
+    CDP_REG_STO_CACHE_MISS,     // Register data needs to be re-acquired.
+    //
+    CDP_REG_STO_COUNT
+};
 
 typedef uint32_t cdpNameID;
 
 typedef struct {
-    uint32_t  propFg: 2,        // Flags for record properties (multiple parents, private).
-              rStyle: 2,        // Style of the record (book, register or link)
-              sorted: 2,        // Children ordering method (sorted, unsorted, etc).
-              chdSto: 3,        // Children storage technique (array, circular buffer, linked list, etc.)
+    uint32_t  proFlag: 2,       // Flags for record properties (multiple parents, private).
+              reStyle: 2,       // Style of the record (book, register or link)
+              sorting: 2,       // Children ordering method (sorted, unsorted, etc).
+              stoTech: 3,       // Book/register storage technique (array, circular buffer, linked list, etc.)
               typeID: 23;       // Type identifier for the record.
     cdpNameID nameID;           // Name/field identifier in the parent record.
 } cdpRecordMetadata;
@@ -193,53 +200,51 @@ typedef struct {
  */
  
 typedef struct {
+    void*  children;        // Pointer to either cdpArray, cdpList, cdpRbTree, etc.
+    size_t chdCount;        // Number of child records, for quick access and management
+} cdpVariantBook;
+
+typedef struct {
     union {
         void*     ptr;      // Pointer to large data sets
         uintptr_t direct;   // Direct storage for small data sets
     } data;
     size_t size;            // Data buffer size in bytes
 } cdpRegisterData;
-
+ 
 typedef struct {
-    void*  children;        // Pointer to either cdpRecChdArray, cdpRecChdList, cdpRecChdRbTree, etc.
-    size_t chdCount;        // Number of child records, for quick access and management
-} cdpVariantBook;
+    union {
+      cdpRecord* address;   // Memory address of target record.
+      cdpPath*   path;      // Full or relative path to target.
+    } target;
+    bool inRam;             // Target record is in ram.
+} cdpLink;
 
 typedef union {
     cdpVariantBook  book;   // Book structure for hierarchical data organization
     cdpRegisterData reg;    // Register structure for actual data storage
+    cdpLink         link;   // Register structure for actual data storage
 } cdpRecordData;
 
 typedef struct {
     size_t     count;       // Number of parent pointers
     cdpRecord* coparent[];  // Dynamic array of parent pointers
-} cdpParentMultiple;
+} cdpCoparent;
 
-typedef struct cdpRecordStruct {
+struct _cdpRecord {
     union {
-        struct cdpRecordStruct*   single;   // Pointer to a single parent
-        struct cdpParentMultiple* multiple; // Pointer to a structure for managing multiple parents
-    } parent;                               // Parent pointer(s)
-    cdpRecordMetadata metadata;             // Metadata including flags and nameID
-    cdpRecordData     recData;              // Data, either a book or register
-} cdpRecord;
+        cdpRecord*    single;   // Pointer to a single parent
+        cdpCoparent*  multiple; // Pointer to a structure for managing multiple parents
+    } parent;                   // Parent pointer(s)
+    cdpRecordMetadata metadata; // Metadata including flags and nameID
+    cdpRecordData     recData;  // Data, either a book, a register or a link.
+};
 
 
 /*
  * Children Storage Techniques
  */
  
-typedef struct {
-    size_t capacity;        // Total capacity of the array to manage allocations
-    cdpRecord record[];     // Dynamic array of children Record
-} cdpRecChdArray;
-
-typedef struct {
-    size_t head;            // Head index for the next read.
-    size_t capacity;        // Total capacity of the buffer.
-    cdpRecord record[];     // Dynamic array of children Record
-} cdpRecChdCirBuffer;
-
 typedef struct cdpListNode {
     struct cdpListNode *next;
     struct cdpListNode *prev;
@@ -249,7 +254,18 @@ typedef struct cdpListNode {
 typedef struct {
     cdpListNode* head;      // Head of the doubly linked list
     cdpListNode* tail;      // Tail of the doubly linked list for quick append
-} cdpRecChdList;
+} cdpList;
+
+typedef struct {
+    size_t head;            // Head index for the next read.
+    size_t capacity;        // Total capacity of the buffer.
+    cdpRecord record[];     // Dynamic array of children Record
+} cdpCirBuffer;
+
+typedef struct {
+    size_t capacity;        // Total capacity of the array to manage allocations
+    cdpRecord record[];     // Dynamic array of children Record
+} cdpArray;
 
 typedef struct cdpPackedListNode {
     struct cdpPackedListNode* next; // Pointer to the next node in the list
@@ -261,7 +277,7 @@ typedef struct {
     cdpPackedListNode* head;  // Head of the packed list
     cdpPackedListNode* tail;  // Tail of the packed list for quick append operations
     size_t packSize;          // Capacity of each pack (Total count of records across all packs is in childrenCount)
-} cdpRecChdPackedList;
+} cdpPackedList;
 
 typedef struct cdpRbTreeNode {
     struct cdpRbTreeNode *left, *right, *t_parent;
@@ -269,33 +285,20 @@ typedef struct cdpRbTreeNode {
     cdpRecord record;
 } cdpRbTreeNode;
 
-typedef struct {
-    cdpRbTreeNode* root;      // Root of the red-black tree
-} cdpRecChdRbTree;
 
-#define CDP_BE_TREE_ORDER 5   // Minimum degree (t), adjust based on needs
-
-typedef struct cdpBeTreeNode {
-    int leaf;                                                 // Is true when node is leaf.
-    int n;                                                    // Current number of keys.
-    uintptr_t keys[2 * CDP_BE_TREE_ORDER - 1];                // Array of keys.
-    struct cdpBeTreeNode* t_children[2 * CDP_BE_TREE_ORDER];  // Array of child pointers.
-    cdpRecord record[2 * CDP_BE_TREE_ORDER - 1];              // Records associated with keys.
-} cdpBeTreeNode;
-
-typedef struct {
-    cdpBeTreeNode* root;      // Pointer to the root node
-} cdpRecChdBeTree;
+static inline cdpListNode*        cdp_list_node_from_record         (cdpRecord* record)   {assert(record);  return cdp_ptr_dif(record, offsetof(cdpListNode, record));}
+static inline cdpPackedListNode*  cdp_packed_list_node_from_record  (cdpRecord* record)   {assert(record);  return cdp_ptr_dif(record, offsetof(cdpPackedListNode, record));}
+static inline cdpRbTreeNode*      cdp_rb_tree_node_from_record      (cdpRecord* record)   {assert(record);  return cdp_ptr_dif(record, offsetof(cdpRbTreeNode, record));}
 
 
 /*
  * Other C Data Types
  */
-typedef struct {
+struct _cdpPath {
     unsigned  length;
     unsigned  capacity;
     cdpNameID nameID[];
-} cdpPath;
+};
 
 
 typedef struct {
@@ -314,26 +317,26 @@ typedef bool (*cdpRecordTraverse)(cdpBookEntry*, unsigned, void*);
  */
 
 // General property check
-static inline bool cdp_record_is_register(cdpRecord* record)  {assert(record);  return (record->metadata.rStyle == CDP_REC_STYLE_REGISTER);}
-static inline bool cdp_record_is_link    (cdpRecord* record)  {assert(record);  return (record->metadata.rStyle == CDP_REC_STYLE_LINK);}
-static inline bool cdp_record_is_book    (cdpRecord* record)  {assert(record);  return (record->metadata.rStyle == CDP_REC_STYLE_BOOK);}
-static inline bool cdp_record_is_private (cdpRecord* record)  {assert(record);  return (record->metadata.propFg & CDP_FLAG_PRIVATE) != 0;}
-static inline bool cdp_record_w_coparents(cdpRecord* record)  {assert(record);  return (record->metadata.propFg & CDP_FLAG_MULTIPLE_PARENTS) != 0;}
+static inline bool cdp_record_is_book    (cdpRecord* record)  {assert(record);  return (record->metadata.reStyle == CDP_REC_STYLE_BOOK);}
+static inline bool cdp_record_is_register(cdpRecord* record)  {assert(record);  return (record->metadata.reStyle == CDP_REC_STYLE_REGISTER);}
+static inline bool cdp_record_is_link    (cdpRecord* record)  {assert(record);  return (record->metadata.reStyle == CDP_REC_STYLE_LINK);}
+static inline bool cdp_record_is_private (cdpRecord* record)  {assert(record);  return (record->metadata.proFlag & CDP_FLAG_PRIVATE) != 0;}
+static inline bool cdp_record_w_coparents(cdpRecord* record)  {assert(record);  return (record->metadata.proFlag & CDP_FLAG_MULTIPLE_PARENTS) != 0;}
 
 // Register property check
-static inline bool cdp_record_register_borrowed(cdpRecord* reg)  {assert(cdp_record_is_register(reg));  return reg->metadata.chdSto != 0;}
+static inline bool cdp_record_register_borrowed(cdpRecord* reg)  {assert(cdp_record_is_register(reg));  return (reg->metadata.stoTech == CDP_REG_STO_BORROWED);}
 
 
 // Book property check
 static inline int cdp_record_book_sorting(cdpRecord* book) {
     assert(cdp_record_is_book(book));
-    return book->metadata.sorted;
+    return book->metadata.sorting;
 }
-#define cdp_record_book_sorted(book)    (cdp_record_book_sorting(book) >= CDP_BOOK_SORTED && (book)->metadata.chdSto >= CDP_CHD_SORTABLE)
+#define cdp_record_book_sorted(book)    (cdp_record_book_sorting(book) >= CDP_BOOK_SORTED)
 
 static inline bool cdp_record_book_pushable(cdpRecord* book) {
     assert(cdp_record_is_book(book));
-    return (book->metadata.chdSto < CDP_CHD_NON_PUSHABLE);
+    return (book->metadata.stoTech < CDP_CHD_NON_PUSHABLE);
 }
 
 
@@ -365,11 +368,16 @@ cdpRecord* cdp_record_by_key  (cdpRecord* book, cdpNameID siblingKeyID, cdpCmp c
 cdpRecord* cdp_record_by_index(cdpRecord* book, size_t index);                            // Gets the child record at index position from book.
 cdpRecord* cdp_record_by_path (cdpRecord* start, cdpPath** path);                         // Finds a child record based on a path of nameIDs starting from the root or a given book.
 
+cdpRecord* cdp_record_prev(cdpRecord* book, cdpRecord* record);                           // Retrieves the previous sibling of record (sorted or unsorted).
+cdpRecord* cdp_record_next(cdpRecord* book, cdpRecord* record);                           // Retrieves the next sibling of record (sorted or unsorted).
 cdpRecord* cdp_record_next_by_name(cdpRecord* book, cdpNameID nameID, uintptr_t* prev);   // Retrieves the first/next (unsorted) child record by its nameID.
 cdpRecord* cdp_record_next_by_path(cdpRecord* start, cdpPath** path, uintptr_t* prev);    // Finds the first/next (unsorted) record based on a path of nameIDs starting from the root or a given book.
 
 bool cdp_record_traverse     (cdpRecord* book, cdpRecordTraverse func, void* context);    // Traverses the children of a book record, applying a function to each.
 bool cdp_record_deep_traverse(cdpRecord* book, unsigned maxDepth, cdpRecordTraverse func, cdpRecordTraverse listEnd, void* context);  // Traverses each sub-branch of a book record.
+
+// Making an unsorted record sorted
+cdpRecord* cdp_record_sort(cdpRecord* book, unsigned how, bool last, ...);
 
 // Removing records
 bool cdp_record_delete(cdpRecord* record, unsigned maxDepth);                     // Deletes a record and all its children re-organizing sibling storage.

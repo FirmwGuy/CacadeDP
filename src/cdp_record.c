@@ -33,8 +33,9 @@
     Creates a new record of the specified style on parent book.
     
     Collection styles:
-    * Array: this is never sorted after insertion so each item *must* be added
-    in a sorted order.
+    * Array: this is never sorted after insertion so if the users want to use 
+    anything other than CDP_BOOK_SORT_NONE they *must* append each item in (an 
+    already) sorted order.
 
 */
 cdpRecord* cdp_record_create(cdpRecord* parent, unsigned style, cdpNameID nameID, uint32_t typeID, bool push, bool priv, ...) {
@@ -43,44 +44,65 @@ cdpRecord* cdp_record_create(cdpRecord* parent, unsigned style, cdpNameID nameID
     va_list args;
     va_start(args, priv);
     
-    // Fast switch-case for child storage techniques:
-    assert(parent->metadata.chdSto < CDP_CHD_STO_COUNT);
-    static const void* const chdStoTech[] = {&&CIRC_BUFFER, &&LINKED_LIST, &&ARRAY, &&PACKED_LIST, &&RED_BLACK_T, &&B_TREE};
-    goto *chdStoTech[parent->metadata.chdSto];
+    // Fast switch-case for (parent's) child storage techniques:
+    assert(parent->metadata.stoTech < CDP_CHD_STO_COUNT);
+    static const void* const chdStoTech[] = {&&LINKED_LIST, &&CIRC_BUFFER, &&ARRAY, &&PACKED_LIST, &&RED_BLACK_T};
+    goto *chdStoTech[parent->metadata.stoTech];
     do {
-      CIRC_BUFFER:
+      LINKED_LIST: {
+        cdpList* list = parent->recData.book.children;
+        assert(list && !cdp_record_book_sorted(parent));
+        CDP_NEW(cdpListNode, node);
+        if (push) {
+            node->prev = NULL;
+            node->next = list->head;
+            if (list->head)
+                list->head->prev = node;
+            else
+                list->tail = node;
+            list->head = node;
+        }
+        else {
+            node->next = NULL;
+            node->prev = list->tail;
+            if (list->tail)
+                list->tail->next = node;
+            else
+                list->head = node;
+            list->tail = node;
+        }
         break;
+      }
         
-      LINKED_LIST:
+      CIRC_BUFFER: {
         break;
+      }
         
       ARRAY: {
         assert(!push);      // Push is not allowed for array (use circular buffer instead).   
-        //
         cdpArray* array = parent->recData.book.children;
         assert(array && array->capacity > parent->recData.book.chdCount);
         child = &array->record[parent->recData.book.chdCount];
         break;
       }
        
-      PACKED_LIST:
+      PACKED_LIST: {
         break;
+      }
         
-      RED_BLACK_T:
+      RED_BLACK_T: {
         break;
-        
-      B_TREE:
-        break;
+      }
     } while(0);
     
-    // Fill in the metadata
-    child->metadata.propFg = priv? CDP_FLAG_PRIVATE: 0;
-    child->metadata.rStyle = style;
-    child->metadata.typeID = typeID;
-    child->metadata.nameID = nameID;
-    child->parent.single = parent;
+    // Fill in the metadata.
+    child->metadata.proFlag = priv? CDP_FLAG_PRIVATE: 0;
+    child->metadata.reStyle = style;
+    child->metadata.typeID  = typeID;
+    child->metadata.nameID  = nameID;
+    child->parent.single    = parent;
     
-    // Update parent
+    // Update parent.
     parent->recData.book.chdCount++;
     
     // Fast switch-case for record styles:
@@ -94,11 +116,11 @@ cdpRecord* cdp_record_create(cdpRecord* parent, unsigned style, cdpNameID nameID
         size_t size   = va_arg(args, size_t);
         assert(size);
         
-        // Allocate storage for register
+        // Allocate storage for child register.
         if (borrow) {
             assert(priv && data);
             child->recData.reg.data.ptr = data;
-            child->metadata.chdSto = 1;   // Points to borrowed memory.
+            child->metadata.stoTech = CDP_REG_STO_BORROWED;
         }
         else if (data) {
             child->recData.reg.data.ptr = cdp_malloc(size);
@@ -111,20 +133,55 @@ cdpRecord* cdp_record_create(cdpRecord* parent, unsigned style, cdpNameID nameID
       }
         
       BOOK: {
-        unsigned storage = va_arg(args, unsigned);
         unsigned sorting = va_arg(args, unsigned);
-        assert(storage < CDP_CHD_STO_COUNT && sorting < CDP_BOOK_SORT_COUNT);
-        assert(!(sorting != CDP_BOOK_SORT_NONE && storage < CDP_CHD_SORTABLE));
+        unsigned storage = va_arg(args, unsigned);
+        assert(sorting < CDP_BOOK_SORT_COUNT);
+        assert(!(sorting != CDP_BOOK_SORT_NONE && storage < CDP_CHD_NON_PUSHABLE));
+
+        // Fast switch-case for (child's) child storage techniques:
+        assert(storage < CDP_CHD_STO_COUNT);
+        static const void* const reqStoTech[] = {&&REQ_LINKED_LIST, &&REQ_CIRC_BUFFER, &&REQ_ARRAY, &&REQ_PACKED_LIST, &&REQ_RED_BLACK_T};
+        goto *reqStoTech[storage];
+        do {
+          REQ_LINKED_LIST: {
+            child->recData.book.children = cdp_new(cdpList);
+            break;
+          }
+          
+          REQ_CIRC_BUFFER: {
+            break;
+          }
+          
+          REQ_ARRAY: {
+            size_t capacity = va_arg(args, size_t);
+            assert(capacity);
+            cdpArray* chdArray = cdp_new(cdpArray, + (capacity * sizeof(cdpRecord)));
+            chdArray->capacity = capacity;
+            child->recData.book.children = chdArray;
+            break;
+          }
+
+          REQ_PACKED_LIST: {
+            break;
+          }
+          
+          REQ_RED_BLACK_T: {
+            break;
+          }
+        } while(0);
         
-        child->metadata.sorted = sorting;
+        child->metadata.sorting = sorting;
         
-        if (sorting == CDP_BOOK_SORT_BY_KEY) {
+        switch (sorting) {
+          case CDP_BOOK_SORT_BY_FUNC: {
             // Inserts this new record using the key stored on the siblingKeyID field.
             cdpNameID siblingKeyID = va_arg(args, unsigned);
             cdpCmp compare = va_arg(args, unsigned);
             const void* key = va_arg(args, unsigned);
             size_t kSize = va_arg(args, unsigned);
             assert(siblingKeyID && compare && key && kSize);
+            break;
+          }
         }
 
         break;
@@ -157,7 +214,7 @@ bool cdp_record_register_read(cdpRecord* reg, size_t position, void** data, size
     if (*data)
         memcpy(*data, pointed, *size);
     else {
-        assert(reg->metadata.propFg & CDP_FLAG_PRIVATE);
+        assert(cdp_record_is_private(reg);
         *data = pointed;
     }
 
@@ -237,18 +294,21 @@ bool cdp_record_path(cdpRecord* record, cdpPath** path) {
 cdpRecord* cdp_record_top(cdpRecord* book, bool last) {
     assert(cdp_record_is_book(book));
     CDP_CK(book->recData.book.chdCount);
-    assert(book->recData.book.children);
     cdpRecord* record;
     
      // Fast switch-case for child storage techniques:
-    assert(book->metadata.chdSto < CDP_CHD_STO_COUNT);
-    static const void* const chdStoTech[] = {&&CIRC_BUFFER, &&LINKED_LIST, &&ARRAY, &&PACKED_LIST, &&RED_BLACK_T, &&B_TREE};
-    goto *chdStoTech[book->metadata.chdSto];
+    assert(book->metadata.stoTech < CDP_CHD_STO_COUNT);
+    static const void* const chdStoTech[] = {&&LINKED_LIST, &&CIRC_BUFFER, &&ARRAY, &&PACKED_LIST, &&RED_BLACK_T};
+    goto *chdStoTech[book->metadata.stoTech];
     do {
-      CIRC_BUFFER:
+      LINKED_LIST: {
+        cdpList* list = book->recData.book.children;
+        assert(list);
+        record = last? &list->tail.record: &list->head.record;
         break;
+      }
         
-      LINKED_LIST:
+      CIRC_BUFFER:
         break;
         
       ARRAY: {
@@ -263,9 +323,6 @@ cdpRecord* cdp_record_top(cdpRecord* book, bool last) {
         
       RED_BLACK_T:
         break;
-        
-      B_TREE:
-        break;
     } while(0);
     
     return record;
@@ -277,27 +334,39 @@ cdpRecord* cdp_record_top(cdpRecord* book, bool last) {
     Retrieves a child record by its nameID.
 */
 cdpRecord* cdp_record_by_name(cdpRecord* book, cdpNameID nameID) {
-    assert(cdp_record_book_sorted(book) && nameID);
+    assert(cdp_record_is_book(book) && nameID);
     CDP_CK(book->recData.book.chdCount);
     assert(book->recData.book.children);
     cdpRecord* record;
     
     // Fast switch-case for children sorting method:
-    assert(book->metadata.sorted < CDP_BOOK_SORT_COUNT);
-    static const void* const bookSorting[] = {NULL, &&BY_NAME, &&BY_DATA, &&BY_KEY};
-    goto *bookSorting[book->metadata.sorted];
+    assert(book->metadata.sorting < CDP_BOOK_SORT_COUNT);
+    static const void* const bookSorting[] = {&&BY_NAME, &&BY_DATA, &&BY_KEY};
+    goto *bookSorting[book->metadata.sorting - 1];
     do {
-      // Sorted search:
       BY_NAME: {
-        cdpRecord key = {.nameID = nameID};
-        
         // Fast switch-case for child storage techniques:
-        assert(book->metadata.chdSto < CDP_CHD_STO_COUNT && book->metadata.chdSto >= CDP_CHD_SORTABLE);
-        static const void* const chdStoTech[] = {NULL, NULL, &&ARRAY, &&PACKED_LIST, &&RED_BLACK_T, &&B_TREE};
-        goto *chdStoTech[book->metadata.chdSto];
+        assert(book->metadata.stoTech < CDP_CHD_STO_COUNT && book->metadata.stoTech >= CDP_CHD_NON_PUSHABLE);
+        static const void* const chdStoTech[] = {&&LINKED_LIST, &&CIRC_BUFFER, &&ARRAY, &&PACKED_LIST, &&RED_BLACK_T};
+        goto *chdStoTech[book->metadata.stoTech];
         do {
+          LINKED_LIST: {
+            cdpList* list = book->recData.book.children;
+            for (cdpListNode* node = list->head;  node;  node = node->next) {
+                if (node->record.metadata.nameID == nameID)
+                    return &node->record;
+            }
+            break;
+          }
+            
+          CIRC_BUFFER:
+            break;
+        
           ARRAY: {
-            return bsearch(&key, book->recData.book.children, book->recData.book.chdCount, sizeof(cdpRecord), cdp_record_compare_by_name);
+            assert(cdp_record_book_sorted(book));
+            cdpRecord key = {.nameID = nameID};
+            cdpArray* array = book->recData.book.children;
+            return bsearch(&key, array->record, book->recData.book.chdCount, sizeof(cdpRecord), cdp_record_compare_by_name);
           }
             
           PACKED_LIST: {
@@ -306,17 +375,15 @@ cdpRecord* cdp_record_by_name(cdpRecord* book, cdpNameID nameID) {
             
           RED_BLACK_T:
             break;
-            
-          B_TREE:
-            break;
 
         } while(0);
         break;
       }
 
-      BY_DATA:; BY_KEY: {
+      BY_DATA:;
+      BY_KEY: {
         // FixMe: add mising sorting methods
-        assert(book->metadata.sorted != CDP_BOOK_SORT_BY_NAME);
+        assert(book->metadata.sorting != CDP_BOOK_SORT_BY_NAME);
       }
     } while(0);
 
@@ -341,22 +408,30 @@ cdpRecord* cdp_record_by_key(cdpRecord* book, cdpNameID siblingKeyID, cdpCmp com
 cdpRecord* cdp_record_by_index(cdpRecord* book, size_t index) {
     assert(cdp_record_is_book(book) && index <= book->recData.book.chdCount);
     CDP_CK(book->recData.book.chdCount);
+    assert(book->recData.book.children);
     cdpRecord* record;
 
     // Fast switch-case for child storage techniques:
-    assert(book->metadata.chdSto < CDP_CHD_STO_COUNT);
-    static const void* const chdStoTech[] = {&&CIRC_BUFFER, &&LINKED_LIST, &&ARRAY, &&PACKED_LIST, &&RED_BLACK_T, &&B_TREE};
-    goto *chdStoTech[book->metadata.chdSto];
+    assert(book->metadata.stoTech < CDP_CHD_STO_COUNT);
+    static const void* const chdStoTech[] = {&&LINKED_LIST, &&CIRC_BUFFER, &&ARRAY, &&PACKED_LIST, &&RED_BLACK_T};
+    goto *chdStoTech[book->metadata.stoTech];
     do {
-      CIRC_BUFFER:
+      LINKED_LIST: {
+        cdpList* list = book->recData.book.children;
+        size_t n = 0;
+        for (cdpListNode* node = list->head;  node;  node = node->next, n++) {
+            if (n == index)
+                return &node->record;
+        }
         break;
-        
-      LINKED_LIST:
+      }
+      
+      CIRC_BUFFER:
         break;
         
       ARRAY: {
         cdpArray* array = book->recData.book.children;
-        assert(array && array->capacity >= book->recData.book.chdCount);
+        assert(array->capacity >= book->recData.book.chdCount);
         return &array->record[index];
       }
        
@@ -364,9 +439,6 @@ cdpRecord* cdp_record_by_index(cdpRecord* book, size_t index) {
         break;
         
       RED_BLACK_T:
-        break;
-        
-      B_TREE:
         break;
     } while(0);
 
@@ -391,22 +463,128 @@ cdpRecord* cdp_record_by_path(cdpRecord* start, const cdpPath* path) {
 }
 
 
+
+
+
+/*
+    Retrieves the previous sibling of record (sorted or unsorted).
+*/
+cdpRecord* cdp_record_prev(cdpRecord* book, cdpRecord* record) {
+    assert(record);
+    if (!book)  book = record->parent.single;   // FixMe: coparents.
+    
+    assert(cdp_record_is_book(book));
+    CDP_CK(book->recData.book.chdCount);
+    assert(book->recData.book.children);
+
+    // Fast switch-case for child storage techniques:
+    assert(book->metadata.stoTech < CDP_CHD_STO_COUNT);
+    static const void* const chdStoTech[] = {&&LINKED_LIST, &&CIRC_BUFFER, &&ARRAY, &&PACKED_LIST, &&RED_BLACK_T};
+    goto *chdStoTech[book->metadata.stoTech];
+    do {
+      LINKED_LIST: {
+        cdpListNode* node = cdp_list_node_from_record(record);
+        return node->prev? &node->prev.record: NULL;
+      }
+      
+      CIRC_BUFFER:
+        break;
+        
+      ARRAY: {
+        cdpArray* array = book->recData.book.children;
+        assert(array->capacity >= book->recData.book.chdCount);
+        return (record > array->record)? record - 1: NULL;
+      }
+       
+      PACKED_LIST:
+        break;
+        
+      RED_BLACK_T:
+        break;
+    } while(0);
+
+    return NULL;
+}
+
+
+/*
+    Retrieves the next sibling of record (sorted or unsorted).
+*/
+cdpRecord* cdp_record_next(cdpRecord* book, cdpRecord* record) {
+    assert(record);
+    if (!book)  book = record->parent.single;   // FixMe: coparents.
+    
+    assert(cdp_record_is_book(book));
+    CDP_CK(book->recData.book.chdCount);
+    assert(book->recData.book.children);
+
+    // Fast switch-case for child storage techniques:
+    assert(book->metadata.stoTech < CDP_CHD_STO_COUNT);
+    static const void* const chdStoTech[] = {&&LINKED_LIST, &&CIRC_BUFFER, &&ARRAY, &&PACKED_LIST, &&RED_BLACK_T};
+    goto *chdStoTech[book->metadata.stoTech];
+    do {
+      LINKED_LIST: {
+        cdpListNode* node = cdp_list_node_from_record(record);
+        return node->next? &node->next.record: NULL;
+      }
+      
+      CIRC_BUFFER:
+        break;
+        
+      ARRAY: {
+        cdpArray* array = book->recData.book.children;
+        assert(array->capacity >= book->recData.book.chdCount);
+        cdpRecord* last = &array->record[book->recData.book.chdCount - 1];
+        return (record < last)? record + 1: NULL;
+      }
+       
+      PACKED_LIST:
+        break;
+        
+      RED_BLACK_T:
+        break;
+    } while(0);
+
+    return NULL;
+}
+
+
+
+
 /*
     Retrieves the first/next child record by its nameID.
 */
 cdpRecord* cdp_record_next_by_name(cdpRecord* book, cdpNameID nameID, uintptr_t* childIdx) {
-    if (cdp_record_book_sorted(book) return cdp_record_by_name(book, nameID);
+    assert(childIdx);
+
+    if (cdp_record_book_sorted(book)) {
+        *childIdx = 0;    // FixMe: no storing the real matching index anywhere.
+        return cdp_record_by_name(book, nameID);
+    }
     
     CDP_CK(book->recData.book.chdCount);
-    assert(book->recData.book.children );
+    assert(book->recData.book.children);
     cdpRecord* record;
     
     // Fast switch-case for child storage techniques:
-    assert(book->metadata.chdSto < CDP_CHD_NON_PUSHABLE);
-    static const void* const chdStoTech[] = {&&CIRC_BUFFER, &&LINKED_LIST, &&ARRAY, &&PACKED_LIST};
-    goto *chdStoTech[book->metadata.chdSto];
+    assert(book->metadata.stoTech < CDP_CHD_ALWAYS_SORTED);
+    static const void* const chdStoTech[] = {&&LINKED_LIST, &&CIRC_BUFFER, &&ARRAY, &&PACKED_LIST};
+    goto *chdStoTech[book->metadata.stoTech];
     do {
-      CIRC_BUFFER:
+      LINKED_LIST: {
+        cdpList* list = book->recData.book.children;
+        cdpListNode* node = *childIdx?  ((cdpListNode*)*childIdx)->next:  list->head;
+        while (node) {
+            if (node->record.metadata.nameID == nameID) {
+                *(cdpListNode*)childIdx = node;
+                return &node->record;
+            }
+            node = node->next;
+        }
+        break;
+      }
+      
+      CIRC_BUFFER: {
         for (size_t i = startIdx; i < book->data.book.childrenCount; i++) {
             if (children->record[i].metadata.nameID == nameID) {
                 if (childIdx) *childIdx = i + 1; // Prepare childIdx for the next search
@@ -414,13 +592,12 @@ cdpRecord* cdp_record_next_by_name(cdpRecord* book, cdpNameID nameID, uintptr_t*
             }
         }
         break;
-        
-      LINKED_LIST:
-        break;
+      }
         
       ARRAY: {
         cdpRecord key = {.nameID = nameID};
         size_t start = childIdx? childIdx: book->recData.book.chdCount;
+        // FixMe: store back index position
         return lfind(&key, book->recData.book.children, start, sizeof(cdpRecord), cdp_record_compare_by_name);
       }
        
@@ -461,14 +638,29 @@ bool cdp_record_traverse(cdpRecord* book, cdpRecordTraverse func, void* context)
     cdpRecord* record;
 
     // Fast switch-case for child storage techniques:
-    assert(book->metadata.chdSto < CDP_CHD_STO_COUNT);
-    static const void* const chdStoTech[] = {&&CIRC_BUFFER, &&LINKED_LIST, &&ARRAY, &&PACKED_LIST, &&RED_BLACK_T, &&B_TREE};
-    goto *chdStoTech[book->metadata.chdSto];
+    assert(book->metadata.stoTech < CDP_CHD_STO_COUNT);
+    static const void* const chdStoTech[] = {&&LINKED_LIST, &&CIRC_BUFFER, &&ARRAY, &&PACKED_LIST, &&RED_BLACK_T};
+    goto *chdStoTech[book->metadata.stoTech];
     do {
-      CIRC_BUFFER:
+      LINKED_LIST: {
+        cdpList* list = book->recData.book.children;
+        assert(list);
+        cdpBookEntry entry = {.parent = book};
+        cdpListNode* node = list->head, *next;
+        while (node) {
+            next = node->next;
+            entry.record = &node->record;
+            entry.next = next? &next->record: NULL;
+            if (!func(&entry, 0, context))  return false;
+            
+            entry.prev = entry.record;
+            entry.index++;
+            node = next;
+        }
         break;
+      }
         
-      LINKED_LIST:
+      CIRC_BUFFER:
         break;
         
       ARRAY: {
@@ -479,10 +671,10 @@ bool cdp_record_traverse(cdpRecord* book, cdpRecordTraverse func, void* context)
         while (entry.index < book->recData.book.chdCount) {
             if (!func(&entry, 0, context))  return false;
             
-            entry.index++;
             entry.prev   = entry.record;
             entry.record = entry.next;
             entry.next++;
+            entry.index++;
         }
         break;
       }
@@ -491,9 +683,6 @@ bool cdp_record_traverse(cdpRecord* book, cdpRecordTraverse func, void* context)
         break;
         
       RED_BLACK_T:
-        break;
-        
-      B_TREE:
         break;
     } while(0);
     
@@ -540,14 +729,18 @@ bool cdp_record_deep_traverse(cdpRecord* book, unsigned maxDepth, cdpRecordTrave
       NEXT_SIBLING:
         // Get sibling...
         // Fast switch-case for child storage techniques:
-        assert(entry.parent->metadata.chdSto < CDP_CHD_STO_COUNT);
-        static const void* const chdStoTech[] = {&&CIRC_BUFFER, &&LINKED_LIST, &&ARRAY, &&PACKED_LIST, &&RED_BLACK_T, &&B_TREE};
-        goto *chdStoTech[entry.parent->metadata.chdSto];
+        assert(entry.parent->metadata.stoTech < CDP_CHD_STO_COUNT);
+        static const void* const chdStoTech[] = {&&LINKED_LIST, &&CIRC_BUFFER, &&ARRAY, &&PACKED_LIST, &&RED_BLACK_T};
+        goto *chdStoTech[entry.parent->metadata.stoTech];
         do {
-          CIRC_BUFFER:
+          LINKED_LIST: {
+            cdpListNode* node = cdp_list_node_from_record(entry.record);
+            cdpListNode* next = node->next;
+            entry.next = next? &next->record: NULL;
             break;
+          }
             
-          LINKED_LIST:
+          CIRC_BUFFER:
             break;
             
           ARRAY: {
@@ -561,9 +754,6 @@ bool cdp_record_deep_traverse(cdpRecord* book, unsigned maxDepth, cdpRecordTrave
             break;
             
           RED_BLACK_T:
-            break;
-            
-          B_TREE:
             break;
         } while(0);
 
@@ -601,16 +791,120 @@ bool cdp_record_deep_traverse(cdpRecord* book, unsigned maxDepth, cdpRecordTrave
 
 
 
+/*
+    Making an unsorted record sorted.
+*/
+cdpRecord* cdp_record_sort(cdpRecord* book, unsigned how, bool last, ...) {
+    assert(cdp_record_is_book(book) && how);
+    CDP_CK(book->recData.book.chdCount && !cdp_record_book_sorted(book));
+    assert(book->recData.book.children);
+    cdpRecord* record = NULL;
+    
+    if (book->recData.book.chdCount > 1) {
+        // Fast switch-case for children sorting method:
+        assert(book->metadata.sorting < CDP_BOOK_SORT_COUNT);
+        static const void* const bookSorting[] = {&&BY_NAME, &&BY_DATA, &&BY_KEY};
+        goto *bookSorting[how - 1];
+        do {
+          BY_NAME: {
+            // Fast switch-case for child storage techniques:
+            assert(book->metadata.stoTech < CDP_CHD_STO_COUNT && book->metadata.stoTech >= CDP_CHD_NON_PUSHABLE);
+            static const void* const chdStoTech[] = {&&LINKED_LIST, &&CIRC_BUFFER, &&ARRAY, &&PACKED_LIST, &&RED_BLACK_T};
+            goto *chdStoTech[book->metadata.stoTech];
+            do {
+              LINKED_LIST: {
+                cdpList* list = book->recData.book.children;
+                cdpListNode* prev = list->head, *next;
+                cdpListNode* node = prev->next, *smal;
+                while (node) {
+                    if (0 > cdp_record_compare_by_name(&node->record, &prev->record)) {
+                        // Unlink node.
+                        next = node->next;
+                        prev->next = next;
+                        if (next) next->prev = prev;
+                        
+                        // Look backwards for a smaller nameID.
+                        for (smal = prev->prev;  smal;  smal = smal->prev) {
+                            if (0 <= cdp_record_compare_by_name(&node->record, &smal->record))
+                                break;
+                        }
+                        if (smal) {
+                            // Insert after smaller.
+                            if (list->tail == smal)
+                                list->tail = node;
+                            else
+                                smal->next->prev = node;
+                            node->prev = smal;
+                            node->next = smal->next;
+                            smal->next = node;
+                        }
+                        else {
+                            // Insert as first in list.
+                            node->prev = NULL;
+                            node->next = list->head;
+                            if (list->head)
+                                list->head->prev = node;
+                            else
+                                list->tail = node;
+                            list->head = node;
+                        }
+                        node = prev->next;
+                    }
+                    else {
+                        prev = node;
+                        node = node->next;
+                    }
+                }
+                record = last? &list->tail.record: &list->head.record;
+                break;
+              }
+                
+              CIRC_BUFFER:
+                break;
+            
+              ARRAY: {
+                assert(cdp_record_is_private(book));
+                cdpArray* array = book->recData.book.children;
+                qsort(array->record, book->recData.book.chdCount, sizeof(cdpRecord), cdp_record_compare_by_name);
+                record = last?  &array->record[book->recData.book.chdCount - 1]:  array->record;
+              }
+                
+              PACKED_LIST: {
+                break;
+              }
+                
+              RED_BLACK_T:
+                break;
+
+            } while(0);
+            break;
+          }
+
+          BY_DATA:;
+          BY_KEY: {
+            // FixMe: add mising sorting methods
+            assert(book->metadata.sorting != CDP_BOOK_SORT_BY_NAME);
+          }
+        } while(0);
+    }
+    
+    book->metadata.sorting = how;
+
+    return record? record: cdp_record_top(book, last);
+}
+
+
+
 static bool record_unlink(cdpBookEntry* entry, unsigned depth, void* p) {
     assert(entry && entry->record && entry->parent);
 
     // Fast switch-case for record styles:
-    assert(entry.record->metadata.rStyle < CDP_REC_STYLE_COUNT);
+    assert(entry.record->metadata.reStyle < CDP_REC_STYLE_COUNT);
     static const void* const recordStyle[] = {&&REGISTER, &&BOOK, &&LINK};
-    goto *recordStyle[entry.record->metadata.rStyle];
+    goto *recordStyle[entry.record->metadata.reStyle];
     do {
       REGISTER: {
-        if (entry.record->metadata.chdSto != 0)   // Data isn't borrowed
+        if (entry.record->metadata.stoTech != 0)   // Data isn't borrowed
             cdp_free(entry.record->recData.reg.data.ptr);
         break;
       }
@@ -632,9 +926,9 @@ static bool record_del_store(cdpBookEntry* entry, unsigned depth, void* p) {
     assert(entry && entry->record && entry->parent);
     
     // Fast switch-case for record styles:
-    assert(entry.record->metadata.rStyle < CDP_REC_STYLE_COUNT);
+    assert(entry.record->metadata.reStyle < CDP_REC_STYLE_COUNT);
     static const void* const recordStyle[] = {&&REGISTER, &&BOOK, &&LINK};
-    goto *recordStyle[entry.record->metadata.rStyle];
+    goto *recordStyle[entry.record->metadata.reStyle];
     do {
       REGISTER: {
         // This shouldn't happen.
@@ -644,14 +938,15 @@ static bool record_del_store(cdpBookEntry* entry, unsigned depth, void* p) {
         
       BOOK: {
         // Fast switch-case for child storage techniques:
-        assert(entry.record->metadata.chdSto < CDP_CHD_STO_COUNT);
-        static const void* const chdStoTech[] = {&&CIRC_BUFFER, &&LINKED_LIST, &&ARRAY, &&PACKED_LIST, &&RED_BLACK_T, &&B_TREE};
-        goto *chdStoTech[entry.record->metadata.chdSto];
+        assert(entry.record->metadata.stoTech < CDP_CHD_STO_COUNT);
+        static const void* const chdStoTech[] = {&&LINKED_LIST, &&CIRC_BUFFER, &&ARRAY, &&PACKED_LIST, &&RED_BLACK_T};
+        goto *chdStoTech[entry.record->metadata.stoTech];
         do {
-          CIRC_BUFFER:
+          LINKED_LIST: {
             break;
+          }
             
-          LINKED_LIST:
+          CIRC_BUFFER:
             break;
             
           ARRAY: {
@@ -663,9 +958,6 @@ static bool record_del_store(cdpBookEntry* entry, unsigned depth, void* p) {
             break;
             
           RED_BLACK_T:
-            break;
-            
-          B_TREE:
             break;
         } while(0);
         break;
@@ -689,9 +981,9 @@ bool cdp_record_delete(cdpRecord* record, unsigned maxDepth) {
     cdpRecord* book = record->parent.single;
     
     // Fast switch-case for record styles:
-    assert(record->metadata.rStyle < CDP_REC_STYLE_COUNT);
+    assert(record->metadata.reStyle < CDP_REC_STYLE_COUNT);
     static const void* const recordStyle[] = {&&REGISTER, &&BOOK, &&LINK};
-    goto *recordStyle[record->metadata.rStyle];
+    goto *recordStyle[record->metadata.reStyle];
     do {
       REGISTER: {
         record_unlink(&(cdpBookEntry){.record=record, .parent=book}, 0, NULL);
@@ -710,14 +1002,25 @@ bool cdp_record_delete(cdpRecord* record, unsigned maxDepth) {
     /* Delete from parent (re-organize siblings) */
     
     // Fast switch-case for child storage techniques:
-    assert(book->metadata.chdSto < CDP_CHD_STO_COUNT);
-    static const void* const chdStoTech[] = {&&CIRC_BUFFER, &&LINKED_LIST, &&ARRAY, &&PACKED_LIST, &&RED_BLACK_T, &&B_TREE};
-    goto *chdStoTech[book->metadata.chdSto];
+    assert(book->metadata.stoTech < CDP_CHD_STO_COUNT);
+    static const void* const chdStoTech[] = {&&LINKED_LIST, &&CIRC_BUFFER, &&ARRAY, &&PACKED_LIST, &&RED_BLACK_T};
+    goto *chdStoTech[book->metadata.stoTech];
     do {
-      CIRC_BUFFER:
+      LINKED_LIST: {
+        cdpList* list = book->recData.book.children;
+        assert(list && list->head);
+        cdpListNode* node = cdp_list_node_from_record(record);
+        cdpListNode* next = node->next;
+        cdpListNode* prev = node->prev;
+        if (next) next->prev = prev;
+        else      list->tail = prev;
+        if (prev) prev->next = next;
+        else      list->head = next;
+        cdp_free(node);
         break;
+      }
         
-      LINKED_LIST:
+      CIRC_BUFFER:
         break;
         
       ARRAY: {
@@ -732,9 +1035,6 @@ bool cdp_record_delete(cdpRecord* record, unsigned maxDepth) {
         break;
         
       RED_BLACK_T:
-        break;
-        
-      B_TREE:
         break;
     } while(0);
     
@@ -784,3 +1084,4 @@ bool cdp_record_unlock(cdpRecord* record) {
     return true;
 }
 #endif
+
