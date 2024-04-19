@@ -175,12 +175,7 @@ typedef void (*cdpDel)(void*);
  * Binary Search
  */
  
-typedef int (*cdpCmp)(const void* restrict, const void* restrict);
-
-#define     CDP_CMP(a, b, X)          (((a)->X < (b)->X)? -1: ((a)->X - (b)->X))
-#define     CDP_CMPi(a, b, I)         ((a)->I - (b)->I)
-#define     CDP_FUNC_CMP_(f, T, X)    int f(const void* restrict a, const void* restrict b) {assert(a && b); return CDP_CMP((T*)a, (T*)b, X);}
-#define     CDP_FUNC_CMPi_(f, T, I)   int f(const void* restrict a, const void* restrict b) {assert(a && b); return CDP_CMPi((T*)a, (T*)b, I);}
+typedef int (*cdpCmp)(const cdpRecord* restrict, const cdpRecord* restrict, void*);
 
 
 #endif
