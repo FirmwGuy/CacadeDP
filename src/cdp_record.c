@@ -28,7 +28,7 @@
 
 
 
-static int cdp_record_compare_by_name(const cdpRecord* restrict key, const cdpRecord* restrict record, void* context) {
+static int record_compare_by_name(const cdpRecord* restrict key, const cdpRecord* restrict record, void* context) {
     //if (context) *(cdpRecord**)context = record;
     return key->metadata.nameID - record->metadata.nameID;
 }
@@ -335,12 +335,16 @@ cdpRecord* cdp_record_create(cdpRecord* parent, unsigned style, cdpNameID nameID
           
           REQ_RED_BLACK_T: {
             CDP_NEW(cdpRbTree, chdTree);
-            chdParentEx=&chdTree->parentEx;
+            chdParentEx = &chdTree->parentEx;
             break;
           }
         } while(0);
         
         // Link child book with its own child storage.
+        if (style == CDP_REC_STYLE_DICTIONARY) {
+            chdParentEx->compare = va_arg(args, cdpCmp);
+            chdParentEx->context = va_arg(args, void*);
+        }
         chdParentEx->book = child;
         child->recData.book.children = chdParentEx;
         break;
@@ -539,7 +543,7 @@ cdpRecord* cdp_record_by_name(cdpRecord* book, cdpNameID nameID) {
     
       ARRAY: {
         cdpArray* array = book->recData.book.children;
-        if (cdp_record_is_dictionary(book) && array->parentEx.compare == cdp_record_compare_by_name) {
+        if (cdp_record_is_dictionary(book) && array->parentEx.compare == record_compare_by_name) {
             cdpRecord key = {.metadata.nameID = nameID};
             return array_search(array, &key, NULL);
         } else {
@@ -985,7 +989,7 @@ void cdp_record_sort(cdpRecord* book, cdpCmp compare, void* context) {
     assert(!parentEx->compare);
     
     book->metadata.reStyle = CDP_REC_STYLE_DICTIONARY;
-    parentEx->compare = compare;
+    parentEx->compare = compare? compare: record_compare_by_name;
     parentEx->context = context;    
     CDP_AB(parentEx->chdCount <= 1);
     
