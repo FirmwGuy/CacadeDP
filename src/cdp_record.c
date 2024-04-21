@@ -22,6 +22,106 @@
  */
 
 
+/*
+    Cascade Data Processing (CascadeDP) System
+    ------------------------------------------
+
+    CascadeDP is designed to represent and manage hierarchical data structures 
+    in a distributed execution environment, similar in flexibility to 
+    representing complex XML or JSON data models. It facilitates the storage, 
+    navigation, and manipulation of records, which can be either data registers 
+    (holding actual data values or pointers to data) or books (acting as nodes 
+    in the hierarchical structure with potential to have unique or repeatable 
+    fields).
+
+    Key Components
+    --------------
+
+    * Record: The fundamental unit within the system, capable of acting as 
+    either a book (container for other records) or a register (data holder).
+    
+    * Book: A type of record that contains child records. Records are kept in 
+    the order they are added.
+    
+    * Dictionary: A book that always keep its child records in sorted order 
+    (defined by a compare function).
+    
+    * Register: A type of record designed to store actual data, either directly 
+    within the record if small enough or through a pointer to larger data sets.
+    
+    * Link: A record that points to another record.
+    
+    * Metadata and Flags: Each record contains metadata, including flags that 
+    specify the record's characteristics and an identifier indicating the 
+    record's role or "name" within its parent, enabling precise navigation and 
+    representation within the hierarchy.
+
+    The system is optimized for efficient storage and access, fitting within 
+    processor cache lines to enhance performance. It supports navigating from 
+    any record to the root of the database, reconstructing paths within the 
+    data hierarchy based on field identifiers in parent records.
+
+    Goals
+    -----
+
+    * Flexibility: To accommodate diverse data models, from strictly structured 
+    to loosely defined, allowing for dynamic schema changes.
+    
+    * Efficiency: To ensure data structures are compact, minimizing memory 
+    usage and optimizing for cache access patterns.
+    
+    * Navigability: To allow easy traversal of the hierarchical data structure, 
+    facilitating operations like queries, updates, and path reconstruction.
+
+    The system is adept at managing hierarchical data structures through a 
+    variety of storage techniques, encapsulated within the cdpVariantBook type. 
+    This flexibility allows the system to adapt to different use cases and 
+    optimization requirements, particularly focusing on cache efficiency and 
+    operation speed for insertions, deletions, and lookups.
+
+    Book and Storage Techniques
+    ---------------------------
+    
+    * cdpVariantBook: Serves as a versatile container within the system, 
+    holding child records through diverse storage strategies. Each 
+    cdpVariantBook can adopt one of several child storage mechanisms, 
+    determined by the stoTech indicator in its metadata. This design enables 
+    tailored optimization based on specific needs, such as operation frequency, 
+    data volume, and access patterns.
+
+    * Storage Techniques: Each storage technique is selected to optimize 
+    specific aspects of data management, addressing the system's goals of 
+    flexibility, efficiency, and navigability.
+    
+      Array: Offers fast access and efficient cache utilization for densely 
+      packed records. Ideal for situations where the number of children is 
+      relatively static and operations are predominantly at the tail end.
+      
+      Circular Buffer: Enhances the array model with efficient head and tail 
+      operations, suitable for queues or streaming data scenarios.
+      
+      Doubly Linked List: Provides flexibility for frequent insertions and 
+      deletions at arbitrary positions with minimal overhead per operation.
+      
+      Packed List: Strikes a balance between the cache efficiency of arrays and 
+      the flexibility of linked lists. It's optimized for scenarios where both 
+      random access and dynamic modifications are common.
+      
+      Red-Black Tree: Ensures balanced tree structure for ordered data, 
+      offering logarithmic time complexity for insertions, deletions, and 
+      lookups. Particularly useful for datasets requiring sorted access.
+    
+    * Locking System: The lock mechanism is implemented by serializing all IOs 
+    and keeping a list of currently locked book paths and a list of locked 
+    register pointers. On each input/output the system checks on the lists 
+    depending of the specified record.
+    
+    * Private Records: Records may be private, in which case no locking is
+    necessary since they are never made public.
+
+*/
+
+
 #include "cdp_record.h"
 #include <alloca.h>
 
@@ -171,7 +271,49 @@ static void rb_tree_fix_rb_tree_insert(cdpRbTree* tree, cdpRbTreeNode* z) {
 }
 
 
-void rb_tree_transplant(cdpRbTree* tree, cdpRbTreeNode* u, cdpRbTreeNode* v) {
+static bool rb_tree_traverse(cdpRbTree* tree, cdpRecord* book, unsigned maxDepth, cdpRecordTraverse func, void* context) {
+  cdpRbTreeNode* stack[maxDepth];
+  cdpRbTreeNode* tnode = tree->root, tnodePrev = NULL;
+  unsigned top = -1;  // Stack index initialized to empty.
+  cdpBookEntry entry = {.parent = book};
+  do {
+      if (tnode) {
+          assert(top < (maxDepth - 1));
+          stack[++top] = tnode;
+          tnode = tnode->left;
+      } else {
+          tnode = stack[top--];
+          if CDP_EXPECT(tnodePrev) {
+              entry.next = &tnode->record;
+              entry.record = &tnodePrev->record;
+              if (!func(&entry, 0, context))
+                  return false;
+              entry.prev = entry.record;
+              entry.index++;
+          }
+          tnodePrev = tnode;
+          tnode = tnode->right;
+      }
+  } while (top != -1 || tnode);
+  
+  entry.next = NULL;
+  entry.record = &tnodePrev->record;
+  return func(&entry, 0, context);
+}
+
+
+struct BreakAtIndex {size_t index; cdpRecord* record;};
+
+static int rb_traverse_func_break_at_index(cdpEntry* entry, unsigned u, struct BreakAtIndex* bai) {
+    if (entry->index == bai->index) {
+        bay->record = entry->record;
+        return false;
+    }
+    return true;
+}
+
+
+static void rb_tree_transplant(cdpRbTree* tree, cdpRbTreeNode* u, cdpRbTreeNode* v) {
     if (!u->tParent) {
         tree->root = v;
     } else if (u == u->tParent->left) {
@@ -738,7 +880,10 @@ cdpRecord* cdp_record_by_index(cdpRecord* book, size_t index) {
         break;
         
       RED_BLACK_T: {
-        
+        cdpRbTree* tree = book->recData.book.children;
+        struct BreakAtIndex bai = {.index = index};
+        if (rb_tree_traverse(tree, book, cdp_bitson(parentEx->chdCount) + 2, rb_traverse_func_break_at_index, &bai))
+            return bai.record;
         break;
       }
     } while(0);
@@ -806,8 +951,17 @@ cdpRecord* cdp_record_prev(cdpRecord* book, cdpRecord* record) {
         
       RED_BLACK_T: {
         cdpRbTreeNode* tnode = rb_tree_node_from_record(record);
-        return tnode->left? &tnode->left.record: NULL;
-        break;
+        if (tnode->left) {
+            tnode = tnode->left;
+            while (tnode->right) tnode = tnode->right;
+            return &tnode->record;
+        }
+        cdpRbTreeNode* tParent = tnode->tParent;
+        while (tParent && tnode == tParent->left) {
+            tnode = tParent;
+            tParent = tParent->tParent;
+        }
+        return tParent? &tParent->record: NULL;
       }
     } while(0);
 
@@ -849,15 +1003,25 @@ cdpRecord* cdp_record_next(cdpRecord* book, cdpRecord* record) {
         cdpRecord* last = &array->record[parentEx->chdCount - 1];
         return (record < last)? record + 1: NULL;
       }
-       
+        
+      PACKED_LIST:
+        break;
+        
       RED_BLACK_T: {
         cdpRbTreeNode* tnode = rb_tree_node_from_record(record);
-        return tnode->right? &tnode->right.record: NULL;
-        break;
+        if (tnode->right) {
+            tnode = tnode->right;
+            while (tnode->left) tnode = tnode->left;
+            return &tnode->record;
+        }
+        cdpRbTreeNode* tParent = tnode->tParent;
+        while (tParent && tnode == tParent->right) {
+            tnode = tParent;
+            tParent = tParent->tParent;
+        }
+        return tParent? &tParent->record: NULL;
       }
-        
-      RED_BLACK_T:
-        break;
+
     } while(0);
 
     return NULL;
@@ -879,7 +1043,7 @@ cdpRecord* cdp_record_next_by_name(cdpRecord* book, cdpNameID nameID, uintptr_t*
     assert(book->recData.book.children);
     
     // Fast switch-case for child storage techniques:
-    assert(book->metadata.stoTech < CDP_CHD_NON_PUSHABLE);
+    assert(book->metadata.stoTech < CDP_STO_CHD_COUNT);
     static void* const chdStoTech[] = {&&LINKED_LIST, &&CIRC_BUFFER, &&ARRAY, &&PACKED_LIST, &&RED_BLACK_T};
     goto *chdStoTech[book->metadata.stoTech];
     do {
@@ -918,7 +1082,7 @@ cdpRecord* cdp_record_next_by_name(cdpRecord* book, cdpNameID nameID, uintptr_t*
       PACKED_LIST:
         break;
       
-      RED_BLACK_T: {
+      RED_BLACK_T: {    // Unused.
         break;
       }
     } while (0);
@@ -999,29 +1163,8 @@ bool cdp_record_traverse(cdpRecord* book, cdpRecordTraverse func, void* context)
         break;
         
       RED_BLACK_T: {
-void rbtree_traverse(RBTree *tree, RBTreeVisitor visitor, void *param, int maxDepth) {
-    if (tree->root == NULL) return;
-
-    RBTreeNode *stack[maxDepth]; // Stack array based on the maximum depth
-    int top = -1; // Stack pointer initialized to empty
-    RBTreeNode *current = tree->root;
-
-    while (top != -1 || current != NULL) {
-        if (current != NULL) {
-            if (top >= maxDepth - 1) {
-                fprintf(stderr, "Maximum stack depth exceeded\n");
-                return; // Exit if the stack overflows
-            }
-            stack[++top] = current; // Push current node to stack
-            current = current->left; // Move to the left child
-        } else {
-            current = stack[top--]; // Pop the top node from the stack
-            visitor(current->data, param); // Visit the node
-            current = current->right; // Move to the right child
-        }
-    }
-}        
-        break;
+        cdpRbTree* tree = book->recData.book.children;
+        return rb_tree_traverse(tree, book, cdp_bitson(parentEx->chdCount) + 2, func, context);
       }
     } while(0);
     
@@ -1094,6 +1237,19 @@ bool cdp_record_deep_traverse(cdpRecord* book, unsigned maxDepth, cdpRecordTrave
             break;
             
           RED_BLACK_T: {
+            cdpRbTreeNode* tnode = rb_tree_node_from_record(entry.record);
+            if (tnode->right) {
+                tnode = tnode->right;
+                while (tnode->left) tnode = tnode->left;
+                entry.next = &tnode->record;
+            } else {
+                cdpRbTreeNode* tParent = tnode->tParent;
+                while (tParent && tnode == tParent->right) {
+                    tnode = tParent;
+                    tParent = tParent->tParent;
+                }
+                entry.next = tParent? &tParent->record: NULL;
+            }
             break;
           }
         } while(0);
@@ -1203,7 +1359,7 @@ void cdp_record_sort(cdpRecord* book, cdpCmp compare, void* context) {
         break;
       }
         
-      RED_BLACK_T: {
+      RED_BLACK_T: {    // Unused.
         break;
       }
     } while(0);
@@ -1278,6 +1434,8 @@ static bool record_delete_store(cdpBookEntry* entry, unsigned depth, void* p) {
             break;
             
           RED_BLACK_T: {
+            cdpRbTree* tree = entry.record->recData.book.children;;
+            cdp_free(tree);
             break;
           }
         } while(0);
