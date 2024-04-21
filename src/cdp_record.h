@@ -152,21 +152,27 @@ enum {
 };
 
 enum {
-    CDP_CHD_STO_LINKED_LIST,    // Children stored in a doubly linked list.
-    CDP_CHD_STO_CIRC_BUFFER,    // Children stored in a circular buffer.
-    CDP_CHD_STO_ARRAY,          // Children stored in an array.
-    CDP_CHD_STO_PACKED_LIST,    // Children stored in a packed list.
-    CDP_CHD_STO_RED_BLACK_T,    // Children stored in a red-black tree (record must be a dictionary).
+    CDP_STO_CHD_LINKED_LIST,    // Children stored in a doubly linked list.
+    CDP_STO_CHD_CIRC_BUFFER,    // Children stored in a circular buffer.
+    CDP_STO_CHD_ARRAY,          // Children stored in an array.
+    CDP_STO_CHD_PACKED_LIST,    // Children stored in a packed list.
+    CDP_STO_CHD_RED_BLACK_T,    // Children stored in a red-black tree (record must be a dictionary).
     //
-    CDP_CHD_STO_COUNT
+    CDP_STO_CHD_COUNT
 };
 
 enum {
-    CDP_REG_STO_OWNED,          // Register owns its own data.
-    CDP_REG_STO_BORROWED,       // Register has borrowed data (only for private records).
-    CDP_REG_STO_CACHE_MISS,     // Register data needs to be re-acquired.
+    CDP_STO_REG_OWNED,          // Register owns its own data.
+    CDP_STO_REG_BORROWED,       // Register has borrowed data (only for private records).
     //
-    CDP_REG_STO_COUNT
+    CDP_STO_REG_COUNT
+};
+
+enum {
+    CDP_STO_LNK_POINTER,        // Link points to an in-memory record.
+    CDP_STO_LNK_PATH,           // Link hold the address of an off-memory record.
+    //
+    CDP_STO_LNK_COUNT
 };
 
 typedef uint32_t cdpNameID;
@@ -174,7 +180,7 @@ typedef uint32_t cdpNameID;
 typedef struct {
     uint32_t  reStyle: 2,       // Style of the record (book, register or link)
               proFlag: 3,       // Flags for record properties (multiple parents, private, sorted).
-              stoTech: 3,       // Book child storage technique (array, linked list, RB-tree, etc.)
+              stoTech: 3,       // Record storage technique (it depends of the style of record).
               typeID: 24;       // Type identifier for the record.
     cdpNameID nameID;           // Name/field identifier in the parent record.
 } cdpRecMeta;
@@ -294,6 +300,8 @@ typedef struct {
     cdpParentEx     parentEx;     // Parent info.
     //
     cdpRbTreeNode*  root;         // The root node.
+    cdpRbTreeNode*  maximum;      // Node holding the maximum data.
+    cdpRbTreeNode*  minimum;      // Node holding the minimum data.
 } cdpRbTree;
 
 
@@ -337,11 +345,11 @@ static inline bool cdp_record_has_shadows   (cdpRecord* record)  {assert(record)
 static inline cdpRecord* cdp_record_parent(cdpRecord* record)    {assert(record && cdp_record_parent_ex(record));  return cdp_record_parent_ex(record)->book;}
 
 // Register property check
-static inline bool cdp_record_register_borrowed(cdpRecord* reg)  {assert(cdp_record_is_register(reg));  return (reg->metadata.stoTech == CDP_REG_STO_BORROWED);}
+static inline bool cdp_record_register_borrowed(cdpRecord* reg)  {assert(cdp_record_is_register(reg));  return (reg->metadata.stoTech == CDP_STO_REG_BORROWED);}
 
 // Book property check
 static inline bool cdp_record_book_or_dic_children(cdpRecord* book) {assert(cdp_record_is_book_or_dic(book) && book->recData.book.children);  return CDP_PARENTEX(book->recData.book.children)->chdCount;}
-static inline bool cdp_record_book_pushable(cdpRecord* book)        {assert(cdp_record_is_book(book));  return (book->metadata.stoTech != CDP_CHD_STO_RED_BLACK_T);}
+static inline bool cdp_record_book_pushable(cdpRecord* book)        {assert(cdp_record_is_book(book));  return (book->metadata.stoTech != CDP_STO_CHD_RED_BLACK_T);}
 
 
 // Appends/inserts (or pushes) a new record.
@@ -399,10 +407,6 @@ cdpRecord* cdp_record_add_copy(const cdpRecord* book, cdpNameID nameID, cdpRecor
 
 // Creates a new link to a record and adds/inserts it (or pushes it) to a book under nameID, updating the source record parent list as necessary.
 cdpRecord* cdp_record_add_link(cdpRecord* book, cdpNameID nameID, cdpRecord* record, bool push);
-
-
-CDP_FUNC_CMPi_(cdp_record_compare_by_name, cdpRecord, metadata.nameID)
-
 
 
 #endif

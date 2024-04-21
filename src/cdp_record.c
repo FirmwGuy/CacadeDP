@@ -41,9 +41,19 @@ static int rec_cmp_by_nameID(const cdpRecord* restrict key, const cdpRecord* res
 
 
 /*
+   Utilities for linked lists
+*/
+
+static cdpListNode* list_node_from_record(cdpRecord* record)  {return cdp_ptr_dif(record, offsetof(cdpListNode, record));}
+
+
+
+
+/*
    Utilities for arrays
 */
-.static inline cdpRecord* array_search(cdpArray* array, void* key, size_t* index) {
+
+static inline cdpRecord* array_search(cdpArray* array, void* key, size_t* index) {
     size_t imax = cdp_ptr_has_val(index)? *index - 1: array->parent.chdCount - 1;
     size_t imin = 0, i;
     cdpRecord* record;
@@ -69,7 +79,7 @@ static inline void array_update_children_parent_ptr(cdpRecord* record, cdpRecord
     while (record <= last){
         if (cdp_record_is_book_or_dic(record)) {
             cdpParentEx* parentEx = record->recData.book.children;
-            parentEx->book = record;    // Update grandchild link to its parent.
+            parentEx->book = record;    // Update grandchild link to its (child) parent.
         }
         record++;
     }
@@ -77,42 +87,51 @@ static inline void array_update_children_parent_ptr(cdpRecord* record, cdpRecord
 
 
 
+
 /*
     Utilities for Red-black tree rebalancing.
 */
-static inline void rb_tree_rotate_left(cdpRbTree* tree, cdpRbTreeNode* x) {
+
+static cdpRbTreeNode* rb_tree_node_from_record(cdpRecord* record)  {return cdp_ptr_dif(record, offsetof(cdpRbTreeNode, record));}
+
+
+static void rb_tree_rotate_left(cdpRbTree* tree, cdpRbTreeNode* x) {
     cdpRbTreeNode* y = x->right;
     x->right = y->left;
     if (y->left)
         y->left->tParent = x;
     y->tParent = x->tParent;
-    if (!x->tParent)
+    if (!x->tParent) {
         tree->root = y;
-    else if (x == x->tParent->left)
+    } else if (x == x->tParent->left) {
         x->tParent->left = y;
-    else
+    } else {
         x->tParent->right = y;
+    }
     y->left = x;
     x->tParent = y;
 }
 
-static inline void rb_tree_rotate_right(cdpRbTree* tree, cdpRbTreeNode* x) {
+
+static void rb_tree_rotate_right(cdpRbTree* tree, cdpRbTreeNode* x) {
     cdpRbTreeNode* y = x->left;
     x->left = y->right;
     if (y->right)
         y->right->tParent = x;
     y->tParent = x->tParent;
-    if (!x->tParent)
+    if (!x->tParent) {
         tree->root = y;
-    else if (x == x->tParent->right)
+    } else if (x == x->tParent->right) {
         x->tParent->right = y;
-    else
+    } else {
         x->tParent->left = y;
+    }
     y->right = x;
     x->tParent = y;
 }
 
-static inline void rb_tree_fix_insert(cdpRbTree* tree, cdpRbTreeNode* z) {
+
+static void rb_tree_fix_rb_tree_insert(cdpRbTree* tree, cdpRbTreeNode* z) {
     while (z != tree->root && z->tParent->isRed) {
         if (z->tParent == z->tParent->tParent->left) {
             cdpRbTreeNode* y = z->tParent->tParent->right;
@@ -152,6 +171,80 @@ static inline void rb_tree_fix_insert(cdpRbTree* tree, cdpRbTreeNode* z) {
 }
 
 
+void rb_tree_transplant(cdpRbTree* tree, cdpRbTreeNode* u, cdpRbTreeNode* v) {
+    if (!u->tParent) {
+        tree->root = v;
+    } else if (u == u->tParent->left) {
+        u->tParent->left = v;
+    } else {
+        u->tParent->right = v;
+    }
+    if (v)
+        v->tParent = u->tParent;
+}
+
+
+static void rb_tree_fixremove_node(cdpRbTree* tree, cdpRbTreeNode* x) {
+    while (x != tree->root && !x->isRed) {
+        if (x == x->tParent->left) {
+            cdpRbTreeNode* w = x->tParent->right;
+            if (!w) break;
+            if (w->isRed) {
+                w->isRed = false;
+                x->tParent->isRed = true;
+                rb_tree_rotate_left(tree, x->tParent);
+                w = x->tParent->right;
+            }
+            if (!w || !w->left || !w->right) break;
+            if (!w->left->isRed && !w->right->isRed) {
+                w->isRed = true;
+                x = x->tParent;
+            } else {
+                if (!w->right->isRed) {
+                    w->left->isRed = false;
+                    w->isRed = true;
+                    rb_tree_rotate_right(tree, w);
+                    w = x->tParent->right;
+                }
+                w->color = x->tParent->color;
+                x->tParent->isRed = false;
+                w->right->isRed = false;
+                rb_tree_rotate_left(tree, x->tParent);
+                x = tree->root;
+            }
+        } else {
+            cdpRbTreeNode* w = x->tParent->left;
+            if (!w) break;
+            if (w->isRed) {
+                w->isRed = false;
+                x->tParent->isRed = true;
+                rb_tree_rotate_right(tree, x->tParent);
+                w = x->tParent->left;
+            }
+            if (!w || !w->right || !w->left) break;
+            if (!w->right->isRed && !w->left->isRed) {
+                w->isRed = true;
+                x = x->tParent;
+            } else {
+                if (!w->left->isRed) {
+                    w->right->isRed = false;
+                    w->isRed = true;
+                    rb_tree_rotate_left(tree, w);
+                    w = x->tParent->left;
+                }
+                w->color = x->tParent->color;
+                x->tParent->isRed = false;
+                w->left->isRed = false;
+                rb_tree_rotate_right(tree, x->tParent);
+                x = tree->root;
+            }
+        }
+    }
+    x->isRed = false;
+}
+
+
+
 
 /* 
     Creates a new record of the specified style on parent book.
@@ -165,7 +258,7 @@ cdpRecord* cdp_record_create(cdpRecord* parent, unsigned style, cdpNameID nameID
     va_start(args, priv);
     
     // Fast switch-case for (parent's) child storage techniques:
-    assert(parent->metadata.stoTech < CDP_CHD_STO_COUNT);
+    assert(parent->metadata.stoTech < CDP_STO_CHD_COUNT);
     static void* const chdStoTech[] = {&&LINKED_LIST, &&CIRC_BUFFER, &&ARRAY, &&PACKED_LIST, &&RED_BLACK_T};
     goto *chdStoTech[parent->metadata.stoTech];
     do {
@@ -258,24 +351,28 @@ cdpRecord* cdp_record_create(cdpRecord* parent, unsigned style, cdpNameID nameID
       RED_BLACK_T:
       {
         assert(cdp_record_is_dictionary(parent) && parentEx->compare);
-        cdpRbTree* tree = &parent->recData.book.children;
+        cdpRbTree* tree = parent->recData.book.children;
         CDP_NEW(cdpRbTreeNode, tnode);
         tnode->isRed = true;
         child = &tnode->record;
         *child = metadata;
         if (tree->root) {
-            cdpRbTreeNode* y = NULL;
             cdpRbTreeNode* x = tree->root;
-            while (x) {
+            cdpRbTreeNode* y;
+            do {
                 y = x;
-                if (0 > parentEx->compare(&metadata, x->record, parentEx->context)) {
+                int cmp = parentEx->compare(&metadata, &x->record, parentEx->context);
+                if CDP_RARELY(0 == cmp) {
+                    // FixMe: delete children.
+                    assert(0 == cmp);
+                } else if (0 > cmp) {
                     x = x->left;
                 } else {
                     x = x->right;
                 }
-            }
+            } while (x);
             tnode->tParent = y;
-            if (0 > parentEx->compare(&metadata, y->record, parentEx->context)) {
+            if (0 > parentEx->compare(&metadata, &y->record, parentEx->context)) {
                 y->left = tnode;
             } else {
                 y->right = tnode;
@@ -305,7 +402,7 @@ cdpRecord* cdp_record_create(cdpRecord* parent, unsigned style, cdpNameID nameID
         cdpParentEx* chdParentEx;
 
         // Fast switch-case for (child's) child storage techniques:
-        assert(storage < CDP_CHD_STO_COUNT);
+        assert(storage < CDP_STO_CHD_COUNT);
         static void* const reqStoTech[] = {&&REQ_LINKED_LIST, &&REQ_CIRC_BUFFER, &&REQ_ARRAY, &&REQ_PACKED_LIST, &&REQ_RED_BLACK_T};
         goto *reqStoTech[storage];
         do {
@@ -360,7 +457,7 @@ cdpRecord* cdp_record_create(cdpRecord* parent, unsigned style, cdpNameID nameID
         if (borrow) {
             assert(priv && data);
             child->recData.reg.data.ptr = data;
-            child->metadata.stoTech = CDP_REG_STO_BORROWED;
+            child->metadata.stoTech = CDP_STO_REG_BORROWED;
         } else if (data) {
             child->recData.reg.data.ptr = cdp_malloc(size);
             memcpy(child->recData.reg.data.ptr, data, size);
@@ -482,14 +579,13 @@ cdpRecord* cdp_record_top(cdpRecord* book, bool last) {
     cdpRecord* record;
     
     // Fast switch-case for child storage techniques:
-    assert(book->metadata.stoTech < CDP_CHD_STO_COUNT);
+    assert(book->metadata.stoTech < CDP_STO_CHD_COUNT);
     static void* const chdStoTech[] = {&&LINKED_LIST, &&CIRC_BUFFER, &&ARRAY, &&PACKED_LIST, &&RED_BLACK_T};
     goto *chdStoTech[book->metadata.stoTech];
     do {
       LINKED_LIST: {
         cdpList* list = book->recData.book.children;
-        assert(list);
-        record = last? &list->tail.record: &list->head.record;
+        record = last?  &list->tail.record:  &list->head.record;
         break;
       }
         
@@ -498,7 +594,7 @@ cdpRecord* cdp_record_top(cdpRecord* book, bool last) {
         
       ARRAY: {
         cdpArray* array = book->recData.book.children;
-        assert(array && array->capacity > parentEx->chdCount);
+        assert(array->capacity > parentEx->chdCount);
         record = last?  &array->record[parentEx->chdCount - 1]:  array->record;
         break;
       }
@@ -506,8 +602,17 @@ cdpRecord* cdp_record_top(cdpRecord* book, bool last) {
       PACKED_LIST:
         break;
         
-      RED_BLACK_T:
+      RED_BLACK_T: {
+        cdpRbTree* tree = book->recData.book.children;
+        cdpRbTreeNode* tnode = tree->root;
+        if (last) {
+            while (tnode->right)  tnode = tnode->right;
+        } else {
+            while (tnode->left)   tnode = tnode->left;        
+        }
+        record = &tnode->record;
         break;
+      }
     } while(0);
     
     return record;
@@ -525,7 +630,7 @@ cdpRecord* cdp_record_by_name(cdpRecord* book, cdpNameID nameID) {
     cdpRecord* record;
     
     // Fast switch-case for child storage techniques:
-    assert(book->metadata.stoTech < CDP_CHD_STO_COUNT);
+    assert(book->metadata.stoTech < CDP_STO_CHD_COUNT);
     static void* const chdStoTech[] = {&&LINKED_LIST, &&CIRC_BUFFER, &&ARRAY, &&PACKED_LIST, &&RED_BLACK_T};
     goto *chdStoTech[book->metadata.stoTech];
     do {
@@ -545,27 +650,40 @@ cdpRecord* cdp_record_by_name(cdpRecord* book, cdpNameID nameID) {
         cdpArray* array = book->recData.book.children;
         if (cdp_record_is_dictionary(book) && array->parentEx.compare == record_compare_by_name) {
             cdpRecord key = {.metadata.nameID = nameID};
-            return array_search(array, &key, NULL);
+            return bsearch(&key, array->record, parentEx->chdCount, sizeof(cdpRecord), rec_cmp_by_nameID);
         } else {
             cdpRecord* record = array->record;
-            for (size_t index = 0; index < parentEx->chdCount; index++, record++) {
+            for (size_t i = 0; i < parentEx->chdCount; i++, record++) {
                 if (record->metadata.nameID == nameID)
                     return record;
             }
         }
       }
         
-      PACKED_LIST: {
+      PACKED_LIST:
         break;
-      }
         
       RED_BLACK_T: {
         assert(cdp_record_is_dictionary(book));
+        if (array->parentEx.compare == record_compare_by_name) {
+            cdpRbTree* tree = book->recData.book.children;
+            cdpRbTreeNode* tnode = tree->root;
+            do {
+                if (tnode->record.metadata.nameID < nameID) {
+                    tnode = tnode->left;
+                } else if (tnode->record.metadata.nameID > nameID) {
+                    tnode = tnode->right;
+                } else {
+                    return &tnode->record;
+                }
+            } while (tnode);
+        } else {
+            // FixMe: add a traverse operation in here
+            assert(array->parentEx.compare != record_compare_by_name);
+        }
         break;
      }
     } while(0);
-    break;
-  }
 
     return NULL;
 }
@@ -593,7 +711,7 @@ cdpRecord* cdp_record_by_index(cdpRecord* book, size_t index) {
     cdpRecord* record;
 
     // Fast switch-case for child storage techniques:
-    assert(book->metadata.stoTech < CDP_CHD_STO_COUNT);
+    assert(book->metadata.stoTech < CDP_STO_CHD_COUNT);
     static void* const chdStoTech[] = {&&LINKED_LIST, &&CIRC_BUFFER, &&ARRAY, &&PACKED_LIST, &&RED_BLACK_T};
     goto *chdStoTech[book->metadata.stoTech];
     do {
@@ -619,8 +737,10 @@ cdpRecord* cdp_record_by_index(cdpRecord* book, size_t index) {
       PACKED_LIST:
         break;
         
-      RED_BLACK_T:
+      RED_BLACK_T: {
+        
         break;
+      }
     } while(0);
 
     return NULL;
@@ -663,12 +783,12 @@ cdpRecord* cdp_record_prev(cdpRecord* book, cdpRecord* record) {
     CDP_CK(parentEx->chdCount);
 
     // Fast switch-case for child storage techniques:
-    assert(book->metadata.stoTech < CDP_CHD_STO_COUNT);
+    assert(book->metadata.stoTech < CDP_STO_CHD_COUNT);
     static void* const chdStoTech[] = {&&LINKED_LIST, &&CIRC_BUFFER, &&ARRAY, &&PACKED_LIST, &&RED_BLACK_T};
     goto *chdStoTech[book->metadata.stoTech];
     do {
       LINKED_LIST: {
-        cdpListNode* node = cdp_list_node_from_record(record);
+        cdpListNode* node = list_node_from_record(record);
         return node->prev? &node->prev.record: NULL;
       }
       
@@ -684,8 +804,11 @@ cdpRecord* cdp_record_prev(cdpRecord* book, cdpRecord* record) {
       PACKED_LIST:
         break;
         
-      RED_BLACK_T:
+      RED_BLACK_T: {
+        cdpRbTreeNode* tnode = rb_tree_node_from_record(record);
+        return tnode->left? &tnode->left.record: NULL;
         break;
+      }
     } while(0);
 
     return NULL;
@@ -708,12 +831,12 @@ cdpRecord* cdp_record_next(cdpRecord* book, cdpRecord* record) {
     CDP_CK(parentEx->chdCount);
 
     // Fast switch-case for child storage techniques:
-    assert(book->metadata.stoTech < CDP_CHD_STO_COUNT);
+    assert(book->metadata.stoTech < CDP_STO_CHD_COUNT);
     static void* const chdStoTech[] = {&&LINKED_LIST, &&CIRC_BUFFER, &&ARRAY, &&PACKED_LIST, &&RED_BLACK_T};
     goto *chdStoTech[book->metadata.stoTech];
     do {
       LINKED_LIST: {
-        cdpListNode* node = cdp_list_node_from_record(record);
+        cdpListNode* node = list_node_from_record(record);
         return node->next? &node->next.record: NULL;
       }
       
@@ -727,8 +850,11 @@ cdpRecord* cdp_record_next(cdpRecord* book, cdpRecord* record) {
         return (record < last)? record + 1: NULL;
       }
        
-      PACKED_LIST:
+      RED_BLACK_T: {
+        cdpRbTreeNode* tnode = rb_tree_node_from_record(record);
+        return tnode->right? &tnode->right.record: NULL;
         break;
+      }
         
       RED_BLACK_T:
         break;
@@ -754,7 +880,7 @@ cdpRecord* cdp_record_next_by_name(cdpRecord* book, cdpNameID nameID, uintptr_t*
     
     // Fast switch-case for child storage techniques:
     assert(book->metadata.stoTech < CDP_CHD_NON_PUSHABLE);
-    static void* const chdStoTech[] = {&&LINKED_LIST, &&CIRC_BUFFER, &&ARRAY, &&PACKED_LIST};
+    static void* const chdStoTech[] = {&&LINKED_LIST, &&CIRC_BUFFER, &&ARRAY, &&PACKED_LIST, &&RED_BLACK_T};
     goto *chdStoTech[book->metadata.stoTech];
     do {
       LINKED_LIST: {
@@ -791,8 +917,11 @@ cdpRecord* cdp_record_next_by_name(cdpRecord* book, cdpNameID nameID, uintptr_t*
        
       PACKED_LIST:
         break;
+      
+      RED_BLACK_T: {
+        break;
       }
-    }
+    } while (0);
 
     return NULL;
 }
@@ -827,7 +956,7 @@ bool cdp_record_traverse(cdpRecord* book, cdpRecordTraverse func, void* context)
     CDP_GO(!parentEx->chdCount);
 
     // Fast switch-case for child storage techniques:
-    assert(book->metadata.stoTech < CDP_CHD_STO_COUNT);
+    assert(book->metadata.stoTech < CDP_STO_CHD_COUNT);
     static void* const chdStoTech[] = {&&LINKED_LIST, &&CIRC_BUFFER, &&ARRAY, &&PACKED_LIST, &&RED_BLACK_T};
     goto *chdStoTech[book->metadata.stoTech];
     do {
@@ -869,8 +998,31 @@ bool cdp_record_traverse(cdpRecord* book, cdpRecordTraverse func, void* context)
       PACKED_LIST:
         break;
         
-      RED_BLACK_T:
+      RED_BLACK_T: {
+void rbtree_traverse(RBTree *tree, RBTreeVisitor visitor, void *param, int maxDepth) {
+    if (tree->root == NULL) return;
+
+    RBTreeNode *stack[maxDepth]; // Stack array based on the maximum depth
+    int top = -1; // Stack pointer initialized to empty
+    RBTreeNode *current = tree->root;
+
+    while (top != -1 || current != NULL) {
+        if (current != NULL) {
+            if (top >= maxDepth - 1) {
+                fprintf(stderr, "Maximum stack depth exceeded\n");
+                return; // Exit if the stack overflows
+            }
+            stack[++top] = current; // Push current node to stack
+            current = current->left; // Move to the left child
+        } else {
+            current = stack[top--]; // Pop the top node from the stack
+            visitor(current->data, param); // Visit the node
+            current = current->right; // Move to the right child
+        }
+    }
+}        
         break;
+      }
     } while(0);
     
     return true;
@@ -917,12 +1069,12 @@ bool cdp_record_deep_traverse(cdpRecord* book, unsigned maxDepth, cdpRecordTrave
       NEXT_SIBLING:
         // Get sibling...
         // Fast switch-case for child storage techniques:
-        assert(entry.parent->metadata.stoTech < CDP_CHD_STO_COUNT);
+        assert(entry.parent->metadata.stoTech < CDP_STO_CHD_COUNT);
         static void* const chdStoTech[] = {&&LINKED_LIST, &&CIRC_BUFFER, &&ARRAY, &&PACKED_LIST, &&RED_BLACK_T};
         goto *chdStoTech[entry.parent->metadata.stoTech];
         do {
           LINKED_LIST: {
-            cdpListNode* node = cdp_list_node_from_record(entry.record);
+            cdpListNode* node = list_node_from_record(entry.record);
             cdpListNode* next = node->next;
             entry.next = next? &next->record: NULL;
             break;
@@ -941,8 +1093,9 @@ bool cdp_record_deep_traverse(cdpRecord* book, unsigned maxDepth, cdpRecordTrave
           PACKED_LIST:
             break;
             
-          RED_BLACK_T:
+          RED_BLACK_T: {
             break;
+          }
         } while(0);
 
         if (func) {
@@ -994,7 +1147,7 @@ void cdp_record_sort(cdpRecord* book, cdpCmp compare, void* context) {
     CDP_AB(parentEx->chdCount <= 1);
     
     // Fast switch-case for child storage techniques:
-    assert(book->metadata.stoTech < CDP_CHD_STO_COUNT);
+    assert(book->metadata.stoTech < CDP_STO_CHD_COUNT);
     static void* const chdStoTech[] = {&&LINKED_LIST, &&CIRC_BUFFER, &&ARRAY, &&PACKED_LIST, &&RED_BLACK_T};
     goto *chdStoTech[book->metadata.stoTech];
     do {
@@ -1050,12 +1203,10 @@ void cdp_record_sort(cdpRecord* book, cdpCmp compare, void* context) {
         break;
       }
         
-      RED_BLACK_T:
+      RED_BLACK_T: {
         break;
-
+      }
     } while(0);
-    break;
-  }
 }
 
 
@@ -1101,7 +1252,7 @@ static bool record_delete_store(cdpBookEntry* entry, unsigned depth, void* p) {
       BOOK:;
       DICTIONARY: {
         // Fast switch-case for child storage techniques:
-        assert(entry.record->metadata.stoTech < CDP_CHD_STO_COUNT);
+        assert(entry.record->metadata.stoTech < CDP_STO_CHD_COUNT);
         static void* const chdStoTech[] = {&&LINKED_LIST, &&CIRC_BUFFER, &&ARRAY, &&PACKED_LIST, &&RED_BLACK_T};
         goto *chdStoTech[entry.record->metadata.stoTech];
         do {
@@ -1126,8 +1277,9 @@ static bool record_delete_store(cdpBookEntry* entry, unsigned depth, void* p) {
           PACKED_LIST:
             break;
             
-          RED_BLACK_T:
+          RED_BLACK_T: {
             break;
+          }
         } while(0);
         break;
       }
@@ -1177,21 +1329,23 @@ bool cdp_record_delete(cdpRecord* record, unsigned maxDepth) {
        
     /* Delete from parent (re-organizing siblings) */
     // Fast switch-case for child storage techniques:
-    assert(book->metadata.stoTech < CDP_CHD_STO_COUNT);
+    assert(book->metadata.stoTech < CDP_STO_CHD_COUNT);
     static void* const chdStoTech[] = {&&LINKED_LIST, &&CIRC_BUFFER, &&ARRAY, &&PACKED_LIST, &&RED_BLACK_T};
     goto *chdStoTech[book->metadata.stoTech];
     do {
       LINKED_LIST: {
         cdpList* list = book->recData.book.children;
         assert(list && list->head);
-        cdpListNode* node = cdp_list_node_from_record(record);
+        cdpListNode* node = list_node_from_record(record);
         cdpListNode* next = node->next;
         cdpListNode* prev = node->prev;
+        
         // Unlink node.
         if (next) next->prev = prev;
         else      list->tail = prev;
         if (prev) prev->next = next;
         else      list->head = next;
+        
         cdp_free(node);
         break;
       }
@@ -1212,8 +1366,41 @@ bool cdp_record_delete(cdpRecord* record, unsigned maxDepth) {
       PACKED_LIST:
         break;
         
-      RED_BLACK_T:
+      RED_BLACK_T: {
+        cdpRbTree* tree = book->recData.book.children;
+        cdpRbTreeNode* tnode = rb_tree_node_from_record(record);
+        cdpRbTreeNode* y = tnode, *x;
+        bool wasRed = tnode->isRed;
+
+        if (!tnode->left) {
+            x = tnode->right;
+            rb_tree_transplant(tree, tnode, x);
+        } else if (!tnode->right) {
+            x = tnode->left;
+            rb_tree_transplant(tree, tnode, x);
+        } else {
+            for (y = tnode->right;  y->left;  y = y->left);
+            wasRed = y->isRed;
+            x = y->right;
+
+            if (y->tParent == tnode) {
+                if (x)  x->tParent = y;
+            } else {
+                rb_tree_transplant(tree, y, x);
+                y->right = tnode->right;
+                y->right->tParent = y;
+            }
+            rb_tree_transplant(tree, tnode, y);
+            y->left = tnode->left;
+            y->left->tParent = y;
+            y->isRed = tnode->isRed;
+        }
+        if (x && !wasRed)
+            rb_tree_fixremove_node(tree, x);
+
+        cdp_free(tnode);        
         break;
+      }
     } while(0);
     
     parentEx->chdCount--;
