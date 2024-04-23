@@ -170,12 +170,4 @@ typedef void (*cdpDel)(void*);
 #define     CDP_BR(e, ...)            CDP_IF_DO((e), goto CDP_BREAK, ##__VA_ARGS__)
 
 
-
-/*
- * Binary Search
- */
- 
-typedef int (*cdpCmp)(const cdpRecord* restrict, const cdpRecord* restrict, void*);
-
-
 #endif

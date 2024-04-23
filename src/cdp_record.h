@@ -128,6 +128,8 @@ struct _cdpRecord {
 /*
  * Children Storage Techniques
  */
+typedef int (*cdpCompare)(const cdpRecord* restrict, const cdpRecord* restrict, void*);
+
 
 typedef struct {
     size_t      count;            // Number of record pointers
@@ -138,7 +140,7 @@ typedef struct {
     cdpRecord*  book;             // Parent (book or dictionary) owning this child storage.
     cdpShadow*  shadow;           // Pointer to a structure for managing multiple (linked) parents.
     size_t      chdCount;         // Number of child records.
-    cdpCmp      compare;          // Compare function for dictionaries.
+    cdpCompare  compare;          // Compare function for dictionaries.
     void*       context;          // User defined context data for searches.
 } cdpParentEx;
 
@@ -290,7 +292,7 @@ bool cdp_record_traverse     (cdpRecord* book, cdpRecordTraverse func, void* con
 bool cdp_record_deep_traverse(cdpRecord* book, unsigned maxDepth, cdpRecordTraverse func, cdpRecordTraverse listEnd, void* context);  // Traverses each sub-branch of a book record.
 
 // Converts an unsorted book into a dictionary.
-void cdp_record_sort(cdpRecord* book, cdpCmp compare, void* context);
+void cdp_record_sort(cdpRecord* book, cdpCompare compare, void* context);
 
 // Removing records
 bool cdp_record_delete(cdpRecord* record, unsigned maxDepth);                     // Deletes a record and all its children re-organizing sibling storage.
