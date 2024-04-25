@@ -145,6 +145,12 @@ static inline int record_compare_by_name(const cdpRecord* restrict key, const cd
     return key->metadata.nameID - record->metadata.nameID;
 }
 
+
+static inline int record_compare_by_name_s(const cdpRecord* restrict key, const cdpRecord* restrict record, void* unused) {
+    return record_compare_by_name(key, record);
+}
+
+
 #define STORAGE_TECH_BEGIN(stoTech)                                    \
     assert((stoTech) < CDP_STO_CHD_COUNT);                             \
     static void* const chdStoTech[] = {&&LINKED_LIST, &&CIRC_BUFFER,   \
@@ -160,14 +166,14 @@ static inline int record_compare_by_name(const cdpRecord* restrict key, const cd
     goto *recordStyle[reStyle];                                        \
     do
 
-#define LABEL_END                                                      \
+#define RECORD_LABEL_END                                               \
     while (0)
 
 
 
 
 /*
-   Utilities for linked lists
+   Double linked list implementation
 */
 
 
@@ -354,7 +360,7 @@ static inline void list_sort(cdpList* list, cdpCompare compare, void* context) {
 
 
 /*
-   Utilities for arrays
+   Dynamic array implementation
 */
 
 
@@ -364,6 +370,13 @@ static inline cdpArray* array_new(size_t capacity) {
     array->capacity = capacity;
     array->record = cdp_malloc0(capacity * sizeof(cdpRecord));
     return array;
+}
+
+
+static inline void array_del(cdpArray* array) {
+    assert(array);
+    cdp_free(array->record);
+    cdp_free(array);
 }
 
 
@@ -451,9 +464,9 @@ static inline cdpRecord* array_top(cdpArray* array, bool last) {
 
 
 static inline cdpRecord* array_find_by_name(cdpArray* array, cdpNameID nameID, cdpRecord* book) {
-    if (cdp_record_is_dictionary(book) && array->parentEx.compare == record_compare_by_name) {
+    if (cdp_record_is_dictionary(book) && !array->parentEx.compare) {
         cdpRecord key = {.metadata.nameID = nameID};
-        return bsearch(&key, array->record, array->parentEx.chdCount, sizeof(cdpRecord), rec_cmp_by_nameID);
+        return bsearch(&key, array->record, array->parentEx.chdCount, sizeof(cdpRecord), record_compare_by_name);
     } else {
         cdpRecord* record = array->record;
         for (size_t i = 0; i < array->parentEx.chdCount; i++, record++) {
@@ -491,14 +504,54 @@ static inline cdpRecord* array_next_by_name(cdpArray* array, uintptr_t* prev) {
     return NULL;
 }
 
+static inline bool array_traverse(cdpArray* array, cdpRecord* book, cdpRecordTraverse func, void* context){
+    assert(array && array->capacity >= array->parentEx.chdCount);
+    cdpBookEntry entry = {.record = array->record, .parent = book, .next = (array->parentEx.chdCount > 1)? (array->record + 1): NULL};
+    while (entry.index < array->parentEx.chdCount) {
+        if (!func(&entry, 0, context))
+            return false;
+        entry.prev   = entry.record;
+        entry.record = entry.next;
+        entry.next++;
+        entry.index++;
+    }
+    return true;
+}
+
+
+static inline void array_sort(cdpArray* array, cdpCompare compare, void* context) {
+    if (!compare) {
+        qsort(array->record, array->parentEx.chdCount, sizeof(cdpRecord), record_compare_by_name);
+    } else {
+        qsort_s(array->record, array->parentEx.chdCount, sizeof(cdpRecord), compare, context);
+    }
+    array_update_children_parent_ptr(array->record, &array->record[array->parentEx.chdCount - 1]);
+}
+
+
+static inline void array_remove_record(cdpArray* array, cdpRecord* record) {
+    assert(array && array->capacity >= array->parentEx.chdCount);
+    cdpRecord* last = &array->record[array->parentEx.chdCount - 1];
+    if (record < last)
+        memmove(record, record + 1, cdp_ptr_dif(record, last));
+    CDP_0(last);
+}
+
+
 
 
 
 /*
-    Utilities for Red-black tree rebalancing.
+    Red-black tree implementation
 */
 
-static inline cdpRbTreeNode* rb_tree_node_from_record(cdpRecord* record)  {return cdp_ptr_dif(record, offsetof(cdpRbTreeNode, record));}
+#define rb_tree_new()      cdp_new(cdpRbTree)
+#define rb_tree_del(tree)  cdp_free(tree)
+
+
+static inline cdpRbTreeNode* rb_tree_node_from_record(cdpRecord* record) {
+    return cdp_ptr_dif(record, offsetof(cdpRbTreeNode, record));
+}
 
 
 static inline void rb_tree_rotate_left(cdpRbTree* tree, cdpRbTreeNode* x) {
@@ -518,7 +571,6 @@ static inline void rb_tree_rotate_left(cdpRbTree* tree, cdpRbTreeNode* x) {
     x->tParent = y;
 }
 
-
 static inline void rb_tree_rotate_right(cdpRbTree* tree, cdpRbTreeNode* x) {
     cdpRbTreeNode* y = x->left;
     x->left = y->right;
@@ -536,8 +588,7 @@ static inline void rb_tree_rotate_right(cdpRbTree* tree, cdpRbTreeNode* x) {
     x->tParent = y;
 }
 
-
-static inline void rb_tree_fix_rb_tree_insert(cdpRbTree* tree, cdpRbTreeNode* z) {
+static inline void rb_tree_fix_insert(cdpRbTree* tree, cdpRbTreeNode* z) {
     while (z != tree->root && z->tParent->isRed) {
         if (z->tParent == z->tParent->tParent->left) {
             cdpRbTreeNode* y = z->tParent->tParent->right;
@@ -576,6 +627,63 @@ static inline void rb_tree_fix_rb_tree_insert(cdpRbTree* tree, cdpRbTreeNode* z)
     tree->root->isRed = false;
 }
 
+static inline cdpRecord* rb_tree_add(cdpRbTree* tree, cdpRecord* parent, bool push, cdpRecord* metadata) {
+    assert(cdp_record_is_dictionary(parent));
+    CDP_NEW(cdpRbTreeNode, tnode);
+    tnode->isRed = true;
+    
+    cdpCompare compare;
+    void* context;
+    if (tree->parentEx.compare) {
+        compare = tree->parentEx.compare;
+        context = tree->parentEx.context;
+    } else {
+        compare = record_compare_by_name_s;
+        context = NULL;
+    }
+    cdpRecord* child = &tnode->record;
+    *child = metadata;
+    
+    if (tree->root) {
+        cdpRbTreeNode* x = tree->root;
+        cdpRbTreeNode* y;
+        do {
+            y = x;
+            int cmp = compare(&metadata, &x->record, context);
+            if CDP_RARELY(0 == cmp) {
+                // FixMe: delete children.
+                assert(0 == cmp);
+            } else if (0 > cmp) {
+                x = x->left;
+            } else {
+                x = x->right;
+            }
+        } while (x);
+        tnode->tParent = y;
+        if (0 > compare(&metadata, &y->record, context)) {
+            y->left = tnode;
+        } else {
+            y->right = tnode;
+        }
+        rb_tree_fix_insert(tree, tnode);
+    } else {
+        tree->root = tnode;
+    }
+    
+    return child;
+}
+
+
+static inline cdpRecord* rb_tree_top(cdpRbTree* tree, bool last) {
+    cdpRbTreeNode* tnode = tree->root;
+    if (last) {
+        while (tnode->right)  tnode = tnode->right;
+    } else {
+        while (tnode->left)   tnode = tnode->left;        
+    }
+    return = &tnode->record;
+}
+
 
 static inline bool rb_tree_traverse(cdpRbTree* tree, cdpRecord* book, unsigned maxDepth, cdpRecordTraverse func, void* context) {
   cdpRbTreeNode* tnode = tree->root, tnodePrev = NULL;
@@ -608,14 +716,84 @@ static inline bool rb_tree_traverse(cdpRbTree* tree, cdpRecord* book, unsigned m
 }
 
 
-struct BreakAtIndex {size_t index; cdpRecord* record;};
+struct RbFindByName {cdpNameID* nameID, cdpRecord* found};
 
-static inline int rb_traverse_func_break_at_index(cdpEntry* entry, unsigned u, struct BreakAtIndex* bai) {
+static inline int rb_traverse_func_break_at_name(cdpEntry* entry, unsigned u, struct RbFindByName* fbn) {
+    if (entry.record->metadata.nameID == fbn->nameID) {
+        fbn->found = entry->record;
+        return false;
+    }
+    return true;
+}
+
+static inline cdpRecord* rb_tree_find_by_name(cdpRbTree* tree, cdpNameID nameID, cdpRecord* book) {
+    assert(cdp_record_is_dictionary(book));
+    if (!tree->parentEx.compare) {
+        cdpRbTreeNode* tnode = tree->root;
+        do {
+            if (tnode->record.metadata.nameID < nameID) {
+                tnode = tnode->left;
+            } else if (tnode->record.metadata.nameID > nameID) {
+                tnode = tnode->right;
+            } else {
+                return &tnode->record;
+            }
+        } while (tnode);
+    } else {
+        RbFindByName fbn = {.nameID = nameID};
+        rb_tree_traverse(tree, book, cdp_bitson(parentEx->chdCount) + 2, rb_traverse_func_break_at_name, &fbn))
+        return fbn.found;
+    }
+    return NULL;
+}
+
+
+struct RbBreakAtIndex {size_t index; cdpRecord* record;};
+
+static inline int rb_traverse_func_break_at_index(cdpEntry* entry, unsigned u, struct RbBreakAtIndex* bai) {
     if (entry->index == bai->index) {
         bay->record = entry->record;
         return false;
     }
     return true;
+}
+
+static inline cdpRecord* rb_tree_find_by_index(cdpRecord* record, size_t index) {
+    struct RbBreakAtIndex bai = {.index = index};
+    if (rb_tree_traverse(tree, book, cdp_bitson(parentEx->chdCount) + 2, rb_traverse_func_break_at_index, &bai))
+        return bai.record;
+}
+
+
+static inline cdpRecord* rb_tree_prev(cdpRecord* record) {
+    cdpRbTreeNode* tnode = rb_tree_node_from_record(record);
+    if (tnode->left) {
+        tnode = tnode->left;
+        while (tnode->right) tnode = tnode->right;
+        return &tnode->record;
+    }
+    cdpRbTreeNode* tParent = tnode->tParent;
+    while (tParent && tnode == tParent->left) {
+        tnode = tParent;
+        tParent = tParent->tParent;
+    }
+    return tParent? &tParent->record: NULL;
+}
+
+
+static inline cdpRecord* rb_tree_next(cdpRecord* record) {
+    cdpRbTreeNode* tnode = rb_tree_node_from_record(record);
+    if (tnode->right) {
+        tnode = tnode->right;
+        while (tnode->left) tnode = tnode->left;
+        return &tnode->record;
+    }
+    cdpRbTreeNode* tParent = tnode->tParent;
+    while (tParent && tnode == tParent->right) {
+        tnode = tParent;
+        tParent = tParent->tParent;
+    }
+    return tParent? &tParent->record: NULL;
 }
 
 
@@ -630,7 +808,6 @@ static inline void rb_tree_transplant(cdpRbTree* tree, cdpRbTreeNode* u, cdpRbTr
     if (v)
         v->tParent = u->tParent;
 }
-
 
 static inline void rb_tree_fixremove_node(cdpRbTree* tree, cdpRbTreeNode* x) {
     while (x != tree->root && !x->isRed) {
@@ -691,6 +868,40 @@ static inline void rb_tree_fixremove_node(cdpRbTree* tree, cdpRbTreeNode* x) {
     x->isRed = false;
 }
 
+static inline void rb_tree_remove_record(cdpRbTree* tree, cdpRecord* record) {
+    cdpRbTreeNode* tnode = rb_tree_node_from_record(record);
+    cdpRbTreeNode* y = tnode, *x;
+    bool wasRed = tnode->isRed;
+
+    if (!tnode->left) {
+        x = tnode->right;
+        rb_tree_transplant(tree, tnode, x);
+    } else if (!tnode->right) {
+        x = tnode->left;
+        rb_tree_transplant(tree, tnode, x);
+    } else {
+        for (y = tnode->right;  y->left;  y = y->left);
+        wasRed = y->isRed;
+        x = y->right;
+
+        if (y->tParent == tnode) {
+            if (x)  x->tParent = y;
+        } else {
+            rb_tree_transplant(tree, y, x);
+            y->right = tnode->right;
+            y->right->tParent = y;
+        }
+        rb_tree_transplant(tree, tnode, y);
+        y->left = tnode->left;
+        y->left->tParent = y;
+        y->isRed = tnode->isRed;
+    }
+    if (x && !wasRed)
+        rb_tree_fixremove_node(tree, x);
+
+    cdp_free(tnode);
+}      
+
 
 
 
@@ -727,40 +938,10 @@ cdpRecord* cdp_record_create(cdpRecord* parent, unsigned style, cdpNameID nameID
         
       RED_BLACK_T:
       {
-        assert(cdp_record_is_dictionary(parent) && parentEx->compare);
-        cdpRbTree* tree = parent->recData.book.children;
-        CDP_NEW(cdpRbTreeNode, tnode);
-        tnode->isRed = true;
-        child = &tnode->record;
-        *child = metadata;
-        if (tree->root) {
-            cdpRbTreeNode* x = tree->root;
-            cdpRbTreeNode* y;
-            do {
-                y = x;
-                int cmp = parentEx->compare(&metadata, &x->record, parentEx->context);
-                if CDP_RARELY(0 == cmp) {
-                    // FixMe: delete children.
-                    assert(0 == cmp);
-                } else if (0 > cmp) {
-                    x = x->left;
-                } else {
-                    x = x->right;
-                }
-            } while (x);
-            tnode->tParent = y;
-            if (0 > parentEx->compare(&metadata, &y->record, parentEx->context)) {
-                y->left = tnode;
-            } else {
-                y->right = tnode;
-            }
-            rb_tree_fix_insert(tree, tnode);
-        } else {
-            tree->root = tnode;
-        }
+        child = rb_tree_add(parent->recData.book.children, parent, push, metadata);
         break;
       }
-    } LABEL_END;
+    } RECORD_LABEL_END;
     
     // Update child.
     child->storage = parentEx;
@@ -801,7 +982,7 @@ cdpRecord* cdp_record_create(cdpRecord* parent, unsigned style, cdpNameID nameID
           }
           
           REQ_RED_BLACK_T: {
-            CDP_NEW(cdpRbTree, chdTree);
+            cdpRbTree* chdTree = rb_tree_new();
             chdParentEx = &chdTree->parentEx;
             break;
           }
@@ -840,7 +1021,7 @@ cdpRecord* cdp_record_create(cdpRecord* parent, unsigned style, cdpNameID nameID
         
       LINK:
         break;
-    } LABEL_END;
+    } RECORD_LABEL_END;
 
     va_end(args);
         
@@ -966,17 +1147,10 @@ cdpRecord* cdp_record_top(cdpRecord* book, bool last) {
         break;
         
       RED_BLACK_T: {
-        cdpRbTree* tree = book->recData.book.children;
-        cdpRbTreeNode* tnode = tree->root;
-        if (last) {
-            while (tnode->right)  tnode = tnode->right;
-        } else {
-            while (tnode->left)   tnode = tnode->left;        
-        }
-        record = &tnode->record;
+        record = rb_tree_top(book->recData.book.children, last);
         break;
       }
-    } LABEL_END;
+    } RECORD_LABEL_END;
     
     return record;
 }
@@ -1010,26 +1184,10 @@ cdpRecord* cdp_record_by_name(cdpRecord* book, cdpNameID nameID) {
         break;
         
       RED_BLACK_T: {
-        assert(cdp_record_is_dictionary(book));
-        if (array->parentEx.compare == record_compare_by_name) {
-            cdpRbTree* tree = book->recData.book.children;
-            cdpRbTreeNode* tnode = tree->root;
-            do {
-                if (tnode->record.metadata.nameID < nameID) {
-                    tnode = tnode->left;
-                } else if (tnode->record.metadata.nameID > nameID) {
-                    tnode = tnode->right;
-                } else {
-                    return &tnode->record;
-                }
-            } while (tnode);
-        } else {
-            // FixMe: add a traverse operation in here
-            assert(array->parentEx.compare != record_compare_by_name);
-        }
+        record = rb_tree_find_by_name(book->recData.book.children, nameID, book);
         break;
      }
-    } LABEL_END;
+    } RECORD_LABEL_END;
 
     return record;
 }
@@ -1074,13 +1232,10 @@ cdpRecord* cdp_record_by_index(cdpRecord* book, size_t index) {
         break;
         
       RED_BLACK_T: {
-        cdpRbTree* tree = book->recData.book.children;
-        struct BreakAtIndex bai = {.index = index};
-        if (rb_tree_traverse(tree, book, cdp_bitson(parentEx->chdCount) + 2, rb_traverse_func_break_at_index, &bai))
-            return bai.record;
+        record = rb_tree_find_by_index(book->recData.book.children, index);
         break;
       }
-    } LABEL_END;
+    } RECORD_LABEL_END;
 
     return record;
 }
@@ -1140,20 +1295,10 @@ cdpRecord* cdp_record_prev(cdpRecord* book, cdpRecord* record) {
         break;
         
       RED_BLACK_T: {
-        cdpRbTreeNode* tnode = rb_tree_node_from_record(record);
-        if (tnode->left) {
-            tnode = tnode->left;
-            while (tnode->right) tnode = tnode->right;
-            return &tnode->record;
-        }
-        cdpRbTreeNode* tParent = tnode->tParent;
-        while (tParent && tnode == tParent->left) {
-            tnode = tParent;
-            tParent = tParent->tParent;
-        }
-        return tParent? &tParent->record: NULL;
+        prev = rb_tree_prev(record);
+        break;
       }
-    } LABEL_END;
+    } RECORD_LABEL_END;
 
     return prev;
 }
@@ -1193,21 +1338,11 @@ cdpRecord* cdp_record_next(cdpRecord* book, cdpRecord* record) {
         break;
         
       RED_BLACK_T: {
-        cdpRbTreeNode* tnode = rb_tree_node_from_record(record);
-        if (tnode->right) {
-            tnode = tnode->right;
-            while (tnode->left) tnode = tnode->left;
-            return &tnode->record;
-        }
-        cdpRbTreeNode* tParent = tnode->tParent;
-        while (tParent && tnode == tParent->right) {
-            tnode = tParent;
-            tParent = tParent->tParent;
-        }
-        return tParent? &tParent->record: NULL;
+        next = rb_tree_next(record);
+        break;
       }
 
-    } LABEL_END;
+    } RECORD_LABEL_END;
 
     return next;
 }
@@ -1248,7 +1383,7 @@ cdpRecord* cdp_record_next_by_name(cdpRecord* book, cdpNameID nameID, uintptr_t*
       RED_BLACK_T: {    // Unused.
         break;
       }
-    } LABEL_END;
+    } RECORD_LABEL_END;
 
     return record;
 }
@@ -1293,17 +1428,7 @@ bool cdp_record_traverse(cdpRecord* book, cdpRecordTraverse func, void* context)
         break;
         
       ARRAY: {
-        cdpArray* array = book->recData.book.children;
-        assert(array && array->capacity >= parentEx->chdCount);
-        cdpBookEntry entry = {.record = array->record, .parent = book, .next = (parentEx->chdCount > 1)? (array->record + 1): NULL};
-        while (entry.index < parentEx->chdCount) {
-            if (!func(&entry, 0, context))
-                return false;
-            entry.prev   = entry.record;
-            entry.record = entry.next;
-            entry.next++;
-            entry.index++;
-        }
+        done = array_traverse(book->recData.book.children, book, func, context);
         break;
       }
        
@@ -1311,10 +1436,10 @@ bool cdp_record_traverse(cdpRecord* book, cdpRecordTraverse func, void* context)
         break;
         
       RED_BLACK_T: {
-        cdpRbTree* tree = book->recData.book.children;
-        return rb_tree_traverse(tree, book, cdp_bitson(parentEx->chdCount) + 2, func, context);
+        done = rb_tree_traverse(book->recData.book.children, book, cdp_bitson(parentEx->chdCount) + 2, func, context);
+        break;
       }
-    } LABEL_END;
+    } RECORD_LABEL_END;
     
     return done;
 }
@@ -1369,9 +1494,7 @@ bool cdp_record_deep_traverse(cdpRecord* book, unsigned maxDepth, cdpRecordTrave
             break;
             
           ARRAY: {
-            cdpArray* array = entry.record->storage;
-            assert(array && array->capacity >= array.parentEx.chdCount);
-            entry.next = (entry.index < array.parentEx.chdCount)?  entry.record + 1:  NULL;
+            entry.next = array_next(entry.record->storage, entry.record);
             break;
           }
           
@@ -1379,22 +1502,10 @@ bool cdp_record_deep_traverse(cdpRecord* book, unsigned maxDepth, cdpRecordTrave
             break;
             
           RED_BLACK_T: {
-            cdpRbTreeNode* tnode = rb_tree_node_from_record(entry.record);
-            if (tnode->right) {
-                tnode = tnode->right;
-                while (tnode->left) tnode = tnode->left;
-                entry.next = &tnode->record;
-            } else {
-                cdpRbTreeNode* tParent = tnode->tParent;
-                while (tParent && tnode == tParent->right) {
-                    tnode = tParent;
-                    tParent = tParent->tParent;
-                }
-                entry.next = tParent? &tParent->record: NULL;
-            }
+            entry.next = rb_tree_next(entry.record);
             break;
           }
-        } LABEL_END;
+        } RECORD_LABEL_END;
 
         if (func) {
             ok = func(&entry, depth, context);
@@ -1454,10 +1565,8 @@ void cdp_record_sort(cdpRecord* book, cdpCompare compare, void* context) {
         break;
     
       ARRAY: {
-        cdpArray* array = book->recData.book.children;
-        assert(compare == rec_cmp_by_nameID);
-        qsort(array->record, parentEx->chdCount, sizeof(cdpRecord), rec_cmp_by_nameID);
-        array_update_children_parent_ptr(array->record, &array->record[parentEx->chdCount - 1]);
+        array_sort(book->recData.book.children, compare, context);
+        break;
       }
         
       PACKED_LIST: {
@@ -1467,7 +1576,7 @@ void cdp_record_sort(cdpRecord* book, cdpCompare compare, void* context) {
       RED_BLACK_T: {    // Unused.
         break;
       }
-    } LABEL_END;
+    } RECORD_LABEL_END;
 }
 
 
@@ -1493,7 +1602,7 @@ static bool record_delete_unlink(cdpBookEntry* entry, unsigned depth, void* p) {
         // Go to pointed record and unlink this from parent list.
         break;
       }
-    } LABEL_END;
+    } RECORD_LABEL_END;
         
     return true;
 }
@@ -1514,10 +1623,7 @@ static bool record_delete_store(cdpBookEntry* entry, unsigned depth, void* p) {
             break;
             
           ARRAY: {
-            cdpArray* array = entry.record->recData.book.children;
-            assert(array);
-            cdp_free(array->record);
-            cdp_free(array);
+            array_del(entry.record->recData.book.children);
             break;
           }
           
@@ -1525,11 +1631,10 @@ static bool record_delete_store(cdpBookEntry* entry, unsigned depth, void* p) {
             break;
             
           RED_BLACK_T: {
-            cdpRbTree* tree = entry.record->recData.book.children;;
-            cdp_free(tree);
+            rb_tree_del(entry.record->recData.book.children);
             break;
           }
-        } LABEL_END;
+        } RECORD_LABEL_END;
         break;
       }
       
@@ -1541,7 +1646,7 @@ static bool record_delete_store(cdpBookEntry* entry, unsigned depth, void* p) {
         
       LINK:
         break;
-    } LABEL_END;
+    } RECORD_LABEL_END;
             
     return true;
 }
@@ -1556,6 +1661,7 @@ bool cdp_record_delete(cdpRecord* record, unsigned maxDepth) {
     cdpParentEx* parentEx = cdp_record_parent_ex(record);
     cdpRecord* book = parentEx->book;
 
+    // Delete children first.
     RECORD_STYLE_BEGIN(record->metadata.reStyle) {
       BOOK:;
       DICTIONARY: {
@@ -1570,9 +1676,9 @@ bool cdp_record_delete(cdpRecord* record, unsigned maxDepth) {
         
       LINK:
         break;
-    } LABEL_END;
+    } RECORD_LABEL_END;
        
-    /* Delete from parent (re-organizing siblings) */
+    // Delete this record from its parent (re-organizing siblings).
     STORAGE_TECH_BEGIN(book->metadata.stoTech) {
       LINKED_LIST: {
         list_remove_record(book->recData.book.children, record);
@@ -1583,12 +1689,7 @@ bool cdp_record_delete(cdpRecord* record, unsigned maxDepth) {
         break;
         
       ARRAY: {
-        cdpArray* array = book->recData.book.children;
-        assert(array && array->capacity >= parentEx->chdCount);
-        cdpRecord* last = &array->record[parentEx->chdCount - 1];
-        if (record < last)
-            memmove(record, record + 1, cdp_ptr_dif(record, last));
-        CDP_0(last);
+        array_remove_record(book->recData.book.children, record);
         break;
       }
       
@@ -1596,41 +1697,10 @@ bool cdp_record_delete(cdpRecord* record, unsigned maxDepth) {
         break;
         
       RED_BLACK_T: {
-        cdpRbTree* tree = book->recData.book.children;
-        cdpRbTreeNode* tnode = rb_tree_node_from_record(record);
-        cdpRbTreeNode* y = tnode, *x;
-        bool wasRed = tnode->isRed;
-
-        if (!tnode->left) {
-            x = tnode->right;
-            rb_tree_transplant(tree, tnode, x);
-        } else if (!tnode->right) {
-            x = tnode->left;
-            rb_tree_transplant(tree, tnode, x);
-        } else {
-            for (y = tnode->right;  y->left;  y = y->left);
-            wasRed = y->isRed;
-            x = y->right;
-
-            if (y->tParent == tnode) {
-                if (x)  x->tParent = y;
-            } else {
-                rb_tree_transplant(tree, y, x);
-                y->right = tnode->right;
-                y->right->tParent = y;
-            }
-            rb_tree_transplant(tree, tnode, y);
-            y->left = tnode->left;
-            y->left->tParent = y;
-            y->isRed = tnode->isRed;
-        }
-        if (x && !wasRed)
-            rb_tree_fixremove_node(tree, x);
-
-        cdp_free(tnode);        
+        rb_tree_remove_record(book->recData.book.children, record);
         break;
       }
-    } LABEL_END;
+    } RECORD_LABEL_END;
     
     parentEx->chdCount--;
         
