@@ -152,10 +152,11 @@ static inline int record_compare_by_name_s(const cdpRecord* restrict key, const 
 }
 
 
-#define STORAGE_TECH_BEGIN(stoTech)                                    \
+#define STORAGE_TECH_BEGIN(stoTech, ...)                               \
     assert((stoTech) < CDP_STO_CHD_COUNT);                             \
-    static void* const chdStoTech[] = {&&LINKED_LIST, &&CIRC_BUFFER,   \
-        &&ARRAY, &&PACKED_LIST, &&RED_BLACK_T};                        \
+    static void* const chdStoTech[] = {&&__VA_ARGS__##LINKED_LIST,     \
+        &&__VA_ARGS__##CIRC_BUFFER, &&__VA_ARGS__##ARRAY,              \
+        &&__VA_ARGS__##PACKED_LIST, &&__VA_ARGS__##RED_BLACK_T};       \
     goto *chdStoTech[stoTech];                                         \
     do
 
@@ -176,7 +177,6 @@ static inline int record_compare_by_name_s(const cdpRecord* restrict key, const 
 /*
    Double linked list implementation
 */
-
 
 #define list_new()      cdp_new(cdpList)
 #define list_del(list)  cdp_free(list)
@@ -363,7 +363,6 @@ static inline void list_sort(cdpList* list, cdpCompare compare, void* context) {
 /*
    Dynamic array implementation
 */
-
 
 static inline cdpArray* array_new(size_t capacity) {
     assert(capacity);
@@ -907,6 +906,41 @@ static inline void rb_tree_remove_record(cdpRbTree* tree, cdpRecord* record) {
 
 
 
+/***********************************************
+ *                                             *
+ * CascadeDP Layer 1 Record API starts here... *
+ *                                             *
+ ***********************************************/
+
+
+// The root dictionary is the same as "/" in text paths.
+cdpRecord ROOT = {.metadata = {.reStyle = CDP_REC_STYLE_DICTIONARY, .stoTech = CDP_STO_CHD_ARRAY}};
+
+
+/*
+    Initiates the record system.
+*/
+void cdp_record_system_initiate(void) {
+    assert(!ROOT.recData.book.children);
+    cdpArray* array = array_new(4);
+    array->parentEx.book = &ROOT;
+    ROOT.recData.book.children = array;
+}
+
+
+/* 
+    Shutdowns the record system.
+*/
+void cdp_record_system_shutdown(void) {
+    assert(ROOT.recData.book.children);
+    cdpArray* array = ROOT.recData.book.children;
+    ROOT.recData.book.children = NULL;
+    array_del(array);
+}
+
+
+
+
 /* 
     Creates a new record of the specified style on parent book.
 */
@@ -950,21 +984,17 @@ cdpRecord* cdp_record_create(cdpRecord* parent, unsigned style, cdpNameID nameID
     
     // Update parent.
     parentEx->chdCount++;
-    
+
+    // Create child record storage.
     RECORD_STYLE_BEGIN(style) {
       BOOK:;
       DICTIONARY: {
         unsigned storage = va_arg(args, unsigned);
         cdpParentEx* chdParentEx;
 
-        // Fast switch-case for (child's) child storage techniques:
-        assert(storage < CDP_STO_CHD_COUNT);
-        static void* const reqStoTech[] = {&&REQ_LINKED_LIST, &&REQ_CIRC_BUFFER, &&REQ_ARRAY, &&REQ_PACKED_LIST, &&REQ_RED_BLACK_T};
-        goto *reqStoTech[storage];
-        do {
+        STORAGE_TECH_BEGIN(storage, REQ_) {
           REQ_LINKED_LIST: {
-            cdpList* chdList = list_new();
-            chdParentEx = &chdList->parentEx;
+            chdParentEx = (cdpParentEx*) list_new();
             break;
           }
           
@@ -974,8 +1004,7 @@ cdpRecord* cdp_record_create(cdpRecord* parent, unsigned style, cdpNameID nameID
           
           REQ_ARRAY: {
             size_t capacity = va_arg(args, size_t);
-            cdpArray* chdArray = array_new(capacity);
-            chdParentEx = &chdArray->parentEx;
+            chdParentEx = (cdpParentEx*) array_new(capacity);
             break;
           }
 
@@ -984,11 +1013,10 @@ cdpRecord* cdp_record_create(cdpRecord* parent, unsigned style, cdpNameID nameID
           }
           
           REQ_RED_BLACK_T: {
-            cdpRbTree* chdTree = rb_tree_new();
-            chdParentEx = &chdTree->parentEx;
+            chdParentEx = (cdpParentEx*) rb_tree_new();
             break;
           }
-        } while(0);
+        } RECORD_LABEL_END;
         
         // Link child book with its own child storage.
         if (style == CDP_REC_STYLE_DICTIONARY) {
@@ -1001,7 +1029,7 @@ cdpRecord* cdp_record_create(cdpRecord* parent, unsigned style, cdpNameID nameID
       }
       
       REGISTER: {
-        bool   borrow = va_arg(args, int);
+        bool   borrow = va_arg(args, unsigned);
         void*  data   = va_arg(args, void*);
         size_t size   = va_arg(args, size_t);
         assert(size);
@@ -1105,11 +1133,11 @@ bool cdp_record_path(cdpRecord* record, cdpPath** path) {
     for (cdpRecord* current = record;  current;  current = cdp_record_parent(current)) {  // FixMe: assuming single parenthood for now.
         if (tempPath->length >= tempPath->capacity) {
             unsigned newCapacity = tempPath->capacity * 2;
-            cdpPath* newPath = cdp_dyn_malloc(cdpPath, cdpNameID, newCapacity);
+            cdpPath* newPath = cdp_dyn_malloc(cdpPath, cdpNameID, newCapacity);     // FixMe: use realloc.
             memcpy(&newPath->nameID[tempPath->capacity], tempPath->nameID, tempPath->capacity);
             newPath->length   = tempPath->capacity;
             newPath->capacity = newCapacity;
-            cdp_ptr_overw(tempPath, newPath);
+            CDP_PTR_OVERW(tempPath, newPath);
             *path = tempPath;
         }
 

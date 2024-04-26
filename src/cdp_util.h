@@ -118,7 +118,7 @@ typedef void (*cdpDel)(void*);
 #define     cdp_ptr_has_val(p)        ((p) && *(p))
 #define     cdp_ptr_sec_get(p, v)     ((p)? *(p): (n))
 #define     CDP_PTR_SEC_SET(p, n)     ({if (p) *(p)=(n);})
-#define     cdp_ptr_overw(p, n)       ({cdp_free(p); (p)=(n);})
+#define     CDP_PTR_OVERW(p, n)       ({cdp_free(p); (p)=(n);})
 
 
 #define     cdp_popcount(v)           __builtin_choose_expr(sizeof(v) <= sizeof(int), __builtin_popcount(v), __builtin_choose_expr(sizeof(v) == sizeof(long int), __builtin_popcountl(v), __builtin_popcountll(v)))
