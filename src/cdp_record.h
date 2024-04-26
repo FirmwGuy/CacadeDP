@@ -180,7 +180,7 @@ struct _cdpPackListNode {
     size_t            count;      // Number of valid records in this node's pack
     //
     cdpRecord         record[];   // Fixed-size array of cdpRecords
-} cdpPackListNode;
+};
 
 typedef struct {
     cdpParentEx       parentEx;   // Parent info.
@@ -245,23 +245,25 @@ static inline bool cdp_record_has_shadows   (cdpRecord* record)  {assert(record)
 // Parent properties
 #define CDP_PARENTEX(children)          ({assert(children);  (cdpParentEx*)(children);})
 #define cdp_record_parent_ex(record)    CDP_PARENTEX((record)->storage)
-static inline cdpRecord* cdp_record_parent(cdpRecord* record)    {assert(record && cdp_record_parent_ex(record));  return cdp_record_parent_ex(record)->book;}
+static inline cdpRecord* cdp_record_parent  (cdpRecord* record)  {assert(record && cdp_record_parent_ex(record));  return cdp_record_parent_ex(record)->book;}
+static inline size_t     cdp_record_siblings(cdpRecord* record)  {assert(record && cdp_record_parent_ex(record));  return cdp_record_parent_ex(record)->chdCount;}
+
 
 // Register property check
 static inline bool cdp_record_register_borrowed(cdpRecord* reg)  {assert(cdp_record_is_register(reg));  return (reg->metadata.stoTech == CDP_STO_REG_BORROWED);}
 
-// Book property check
-static inline bool cdp_record_book_or_dic_children(cdpRecord* book) {assert(cdp_record_is_book_or_dic(book) && book->recData.book.children);  return CDP_PARENTEX(book->recData.book.children)->chdCount;}
-static inline bool cdp_record_book_pushable(cdpRecord* book)        {assert(cdp_record_is_book(book));  return (book->metadata.stoTech != CDP_STO_CHD_RED_BLACK_T);}
+// Book/Dictionary property check
+static inline size_t cdp_record_book_or_dic_children(cdpRecord* book)   {assert(cdp_record_is_book_or_dic(book));  return CDP_PARENTEX(book->recData.book.children)->chdCount;}
+static inline bool   cdp_record_book_pushable       (cdpRecord* book)   {assert(cdp_record_is_book(book));  return (book->metadata.stoTech != CDP_STO_CHD_RED_BLACK_T);}
 
 
 // Appends/inserts (or pushes) a new record.
 cdpRecord* cdp_record_create(cdpRecord* parent, unsigned style, cdpNameID nameID, uint32_t typeID, bool push, bool priv, ...);
+
 #define cdp_record_add_register(parent, nameID, typeID, data, size)         cdp_record_create(parent, CDP_REC_STYLE_REGISTER, nameID, typeID, false, false, data, size)
 #define cdp_record_push_register(parent, nameID, typeID, data, size)        cdp_record_create(parent, CDP_REC_STYLE_REGISTER, nameID, typeID,  true, false, data, size)
 #define cdp_record_add_register_priv(parent, nameID, typeID, data, size)    cdp_record_create(parent, CDP_REC_STYLE_REGISTER, nameID, typeID, false,  true, data, size)
 #define cdp_record_push_register_priv(parent, nameID, typeID, data, size)   cdp_record_create(parent, CDP_REC_STYLE_REGISTER, nameID, typeID,  true,  true, data, size)
-
 
 #define cdp_record_add_book(parent, nameID, typeID, chdStorage, chdSort, ...)       cdp_record_create(parent, CDP_REC_STYLE_BOOK, nameID, typeID, false, false, chdStorage, chdSort, __VA_ARGS__)
 #define cdp_record_push_book(parent, nameID, typeID, chdStorage, chdSort, ...)      cdp_record_create(parent, CDP_REC_STYLE_BOOK, nameID, typeID,  true, false, chdStorage, chdSort, __VA_ARGS__)
@@ -269,7 +271,7 @@ cdpRecord* cdp_record_create(cdpRecord* parent, unsigned style, cdpNameID nameID
 #define cdp_record_push_book_priv(parent, nameID, typeID, chdStorage, chdSort, ...) cdp_record_create(parent, CDP_REC_STYLE_BOOK, nameID, typeID,  true,  true, chdStorage, chdSort, __VA_ARGS__)
 
 // Accessing registers
-bool cdp_record_register_read (cdpRecord* reg, size_t position, void* data, size_t* size);        // Reads register data from position and puts it on data buffer (atomically).
+bool cdp_record_register_read (cdpRecord* reg, size_t position, void** data, size_t* size);        // Reads register data from position and puts it on data buffer (atomically).
 bool cdp_record_register_write(cdpRecord* reg, size_t position, const void* data, size_t size);   // Writes the data of a register record at position (atomically and it may reallocate memory).
 #define cdp_record_register_update(reg, data, size)   cdp_record_register_write(reg, 0, data, size)
 
@@ -281,12 +283,12 @@ cdpRecord* cdp_record_top    (cdpRecord* book, bool last);          // Gets the 
 cdpRecord* cdp_record_by_name (cdpRecord* book, cdpNameID nameID);  // Retrieves a child record by its nameID.
 cdpRecord* cdp_record_by_key  (cdpRecord* book, cdpRecord* key);    // Finds a child record based on specified key.
 cdpRecord* cdp_record_by_index(cdpRecord* book, size_t index);      // Gets the child record at index position from book.
-cdpRecord* cdp_record_by_path (cdpRecord* start, cdpPath** path);   // Finds a child record based on a path of nameIDs starting from the root or a given book.
+cdpRecord* cdp_record_by_path (cdpRecord* start, const cdpPath* path);  // Finds a child record based on a path of nameIDs starting from the root or a given book.
 
 cdpRecord* cdp_record_prev(cdpRecord* book, cdpRecord* record);     // Retrieves the previous sibling of record (sorted or unsorted).
 cdpRecord* cdp_record_next(cdpRecord* book, cdpRecord* record);     // Retrieves the next sibling of record (sorted or unsorted).
 cdpRecord* cdp_record_next_by_name(cdpRecord* book, cdpNameID nameID, uintptr_t* prev);   // Retrieves the first/next (unsorted) child record by its nameID.
-cdpRecord* cdp_record_next_by_path(cdpRecord* start, cdpPath** path, uintptr_t* prev);    // Finds the first/next (unsorted) record based on a path of nameIDs starting from the root or a given book.
+cdpRecord* cdp_record_next_by_path(cdpRecord* start, cdpPath* path, uintptr_t* prev);    // Finds the first/next (unsorted) record based on a path of nameIDs starting from the root or a given book.
 
 bool cdp_record_traverse     (cdpRecord* book, cdpRecordTraverse func, void* context);    // Traverses the children of a book record, applying a function to each.
 bool cdp_record_deep_traverse(cdpRecord* book, unsigned maxDepth, cdpRecordTraverse func, cdpRecordTraverse listEnd, void* context);  // Traverses each sub-branch of a book record.

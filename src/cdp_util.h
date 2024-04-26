@@ -69,12 +69,8 @@
   static inline void*   cdp_malloc(size_t z)                   {void* p = malloc(z);       if CDP_RARELY(!p)  abort();  return p;}
   static inline void*   cdp_calloc(size_t n, size_t z)         {void* p = calloc(n, z);    if CDP_RARELY(!p)  abort();  return p;}
   static inline void*   cdp_realloc(void* p, size_t z)         {void* r = realloc(p, z);   if CDP_RARELY(!r)  abort();  return r;}
-  
-  static inline char*   cdp_strdup(const char* s)              {char* d = strdup(s);       if CDP_RARELY(!d)  abort();  return d;}
-  static inline char*   cdp_strndup(const char* s, size_t z)   {char* d = strndup(s, z);   if CDP_RARELY(!d)  abort();  return d;}
-  
-  #define   cdp_alloca                alloca
-  #define   cdp_free                  free
+  #define   cdp_alloca  __builtin_alloca
+  #define   cdp_free    free
 #endif                               
 #define     cdp_malloc0(z, ...)       cdp_calloc(1, z __VA_ARGS__)
 #define     cdp_dyn_malloc(Ts, Tm, l) cdp_malloc(sizeof(Ts) + ((l) * sizeof(Tm)))
@@ -114,15 +110,15 @@ typedef void (*cdpDel)(void*);
 
 #define     cdp_ptr_align_to(p, a)    ((void*)cdp_align_to((uintptr_t)(p), a))
 #define     cdp_ptr_aligned(p)        ((void*)cdp_aligned((uintptr_t)(p)))
-#define     cdp_ptr_off(p, off)       ((void*)(((void*)(p)) + (off)))
+#define     cdp_ptr_off(p, off)       ((void*)(((uint8_t*)(p)) + (off)))
 #define     CDP_PTR_OFF(p, off)       ((p) = cdp_ptr_off(p, off))
-#define     cdp_ptr_dif(p1, p2)       (((void*)(p1)) - ((void*)(p2)))
+#define     cdp_ptr_dif(p1, p2)       ((void*)(((uint8_t*)(p1)) - ((uint8_t*)(p2))))
 #define     cdp_ptr_idx(p, o, z)      (cdp_ptr_dif(o, p)/(z))
 #define     cdp_ptr_adr(p, i, z)      cdp_ptr_off(p, (i)*(z))
 #define     cdp_ptr_has_val(p)        ((p) && *(p))
 #define     cdp_ptr_sec_get(p, v)     ((p)? *(p): (n))
 #define     CDP_PTR_SEC_SET(p, n)     ({if (p) *(p)=(n);})
-#define     cdp_ptr_overw(p, n)       ({cdp_free(p); (p)=(n)})
+#define     cdp_ptr_overw(p, n)       ({cdp_free(p); (p)=(n);})
 
 
 #define     cdp_popcount(v)           __builtin_choose_expr(sizeof(v) <= sizeof(int), __builtin_popcount(v), __builtin_choose_expr(sizeof(v) == sizeof(long int), __builtin_popcountl(v), __builtin_popcountll(v)))
