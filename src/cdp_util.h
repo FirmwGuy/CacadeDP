@@ -25,6 +25,7 @@
 #define CDP_UTIL_H
 
 
+#include <stddef.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>

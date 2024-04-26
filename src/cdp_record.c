@@ -523,7 +523,12 @@ static inline void array_sort(cdpArray* array, cdpCompare compare, void* context
     if (!compare) {
         qsort(array->record, array->parentEx.chdCount, sizeof(cdpRecord), (cdpFunc) record_compare_by_name);
     } else {
-        qsort_s(array->record, array->parentEx.chdCount, sizeof(cdpRecord), (cdpFunc) compare, context);
+      #ifdef _GNU_SOURCE  
+        qsort_r
+      #else
+        qsort_s
+      #endif
+        (array->record, array->parentEx.chdCount, sizeof(cdpRecord), (cdpFunc) compare, context);
     }
     array_update_children_parent_ptr(array->record, &array->record[array->parentEx.chdCount - 1]);
 }
