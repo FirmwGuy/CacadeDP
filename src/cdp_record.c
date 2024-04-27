@@ -364,8 +364,8 @@ static inline void list_sort(cdpList* list, cdpCompare compare, void* context) {
    Dynamic array implementation
 */
 
-static inline cdpArray* array_new(size_t capacity) {
-    assert(capacity);
+static inline cdpArray* array_new(int capacity) {
+    assert(capacity > 0);
     CDP_NEW(cdpArray, array);
     array->capacity = capacity;
     array->record = cdp_malloc0(capacity * sizeof(cdpRecord));
@@ -435,7 +435,8 @@ static inline cdpRecord* array_add(cdpArray* array, cdpRecord* parent, bool push
                 assert(prev);
             }
             child = &array->record[index];
-            memmove(child + 1, child, array->parentEx.chdCount * sizeof(cdpRecord)); 
+            if (index < array->parentEx.chdCount)
+                memmove(child + 1, child, array->parentEx.chdCount * sizeof(cdpRecord)); 
             *child = *metadata;
             array_update_children_parent_ptr(child + 1, &array->record[array->parentEx.chdCount - 1]);
         } else if (push) {
@@ -523,7 +524,7 @@ static inline void array_sort(cdpArray* array, cdpCompare compare, void* context
     if (!compare) {
         qsort(array->record, array->parentEx.chdCount, sizeof(cdpRecord), (cdpFunc) record_compare_by_name);
     } else {
-      #ifdef _GNU_SOURCE  
+      #ifdef _GNU_SOURCE
         qsort_r
       #else
         qsort_s
@@ -957,7 +958,7 @@ cdpRecord* cdp_record_create(cdpRecord* parent, unsigned style, cdpNameID nameID
     va_list args;
     va_start(args, priv);
     
-    // Add new record to parent book.
+    // Add new record to parent book/dict.
     STORAGE_TECH_BEGIN(parent->metadata.stoTech) {
       LINKED_LIST: {
         child = list_add(parent->recData.book.children, parent, push, &metadata);
@@ -1008,7 +1009,7 @@ cdpRecord* cdp_record_create(cdpRecord* parent, unsigned style, cdpNameID nameID
           }
           
           REQ_ARRAY: {
-            size_t capacity = va_arg(args, size_t);
+            int capacity = va_arg(args, int);
             chdParentEx = (cdpParentEx*) array_new(capacity);
             break;
           }
@@ -1023,12 +1024,13 @@ cdpRecord* cdp_record_create(cdpRecord* parent, unsigned style, cdpNameID nameID
           }
         } RECORD_LABEL_END;
         
-        // Link child book with its own child storage.
+        // Link child book/dic with its own (grand) child storage.
         if (style == CDP_REC_STYLE_DICTIONARY) {
             chdParentEx->compare = va_arg(args, cdpCompare);
             chdParentEx->context = va_arg(args, void*);
         }
         chdParentEx->book = child;
+        child->metadata.stoTech = storage;
         child->recData.book.children = chdParentEx;
         break;
       }

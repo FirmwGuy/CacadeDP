@@ -203,8 +203,8 @@ typedef struct {
     cdpParentEx     parentEx;     // Parent info.
     //
     cdpRbTreeNode*  root;         // The root node.
-    cdpRbTreeNode*  maximum;      // Node holding the maximum data.
-    cdpRbTreeNode*  minimum;      // Node holding the minimum data.
+    //cdpRbTreeNode*  maximum;      // Node holding the maximum data.
+    //cdpRbTreeNode*  minimum;      // Node holding the minimum data.
 } cdpRbTree;
 
 
@@ -266,22 +266,21 @@ cdpRecord* cdp_record_create(cdpRecord* parent, unsigned style, cdpNameID nameID
 #define cdp_record_add_register_priv(parent, nameID, typeID, borrow, data, size)    cdp_record_create(parent, CDP_REC_STYLE_REGISTER, nameID, typeID, false,  true, ((unsigned)(borrow)), data, ((size_t)(size)))
 #define cdp_record_push_register_priv(parent, nameID, typeID, borrow, data, size)   cdp_record_create(parent, CDP_REC_STYLE_REGISTER, nameID, typeID,  true,  true, ((unsigned)(borrow)), data, ((size_t)(size)))
 
-#define cdp_record_add_book(parent, nameID, typeID, chdStorage, compare, context)       cdp_record_create(parent, CDP_REC_STYLE_BOOK, nameID, typeID, false, false, ((unsigned)(chdStorage)), compare, context)
-#define cdp_record_push_book(parent, nameID, typeID, chdStorage, compare, context)      cdp_record_create(parent, CDP_REC_STYLE_BOOK, nameID, typeID,  true, false, ((unsigned)(chdStorage)), compare, context)
-#define cdp_record_add_book_priv(parent, nameID, typeID, chdStorage, compare, context)  cdp_record_create(parent, CDP_REC_STYLE_BOOK, nameID, typeID, false,  true, ((unsigned)(chdStorage)), compare, context)
-#define cdp_record_push_book_priv(parent, nameID, typeID, chdStorage, compare, context) cdp_record_create(parent, CDP_REC_STYLE_BOOK, nameID, typeID,  true,  true, ((unsigned)(chdStorage)), compare, context)
+#define cdp_record_add_book(parent, nameID, typeID, chdStorage, ...)                cdp_record_create(parent, CDP_REC_STYLE_BOOK, nameID, typeID, false, false, ((unsigned)(chdStorage)), ##__VA_ARGS__)
+#define cdp_record_push_book(parent, nameID, typeID, chdStorage, ...)               cdp_record_create(parent, CDP_REC_STYLE_BOOK, nameID, typeID,  true, false, ((unsigned)(chdStorage)), ##__VA_ARGS__)
+#define cdp_record_add_book_priv(parent, nameID, typeID, chdStorage, ...)           cdp_record_create(parent, CDP_REC_STYLE_BOOK, nameID, typeID, false,  true, ((unsigned)(chdStorage)), ##__VA_ARGS__)
+#define cdp_record_push_book_priv(parent, nameID, typeID, chdStorage, ...)          cdp_record_create(parent, CDP_REC_STYLE_BOOK, nameID, typeID,  true,  true, ((unsigned)(chdStorage)), ##__VA_ARGS__)
 
-#define cdp_record_add_dictionary(parent, nameID, typeID, chdStorage, compare, context)       cdp_record_create(parent, CDP_REC_STYLE_DICTIONARY, nameID, typeID, false, false, ((unsigned)(chdStorage)), compare, context)
-#define cdp_record_push_dictionary(parent, nameID, typeID, chdStorage, compare, context)      cdp_record_create(parent, CDP_REC_STYLE_DICTIONARY, nameID, typeID,  true, false, ((unsigned)(chdStorage)), compare, context)
-#define cdp_record_add_dictionary_priv(parent, nameID, typeID, chdStorage, compare, context)  cdp_record_create(parent, CDP_REC_STYLE_DICTIONARY, nameID, typeID, false,  true, ((unsigned)(chdStorage)), compare, context)
-#define cdp_record_push_dictionary_priv(parent, nameID, typeID, chdStorage, compare, context) cdp_record_create(parent, CDP_REC_STYLE_DICTIONARY, nameID, typeID,  true,  true, ((unsigned)(chdStorage)), compare, context)
+#define cdp_record_add_dictionary(parent, nameID, typeID, chdStorage, ...)          cdp_record_create(parent, CDP_REC_STYLE_DICTIONARY, nameID, typeID, false, false, ((unsigned)(chdStorage)), ##__VA_ARGS__)
+#define cdp_record_push_dictionary(parent, nameID, typeID, chdStorage, ...)         cdp_record_create(parent, CDP_REC_STYLE_DICTIONARY, nameID, typeID,  true, false, ((unsigned)(chdStorage)), ##__VA_ARGS__)
+#define cdp_record_add_dictionary_priv(parent, nameID, typeID, chdStorage, ...)     cdp_record_create(parent, CDP_REC_STYLE_DICTIONARY, nameID, typeID, false,  true, ((unsigned)(chdStorage)), ##__VA_ARGS__)
+#define cdp_record_push_dictionary_priv(parent, nameID, typeID, chdStorage, ...)    cdp_record_create(parent, CDP_REC_STYLE_DICTIONARY, nameID, typeID,  true,  true, ((unsigned)(chdStorage)), ##__VA_ARGS__)
 
 
 // Root dictionary operations.
-extern cdpRecord ROOT;
-static inline cdpRecord* cdp_record_root(void)  {assert(ROOT.recData.book.children);  return &ROOT;}
-#define cdp_record_root_add_book(nameID, typeID, compare, context)          cdp_record_add_book(cdp_record_root(), nameID, typeID, compare, context)
-#define cdp_record_root_add_dictionary(nameID, typeID, compare, context)    cdp_record_add_dictionary(cdp_record_root(), nameID, typeID, compare, context)
+static inline cdpRecord* cdp_record_root(void)  {extern cdpRecord ROOT; assert(ROOT.recData.book.children);  return &ROOT;}
+#define cdp_record_root_add_book(nameID, typeID, chdStorage, ...)           cdp_record_add_book(cdp_record_root(), nameID, typeID, chdStorage, ##__VA_ARGS__)
+#define cdp_record_root_add_dictionary(nameID, typeID, chdStorage, ...)     cdp_record_add_dictionary(cdp_record_root(), nameID, typeID, chdStorage, ##__VA_ARGS__)
 
 
 // Constructs the full path (sequence of nameIDs) for a given record, returning the depth.
