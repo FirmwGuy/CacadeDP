@@ -1,51 +1,83 @@
+/*
+ *  Copyright (c) 2024 Victor M. Barrientos <firmw.guy@gmail.com>
+ *
+ *  Permission is hereby granted, free of charge, to any person obtaining a copy
+ *  of this software and associated documentation files (the "Software"), to deal
+ *  in the Software without restriction, including without limitation the rights
+ *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ *  copies of the Software, and to permit persons to whom the Software is
+ *  furnished to do so, subject to the following conditions:
+ *
+ *  The above copyright notice and this permission notice shall be included in all
+ *  copies or substantial portions of the Software.
+ *
+ *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ *  SOFTWARE.
+ *
+ */
+
+
+/*  This test program uses Munit, which is MIT licensed. Please see munit.h file
+ *  for a complete copyright information.
+ */
+#define MUNIT_ENABLE_ASSERT_ALIASES
+#include "munit.h"
+
+
 #include "cdp_record.h"
-#include <stdio.h>
 
 
 enum {
+    NAME_NONE = 0,
+    //
     NAME_TEST_BOOK,
     NAME_TEST_DICT,
     NAME_UNSIGNED
 };
 
 
-bool test_register_val(cdpRecord* reg, unsigned value) {
-    unsigned* vread;
+void test_records_register_val(cdpRecord* reg, unsigned value) {
+    unsigned vread, *vptr = &vread;
     size_t size = 0;
-    cdp_record_register_read(reg, 0, (void**)&vread, &size);
-    assert(value == *vread && size == sizeof(value));
-    return true;
+    cdp_record_register_read(reg, 0, (void**)&vptr, &size);
+    assert_size(size, ==, sizeof(value));
+    assert_uint(value, ==, vread);
 }
 
 
-bool test_zero_item_ops(cdpRecord* book) {
-    assert(cdp_record_is_book_or_dic(book));    
-    assert(!cdp_record_top(book, true));
-    assert(!cdp_record_by_name(book, 0));
-    assert(!cdp_record_by_index(book, 0));
+void test_records_zero_item_ops(cdpRecord* book) {
+    assert_true(cdp_record_is_book_or_dic(book));    
+    assert_null(cdp_record_top(book, true));
+    assert_null(cdp_record_by_name(book, NAME_UNSIGNED));
+    assert_null(cdp_record_by_index(book, 0));
     cdpPath* path = cdp_alloca(sizeof(cdpPath) + (1 * sizeof(cdpNameID)));
     path->length = 1;
     path->capacity = 1;
     path->nameID[0] = 0;
-    assert(!cdp_record_by_path(book, path));
-    return true;
+    assert_null(cdp_record_by_path(book, path));
+    assert_true(cdp_record_traverse(book, print_values, NULL));
 }
 
 
-bool test_one_item_ops(cdpRecord* book, cdpRecord* reg) {
+void test_records_one_item_ops(cdpRecord* book, cdpRecord* reg) {
     cdpRecord* found = cdp_record_top(book, true);
-    assert(found == reg);
+    assert_ptr_equal(found, reg);
     found = cdp_record_by_name(book, reg->metadata.nameID);
-    assert(found == reg);
+    assert_ptr_equal(found, reg);
     found = cdp_record_by_index(book, 0);
-    assert(found == reg);
+    assert_ptr_equal(found, reg);
     cdpPath* path = cdp_alloca(sizeof(cdpPath) + (1 * sizeof(cdpNameID)));
     path->length = 1;
     path->capacity = 1;
     path->nameID[0] = reg->metadata.nameID;
     found = cdp_record_by_path(book, path);
-    assert(found == reg);
-    return true;
+    assert_ptr_equal(found, reg);
+    assert_true(cdp_record_traverse(book, print_values, NULL));
 }
 
 
@@ -55,55 +87,74 @@ bool print_values(cdpBookEntry* entry, unsigned depth, void* unused) {
     cdp_record_register_read(entry->record, 0, (void**)&this, &size);
     cdp_record_register_read(entry->prev,   0, (void**)&prev, &size);
     cdp_record_register_read(entry->next,   0, (void**)&next, &size);
-    printf("%u: %d (%d, %d)\n", (unsigned)entry->index, *this, *prev, *next);
+    munit_logf(MUNIT_LOG_DEBUG, "%u: %d (%d, %d)\n", (unsigned)entry->index, *this, *prev, *next);
     return true;
 }
 
 
-int test_one_item(cdpRecord* book) {    
+void test_records_one_item(cdpRecord* book) {    
     // Append, lookups and delete
-    test_zero_item_ops(book);
+    test_records_zero_item_ops(book);
     unsigned value = 1;
     cdpRecord* reg = cdp_record_add_register(book, NAME_UNSIGNED, NAME_UNSIGNED, false, &value, sizeof(value));
-    test_register_val(reg, value);
-    test_one_item_ops(book, reg);
+    test_records_register_val(reg, value);
+    test_records_one_item_ops(book, reg);
     cdp_record_delete_register(reg);
     
     // Push, lookups and delete
-    test_zero_item_ops(book);
+    test_records_zero_item_ops(book);
     value = 2;
     reg = cdp_record_push_register(book, NAME_UNSIGNED, NAME_UNSIGNED, false, &value, sizeof(value));
-    test_register_val(reg, value);
-    test_one_item_ops(book, reg);
-    
-    // Test sequence
-    cdp_record_traverse(book, print_values, NULL);
+    test_records_register_val(reg, value);
+    test_records_one_item_ops(book, reg);
     cdp_record_delete_register(reg);    
-    return 0;
 }
 
 
-int test_collections(int argC, const char** argV) {
+MunitResult test_records(const MunitParameter params[], void* user_data_or_fixture) {
     cdp_record_system_initiate();
     
-    cdpRecord* book = cdp_record_root_add_book(NAME_TEST_BOOK, CDP_STO_CHD_LINKED_LIST, CDP_STO_CHD_LINKED_LIST);
-    test_one_item(book);
+    cdpRecord* book = cdp_record_root_add_book(NAME_TEST_BOOK, CDP_STO_CHD_LINKED_LIST+1, CDP_STO_CHD_LINKED_LIST);
+    test_records_one_item(book);
     cdp_record_delete(book, 2);     // FixMe: test with maxDepth = 1.
     
-    book = cdp_record_root_add_book(NAME_TEST_BOOK, CDP_STO_CHD_ARRAY, CDP_STO_CHD_ARRAY, 8);
-    test_one_item(book);
+    book = cdp_record_root_add_book(NAME_TEST_BOOK, CDP_STO_CHD_ARRAY+1, CDP_STO_CHD_ARRAY, 8);
+    test_records_one_item(book);
     cdp_record_delete(book, 2);     // FixMe: test with maxDepth = 1.
 
-    book = cdp_record_root_add_book(NAME_TEST_BOOK, CDP_STO_CHD_RED_BLACK_T, CDP_STO_CHD_RED_BLACK_T);
-    test_one_item(book);
+    book = cdp_record_root_add_book(NAME_TEST_BOOK, CDP_STO_CHD_RED_BLACK_T+1, CDP_STO_CHD_RED_BLACK_T);
+    test_records_one_item(book);
     cdp_record_delete(book, 2);     // FixMe: test with maxDepth = 1.
     
     cdp_record_system_shutdown();
-    return 0;
+    return MUNIT_OK;
 }
 
 
 
-int main(int argC, const char** argV) {
-    return test_collections(argC, argV);
+
+// Munit setup follows...
+
+MunitTest testing[] = {
+  { "/records",               // name
+    test_records,             // test
+    NULL,                     // setup
+    NULL,                     // tear_down
+    MUNIT_TEST_OPTION_NONE,   // options
+    NULL                      // parameters
+  },
+
+  {NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL}  // EOL
+};
+
+const MunitSuite munitSuite = {
+    "/CascadeDP",             // name
+    testing,                  // tests
+    NULL,                     // suites
+    1,                        // iterations
+    MUNIT_SUITE_OPTION_NONE   // options
+};
+
+int main(int argC, char* argV[MUNIT_ARRAY_PARAM(argC + 1)]) {
+    return munit_suite_main(&munitSuite, NULL, argC, argV);
 }
