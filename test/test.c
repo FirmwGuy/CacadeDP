@@ -2,7 +2,54 @@
 #include <stdio.h>
 
 
-static bool print_values(cdpBookEntry* entry, unsigned depth, void* unused) {
+enum {
+    NAME_TEST_BOOK,
+    NAME_TEST_DICT,
+    NAME_UNSIGNED
+};
+
+
+bool test_register_val(cdpRecord* reg, unsigned value) {
+    unsigned* vread;
+    size_t size = 0;
+    cdp_record_register_read(reg, 0, (void**)&vread, &size);
+    assert(value == *vread && size == sizeof(value));
+    return true;
+}
+
+
+bool test_zero_item_ops(cdpRecord* book) {
+    assert(cdp_record_is_book_or_dic(book));    
+    assert(!cdp_record_top(book, true));
+    assert(!cdp_record_by_name(book, 0));
+    assert(!cdp_record_by_index(book, 0));
+    cdpPath* path = cdp_alloca(sizeof(cdpPath) + (1 * sizeof(cdpNameID)));
+    path->length = 1;
+    path->capacity = 1;
+    path->nameID[0] = 0;
+    assert(!cdp_record_by_path(book, path));
+    return true;
+}
+
+
+bool test_one_item_ops(cdpRecord* book, cdpRecord* reg) {
+    cdpRecord* found = cdp_record_top(book, true);
+    assert(found == reg);
+    found = cdp_record_by_name(book, reg->metadata.nameID);
+    assert(found == reg);
+    found = cdp_record_by_index(book, 0);
+    assert(found == reg);
+    cdpPath* path = cdp_alloca(sizeof(cdpPath) + (1 * sizeof(cdpNameID)));
+    path->length = 1;
+    path->capacity = 1;
+    path->nameID[0] = reg->metadata.nameID;
+    found = cdp_record_by_path(book, path);
+    assert(found == reg);
+    return true;
+}
+
+
+bool print_values(cdpBookEntry* entry, unsigned depth, void* unused) {
     unsigned* this, *prev, *next;
     size_t size = 0;
     cdp_record_register_read(entry->record, 0, (void**)&this, &size);
@@ -12,32 +59,44 @@ static bool print_values(cdpBookEntry* entry, unsigned depth, void* unused) {
     return true;
 }
 
+
+int test_one_item(cdpRecord* book) {    
+    // Append, lookups and delete
+    test_zero_item_ops(book);
+    unsigned value = 1;
+    cdpRecord* reg = cdp_record_add_register(book, NAME_UNSIGNED, NAME_UNSIGNED, false, &value, sizeof(value));
+    test_register_val(reg, value);
+    test_one_item_ops(book, reg);
+    cdp_record_delete_register(reg);
+    
+    // Push, lookups and delete
+    test_zero_item_ops(book);
+    value = 2;
+    reg = cdp_record_push_register(book, NAME_UNSIGNED, NAME_UNSIGNED, false, &value, sizeof(value));
+    test_register_val(reg, value);
+    test_one_item_ops(book, reg);
+    
+    // Test sequence
+    cdp_record_traverse(book, print_values, NULL);
+    cdp_record_delete_register(reg);    
+    return 0;
+}
+
+
 int test_collections(int argC, const char** argV) {
     cdp_record_system_initiate();
     
-    cdpRecord* arrayBook = cdp_record_root_add_book(1, 1, CDP_STO_CHD_ARRAY, 8);
+    cdpRecord* book = cdp_record_root_add_book(NAME_TEST_BOOK, CDP_STO_CHD_LINKED_LIST, CDP_STO_CHD_LINKED_LIST);
+    test_one_item(book);
+    cdp_record_delete(book, 2);     // FixMe: test with maxDepth = 1.
     
-    /* Test register operations */
-    
-    // Test 1 item insertion
-    unsigned value = 1;
-    cdpRecord* reg = cdp_record_add_register(arrayBook, 2, 2, false, &value, sizeof(value));
-    unsigned* vread;
-    size_t size = 0;
-    cdp_record_register_read(reg, 0, (void**)&vread, &size);
-    assert(value == *vread && size == sizeof(value));
-    
-    // Test 1 item pop
-    
-    
-    
-    // Test sequence insertion/traversal
-    for (unsigned n=0; n<10; n++) {
-        cdp_record_add_register(arrayBook, 2, 2, false, &n, sizeof(n));
-    }
-    cdp_record_traverse(arrayBook, print_values, NULL);
-    
-    //for (cdpRecord* reg = cdp_record_top(arrayBook, true))
+    book = cdp_record_root_add_book(NAME_TEST_BOOK, CDP_STO_CHD_ARRAY, CDP_STO_CHD_ARRAY, 8);
+    test_one_item(book);
+    cdp_record_delete(book, 2);     // FixMe: test with maxDepth = 1.
+
+    book = cdp_record_root_add_book(NAME_TEST_BOOK, CDP_STO_CHD_RED_BLACK_T, CDP_STO_CHD_RED_BLACK_T);
+    test_one_item(book);
+    cdp_record_delete(book, 2);     // FixMe: test with maxDepth = 1.
     
     cdp_record_system_shutdown();
     return 0;

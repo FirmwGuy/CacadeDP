@@ -1223,7 +1223,7 @@ cdpRecord* cdp_record_by_name(cdpRecord* book, cdpNameID nameID) {
       RED_BLACK_T: {
         record = rb_tree_find_by_name(book->recData.book.children, nameID, book);
         break;
-     }
+      }
     } RECORD_LABEL_END;
 
     return record;
