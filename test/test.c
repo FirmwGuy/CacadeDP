@@ -91,7 +91,11 @@ void test_records_one_item_ops(cdpRecord* book, cdpRecord* reg) {
 }
 
 
-void test_records_one_item(cdpRecord* book) {    
+void test_records_tech(unsigned storage) {    
+    cdpRecord* book = cdp_record_root_add_book(NAME_TEST_BOOK, storage+1, storage);
+
+    /* One item operations */
+    
     // Append, lookups and delete
     test_records_zero_item_ops(book);
     unsigned value = 1;
@@ -106,25 +110,21 @@ void test_records_one_item(cdpRecord* book) {
     reg = cdp_record_push_register(book, NAME_UNSIGNED, NAME_UNSIGNED, false, &value, sizeof(value));
     test_records_register_val(reg, value);
     test_records_one_item_ops(book, reg);
-    cdp_record_delete_register(reg);    
+    cdp_record_delete_register(reg);
+    
+    /* Two item ops */
+
+    cdp_record_delete(book, 2);     // FixMe: test with maxDepth = 1.
 }
 
 
 MunitResult test_records(const MunitParameter params[], void* user_data_or_fixture) {
     cdp_record_system_initiate();
     
-    cdpRecord* book = cdp_record_root_add_book(NAME_TEST_BOOK, CDP_STO_CHD_LINKED_LIST+1, CDP_STO_CHD_LINKED_LIST);
-    test_records_one_item(book);
-    cdp_record_delete(book, 2);     // FixMe: test with maxDepth = 1.
-    
-    book = cdp_record_root_add_book(NAME_TEST_BOOK, CDP_STO_CHD_ARRAY+1, CDP_STO_CHD_ARRAY, 8);
-    test_records_one_item(book);
-    cdp_record_delete(book, 2);     // FixMe: test with maxDepth = 1.
-
-    book = cdp_record_root_add_book(NAME_TEST_BOOK, CDP_STO_CHD_RED_BLACK_T+1, CDP_STO_CHD_RED_BLACK_T);
-    test_records_one_item(book);
-    cdp_record_delete(book, 2);     // FixMe: test with maxDepth = 1.
-    
+    test_records_tech(CDP_STO_CHD_LINKED_LIST);
+    test_records_tech(CDP_STO_CHD_ARRAY);
+    test_records_tech(CDP_STO_CHD_RED_BLACK_T);
+        
     cdp_record_system_shutdown();
     return MUNIT_OK;
 }

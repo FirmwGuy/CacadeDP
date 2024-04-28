@@ -1699,11 +1699,12 @@ bool cdp_record_delete(cdpRecord* record, unsigned maxDepth) {
     cdpParentEx* parentEx = cdp_record_parent_ex(record);
     cdpRecord* book = parentEx->book;
 
-    // Delete children first.
+    // Delete storage.
     RECORD_STYLE_SELECT(record->metadata.reStyle) {
       BOOK:;
       DICTIONARY: {
-        cdp_record_deep_traverse(record, maxDepth, record_delete_unlink, record_delete_store, NULL);
+        cdp_record_deep_traverse(record, maxDepth, record_delete_unlink, record_delete_store, NULL);    // Delete children first.
+        record_delete_store(&(cdpBookEntry){.record=record, .parent=book}, 0, NULL);
         break;
       }
       
