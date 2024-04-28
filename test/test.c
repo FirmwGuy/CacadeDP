@@ -23,7 +23,7 @@
 
 
 /*  This test program uses Munit, which is MIT licensed. Please see munit.h file
- *  for a complete copyright information.
+ *  for a complete license information.
  */
 #define MUNIT_ENABLE_ASSERT_ALIASES
 #include "munit.h"
@@ -41,10 +41,20 @@ enum {
 };
 
 
+bool print_values(cdpBookEntry* entry, unsigned depth, void* unused) {
+    unsigned this, prev = 0, next = 0;
+    assert_not_null(entry->record); cdp_record_register_read(entry->record, 0, &this, NULL);
+    if (entry->prev)                cdp_record_register_read(entry->prev,   0, &prev, NULL);
+    if (entry->next)                cdp_record_register_read(entry->next,   0, &next, NULL);
+    munit_logf(MUNIT_LOG_DEBUG, "%u: %d (%d, %d)\n", (unsigned)entry->index, this, prev, next);
+    return true;
+}
+
+
 void test_records_register_val(cdpRecord* reg, unsigned value) {
-    unsigned vread, *vptr = &vread;
+    unsigned vread = 0;
     size_t size = 0;
-    cdp_record_register_read(reg, 0, (void**)&vptr, &size);
+    cdp_record_register_read(reg, 0, &vread, &size);
     assert_size(size, ==, sizeof(value));
     assert_uint(value, ==, vread);
 }
@@ -78,17 +88,6 @@ void test_records_one_item_ops(cdpRecord* book, cdpRecord* reg) {
     found = cdp_record_by_path(book, path);
     assert_ptr_equal(found, reg);
     assert_true(cdp_record_traverse(book, print_values, NULL));
-}
-
-
-bool print_values(cdpBookEntry* entry, unsigned depth, void* unused) {
-    unsigned* this, *prev, *next;
-    size_t size = 0;
-    cdp_record_register_read(entry->record, 0, (void**)&this, &size);
-    cdp_record_register_read(entry->prev,   0, (void**)&prev, &size);
-    cdp_record_register_read(entry->next,   0, (void**)&next, &size);
-    munit_logf(MUNIT_LOG_DEBUG, "%u: %d (%d, %d)\n", (unsigned)entry->index, *this, *prev, *next);
-    return true;
 }
 
 

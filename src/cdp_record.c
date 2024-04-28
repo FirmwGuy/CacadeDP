@@ -1072,31 +1072,31 @@ cdpRecord* cdp_record_create(cdpRecord* parent, unsigned style, cdpNameID nameID
 /*
    Reads register data from position and puts it on data buffer (atomically).
 */
-bool cdp_record_register_read(cdpRecord* reg, size_t position, void** data, size_t* size) {
-    assert(cdp_record_is_register(reg) && data && size);
+void* cdp_record_register_read(cdpRecord* reg, size_t position, void* data, size_t* size) {
+    assert(cdp_record_is_register(reg));
 
-    // Calculate the actual number of bytes that can be read
+    // Calculate the actual number of bytes that can be read.
+    assert(reg->recData.reg.size > position);
     size_t readableSize = reg->recData.reg.size - position;
-    if (!*size || *size > readableSize)
+    if (size && (!*size || *size > readableSize))
         *size = readableSize;
 
-    // Copy the data from the register to the provided buffer
+    // Copy the data from the register to the provided buffer (if any).
     void* pointed = cdp_ptr_off(reg->recData.reg.data.ptr, position);
-    if (*data) {
-        memcpy(*data, pointed, *size);
-    } else {
-        assert(cdp_record_is_private(reg));
-        *data = pointed;
+    if (data) {
+        memcpy(data, pointed, readableSize);
+        return data;
     }
 
-    return true;
+    assert(cdp_record_is_private(reg));
+    return pointed;
 }
 
 
 /*
    Writes the data of a register record at position (atomically and it may reallocate memory).
 */
-bool cdp_record_register_write(cdpRecord* reg, size_t position, const void* data, size_t size) {
+void* cdp_record_register_write(cdpRecord* reg, size_t position, const void* data, size_t size) {
     assert(cdp_record_is_register(reg) && data && size);
 
     // Ensure the buffer is large enough to accommodate the write
@@ -1110,7 +1110,7 @@ bool cdp_record_register_write(cdpRecord* reg, size_t position, const void* data
     // Copy the provided data into the register's buffer at the specified position
     memcpy(cdp_ptr_off(reg->recData.reg.data.ptr, position), data, size);
 
-    return true;
+    return reg->recData.reg.data.ptr;
 }
 
 
@@ -1631,7 +1631,7 @@ static bool record_delete_unlink(cdpBookEntry* entry, unsigned depth, void* p) {
       }
 
       REGISTER: {
-        if (entry->record->metadata.stoTech != 0)   // Data isn't borrowed
+        if (entry->record->metadata.stoTech != CDP_STO_REG_BORROWED)
             cdp_free(entry->record->recData.reg.data.ptr);
         break;
       }

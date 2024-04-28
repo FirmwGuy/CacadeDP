@@ -251,7 +251,7 @@ static inline size_t     cdp_record_siblings(cdpRecord* record)  {assert(record)
 
 
 // Register property check
-static inline bool cdp_record_register_borrowed(cdpRecord* reg)  {assert(cdp_record_is_register(reg));  return (reg->metadata.stoTech == CDP_STO_REG_BORROWED);}
+static inline bool cdp_record_register_is_borrowed(cdpRecord* reg)  {assert(cdp_record_is_register(reg));  return (reg->metadata.stoTech == CDP_STO_REG_BORROWED);}
 
 // Book/Dictionary property check
 static inline size_t cdp_record_book_or_dic_children(cdpRecord* book)   {assert(cdp_record_is_book_or_dic(book));  return CDP_PARENTEX(book->recData.book.children)->chdCount;}
@@ -288,8 +288,8 @@ bool cdp_record_path(cdpRecord* record, cdpPath** path);
 
 
 // Accessing registers
-bool cdp_record_register_read (cdpRecord* reg, size_t position, void** data, size_t* size);        // Reads register data from position and puts it on data buffer (atomically).
-bool cdp_record_register_write(cdpRecord* reg, size_t position, const void* data, size_t size);   // Writes the data of a register record at position (atomically and it may reallocate memory).
+void* cdp_record_register_read (cdpRecord* reg, size_t position, void* data, size_t* size);        // Reads register data from position and puts it on data buffer (atomically).
+void* cdp_record_register_write(cdpRecord* reg, size_t position, const void* data, size_t size);   // Writes the data of a register record at position (atomically and it may reallocate memory).
 #define cdp_record_register_update(reg, data, size)   cdp_record_register_write(reg, 0, data, size)
 
 
