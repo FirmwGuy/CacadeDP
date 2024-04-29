@@ -104,16 +104,72 @@ void test_records_tech(unsigned storage) {
     test_records_one_item_ops(book, reg);
     cdp_record_delete_register(reg);
     
-    // Push, lookups and delete
+    // Push and lookups
     test_records_zero_item_ops(book);
-    value = 2;
+    value = 1;
     reg = cdp_record_push_register(book, NAME_UNSIGNED, NAME_UNSIGNED, false, &value, sizeof(value));
     test_records_register_val(reg, value);
     test_records_one_item_ops(book, reg);
-    cdp_record_delete_register(reg);
     
-    /* Two item ops */
+    // Multi-item ops
+    cdpPath* path = cdp_alloca(sizeof(cdpPath) + (1 * sizeof(cdpNameID)));
+    path->length = 1;
+    path->capacity = 1;
+    cdpRecord* last = reg, *first = reg, *found;
+    size_t index;
 
+    for (unsigned n = 1; n < 10;  n++) {        
+        if (cdp_record_book_or_dic_children(book) > 2) {
+            switch (munit_rand_int_range(0, 2)) {
+              case 1:
+                cdp_record_delete_register(first);
+                first = cdp_record_top(book, false);
+              case 2:
+                cdp_record_delete_register(last);
+                last = cdp_record_top(book, true);
+            }
+        }
+        
+        value = n + 1;
+        if (munit_rand_uint32() & 1) {
+            index = cdp_record_book_or_dic_children(book);
+
+            reg = cdp_record_add_register(book, NAME_UNSIGNED+n, NAME_UNSIGNED+n, false, &value, sizeof(value));
+            test_records_register_val(reg, value);
+
+            found = cdp_record_top(book, false);
+            assert_ptr_equal(found, first);
+            found = cdp_record_top(book, true);
+            assert_ptr_equal(found, reg);
+            
+            last = reg;
+        } else {
+            index = 0;
+            
+            reg = cdp_record_push_register(book, NAME_UNSIGNED+n, NAME_UNSIGNED+n, false, &value, sizeof(value));
+            test_records_register_val(reg, value);
+
+            found = cdp_record_top(book, false);
+            assert_ptr_equal(found, reg);
+            found = cdp_record_top(book, true);
+            assert_ptr_equal(found, last);
+            
+            first = reg;
+        }
+        
+        found = cdp_record_by_name(book, reg->metadata.nameID);
+        assert_ptr_equal(found, reg);
+        
+        found = cdp_record_by_index(book, index);
+        assert_ptr_equal(found, reg);
+        
+        path->nameID[0] = reg->metadata.nameID;
+        found = cdp_record_by_path(book, path);
+        assert_ptr_equal(found, reg);
+        
+        assert_true(cdp_record_traverse(book, print_values, NULL));
+    }
+    
     cdp_record_delete(book, 2);     // FixMe: test with maxDepth = 1.
 }
 
