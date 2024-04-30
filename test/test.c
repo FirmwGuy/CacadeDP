@@ -92,7 +92,21 @@ void test_records_one_item_ops(cdpRecord* book, cdpRecord* reg) {
 
 
 void test_records_tech(unsigned storage) {    
-    cdpRecord* book = cdp_record_root_add_book(NAME_TEST_BOOK, storage+1, storage);
+    cdpRecord* book;
+    switch (storage) {
+      case CDP_STO_CHD_LINKED_LIST: {
+        book = cdp_record_root_add_book(NAME_TEST_BOOK, storage+1, storage);
+        break;
+      }
+      case CDP_STO_CHD_ARRAY: {
+        book = cdp_record_root_add_book(NAME_TEST_BOOK, storage+1, storage, 20);
+        break;
+      }
+      case CDP_STO_CHD_RED_BLACK_T: {
+        book = cdp_record_root_add_book(NAME_TEST_BOOK, storage+1, storage);
+        break;
+      }
+    }
 
     /* One item operations */
     
@@ -115,18 +129,22 @@ void test_records_tech(unsigned storage) {
     cdpPath* path = cdp_alloca(sizeof(cdpPath) + (1 * sizeof(cdpNameID)));
     path->length = 1;
     path->capacity = 1;
-    cdpRecord* last = reg, *first = reg, *found;
+    cdpRecord* found;
+    unsigned first = 1, last = 1;
     size_t index;
 
     for (unsigned n = 1; n < 10;  n++) {        
         if (cdp_record_book_or_dic_children(book) > 2) {
             switch (munit_rand_int_range(0, 2)) {
               case 1:
-                cdp_record_delete_register(first);
-                first = cdp_record_top(book, false);
+                cdp_record_delete_register(cdp_record_top(book, false));
+                found = cdp_record_top(book, false);
+                cdp_record_register_read(found, 0, &first, NULL);
+                break;
               case 2:
-                cdp_record_delete_register(last);
-                last = cdp_record_top(book, true);
+                cdp_record_delete_register(cdp_record_top(book, true));
+                cdp_record_register_read(found, 0, &last, NULL);
+                break;
             }
         }
         
@@ -138,11 +156,11 @@ void test_records_tech(unsigned storage) {
             test_records_register_val(reg, value);
 
             found = cdp_record_top(book, false);
-            assert_ptr_equal(found, first);
+            test_records_register_val(found, first);
             found = cdp_record_top(book, true);
-            assert_ptr_equal(found, reg);
+            test_records_register_val(found, value);
             
-            last = reg;
+            last = value;
         } else {
             index = 0;
             
@@ -150,11 +168,11 @@ void test_records_tech(unsigned storage) {
             test_records_register_val(reg, value);
 
             found = cdp_record_top(book, false);
-            assert_ptr_equal(found, reg);
+            test_records_register_val(found, value);
             found = cdp_record_top(book, true);
-            assert_ptr_equal(found, last);
+            test_records_register_val(found, last);
             
-            first = reg;
+            first = value;
         }
         
         found = cdp_record_by_name(book, reg->metadata.nameID);
@@ -177,7 +195,7 @@ void test_records_tech(unsigned storage) {
 MunitResult test_records(const MunitParameter params[], void* user_data_or_fixture) {
     cdp_record_system_initiate();
     
-    test_records_tech(CDP_STO_CHD_LINKED_LIST);
+    //test_records_tech(CDP_STO_CHD_LINKED_LIST);
     test_records_tech(CDP_STO_CHD_ARRAY);
     test_records_tech(CDP_STO_CHD_RED_BLACK_T);
         

@@ -440,13 +440,15 @@ static inline cdpRecord* array_add(cdpArray* array, cdpRecord* parent, bool push
             child = &array->record[index];
             if (index < array->parentEx.chdCount) {
                 memmove(child + 1, child, array->parentEx.chdCount * sizeof(cdpRecord)); 
-                array_update_children_parent_ptr(child + 1, &array->record[array->parentEx.chdCount - 1]);
+                array_update_children_parent_ptr(child + 1, &array->record[array->parentEx.chdCount]);
+                CDP_0(child);
             }
         } else if (push) {
             // Prepend child
             child = array->record;
             memmove(child + 1, child, array->parentEx.chdCount * sizeof(cdpRecord)); 
-            array_update_children_parent_ptr(child + 1, &array->record[array->parentEx.chdCount - 1]);
+            array_update_children_parent_ptr(child + 1, &array->record[array->parentEx.chdCount]);
+            CDP_0(child);
         } else {
             // Append child
             child = &array->record[array->parentEx.chdCount];
@@ -502,20 +504,23 @@ static inline cdpRecord* array_next_by_name(cdpArray* array, cdpNameID nameID, u
     for (size_t i = prev? (*prev + 1): 0;  i < array->parentEx.chdCount;  i++, record++){
         if (record->metadata.nameID == nameID)
             return record;
-    }
+    }   
     return NULL;
 }
 
 static inline bool array_traverse(cdpArray* array, cdpRecord* book, cdpRecordTraverse func, void* context){
     assert(array && array->capacity >= array->parentEx.chdCount);
     cdpBookEntry entry = {.record = array->record, .parent = book, .next = (array->parentEx.chdCount > 1)? (array->record + 1): NULL};
-    while (entry.index < array->parentEx.chdCount) {
+    cdpRecord* last = &array->record[array->parentEx.chdCount - 1];
+    for (;;) {
         if (!func(&entry, 0, context))
             return false;
+        entry.index++;
+        if (entry.index >= array->parentEx.chdCount)
+            break;
         entry.prev   = entry.record;
         entry.record = entry.next;
-        entry.next++;
-        entry.index++;
+        entry.next = (entry.record < last)? (entry.next + 1): NULL;
     }
     return true;
 }
