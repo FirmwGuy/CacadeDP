@@ -545,7 +545,7 @@ static inline void array_remove_record(cdpArray* array, cdpRecord* record) {
     assert(array && array->capacity >= array->parentEx.chdCount);
     cdpRecord* last = &array->record[array->parentEx.chdCount - 1];
     if (record < last)
-        memmove(record, record + 1, (size_t) cdp_ptr_dif(record, last));
+        memmove(record, record + 1, (size_t) cdp_ptr_dif(last, record));
     CDP_0(last);
 }
 

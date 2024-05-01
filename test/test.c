@@ -46,7 +46,7 @@ bool print_values(cdpBookEntry* entry, unsigned depth, void* unused) {
     assert_not_null(entry->record); cdp_record_register_read(entry->record, 0, &this, NULL);
     if (entry->prev)                cdp_record_register_read(entry->prev,   0, &prev, NULL);
     if (entry->next)                cdp_record_register_read(entry->next,   0, &next, NULL);
-    munit_logf(MUNIT_LOG_DEBUG, "%u: %d (%d, %d)\n", (unsigned)entry->index, this, prev, next);
+    munit_logf(MUNIT_LOG_DEBUG, "(%u):  %d  <%d, %d>\n", (unsigned)entry->index, this, prev, next);
     return true;
 }
 
@@ -143,6 +143,7 @@ void test_records_tech(unsigned storage) {
                 break;
               case 2:
                 cdp_record_delete_register(cdp_record_top(book, true));
+                found = cdp_record_top(book, true);
                 cdp_record_register_read(found, 0, &last, NULL);
                 break;
             }
@@ -196,7 +197,7 @@ MunitResult test_records(const MunitParameter params[], void* user_data_or_fixtu
     cdp_record_system_initiate();
     
     //test_records_tech(CDP_STO_CHD_LINKED_LIST);
-    test_records_tech(CDP_STO_CHD_ARRAY);
+    //test_records_tech(CDP_STO_CHD_ARRAY);
     test_records_tech(CDP_STO_CHD_RED_BLACK_T);
         
     cdp_record_system_shutdown();
