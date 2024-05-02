@@ -28,6 +28,7 @@
 #define MUNIT_ENABLE_ASSERT_ALIASES
 #include "munit.h"
 
+#include <stdio.h>      // sprintf()
 
 #include "cdp_record.h"
 
@@ -41,12 +42,25 @@ enum {
 };
 
 
+static void test_records_print(cdpRecord* record, char *sval) {
+    if (!record) {
+        strcpy(sval, "None");
+    } else if (cdp_record_is_book_or_dic(record)) {
+        sprintf(sval, "[%d]", record->metadata.nameID);
+    } else if (cdp_record_is_register(record)) {
+        unsigned uval;
+        cdp_record_register_read(record, 0, &uval, NULL);
+        sprintf(sval, "%u", uval);        
+    }
+}
+
 bool print_values(cdpBookEntry* entry, unsigned depth, void* unused) {
-    unsigned this, prev = 0, next = 0;
-    assert_not_null(entry->record); cdp_record_register_read(entry->record, 0, &this, NULL);
-    if (entry->prev)                cdp_record_register_read(entry->prev,   0, &prev, NULL);
-    if (entry->next)                cdp_record_register_read(entry->next,   0, &next, NULL);
-    munit_logf(MUNIT_LOG_DEBUG, "(%u):  %d  <%d, %d>\n", (unsigned)entry->index, this, prev, next);
+    assert_not_null(entry->record);
+    char this[16], prev[16], next[16];
+    test_records_print(entry->record, this);
+    test_records_print(entry->prev,   prev);
+    test_records_print(entry->next,   next);
+    munit_logf(MUNIT_LOG_DEBUG, "(%u):  %s  <%s, %s>\n", (unsigned)entry->index, this, prev, next);
     return true;
 }
 
@@ -91,7 +105,7 @@ void test_records_one_item_ops(cdpRecord* book, cdpRecord* reg) {
 }
 
 
-void test_records_tech(unsigned storage) {    
+void test_records_tech_book(unsigned storage) {    
     cdpRecord* book;
     switch (storage) {
       case CDP_STO_CHD_LINKED_LIST: {
@@ -189,6 +203,13 @@ void test_records_tech(unsigned storage) {
         assert_true(cdp_record_traverse(book, print_values, NULL));
     }
     
+    /* Nested books */
+    
+    cdpRecord* chdBook = cdp_record_add_book(book, NAME_TEST_BOOK, NAME_TEST_BOOK, storage, 20);
+    reg = cdp_record_push_register(chdBook, NAME_UNSIGNED+30, NAME_UNSIGNED+30, false, &value, sizeof(value));
+    test_records_register_val(reg, value);
+    assert_true(cdp_record_deep_traverse(book, 3, print_values, NULL, NULL));    
+    
     cdp_record_delete(book, 2);     // FixMe: test with maxDepth = 1.
 }
 
@@ -196,9 +217,12 @@ void test_records_tech(unsigned storage) {
 MunitResult test_records(const MunitParameter params[], void* user_data_or_fixture) {
     cdp_record_system_initiate();
     
-    //test_records_tech(CDP_STO_CHD_LINKED_LIST);
-    //test_records_tech(CDP_STO_CHD_ARRAY);
-    test_records_tech(CDP_STO_CHD_RED_BLACK_T);
+    test_records_tech_book(CDP_STO_CHD_LINKED_LIST);
+    test_records_tech_book(CDP_STO_CHD_ARRAY);
+    
+    //test_records_tech_dictionary(CDP_STO_CHD_LINKED_LIST);
+    //test_records_tech_dictionary(CDP_STO_CHD_ARRAY);
+    //test_records_tech_dictionary(CDP_STO_CHD_RED_BLACK_T);
         
     cdp_record_system_shutdown();
     return MUNIT_OK;

@@ -152,7 +152,7 @@ static inline int record_compare_by_name_s(const cdpRecord* restrict key, const 
 }
 
 
-#define STORAGE_TECH_SELECT(stoTech, ...)                                      \
+#define STORAGE_TECH_SELECT(stoTech, ...)                              \
     assert((stoTech) < CDP_STO_CHD_COUNT);                             \
     static void* const chdStoTech[] = {&&__VA_ARGS__##LINKED_LIST,     \
         &&__VA_ARGS__##CIRC_BUFFER, &&__VA_ARGS__##ARRAY,              \
@@ -161,15 +161,41 @@ static inline int record_compare_by_name_s(const cdpRecord* restrict key, const 
     do
 
 
-#define RECORD_STYLE_SELECT(reStyle)                                           \
+#define RECORD_STYLE_SELECT(reStyle)                                   \
     assert((reStyle) < CDP_REC_STYLE_COUNT);                           \
     static void* const recordStyle[] = {&&BOOK, &&DICTIONARY,          \
         &&REGISTER, &&LINK};                                           \
     goto *recordStyle[reStyle];                                        \
     do
 
-#define SELECTION_END                                                          \
+#define SELECTION_END                                                  \
     while (0)
+
+
+static inline void record_delete(cdpRecord* record) {
+    assert(!cdp_record_has_shadows(record));
+    cdpRecord* book = parentEx->book;
+
+    // Delete storage.
+    RECORD_STYLE_SELECT(record->metadata.reStyle) {
+      BOOK:;
+      DICTIONARY: {
+        cdp_record_deep_traverse(record, maxDepth, record_delete_unlink, record_delete_store, NULL);    // Delete children first.
+        record_delete_store(&(cdpBookEntry){.record=record, .parent=book}, 0, NULL);
+        break;
+      }
+      
+      REGISTER: {
+        if (entry->record->metadata.stoTech != CDP_STO_REG_BORROWED)
+            cdp_free(entry->record->recData.reg.data.ptr);
+        record_delete_unlink(&(cdpBookEntry){.record=record, .parent=book}, 0, NULL);
+        break;
+      }
+        
+      LINK:
+        break;
+    } SELECTION_END;
+}
 
 
 
@@ -547,6 +573,14 @@ static inline void array_remove_record(cdpArray* array, cdpRecord* record) {
     if (record < last)
         memmove(record, record + 1, (size_t) cdp_ptr_dif(last, record));
     CDP_0(last);
+}
+
+
+static inline void array_remove_all_children(cdpArray* array) {
+    cdpRecord* child = array->record;
+    for (size_t n = 0; n < array->parentEx.chdCount; n++, child++) {
+        cdp_record_delete();
+    }
 }
 
 
@@ -1698,7 +1732,7 @@ static bool record_delete_store(cdpBookEntry* entry, unsigned depth, void* p) {
 /*
     Deletes a record and all its children re-organizing sibling storage
 */
-bool cdp_record_delete(cdpRecord* record, unsigned maxDepth) {
+bool cdp_record_delete(cdpRecord* record) {
     assert(record);
     assert(!cdp_record_has_shadows(record));
     cdpParentEx* parentEx = cdp_record_parent_ex(record);
