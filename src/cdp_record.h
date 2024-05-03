@@ -313,8 +313,9 @@ void cdp_record_sort(cdpRecord* book, cdpCompare compare, void* context);
 
 
 // Removing records
-bool cdp_record_delete(cdpRecord* record, unsigned maxDepth);                     // Deletes a record and all its children re-organizing sibling storage.
-#define cdp_record_delete_register(reg)   cdp_record_delete(reg, 0)
+bool cdp_record_remove(cdpRecord* record, unsigned maxDepth);           // Deletes a record and all its children re-organizing sibling storage.
+#define cdp_record_remove_register(reg)   cdp_record_remove(reg, 1)
+size_t cdp_record_book_reset(cdpRecord* book, unsigned maxDepth);       // Deletes all children of a book or dictionary.
 
 
 // To manage concurrent access to records safely.

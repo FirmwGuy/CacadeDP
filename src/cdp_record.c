@@ -172,30 +172,7 @@ static inline int record_compare_by_name_s(const cdpRecord* restrict key, const 
     while (0)
 
 
-static inline void record_delete(cdpRecord* record) {
-    assert(!cdp_record_has_shadows(record));
-    cdpRecord* book = parentEx->book;
-
-    // Delete storage.
-    RECORD_STYLE_SELECT(record->metadata.reStyle) {
-      BOOK:;
-      DICTIONARY: {
-        cdp_record_deep_traverse(record, maxDepth, record_delete_unlink, record_delete_store, NULL);    // Delete children first.
-        record_delete_store(&(cdpBookEntry){.record=record, .parent=book}, 0, NULL);
-        break;
-      }
-      
-      REGISTER: {
-        if (entry->record->metadata.stoTech != CDP_STO_REG_BORROWED)
-            cdp_free(entry->record->recData.reg.data.ptr);
-        record_delete_unlink(&(cdpBookEntry){.record=record, .parent=book}, 0, NULL);
-        break;
-      }
-        
-      LINK:
-        break;
-    } SELECTION_END;
-}
+static inline void record_delete(cdpRecord* record, unsigned maxDepth);
 
 
 
@@ -210,22 +187,6 @@ static inline void record_delete(cdpRecord* record) {
 
 static inline cdpListNode* list_node_from_record(cdpRecord* record) {
     return cdp_ptr_dif(record, offsetof(cdpListNode, record));
-}
-
-
-static inline void list_remove_record(cdpList* list, cdpRecord* record) {
-    assert(list && list->head);
-    cdpListNode* node = list_node_from_record(record);
-    cdpListNode* next = node->next;
-    cdpListNode* prev = node->prev;
-    
-    // Unlink node.
-    if (next) next->prev = prev;
-    else      list->tail = prev;
-    if (prev) prev->next = next;
-    else      list->head = next;
-    
-    cdp_free(node);
 }
 
 
@@ -382,6 +343,33 @@ static inline void list_sort(cdpList* list, cdpCompare compare, void* context) {
             prev = node;
             node = node->next;
         }
+    }
+}
+
+
+static inline void list_remove_record(cdpList* list, cdpRecord* record) {
+    assert(list && list->head);
+    cdpListNode* node = list_node_from_record(record);
+    cdpListNode* next = node->next;
+    cdpListNode* prev = node->prev;
+    
+    // Unlink node.
+    if (next) next->prev = prev;
+    else      list->tail = prev;
+    if (prev) prev->next = next;
+    else      list->head = next;
+    
+    cdp_free(node);
+}
+
+
+static inline void list_del_all_children(cdpList* list, unsigned maxDepth) {
+    cdpListNode* node = list->head, *toDel;
+    while (node) {
+        record_delete(&node->record, maxDepth - 1);
+        toDel = node;
+        node = node->next;
+        cdp_free(toDel);
     }
 }
 
@@ -576,10 +564,10 @@ static inline void array_remove_record(cdpArray* array, cdpRecord* record) {
 }
 
 
-static inline void array_remove_all_children(cdpArray* array) {
+static inline void array_del_all_children(cdpArray* array, unsigned maxDepth) {
     cdpRecord* child = array->record;
     for (size_t n = 0; n < array->parentEx.chdCount; n++, child++) {
-        cdp_record_delete();
+        record_delete(child, maxDepth - 1);
     }
 }
 
@@ -948,6 +936,24 @@ static inline void rb_tree_remove_record(cdpRbTree* tree, cdpRecord* record) {
 
     cdp_free(tnode);
 }      
+
+
+static inline void rb_tree_del_all_children_recursively(cdpRbTreeNode* tnode, unsigned maxDepth) {
+    if (tnode->left) 
+        rb_tree_del_all_children_recursively(tnode->left, maxDepth);
+        
+    record_delete(&tnode->record, maxDepth - 1);
+    
+    if (tnode->right)
+        rb_tree_del_all_children_recursively(tnode->right, maxDepth);
+    
+    cdp_free(tnode);
+}
+
+static inline void rb_tree_del_all_children(cdpRbTree* tree, unsigned maxDepth) {
+    if (tree->root)
+        rb_tree_del_all_children_recursively(tree->root, maxDepth);
+}
 
 
 
@@ -1657,42 +1663,22 @@ void cdp_record_sort(cdpRecord* book, cdpCompare compare, void* context) {
 }
 
 
-static bool record_delete_unlink(cdpBookEntry* entry, unsigned depth, void* p) {
-    assert(entry && entry->record && entry->parent);
+/*
+    Deletes a record and all its children re-organizing (sibling) storage
+*/
+static inline void record_delete(cdpRecord* record, unsigned maxDepth) {
+    assert(record && maxDepth);
+    assert(!cdp_record_has_shadows(record));
 
-    RECORD_STYLE_SELECT(entry->record->metadata.reStyle) {
-      BOOK: {
-        break;
-      }
-
-      DICTIONARY: {
-        break;
-      }
-
-      REGISTER: {
-        if (entry->record->metadata.stoTech != CDP_STO_REG_BORROWED)
-            cdp_free(entry->record->recData.reg.data.ptr);
-        break;
-      }
-      
-      LINK: {
-        // Go to pointed record and unlink this from parent list.
-        break;
-      }
-    } SELECTION_END;
-        
-    return true;
-}
-
-static bool record_delete_store(cdpBookEntry* entry, unsigned depth, void* p) {
-    assert(entry && entry->record && entry->parent);
-    
-    RECORD_STYLE_SELECT(entry->record->metadata.reStyle) {
+    // Delete storage (and children).
+    RECORD_STYLE_SELECT(record->metadata.reStyle) {
       BOOK:;
       DICTIONARY: {
-        STORAGE_TECH_SELECT(entry->record->metadata.stoTech) {
+        STORAGE_TECH_SELECT(record->metadata.stoTech) {
           LINKED_LIST: {
-            list_del(entry->record->recData.book.children);
+            cdpList* list = record->recData.book.children;
+            list_del_all_children(list, maxDepth);
+            list_del(list);
             break;
           }
             
@@ -1700,7 +1686,9 @@ static bool record_delete_store(cdpBookEntry* entry, unsigned depth, void* p) {
             break;
             
           ARRAY: {
-            array_del(entry->record->recData.book.children);
+            cdpArray* array = record->recData.book.children;
+            array_del_all_children(array, maxDepth);
+            array_del(array);
             break;
           }
           
@@ -1708,7 +1696,9 @@ static bool record_delete_store(cdpBookEntry* entry, unsigned depth, void* p) {
             break;
             
           RED_BLACK_T: {
-            rb_tree_del(entry->record->recData.book.children);
+            cdpRbTree* tree = record->recData.book.children;
+            rb_tree_del_all_children(tree, maxDepth);
+            rb_tree_del(tree);
             break;
           }
         } SELECTION_END;
@@ -1716,47 +1706,26 @@ static bool record_delete_store(cdpBookEntry* entry, unsigned depth, void* p) {
       }
       
       REGISTER: {
-        // This shouldn't happen.
-        assert(cdp_record_is_book_or_dic(entry->record));
+        if (!cdp_record_register_is_borrowed(record))
+            cdp_free(record->recData.reg.data.ptr);
         break;
       }
         
       LINK:
         break;
     } SELECTION_END;
-            
-    return true;
 }
 
-
-/*
-    Deletes a record and all its children re-organizing sibling storage
-*/
-bool cdp_record_delete(cdpRecord* record) {
-    assert(record);
+bool cdp_record_remove(cdpRecord* record, unsigned maxDepth) {
+    assert(record && maxDepth);
     assert(!cdp_record_has_shadows(record));
     cdpParentEx* parentEx = cdp_record_parent_ex(record);
     cdpRecord* book = parentEx->book;
 
-    // Delete storage.
-    RECORD_STYLE_SELECT(record->metadata.reStyle) {
-      BOOK:;
-      DICTIONARY: {
-        cdp_record_deep_traverse(record, maxDepth, record_delete_unlink, record_delete_store, NULL);    // Delete children first.
-        record_delete_store(&(cdpBookEntry){.record=record, .parent=book}, 0, NULL);
-        break;
-      }
-      
-      REGISTER: {
-        record_delete_unlink(&(cdpBookEntry){.record=record, .parent=book}, 0, NULL);
-        break;
-      }
-        
-      LINK:
-        break;
-    } SELECTION_END;
+    // Delete storage (along children, if any).
+    record_delete(record, maxDepth);
        
-    // Delete this record from its parent (re-organizing siblings).
+    // Remove this record from its parent (re-organizing siblings).
     STORAGE_TECH_SELECT(book->metadata.stoTech) {
       LINKED_LIST: {
         list_remove_record(book->recData.book.children, record);
@@ -1785,6 +1754,42 @@ bool cdp_record_delete(cdpRecord* record) {
     return true;
 }
 
+
+/*
+    Deletes all children of a book/dictionary.
+*/
+size_t cdp_record_book_reset(cdpRecord* book, unsigned maxDepth) {
+    assert(cdp_record_is_book_or_dic(book) && maxDepth);
+    cdpParentEx* parentEx = CDP_PARENTEX(book->recData.book.children);
+    size_t children = parentEx->chdCount;
+    CDP_CK(children);
+
+    STORAGE_TECH_SELECT(book->metadata.stoTech) {
+      LINKED_LIST: {
+        list_del_all_children(book->recData.book.children, maxDepth);
+        break;
+      }
+        
+      CIRC_BUFFER:
+        break;
+        
+      ARRAY: {
+        array_del_all_children(book->recData.book.children, maxDepth);
+        break;
+      }
+      
+      PACKED_LIST:
+        break;
+        
+      RED_BLACK_T: {
+        rb_tree_del_all_children(book->recData.book.children, maxDepth);
+        break;
+      }
+    } SELECTION_END;
+    
+    parentEx->chdCount = 0;
+    return children;
+}
 
 
 

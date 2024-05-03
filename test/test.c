@@ -130,7 +130,7 @@ void test_records_tech_book(unsigned storage) {
     cdpRecord* reg = cdp_record_add_register(book, NAME_UNSIGNED, NAME_UNSIGNED, false, &value, sizeof(value));
     test_records_register_val(reg, value);
     test_records_one_item_ops(book, reg);
-    cdp_record_delete_register(reg);
+    cdp_record_remove_register(reg);
     
     // Push and lookups
     test_records_zero_item_ops(book);
@@ -151,12 +151,12 @@ void test_records_tech_book(unsigned storage) {
         if (cdp_record_book_or_dic_children(book) > 2) {
             switch (munit_rand_int_range(0, 2)) {
               case 1:
-                cdp_record_delete_register(cdp_record_top(book, false));
+                cdp_record_remove_register(cdp_record_top(book, false));
                 found = cdp_record_top(book, false);
                 cdp_record_register_read(found, 0, &first, NULL);
                 break;
               case 2:
-                cdp_record_delete_register(cdp_record_top(book, true));
+                cdp_record_remove_register(cdp_record_top(book, true));
                 found = cdp_record_top(book, true);
                 cdp_record_register_read(found, 0, &last, NULL);
                 break;
@@ -210,7 +210,7 @@ void test_records_tech_book(unsigned storage) {
     test_records_register_val(reg, value);
     assert_true(cdp_record_deep_traverse(book, 3, print_values, NULL, NULL));    
     
-    cdp_record_delete(book, 2);     // FixMe: test with maxDepth = 1.
+    cdp_record_remove(book, 16);
 }
 
 
