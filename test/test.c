@@ -106,22 +106,8 @@ void test_records_one_item_ops(cdpRecord* book, cdpRecord* reg) {
 
 
 void test_records_tech_book(unsigned storage) {    
-    cdpRecord* book;
-    switch (storage) {
-      case CDP_STO_CHD_LINKED_LIST: {
-        book = cdp_record_root_add_book(NAME_TEST_BOOK, storage+1, storage);
-        break;
-      }
-      case CDP_STO_CHD_ARRAY: {
-        book = cdp_record_root_add_book(NAME_TEST_BOOK, storage+1, storage, 20);
-        break;
-      }
-      case CDP_STO_CHD_RED_BLACK_T: {
-        book = cdp_record_root_add_book(NAME_TEST_BOOK, storage+1, storage);
-        break;
-      }
-    }
-
+    cdpRecord* book  = cdp_record_root_add_book(NAME_TEST_BOOK, storage+1, storage, 20);
+    
     /* One item operations */
     
     // Append, lookups and delete
@@ -214,15 +200,85 @@ void test_records_tech_book(unsigned storage) {
 }
 
 
+void test_records_tech_dictionary(unsigned storage) {    
+    cdpRecord* dict = cdp_record_root_add_dictionary(NAME_TEST_DICT, storage+1, storage, NULL, NULL, 20);
+
+    /* One item operations */
+    
+    // Isert, lookups and delete
+    test_records_zero_item_ops(dict);
+    unsigned value = 1;
+    cdpRecord* reg = cdp_record_add_register(dict, NAME_UNSIGNED, NAME_UNSIGNED, false, &value, sizeof(value));
+    test_records_register_val(reg, value);
+    test_records_one_item_ops(dict, reg);
+    cdp_record_remove_register(reg);
+    
+    // Multi-item ops
+    cdpPath* path = cdp_alloca(sizeof(cdpPath) + (1 * sizeof(cdpNameID)));
+    path->length = 1;
+    path->capacity = 1;
+    cdpRecord* found;
+    unsigned vmax = 1, vmin = 1;
+
+    for (unsigned n = 1; n < 10;  n++) {        
+        if (cdp_record_book_or_dic_children(dict) > 2) {
+            switch (munit_rand_int_range(0, 2)) {
+              case 1:
+                cdp_record_remove_register(cdp_record_top(dict, false));
+                found = cdp_record_top(dict, false);
+                cdp_record_register_read(found, 0, &vmin, NULL);
+                break;
+              case 2:
+                cdp_record_remove_register(cdp_record_top(dict, true));
+                found = cdp_record_top(dict, true);
+                cdp_record_register_read(found, 0, &vmax, NULL);
+                break;
+            }
+        }
+        
+        value = munit_rand_int_range(1, 1000);
+        if (value < vmin)   vmin = value;
+        if (value > vmax)   vmax = value;
+
+        reg = cdp_record_add_register(dict, NAME_UNSIGNED+value, NAME_UNSIGNED+value, false, &value, sizeof(value));
+        test_records_register_val(reg, value);
+        
+        found = cdp_record_by_name(dict, reg->metadata.nameID);
+        assert_ptr_equal(found, reg);
+
+        found = cdp_record_top(dict, false);
+        test_records_register_val(found, vmin);
+
+        found = cdp_record_top(dict, true);
+        test_records_register_val(found, vmax);
+        
+        path->nameID[0] = reg->metadata.nameID;
+        found = cdp_record_by_path(dict, path);
+        assert_ptr_equal(found, reg);
+        
+        assert_true(cdp_record_traverse(dict, print_values, NULL));
+    }
+    
+    /* Nested books */
+    
+    cdpRecord* chdDict = cdp_record_add_dictionary(dict, NAME_TEST_DICT, NAME_TEST_DICT, storage, NULL, NULL, 20);
+    reg = cdp_record_push_register(chdDict, NAME_UNSIGNED+30, NAME_UNSIGNED+30, false, &value, sizeof(value));
+    test_records_register_val(reg, value);
+    assert_true(cdp_record_deep_traverse(dict, 3, print_values, NULL, NULL));    
+    
+    cdp_record_remove(dict, 16);
+}
+
+
 MunitResult test_records(const MunitParameter params[], void* user_data_or_fixture) {
     cdp_record_system_initiate();
     
     test_records_tech_book(CDP_STO_CHD_LINKED_LIST);
     test_records_tech_book(CDP_STO_CHD_ARRAY);
     
-    //test_records_tech_dictionary(CDP_STO_CHD_LINKED_LIST);
-    //test_records_tech_dictionary(CDP_STO_CHD_ARRAY);
-    //test_records_tech_dictionary(CDP_STO_CHD_RED_BLACK_T);
+    test_records_tech_dictionary(CDP_STO_CHD_LINKED_LIST);
+    test_records_tech_dictionary(CDP_STO_CHD_ARRAY);
+    test_records_tech_dictionary(CDP_STO_CHD_RED_BLACK_T);
         
     cdp_record_system_shutdown();
     return MUNIT_OK;

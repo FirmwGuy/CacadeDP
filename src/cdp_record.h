@@ -271,10 +271,10 @@ cdpRecord* cdp_record_create(cdpRecord* parent, unsigned style, cdpNameID nameID
 #define cdp_record_add_book_priv(parent, nameID, typeID, chdStorage, ...)           cdp_record_create(parent, CDP_REC_STYLE_BOOK, nameID, typeID, false,  true, ((unsigned)(chdStorage)), ##__VA_ARGS__)
 #define cdp_record_push_book_priv(parent, nameID, typeID, chdStorage, ...)          cdp_record_create(parent, CDP_REC_STYLE_BOOK, nameID, typeID,  true,  true, ((unsigned)(chdStorage)), ##__VA_ARGS__)
 
-#define cdp_record_add_dictionary(parent, nameID, typeID, chdStorage, ...)          cdp_record_create(parent, CDP_REC_STYLE_DICTIONARY, nameID, typeID, false, false, ((unsigned)(chdStorage)), ##__VA_ARGS__)
-#define cdp_record_push_dictionary(parent, nameID, typeID, chdStorage, ...)         cdp_record_create(parent, CDP_REC_STYLE_DICTIONARY, nameID, typeID,  true, false, ((unsigned)(chdStorage)), ##__VA_ARGS__)
-#define cdp_record_add_dictionary_priv(parent, nameID, typeID, chdStorage, ...)     cdp_record_create(parent, CDP_REC_STYLE_DICTIONARY, nameID, typeID, false,  true, ((unsigned)(chdStorage)), ##__VA_ARGS__)
-#define cdp_record_push_dictionary_priv(parent, nameID, typeID, chdStorage, ...)    cdp_record_create(parent, CDP_REC_STYLE_DICTIONARY, nameID, typeID,  true,  true, ((unsigned)(chdStorage)), ##__VA_ARGS__)
+#define cdp_record_add_dictionary(parent, nameID, typeID, chdStorage, cmp, p, ...)        cdp_record_create(parent, CDP_REC_STYLE_DICTIONARY, nameID, typeID, false, false, ((unsigned)(chdStorage)), cmp, p, ##__VA_ARGS__)
+#define cdp_record_push_dictionary(parent, nameID, typeID, chdStorage, cmp, p, ...)       cdp_record_create(parent, CDP_REC_STYLE_DICTIONARY, nameID, typeID,  true, false, ((unsigned)(chdStorage)), cmp, p, ##__VA_ARGS__)
+#define cdp_record_add_dictionary_priv(parent, nameID, typeID, chdStorage, cmp, p, ...)   cdp_record_create(parent, CDP_REC_STYLE_DICTIONARY, nameID, typeID, false,  true, ((unsigned)(chdStorage)), cmp, p, ##__VA_ARGS__)
+#define cdp_record_push_dictionary_priv(parent, nameID, typeID, chdStorage, cmp, p, ...)  cdp_record_create(parent, CDP_REC_STYLE_DICTIONARY, nameID, typeID,  true,  true, ((unsigned)(chdStorage)), cmp, p, ##__VA_ARGS__)
 
 
 // Root dictionary operations.

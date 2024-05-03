@@ -196,7 +196,6 @@ static inline cdpRecord* list_add(cdpList* list, cdpRecord* parent, bool push, c
     
     if (list->parentEx.chdCount && cdp_record_is_dictionary(parent)) {
         // Sorted insert
-        assert(!list->parentEx.compare);     // Only sort by nameID is allowed here.
         cdpListNode* next;
         for (next = list->head;  next;  next = next->next) {
             int cmp = record_compare_by_name(&node->record, &next->record);
@@ -430,23 +429,23 @@ static inline void array_update_children_parent_ptr(cdpRecord* record, cdpRecord
 
 
 static inline cdpRecord* array_add(cdpArray* array, cdpRecord* parent, bool push, cdpRecMeta* metadata) {
+    // Increase array space if necessary
     if (array->capacity == array->parentEx.chdCount) {
-        // Increase array space if necessary
         assert(array->capacity);
         array->capacity *= 2;
         CDP_REALLOC(array->record, array->capacity * sizeof(cdpRecord));
         memset(&array->record[array->parentEx.chdCount], 0, array->parentEx.chdCount * sizeof(cdpRecord));
         array_update_children_parent_ptr(array->record, &array->record[array->parentEx.chdCount - 1]);
     }
-    cdpRecord* child;
     
+    // Insert
+    cdpRecord* child;
     if (array->parentEx.chdCount) {
         if (cdp_record_is_dictionary(parent)) {
-            // Sorted insert
+            // Sorted
             cdpRecord key = {.metadata = *metadata};
-            cdpCompare compare = array->parentEx.compare?: record_compare_by_name_s;
             size_t index = 0;
-            cdpRecord* prev = array_search(array, &key, compare, array->parentEx.context, &index);
+            cdpRecord* prev = array_search(array, &key, record_compare_by_name_s, array->parentEx.context, &index);
             if (prev) {
                 // FixMe: delete children.
                 assert(prev);
@@ -458,13 +457,13 @@ static inline cdpRecord* array_add(cdpArray* array, cdpRecord* parent, bool push
                 CDP_0(child);
             }
         } else if (push) {
-            // Prepend child
+            // Prepend
             child = array->record;
             memmove(child + 1, child, array->parentEx.chdCount * sizeof(cdpRecord)); 
             array_update_children_parent_ptr(child + 1, &array->record[array->parentEx.chdCount]);
             CDP_0(child);
         } else {
-            // Append child
+            // Append
             child = &array->record[array->parentEx.chdCount];
         }
     } else {
@@ -668,22 +667,12 @@ static inline cdpRecord* rb_tree_add(cdpRbTree* tree, cdpRecord* parent, bool pu
     cdpRecord* child = &tnode->record;
     child->metadata = *metadata;
     
-    cdpCompare compare;
-    void* context;
-    if (tree->parentEx.compare) {
-        compare = tree->parentEx.compare;
-        context = tree->parentEx.context;
-    } else {
-        compare = record_compare_by_name_s;
-        context = NULL;
-    }
-    
     if (tree->root) {
         cdpRbTreeNode* x = tree->root;
         cdpRbTreeNode* y;
         do {
             y = x;
-            int cmp = compare(&tnode->record, &x->record, context);
+            int cmp = record_compare_by_name(&tnode->record, &x->record);
             if CDP_RARELY(0 == cmp) {
                 // FixMe: delete children.
                 assert(0 == cmp);
@@ -694,7 +683,7 @@ static inline cdpRecord* rb_tree_add(cdpRbTree* tree, cdpRecord* parent, bool pu
             }
         } while (x);
         tnode->tParent = y;
-        if (0 > compare(&tnode->record, &y->record, context)) {
+        if (0 > record_compare_by_name(&tnode->record, &y->record)) {
             y->left = tnode;
         } else {
             y->right = tnode;
@@ -999,6 +988,8 @@ void cdp_record_system_shutdown(void) {
 cdpRecord* cdp_record_create(cdpRecord* parent, unsigned style, cdpNameID nameID, uint32_t typeID, bool push, bool priv, ...) {
     assert(cdp_record_is_book_or_dic(parent) && nameID && typeID);
     cdpParentEx* parentEx = CDP_PARENTEX(parent->recData.book.children);
+    if (cdp_record_is_dictionary(parent))
+        assert(!push && !parentEx->compare);    // Only sorting by name is allowed here.
     cdpRecMeta metadata = {.proFlag = priv? CDP_FLAG_PRIVATE: 0, .reStyle = style, .typeID = typeID, .nameID = nameID};
     cdpRecord* child;
     va_list args;
@@ -1024,8 +1015,7 @@ cdpRecord* cdp_record_create(cdpRecord* parent, unsigned style, cdpNameID nameID
         break;
       }
         
-      RED_BLACK_T:
-      {
+      RED_BLACK_T: {
         child = rb_tree_add(parent->recData.book.children, parent, push, &metadata);
         break;
       }
@@ -1039,8 +1029,12 @@ cdpRecord* cdp_record_create(cdpRecord* parent, unsigned style, cdpNameID nameID
 
     // Create child record storage.
     RECORD_STYLE_SELECT(style) {
-      BOOK:;
-      DICTIONARY: {
+      DICTIONARY:;
+        cdpCompare compare = va_arg(args, cdpCompare);
+        void* context = va_arg(args, void*);
+        // No break in here (will continue at the next line).
+      
+      BOOK: {
         unsigned storage = va_arg(args, unsigned);
         cdpParentEx* chdParentEx;
 
@@ -1055,7 +1049,7 @@ cdpRecord* cdp_record_create(cdpRecord* parent, unsigned style, cdpNameID nameID
           }
           
           REQ_ARRAY: {
-            int capacity = va_arg(args, int);
+            unsigned capacity = va_arg(args, unsigned);
             chdParentEx = (cdpParentEx*) array_new(capacity);
             break;
           }
@@ -1072,8 +1066,8 @@ cdpRecord* cdp_record_create(cdpRecord* parent, unsigned style, cdpNameID nameID
         
         // Link child book/dic with its own (grand) child storage.
         if (style == CDP_REC_STYLE_DICTIONARY) {
-            chdParentEx->compare = va_arg(args, cdpCompare);
-            chdParentEx->context = va_arg(args, void*);
+            chdParentEx->compare = compare;
+            chdParentEx->context = context;
         }
         chdParentEx->book = child;
         child->metadata.stoTech = storage;
@@ -1663,9 +1657,6 @@ void cdp_record_sort(cdpRecord* book, cdpCompare compare, void* context) {
 }
 
 
-/*
-    Deletes a record and all its children re-organizing (sibling) storage
-*/
 static inline void record_delete(cdpRecord* record, unsigned maxDepth) {
     assert(record && maxDepth);
     assert(!cdp_record_has_shadows(record));
@@ -1716,6 +1707,10 @@ static inline void record_delete(cdpRecord* record, unsigned maxDepth) {
     } SELECTION_END;
 }
 
+
+/*
+    Deletes a record and all its children re-organizing (sibling) storage
+*/
 bool cdp_record_remove(cdpRecord* record, unsigned maxDepth) {
     assert(record && maxDepth);
     assert(!cdp_record_has_shadows(record));
