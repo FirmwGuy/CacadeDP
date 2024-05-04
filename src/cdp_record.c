@@ -1597,8 +1597,8 @@ bool cdp_record_deep_traverse(cdpRecord* book, unsigned maxDepth, cdpRecordTrave
             
             stack[depth++] = entry;
             
-            entry.record = child;
             entry.parent = entry.record;
+            entry.record = child;
             entry.prev   = NULL;
             entry.index  = 0;
             

@@ -112,6 +112,9 @@ typedef void (*cdpDel)(void*);
 #define     cdp_aligned(t)            cdp_align_to(sizeof(t), __alignof__(t))
 #define     CDP_ALIGN_TO(u, a)        ((u) = cdp_align_to(u, a))
 
+#define     cdp_v2p(v)                ((void*)(uintptr_t)(v))
+#define     cdp_p2v(p)                ((uintptr_t)(p))
+
 #define     cdp_ptr_align_to(p, a)    ((void*)cdp_align_to((uintptr_t)(p), a))
 #define     cdp_ptr_aligned(p)        ((void*)cdp_aligned((uintptr_t)(p)))
 #define     cdp_ptr_off(p, off)       ((void*)(((uint8_t*)(p)) + (off)))
