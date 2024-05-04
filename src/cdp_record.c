@@ -475,7 +475,7 @@ static inline cdpRecord* array_add(cdpArray* array, cdpRecord* parent, bool push
 
 
 static inline cdpRecord* array_top(cdpArray* array, bool last) {
-    assert(array->capacity > array->parentEx.chdCount);
+    assert(array->capacity >= array->parentEx.chdCount);
     return last?  &array->record[array->parentEx.chdCount - 1]:  array->record;
 }
 

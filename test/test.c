@@ -45,8 +45,10 @@ enum {
 static void test_records_print(cdpRecord* record, char *sval) {
     if (!record) {
         strcpy(sval, "None");
-    } else if (cdp_record_is_book_or_dic(record)) {
+    } else if (cdp_record_is_book(record)) {
         sprintf(sval, "[%d]", record->metadata.nameID);
+    } else if (cdp_record_is_dictionary(record)) {
+        sprintf(sval, "{%d}", record->metadata.nameID);
     } else if (cdp_record_is_register(record)) {
         unsigned uval;
         cdp_record_register_read(record, 0, &uval, NULL);
@@ -281,7 +283,7 @@ static void test_records_tech_dictionary(unsigned storage) {
 
 
 static void test_records_tech_sequencing_book(void) {
-    size_t maxItems = munit_rand_int_range(1, 100);
+    size_t maxItems = munit_rand_int_range(2, 100);
     
     cdpRecord* bookL = cdp_record_root_add_book(NAME_TEST_BOOK+1, NAME_TEST_BOOK+1, CDP_STO_CHD_LINKED_LIST);
     cdpRecord* bookA = cdp_record_root_add_book(NAME_TEST_BOOK+2, NAME_TEST_BOOK+2, CDP_STO_CHD_ARRAY, maxItems);
@@ -289,14 +291,14 @@ static void test_records_tech_sequencing_book(void) {
     cdpRecord* foundL, *foundA;
     
     for (unsigned n = 0; n < maxItems;  n++) {
-        unsigned value = munit_rand_int_range(1, maxItems/2);
+        unsigned value = 1 + (munit_rand_uint32() % (maxItems>>1));
         unsigned name = NAME_UNSIGNED + value;
         
         if ((foundL = cdp_record_by_name(bookL, name))) cdp_record_remove_register(foundL);
         if ((foundA = cdp_record_by_name(bookA, name))) cdp_record_remove_register(foundA);
         assert((!foundL && !foundA) || (foundL && foundA));
         
-        if (n > 2) {
+        if (cdp_record_book_or_dic_children(bookL)) {
             switch (munit_rand_int_range(0, 4)) {
               case 1:
                 cdp_record_remove_register(cdp_record_top(bookL, false));
@@ -332,7 +334,7 @@ static void test_records_tech_sequencing_book(void) {
 
 
 static void test_records_tech_sequencing_dictionary(void) {
-    size_t maxItems = munit_rand_int_range(1, 100);
+    size_t maxItems = munit_rand_int_range(2, 100);
     
     cdpRecord* dictL = cdp_record_root_add_dictionary(NAME_TEST_DICT+1, NAME_TEST_DICT+1, CDP_STO_CHD_LINKED_LIST, NULL, NULL);
     cdpRecord* dictA = cdp_record_root_add_dictionary(NAME_TEST_DICT+2, NAME_TEST_DICT+2, CDP_STO_CHD_ARRAY, NULL, NULL, maxItems);
@@ -341,7 +343,7 @@ static void test_records_tech_sequencing_dictionary(void) {
     cdpRecord* foundL, *foundA, *foundT;
     
     for (unsigned n = 0; n < maxItems;  n++) {
-        unsigned value = munit_rand_int_range(1, maxItems/2);
+        unsigned value = 1 + (munit_rand_uint32() % (maxItems>>1));
         unsigned name = NAME_UNSIGNED + value;
         
         if ((foundL = cdp_record_by_name(dictL, name))) cdp_record_remove_register(foundL);
@@ -349,7 +351,7 @@ static void test_records_tech_sequencing_dictionary(void) {
         if ((foundT = cdp_record_by_name(dictT, name))) cdp_record_remove_register(foundT);
         assert((!foundL && !foundA && !foundT) || (foundL && foundA && foundT));
         
-        if (n > 2) {
+        if (cdp_record_book_or_dic_children(dictL)) {
             switch (munit_rand_int_range(0, 4)) {
               case 1:
                 cdp_record_remove_register(cdp_record_top(dictL, false));
