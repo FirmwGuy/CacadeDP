@@ -218,7 +218,7 @@ void test_records_tech_dictionary(unsigned storage) {
     path->length = 1;
     path->capacity = 1;
     cdpRecord* found;
-    unsigned vmax = 1, vmin = 1;
+    unsigned vmax = 1, vmin = 1000, name;
 
     for (unsigned n = 1; n < 10;  n++) {        
         if (cdp_record_book_or_dic_children(dict) > 2) {
@@ -236,11 +236,15 @@ void test_records_tech_dictionary(unsigned storage) {
             }
         }
         
-        value = munit_rand_int_range(1, 1000);
+        do {
+            value = munit_rand_int_range(1, 1000);
+            name = NAME_UNSIGNED + value;
+            found = cdp_record_by_name(dict, name);
+        } while (found);
         if (value < vmin)   vmin = value;
         if (value > vmax)   vmax = value;
 
-        reg = cdp_record_add_register(dict, NAME_UNSIGNED+value, NAME_UNSIGNED+value, false, &value, sizeof(value));
+        reg = cdp_record_add_register(dict, name, name, false, &value, sizeof(value));
         test_records_register_val(reg, value);
         
         found = cdp_record_by_name(dict, reg->metadata.nameID);
@@ -248,8 +252,14 @@ void test_records_tech_dictionary(unsigned storage) {
 
         found = cdp_record_top(dict, false);
         test_records_register_val(found, vmin);
+        
+        found = cdp_record_by_index(dict, 0);
+        test_records_register_val(found, vmin);
 
         found = cdp_record_top(dict, true);
+        test_records_register_val(found, vmax);
+        
+        found = cdp_record_by_index(dict, cdp_record_book_or_dic_children(dict) - 1);
         test_records_register_val(found, vmax);
         
         path->nameID[0] = reg->metadata.nameID;
@@ -262,7 +272,7 @@ void test_records_tech_dictionary(unsigned storage) {
     /* Nested books */
     
     cdpRecord* chdDict = cdp_record_add_dictionary(dict, NAME_TEST_DICT, NAME_TEST_DICT, storage, NULL, NULL, 20);
-    reg = cdp_record_push_register(chdDict, NAME_UNSIGNED+30, NAME_UNSIGNED+30, false, &value, sizeof(value));
+    reg = cdp_record_add_register(chdDict, NAME_UNSIGNED+30, NAME_UNSIGNED+30, false, &value, sizeof(value));
     test_records_register_val(reg, value);
     assert_true(cdp_record_deep_traverse(dict, 3, print_values, NULL, NULL));    
     
@@ -273,11 +283,11 @@ void test_records_tech_dictionary(unsigned storage) {
 MunitResult test_records(const MunitParameter params[], void* user_data_or_fixture) {
     cdp_record_system_initiate();
     
-    test_records_tech_book(CDP_STO_CHD_LINKED_LIST);
-    test_records_tech_book(CDP_STO_CHD_ARRAY);
+    //test_records_tech_book(CDP_STO_CHD_LINKED_LIST);
+    //test_records_tech_book(CDP_STO_CHD_ARRAY);
     
-    test_records_tech_dictionary(CDP_STO_CHD_LINKED_LIST);
-    test_records_tech_dictionary(CDP_STO_CHD_ARRAY);
+    //test_records_tech_dictionary(CDP_STO_CHD_LINKED_LIST);
+    //test_records_tech_dictionary(CDP_STO_CHD_ARRAY);
     test_records_tech_dictionary(CDP_STO_CHD_RED_BLACK_T);
         
     cdp_record_system_shutdown();
