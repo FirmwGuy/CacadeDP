@@ -668,8 +668,7 @@ static inline cdpRecord* rb_tree_add(cdpRbTree* tree, cdpRecord* parent, cdpRecM
     child->metadata = *metadata;
     
     if (tree->root) {
-        cdpRbTreeNode* x = tree->root;
-        cdpRbTreeNode* y;
+        cdpRbTreeNode* x = tree->root, *y;
         do {
             y = x;
             int cmp = record_compare_by_name(&tnode->record, &x->record);
@@ -688,10 +687,10 @@ static inline cdpRecord* rb_tree_add(cdpRbTree* tree, cdpRecord* parent, cdpRecM
         } else {
             y->right = tnode;
         }
-        rb_tree_fix_insert(tree, tnode);
     } else {
         tree->root = tnode;
     }
+    rb_tree_fix_insert(tree, tnode);
     
     return child;
 }
@@ -720,7 +719,7 @@ static inline bool rb_tree_traverse(cdpRbTree* tree, cdpRecord* book, unsigned m
           tnode = tnode->left;
       } else {
           tnode = stack[top--];
-          if CDP_EXPECT(tnodePrev != NULL) {
+          if CDP_EXPECT_PTR(tnodePrev) {
               entry.next = &tnode->record;
               entry.record = &tnodePrev->record;
               if (!func(&entry, 0, context))
@@ -750,13 +749,12 @@ static inline int rb_traverse_func_break_at_name(cdpBookEntry* entry, unsigned u
 }
 
 static inline cdpRecord* rb_tree_find_by_name(cdpRbTree* tree, cdpNameID nameID, cdpRecord* book) {
-    assert(cdp_record_is_dictionary(book));
     if (!tree->parentEx.compare) {
         cdpRbTreeNode* tnode = tree->root;
         do {
-            if (tnode->record.metadata.nameID < nameID) {
+            if (nameID < tnode->record.metadata.nameID) {
                 tnode = tnode->left;
-            } else if (tnode->record.metadata.nameID > nameID) {
+            } else if (nameID > tnode->record.metadata.nameID) {
                 tnode = tnode->right;
             } else {
                 return &tnode->record;
@@ -1264,6 +1262,7 @@ cdpRecord* cdp_record_by_name(cdpRecord* book, cdpNameID nameID) {
         break;
         
       RED_BLACK_T: {
+        assert(cdp_record_is_dictionary(book));
         record = rb_tree_find_by_name(book->recData.book.children, nameID, book);
         break;
       }

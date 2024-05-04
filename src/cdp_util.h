@@ -39,8 +39,11 @@
 #define     CDP(_, i)                 CDPPASTE(__##i, _)
 
 #define     CDP_EXPECT(exp)           (__builtin_expect((long)(exp), true))
+#define     CDP_EXPECT_PTR(p)         CDP_EXPECT((p) != NULL)
+#define     CDP_EXPECT_NULL(p)        CDP_EXPECT((p) == NULL)
 #define     CDP_RARELY(exp)           (__builtin_expect((long)(exp), false))
-
+#define     CDP_RARELY_PTR(p)         CDP_RARELY((p) != NULL)
+#define     CDP_RARELY_NULL(p)        CDP_RARELY((p) == NULL)
 
 
 /*
