@@ -46,7 +46,7 @@ typedef struct {
 */
 
 #define list_new()      cdp_new(cdpList)
-#define list_del(list)  cdp_free(list)
+#define list_del        cdp_free
 
 
 static inline cdpListNode* list_node_from_record(cdpRecord* record) {
@@ -121,6 +121,7 @@ static inline cdpRecord* list_find_by_name(cdpList* list, cdpNameID nameID) {
 
 
 static inline cdpRecord* list_find_by_index(cdpList* list, size_t index) {
+    // ToDo: use from tail to head if index is closer to it.
     size_t n = 0;
     for (cdpListNode* node = list->head;  node;  node = node->next, n++) {
         if (n == index)
@@ -159,16 +160,16 @@ static inline cdpRecord* list_next_by_name(cdpList* list, cdpNameID nameID, cdpL
 static inline bool list_traverse(cdpList* list, cdpRecord* book, cdpRecordTraverse func, void* context) {
     cdpBookEntry entry = {.parent = book};
     cdpListNode* node = list->head, *next;
-    while (node) {
+    do {
         next = node->next;
         entry.record = &node->record;
         entry.next = next? &next->record: NULL;
         if (!func(&entry, 0, context))
             return false;
-        entry.prev = entry.record;
         entry.index++;
+        entry.prev = entry.record;
         node = next;
-    }
+    } while (node);
     return true;
 }
 
@@ -228,11 +229,14 @@ static inline void list_remove_record(cdpList* list, cdpRecord* record) {
 
 static inline void list_del_all_children(cdpList* list, unsigned maxDepth) {
     cdpListNode* node = list->head, *toDel;
-    while (node) {
-        record_delete_storage(&node->record, maxDepth - 1);
-        toDel = node;
-        node = node->next;
-        cdp_free(toDel);
+    if (node) {
+        do {
+            record_delete_storage(&node->record, maxDepth - 1);
+            toDel = node;
+            node = node->next;
+            cdp_free(toDel);
+        } while (node);
+        list->head = list->tail = NULL;
     }
 }
 

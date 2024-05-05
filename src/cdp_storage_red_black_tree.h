@@ -48,8 +48,8 @@ typedef struct {
     Red-black tree implementation
 */
 
-#define rb_tree_new()      cdp_new(cdpRbTree)
-#define rb_tree_del(tree)  cdp_free(tree)
+#define rb_tree_new()     cdp_new(cdpRbTree)
+#define rb_tree_del       cdp_free
 
 
 static inline cdpRbTreeNode* rb_tree_node_from_record(cdpRecord* record) {
@@ -189,13 +189,13 @@ static inline bool rb_tree_traverse(cdpRbTree* tree, cdpRecord* book, unsigned m
           tnode = tnode->left;
       } else {
           tnode = stack[top--];
-          if CDP_EXPECT_PTR(tnodePrev) {
+          if (tnodePrev) {
               entry.next = &tnode->record;
               entry.record = &tnodePrev->record;
               if (!func(&entry, 0, context))
                   return false;
-              entry.prev = entry.record;
               entry.index++;
+              entry.prev = entry.record;
           }
           tnodePrev = tnode;
           tnode = tnode->right;
@@ -408,6 +408,8 @@ static inline void rb_tree_del_all_children_recursively(cdpRbTreeNode* tnode, un
 }
 
 static inline void rb_tree_del_all_children(cdpRbTree* tree, unsigned maxDepth) {
-    if (tree->root)
+    if (tree->root) {
         rb_tree_del_all_children_recursively(tree->root, maxDepth);
+        tree->root = NULL;
+    }
 }

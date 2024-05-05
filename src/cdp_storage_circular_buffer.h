@@ -22,90 +22,104 @@
  */
 
 
-typedef struct {
-    cdpParentEx parentEx;         // Parent info.
-    //                            
-    size_t      cHead;            // Head index for the next read.
-    size_t      cCapacity;        // Total capacity of the buffer.
+typedef struct _cdpCircBufNode  cdpCircBufNode;
+
+struct _cdpCircBufNode {
+    cdpCircBufNode* pNext;      // Pointer to the next node in the list.
+    cdpCircBufNode* pPrev;      // Previous node.
+    cdpRecord*      first;      // Points to the first record in buffer.
+    cdpRecord*      last;       // The last record.
     //
-    cdpRecord*  record;           // Children Record
+    cdpRecord       record[];   // Fixed-size buffer for this node.
+};
+
+typedef struct {
+    cdpParentEx     parentEx;   // Parent info.
+    //                          
+    size_t          bufSize;    // Buffer size in bytes.
+    cdpCircBufNode* pHead;      // Head of the buffer list.
+    cdpCircBufNode* pTail;      // Tail of the buffer list.
 } cdpCircBuf;
 
 
 
 
 /*
-    Circular buffer implementation
+    Dynamic Circular buffer implementation
 */
 
 static inline cdpCircBuf* circ_buf_new(int capacity) {
-    CDP_NEW(cdpCircBuf, circb);
-    circb->cCapacity = capacity;
-    circb->record = cdp_malloc0(capacity * sizeof(cdpRecord));
-    return circb;
+    CDP_NEW(cdpCircBuf, circ);
+    circ->bufSize = capacity * sizeof(cdpRecord);
+    return circ;
 }
 
 
-static inline void circ_buf_del(cdpCircBuf* circb) {
-    cdp_free(circb->record);
-    cdp_free(circb);
+static inline cdpCircBufNode* circ_buf_node_new(cdpCircBuf* circ) {
+    cdpCircBufNode* cNode = cdp_malloc0(sizeof(cdpCircBufNode) + circ->bufSize);
+    cNode->first = cNode->last = cNode->record;
+    return cNode;
 }
 
 
-static inline cdpRecord* circ_buf_add(cdpCircBuf* circb, cdpRecord* parent, bool push, cdpRecMeta* metadata) {   
+#define circ_buf_del        cdp_free
+#define circ_buf_node_del   cdp_free
+
+
+static inline cdpCircBufNode* circ_buf_node_from_record(cdpCircBuf* circ, cdpRecord* record) {
+    for (cdpCircBufNode* cNode = circ->pHead;  cNode;  cNode = cNode->pNext) {
+        if (cNode->first <= record  &&  cNode->last >= record)
+            return cNode;
+    }
+    return NULL;
+}
+
+
+static inline cdpRecord* circ_buf_add(cdpCircBuf* circ, cdpRecord* parent, bool push, cdpRecMeta* metadata) {   
+    assert(cdp_record_is_book(parent));
     cdpRecord* child;
-    if (circb->parentEx.chdCount) {
+    if (circ->parentEx.chdCount) {
         if (push) {
             // Prepend
-            if (circb->cCapacity == circb->parentEx.chdCount) {
+            if (circ->pHead->first > circ->pHead->record) {
+                circ->pHead->first--;
             } else {
-                if (circb->cHead)
-                    circb->cHead--;
-                else
-                    circb->cHead = circb->cCapacity - 1;
-                child = &circb->record[circb->cHead];
+                cdpCircBufNode* cNode = circ_buf_node_new(circ);
+                cNode->pNext = circ->pHead;
+                circ->pHead->pPrev = cNode;
+                circ->pHead = cNode;
             }
+            child = circ->pHead->first;
         } else {
             // Append
-            if (circb->cCapacity == circb->parentEx.chdCount) {
-                // Overwrite buffer if full
-                child = &circb->record[circb->cHead];
-                record_delete_storage(child, UINT_MAX);     // FixMe: maxDepth!
-                CDP_0(child);
-                circb->cHead++;
-                if (circb->cHead == circb->cCapacity)
-                    circb->cHead = 0;
-                circb->parentEx.chdCount--;     // FixMe: no child count increase.
+            if ((void*)circ->pTail->last < cdp_ptr_off(circ->pTail->record, circ->bufSize - sizeof(cdpRecord))) {
+                circ->pTail->last++;
             } else {
-                // Increase buffer
-                size_t cTail = circb->cHead + circb->parentEx.chdCount;
-                if (cTail >= circb->cCapacity)
-                    cTail -= circb->cCapacity;
-                child = &circb->record[cTail];
+                cdpCircBufNode* cNode = circ_buf_node_new(circ);
+                cNode->pPrev = circ->pTail;
+                circ->pTail->pNext = cNode;
+                circ->pTail = cNode;
             }
+            child = circ->pTail->last;
         }
     } else {
-            circb->cHead = 0;
-            child = circb->record;
+            if (!circ->pTail)
+                circ->pTail = circ->pHead = circ_buf_node_new(circ);
+            child = circ->pTail->last;
     }
     child->metadata = *metadata;
     return child;
 }
 
 
-static inline cdpRecord* circ_buf_top(cdpCircBuf* circb, bool last) {
-    assert(circb->cCapacity >= circb->parentEx.chdCount);
-    return last?  &circb->record[circb->parentEx.chdCount - 1]:  circb->record;
+static inline cdpRecord* circ_buf_top(cdpCircBuf* circ, bool last) {
+    return last?  circ->pTail->last:  circ->pHead->first;
 }
 
 
-static inline cdpRecord* circ_buf_find_by_name(cdpCircBuf* circb, cdpNameID nameID, cdpRecord* book) {
-    if (cdp_record_is_dictionary(book) && !circb->parentEx.compare) {
-        cdpRecord key = {.metadata.nameID = nameID};
-        return circ_buf_search(circb, &key, record_compare_by_name_s, NULL, NULL);
-    } else {
-        cdpRecord* record = circb->record;
-        for (size_t i = 0; i < circb->parentEx.chdCount; i++, record++) {
+static inline cdpRecord* circ_buf_find_by_name(cdpCircBuf* circ, cdpNameID nameID) {
+    for (cdpCircBufNode* cNode = circ->pHead;  cNode;  cNode = cNode->pNext) {
+        for (cdpRecord* record = cNode->first;  record <= cNode->last;  record++) {
             if (record->metadata.nameID == nameID)
                 return record;
         }
@@ -114,78 +128,112 @@ static inline cdpRecord* circ_buf_find_by_name(cdpCircBuf* circb, cdpNameID name
 }
 
 
-static inline cdpRecord* circ_buf_find_by_index(cdpCircBuf* circb, size_t index) {
-    assert(index < circb->parentEx.chdCount);
-    return &circb->record[index];
-}
-
-
-static inline cdpRecord* circ_buf_prev(cdpCircBuf* circb, cdpRecord* record) {
-    return (record > circb->record)? record - 1: NULL;
-}
-
-
-static inline cdpRecord* circ_buf_next(cdpCircBuf* circb, cdpRecord* record) {
-    cdpRecord* last = &circb->record[circb->parentEx.chdCount - 1];
-    return (record < last)? record + 1: NULL;
-}
-
-
-static inline cdpRecord* circ_buf_next_by_name(cdpCircBuf* circb, cdpNameID nameID, uintptr_t* prev) {
-    cdpRecord* record = circb->record;
-    for (size_t i = prev? (*prev + 1): 0;  i < circb->parentEx.chdCount;  i++, record++){
-        if (record->metadata.nameID == nameID)
-            return record;
-    }   
+static inline cdpRecord* circ_buf_find_by_index(cdpCircBuf* circ, size_t index) {
+    // ToDo: use from tail to head if index is closer to it.
+    for (cdpCircBufNode* cNode = circ->pHead;  cNode;  cNode = cNode->pNext) {
+        size_t chunk = cdp_ptr_idx(cNode->first, cNode->last, sizeof(cdpRecord)) + 1;
+        if (chunk > index) {
+            return &cNode->record[index];
+        }
+        index -= chunk;
+    }
     return NULL;
 }
 
-static inline bool circ_buf_traverse(cdpCircBuf* circb, cdpRecord* book, cdpRecordTraverse func, void* context){
-    assert(circb && circb->cCapacity >= circb->parentEx.chdCount);
-    cdpBookEntry entry = {.record = circb->record, .parent = book, .next = (circb->parentEx.chdCount > 1)? (circb->record + 1): NULL};
-    cdpRecord* last = &circb->record[circb->parentEx.chdCount - 1];
-    for (;;) {
-        if (!func(&entry, 0, context))
-            return false;
-        entry.index++;
-        if (entry.index >= circb->parentEx.chdCount)
-            break;
-        entry.prev   = entry.record;
-        entry.record = entry.next;
-        entry.next = (entry.record < last)? (entry.next + 1): NULL;
-    }
-    return true;
+
+static inline cdpRecord* circ_buf_prev(cdpCircBuf* circ, cdpRecord* record) {
+    cdpCircBufNode* cNode = circ_buf_node_from_record(record);
+    assert(cNode);    
+    if (cNode->first == record)
+        return NULL;
+    return record - 1;
 }
 
 
-static inline void circ_buf_sort(cdpCircBuf* circb, cdpCompare compare, void* context) {
-    if (!compare) {
-        qsort(circb->record, circb->parentEx.chdCount, sizeof(cdpRecord), (cdpFunc) record_compare_by_name);
+static inline cdpRecord* circ_buf_next(cdpCircBuf* circ, cdpRecord* record) {
+    cdpCircBufNode* cNode = circ_buf_node_from_record(record);
+    assert(cNode);    
+    if (cNode->last == record)
+        return NULL;
+    return record + 1;
+}
+
+
+static inline cdpRecord* circ_buf_next_by_name(cdpCircBuf* circ, cdpNameID nameID, cdpCircBufNode** prev) {
+    for (cdpCircBufNode* cNode = prev? (*prev)->pNext: circ->pHead;  cNode;  cNode = cNode->pNext) {
+        for (cdpRecord* record = cNode->first;  record <= cNode->last;  record++) {
+            if (record->metadata.nameID == nameID)
+                return record;
+        }
+    }  
+    return NULL;
+}
+
+
+static inline bool circ_buf_traverse(cdpCircBuf* circ, cdpRecord* book, cdpRecordTraverse func, void* context) {
+    cdpBookEntry entry = {.parent = book};
+    cdpCircBufNode* cNode = circ->pHead;
+    do {
+        entry.next = cNode->first;
+        do {
+            if (entry.record) {
+                if (!func(&entry, 0, context))
+                    return false;
+                entry.index++;
+                entry.prev = entry.record;
+            }
+            entry.record = entry.next;
+            entry.next++;
+        } while (entry.next <= cNode->last);
+        cNode = cNode->pNext;
+    } while (cNode);
+    entry.next = NULL;
+    return func(&entry, 0, context);
+}
+
+
+static inline void circ_buf_remove_record(cdpCircBuf* circ, cdpRecord* record) {
+    if (record == circ->pHead->first) {
+        circ->pHead->first++;
+        if (circ->pHead->first <= circ->pHead->last) {
+            CDP_0(record);
+        } else {
+            cdpCircBufNode* cNode = circ->pHead;
+            circ->pHead = circ->pHead->pNext;
+            if (circ->pHead)
+                circ->pHead->pPrev = NULL;
+            circ_buf_node_del(cNode);
+        }
+    } else if (record == circ->pTail->last) {
+        circ->pTail->last--;
+        if (circ->pTail->last >= circ->pTail->first) {
+            CDP_0(record);
+        } else {
+            cdpCircBufNode* cNode = circ->pTail;
+            circ->pTail = circ->pTail->pPrev;
+            if (circ->pTail)
+                circ->pTail->pNext = NULL;
+            circ_buf_node_del(cNode);
+        }
     } else {
-      #ifdef _GNU_SOURCE
-        qsort_r
-      #else
-        qsort_s
-      #endif
-        (circb->record, circb->parentEx.chdCount, sizeof(cdpRecord), (cdpFunc) compare, context);
+        // Only popping (first or last) is allowed for circular buffers.
+        assert(record == circ->pHead->first || record == circ->pTail->last);
     }
-    circ_buf_update_children_parent_ptr(circb->record, &circb->record[circb->parentEx.chdCount - 1]);
 }
 
 
-static inline void circ_buf_remove_record(cdpCircBuf* circb, cdpRecord* record) {
-    assert(circb && circb->cCapacity >= circb->parentEx.chdCount);
-    cdpRecord* last = &circb->record[circb->parentEx.chdCount - 1];
-    if (record < last)
-        memmove(record, record + 1, (size_t) cdp_ptr_dif(last, record));
-    CDP_0(last);
-}
-
-
-static inline void circ_buf_del_all_children(cdpCircBuf* circb, unsigned maxDepth) {
-    cdpRecord* child = circb->record;
-    for (size_t n = 0; n < circb->parentEx.chdCount; n++, child++) {
-        record_delete_storage(child, maxDepth - 1);
+static inline void circ_buf_del_all_children(cdpCircBuf* circ, unsigned maxDepth) {
+    cdpCircBufNode* cNode = circ->pHead, *toDel;
+    if (cNode) {
+        do {
+            for (cdpRecord* record = cNode->first;  record <= cNode->last;  record++) {
+                record_delete_storage(record, maxDepth - 1);
+            }
+            toDel = cNode;
+            cNode = cNode->pNext;
+            circ_buf_node_del(toDel);
+        } while (cNode);
+        circ->pHead = circ->pTail = NULL;
     }
 }
 

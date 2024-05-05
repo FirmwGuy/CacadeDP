@@ -38,7 +38,8 @@ typedef struct _cdpPath         cdpPath;
  
 #define CDP_FLAG_PRIVATE    0x01    // Record and all its children are private (unlockables).
 #define CDP_FLAG_SHADOWED   0x02    // Record has shadow records (links pointing to it).
-#define CDP_FLAG_RESERVED   0x04    // This flag is for future use.
+#define CDP_FLAG_RESERVED1  0x04    // This flag is reserved for future use.
+#define CDP_FLAG_RESERVED2  0x08    // This flag is also for future use.
 
 enum {
     CDP_REC_STYLE_BOOK,
@@ -51,9 +52,8 @@ enum {
 
 enum {
     CDP_STO_CHD_LINKED_LIST,    // Children stored in a doubly linked list.
-    CDP_STO_CHD_CIRC_BUFFER,    // Children stored in a circular buffer.
     CDP_STO_CHD_ARRAY,          // Children stored in an array.
-    CDP_STO_CHD_PACKED_LIST,    // Children stored in a packed list.
+    CDP_STO_CHD_CIRC_BUFFER,    // Children stored in a circular buffer (record must be a book).
     CDP_STO_CHD_RED_BLACK_T,    // Children stored in a red-black tree (record must be a dictionary).
     //
     CDP_STO_CHD_COUNT
@@ -76,9 +76,9 @@ enum {
 typedef uint32_t cdpNameID;
 
 typedef struct {
-    uint32_t  reStyle: 2,       // Style of the record (book, register or link)
-              proFlag: 3,       // Flags for record properties (multiple parents, private, sorted).
-              stoTech: 3,       // Record storage technique (it depends of the style of record).
+    uint32_t  proFlag: 4,       // Flags for record properties (multiple parents, private, sorted).
+              reStyle: 2,       // Style of the record (book, register or link)
+              stoTech: 2,       // Record storage technique (it depends of the style of record).
               typeID: 24;       // Type identifier for the record.
     cdpNameID nameID;           // Name/field identifier in the parent record.
 } cdpRecMeta;
