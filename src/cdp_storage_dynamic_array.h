@@ -38,7 +38,6 @@ typedef struct {
 */
 
 static inline cdpArray* array_new(int capacity) {
-    assert(capacity > 0);
     CDP_NEW(cdpArray, array);
     array->capacity = capacity;
     array->record = cdp_malloc0(capacity * sizeof(cdpRecord));
@@ -47,7 +46,6 @@ static inline cdpArray* array_new(int capacity) {
 
 
 static inline void array_del(cdpArray* array) {
-    assert(array);
     cdp_free(array->record);
     cdp_free(array);
 }

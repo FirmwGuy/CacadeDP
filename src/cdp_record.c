@@ -215,8 +215,35 @@ void cdp_record_system_shutdown(void) {
     ROOT.recData.book.children = NULL;
     array_del(array);
 }
+ 
+static inline void* record_create_sorage(unsigned storage, va_list args) {
+    STORAGE_TECH_SELECT(storage) {
+      LINKED_LIST: {
+        return list_new();
+      }
+      
+      CIRC_BUFFER: {
+        unsigned capacity = va_arg(args, unsigned);
+        assert(capacity > 0);
+        return circ_buf_new(capacity);
+      }
+      
+      ARRAY: {
+        unsigned capacity = va_arg(args, unsigned);
+        assert(capacity > 0);
+        return array_new(capacity);
+      }
 
-
+      PACKED_LIST: {
+        break;
+      }
+      
+      RED_BLACK_T: {
+        return rb_tree_new();
+      }
+    } SELECTION_END;
+    return NULL;
+}
 
 
 /* 
@@ -238,6 +265,7 @@ cdpRecord* cdp_record_create(cdpRecord* parent, unsigned style, cdpNameID nameID
       }
         
       CIRC_BUFFER: {
+        child = circ_buf_add(parent->recData.book.children, parent, push, &metadata);
         break;
       }
         
@@ -263,52 +291,35 @@ cdpRecord* cdp_record_create(cdpRecord* parent, unsigned style, cdpNameID nameID
     parentEx->chdCount++;
 
     // Create child record storage.
+    //
     va_list args;
     va_start(args, priv);
 
     RECORD_STYLE_SELECT(style) {
-      BOOK:;
-      DICTIONARY: {
-        cdpParentEx* chdParentEx;
-        cdpCompare compare;
-        void* context;
+      BOOK: {
         unsigned storage = va_arg(args, unsigned);
-        if (style == CDP_REC_STYLE_DICTIONARY) {
-            compare = va_arg(args, cdpCompare);
-            context = va_arg(args, void*);
-        }
-      
-        STORAGE_TECH_SELECT(storage, REQ_) {
-          REQ_LINKED_LIST: {
-            chdParentEx = (cdpParentEx*) list_new();
-            break;
-          }
-          
-          REQ_CIRC_BUFFER: {
-            break;
-          }
-          
-          REQ_ARRAY: {
-            unsigned capacity = va_arg(args, unsigned);
-            chdParentEx = (cdpParentEx*) array_new(capacity);
-            break;
-          }
-
-          REQ_PACKED_LIST: {
-            break;
-          }
-          
-          REQ_RED_BLACK_T: {
-            chdParentEx = (cdpParentEx*) rb_tree_new();
-            break;
-          }
-        } SELECTION_END;
+        assert(storage != CDP_STO_CHD_RED_BLACK_T);
+        
+        cdpParentEx* chdParentEx = record_create_storage(storage, args);
         
         // Link child book/dic with its own (grand) child storage.
-        if (style == CDP_REC_STYLE_DICTIONARY) {
-            chdParentEx->compare = compare;
-            chdParentEx->context = context;
-        }
+        chdParentEx->book = child;
+        child->metadata.stoTech = storage;
+        child->recData.book.children = chdParentEx;
+        break;
+      }
+      
+      DICTIONARY: {
+        unsigned   storage = va_arg(args, unsigned);
+        cdpCompare compare = va_arg(args, cdpCompare);
+        void*      context = va_arg(args, void*);
+        assert(storage != CDP_STO_CHD_CIRC_BUFFER);
+      
+        cdpParentEx* chdParentEx = record_create_storage(storage, args);
+        
+        // Link child book/dic with its own (grand) child storage.
+        chdParentEx->compare = compare;
+        chdParentEx->context = context;
         chdParentEx->book = child;
         child->metadata.stoTech = storage;
         child->recData.book.children = chdParentEx;
