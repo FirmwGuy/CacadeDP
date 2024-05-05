@@ -2,7 +2,7 @@
  *  Copyright (c) 2024 Victor M. Barrientos <firmw.guy@gmail.com>
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
- *  of this softwre and associated documentation files (the "Software"), to deal
+ *  of this software and associated documentation files (the "Software"), to deal
  *  in the Software without restriction, including without limitation the rights
  *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
  *  copies of the Software, and to permit persons to whom the Software is
@@ -29,9 +29,6 @@
 
 
 typedef struct _cdpRecord       cdpRecord;
-typedef struct _cdpListNode     cdpListNode;
-typedef struct _cdpPackListNode cdpPackListNode;
-typedef struct _cdpRbTreeNode   cdpRbTreeNode;
 typedef struct _cdpPath         cdpPath;
 
 
@@ -143,69 +140,6 @@ typedef struct {
     cdpCompare  compare;          // Compare function for dictionaries.
     void*       context;          // User defined context data for searches.
 } cdpParentEx;
-
-struct _cdpListNode {
-    cdpListNode*  next;           // Previous node.
-    cdpListNode*  prev;           // Next node.
-    //
-    cdpRecord     record;         // Child record.
-};
-
-typedef struct {
-    cdpParentEx   parentEx;       // Parent info.
-    //
-    cdpListNode*  head;           // Head of the doubly linked list
-    cdpListNode*  tail;           // Tail of the doubly linked list for quick append
-} cdpList;
-
-typedef struct {
-    cdpParentEx parentEx;         // Parent info.
-    //                            
-    size_t      cHead;            // Head index for the next read.
-    size_t      cCapacity;        // Total capacity of the buffer.
-    //
-    cdpRecord*  record;           // Children Record
-} cdpCirBuffer;
-
-typedef struct {
-    cdpParentEx parentEx;         // Parent info.
-    //
-    size_t      capacity;         // Total capacity of the array to manage allocations
-    //
-    cdpRecord*  record;           // Children Record
-} cdpArray;
-
-struct _cdpPackListNode {
-    cdpPackListNode*  pNext;      // Pointer to the next node in the list
-    size_t            count;      // Number of valid records in this node's pack
-    //
-    cdpRecord         record[];   // Fixed-size array of cdpRecords
-};
-
-typedef struct {
-    cdpParentEx       parentEx;   // Parent info.
-    //
-    cdpPackListNode*  pHead;      // Head of the packed list
-    cdpPackListNode*  pTail;      // Tail of the packed list for quick append operations
-    size_t            packSize;   // Capacity of each pack (Total count of records across all packs is in chdCount)
-} cdpPackList;
-
-struct _cdpRbTreeNode {
-    cdpRbTreeNode*  left;         // Left node.
-    cdpRbTreeNode*  right;        // Right node.
-    cdpRbTreeNode*  tParent;      // Parent node.
-    bool            isRed;        // True if node is red.
-    //
-    cdpRecord       record;       // Child record.
-};
-
-typedef struct {
-    cdpParentEx     parentEx;     // Parent info.
-    //
-    cdpRbTreeNode*  root;         // The root node.
-    //cdpRbTreeNode*  maximum;      // Node holding the maximum data.
-    //cdpRbTreeNode*  minimum;      // Node holding the minimum data.
-} cdpRbTree;
 
 
 /*
