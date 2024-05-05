@@ -53,7 +53,7 @@ enum {
 enum {
     CDP_STO_CHD_LINKED_LIST,    // Children stored in a doubly linked list.
     CDP_STO_CHD_ARRAY,          // Children stored in an array.
-    CDP_STO_CHD_CIRC_BUFFER,    // Children stored in a circular buffer (record must be a book).
+    CDP_STO_CHD_PACKED_QUEUE,    // Children stored in a circular buffer (record must be a book).
     CDP_STO_CHD_RED_BLACK_T,    // Children stored in a red-black tree (record must be a dictionary).
     //
     CDP_STO_CHD_COUNT

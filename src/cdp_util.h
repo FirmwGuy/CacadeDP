@@ -120,7 +120,7 @@ typedef void (*cdpDel)(void*);
 #define     cdp_ptr_off(p, off)       ((void*)(((uint8_t*)(p)) + (off)))
 #define     CDP_PTR_OFF(p, off)       ((p) = cdp_ptr_off(p, off))
 #define     cdp_ptr_dif(p1, p2)       ((void*)(((uint8_t*)(p1)) - ((uint8_t*)(p2))))
-#define     cdp_ptr_idx(p, o, z)      (cdp_ptr_dif(o, p)/(z))
+#define     cdp_ptr_idx(p, o, z)      ((size_t)cdp_ptr_dif(o, p) / (z))
 #define     cdp_ptr_adr(p, i, z)      cdp_ptr_off(p, (i)*(z))
 #define     cdp_ptr_has_val(p)        ((p) && *(p))
 #define     cdp_ptr_sec_get(p, v)     ((p)? *(p): (n))

@@ -150,7 +150,7 @@ static inline int record_compare_by_name_s(const cdpRecord* restrict key, const 
 
 #define STORAGE_TECH_SELECT(stoTech)                                           \
     assert((stoTech) < CDP_STO_CHD_COUNT);                                     \
-    static void* const chdStoTech[] = {&&LINKED_LIST, &&CIRC_BUFFER,           \
+    static void* const chdStoTech[] = {&&LINKED_LIST, &&PACKED_QUEUE,           \
         &&ARRAY, &&RED_BLACK_T};                                               \
     goto *chdStoTech[stoTech];                                                 \
     do
@@ -176,7 +176,7 @@ static inline void record_delete_storage(cdpRecord* record, unsigned maxDepth);
 */
 #include "cdp_storage_linked_list.h"
 #include "cdp_storage_dynamic_array.h"
-#include "cdp_storage_circular_buffer.h"
+#include "cdp_storage_packed_queue.h"
 #include "cdp_storage_red_black_tree.h"
 
 
@@ -214,7 +214,7 @@ void cdp_record_system_shutdown(void) {
     array_del(array);
 }
  
-static inline void* record_create_sorage(unsigned storage, va_list args) {
+static inline void* record_create_storage(unsigned storage, va_list args) {
     STORAGE_TECH_SELECT(storage) {
       LINKED_LIST: {
         return list_new();
@@ -224,10 +224,10 @@ static inline void* record_create_sorage(unsigned storage, va_list args) {
         assert(capacity > 0);
         return array_new(capacity);
       }
-      CIRC_BUFFER: {
+      PACKED_QUEUE: {
         unsigned capacity = va_arg(args, unsigned);
         assert(capacity > 0);
-        return circ_buf_new(capacity);
+        return packed_q_new(capacity);
       }
       RED_BLACK_T: {
         return rb_tree_new();
@@ -258,8 +258,8 @@ cdpRecord* cdp_record_create(cdpRecord* parent, unsigned style, cdpNameID nameID
         child = array_add(parent->recData.book.children, parent, push, &metadata);
         break;
       }
-      CIRC_BUFFER: {
-        child = circ_buf_add(parent->recData.book.children, parent, push, &metadata);
+      PACKED_QUEUE: {
+        child = packed_q_add(parent->recData.book.children, parent, push, &metadata);
         break;
       }        
       RED_BLACK_T: {
@@ -297,7 +297,7 @@ cdpRecord* cdp_record_create(cdpRecord* parent, unsigned style, cdpNameID nameID
         unsigned   storage = va_arg(args, unsigned);
         cdpCompare compare = va_arg(args, cdpCompare);
         void*      context = va_arg(args, void*);
-        assert(storage != CDP_STO_CHD_CIRC_BUFFER);
+        assert(storage != CDP_STO_CHD_PACKED_QUEUE);
       
         cdpParentEx* chdParentEx = record_create_storage(storage, args);
         
@@ -450,8 +450,8 @@ cdpRecord* cdp_record_top(cdpRecord* book, bool last) {
         record = array_top(book->recData.book.children, last);
         break;
       }
-      CIRC_BUFFER: {
-        record = circ_buf_top(book->recData.book.children, last);
+      PACKED_QUEUE: {
+        record = packed_q_top(book->recData.book.children, last);
         break;
       }
       RED_BLACK_T: {
@@ -483,8 +483,8 @@ cdpRecord* cdp_record_by_name(cdpRecord* book, cdpNameID nameID) {
         record = array_find_by_name(book->recData.book.children, nameID, book);
         break;
       }
-      CIRC_BUFFER: {
-        record = circ_buf_find_by_name(book->recData.book.children, nameID);
+      PACKED_QUEUE: {
+        record = packed_q_find_by_name(book->recData.book.children, nameID);
         break;
       }
       RED_BLACK_T: {
@@ -528,8 +528,8 @@ cdpRecord* cdp_record_by_index(cdpRecord* book, size_t index) {
         record = array_find_by_index(book->recData.book.children, index);
         break;
       }
-      CIRC_BUFFER: {
-        record = circ_buf_by_index(book->recData.book.children, index);
+      PACKED_QUEUE: {
+        record = packed_q_find_by_index(book->recData.book.children, index);
         break;
       }
       RED_BLACK_T: {
@@ -587,8 +587,8 @@ cdpRecord* cdp_record_prev(cdpRecord* book, cdpRecord* record) {
         prev = array_prev(book->recData.book.children, record);
         break;
       }
-      CIRC_BUFFER: {
-        prev = circ_buf_prev(book->recData.book.children, record);
+      PACKED_QUEUE: {
+        prev = packed_q_prev(book->recData.book.children, record);
         break;
       }
       RED_BLACK_T: {
@@ -626,8 +626,8 @@ cdpRecord* cdp_record_next(cdpRecord* book, cdpRecord* record) {
         next = array_next(book->recData.book.children, record);
         break;
       }
-      CIRC_BUFFER: {
-        next = circ_buf_next(book->recData.book.children, record);
+      PACKED_QUEUE: {
+        next = packed_q_next(book->recData.book.children, record);
         break;
       }
       RED_BLACK_T: {
@@ -663,8 +663,8 @@ cdpRecord* cdp_record_next_by_name(cdpRecord* book, cdpNameID nameID, uintptr_t*
         record = array_next_by_name(book->recData.book.children, nameID, childIdx);
         break;
       }
-      CIRC_BUFFER: {
-        record = circ_buf_by_name(book->recData.book.children, nameID, (cdpCircBufNode**)childIdx);
+      PACKED_QUEUE: {
+        record = packed_q_next_by_name(book->recData.book.children, nameID, (cdpPackedQNode**)childIdx);
         break;
       }
       RED_BLACK_T: {    // Unused.
@@ -713,8 +713,8 @@ bool cdp_record_traverse(cdpRecord* book, cdpRecordTraverse func, void* context)
         done = array_traverse(book->recData.book.children, book, func, context);
         break;
       }
-      CIRC_BUFFER: {
-        done = circ_buf_traverse(book->recData.book.children, book, func, context);
+      PACKED_QUEUE: {
+        done = packed_q_traverse(book->recData.book.children, book, func, context);
         break;
       }
       RED_BLACK_T: {
@@ -775,8 +775,8 @@ bool cdp_record_deep_traverse(cdpRecord* book, unsigned maxDepth, cdpRecordTrave
             entry.next = array_next(entry.record->storage, entry.record);
             break;
           }
-          CIRC_BUFFER: {
-            entry.next = circ_buf_next(entry.record->storage, entry.record);
+          PACKED_QUEUE: {
+            entry.next = packed_q_next(entry.record->storage, entry.record);
             break;
           }
           RED_BLACK_T: {
@@ -843,8 +843,8 @@ void cdp_record_sort(cdpRecord* book, cdpCompare compare, void* context) {
         array_sort(book->recData.book.children, compare, context);
         break;
       }
-      CIRC_BUFFER: {
-        assert(book->metadata.stoTech == CIRC_BUFFER);    // Unsupported.
+      PACKED_QUEUE: {
+        assert(book->metadata.stoTech == CDP_STO_CHD_PACKED_QUEUE);    // Unsupported.
         break;
       }
       RED_BLACK_T: {    // Unused.
@@ -875,10 +875,10 @@ static inline void record_delete_storage(cdpRecord* record, unsigned maxDepth) {
             array_del(array);
             break;
           }
-          CIRC_BUFFER: {
-            cdpCircBuf* circ = record->recData.book.children;
-            circ_buf_del_all_children(circ, maxDepth);
-            circ_buf_del(circ);
+          PACKED_QUEUE: {
+            cdpPackedQ* pkdq = record->recData.book.children;
+            packed_q_del_all_children(pkdq, maxDepth);
+            packed_q_del(pkdq);
             break;
           }
           RED_BLACK_T: {
@@ -925,8 +925,8 @@ bool cdp_record_remove(cdpRecord* record, unsigned maxDepth) {
         array_remove_record(book->recData.book.children, record);
         break;
       }
-      CIRC_BUFFER: {
-        circ_buf_remove_record(book->recData.book.children, record);
+      PACKED_QUEUE: {
+        packed_q_remove_record(book->recData.book.children, record);
         break;
       }
       RED_BLACK_T: {
@@ -959,8 +959,8 @@ size_t cdp_record_book_reset(cdpRecord* book, unsigned maxDepth) {
         array_del_all_children(book->recData.book.children, maxDepth);
         break;
       }
-      CIRC_BUFFER: {
-        circ_buf_del_all_children(book->recData.book.children, maxDepth);
+      PACKED_QUEUE: {
+        packed_q_del_all_children(book->recData.book.children, maxDepth);
         break;
       }
       RED_BLACK_T: {
