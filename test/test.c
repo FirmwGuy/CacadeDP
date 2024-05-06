@@ -398,6 +398,7 @@ MunitResult test_records(const MunitParameter params[], void* user_data_or_fixtu
     
     test_records_tech_book(CDP_STO_CHD_LINKED_LIST);
     test_records_tech_book(CDP_STO_CHD_ARRAY);
+    test_records_tech_book(CDP_STO_CHD_PACKED_QUEUE);
     
     test_records_tech_dictionary(CDP_STO_CHD_LINKED_LIST);
     test_records_tech_dictionary(CDP_STO_CHD_ARRAY);

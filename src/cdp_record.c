@@ -144,11 +144,11 @@ static inline int record_compare_by_name_s(const cdpRecord* restrict key, const 
 }
 
 
-#define STORAGE_TECH_SELECT(stoTech)                                           \
-    assert((stoTech) < CDP_STO_CHD_COUNT);                                     \
-    static void* const chdStoTech[] = {&&LINKED_LIST, &&PACKED_QUEUE,          \
-        &&ARRAY, &&RED_BLACK_T};                                               \
-    goto *chdStoTech[stoTech];                                                 \
+#define STORAGE_TECH_SELECT(stoTech)                                   \
+    assert((stoTech) < CDP_STO_CHD_COUNT);                             \
+    static void* const chdStoTech[] = {&&LINKED_LIST, &&ARRAY,         \
+        &&PACKED_QUEUE, &&RED_BLACK_T};                                \
+    goto *chdStoTech[stoTech];                                         \
     do
 
 
@@ -282,7 +282,7 @@ cdpRecord* cdp_record_create(cdpRecord* parent, unsigned style, cdpNameID nameID
         
         cdpParentEx* chdParentEx = record_create_storage(storage, args);
         
-        // Link child book/dic with its own (grand) child storage.
+        // Link child book with its own (grand) child storage.
         chdParentEx->book = child;
         child->metadata.stoTech = storage;
         child->recData.book.children = chdParentEx;
@@ -297,7 +297,7 @@ cdpRecord* cdp_record_create(cdpRecord* parent, unsigned style, cdpNameID nameID
       
         cdpParentEx* chdParentEx = record_create_storage(storage, args);
         
-        // Link child book/dic with its own (grand) child storage.
+        // Link child dictionary with its own (grand) child storage.
         chdParentEx->compare = compare;
         chdParentEx->context = context;
         chdParentEx->book = child;

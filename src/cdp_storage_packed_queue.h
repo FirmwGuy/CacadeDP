@@ -99,9 +99,11 @@ static inline cdpRecord* packed_q_add(cdpPackedQ* pkdq, cdpRecord* parent, bool 
             child = pkdq->pTail->last;
         }
     } else {
-            if (!pkdq->pTail)
-                pkdq->pTail = pkdq->pHead = packed_q_node_new(pkdq);
-            child = pkdq->pTail->last;
+            assert(!pkdq->pTail);
+            cdpPackedQNode* pNode = packed_q_node_new(pkdq);
+            pNode->last = pNode->first = pNode->record;
+            pkdq->pTail = pkdq->pHead = pNode;
+            child = pNode->last;
     }
     child->metadata = *metadata;
     return child;
@@ -129,7 +131,7 @@ static inline cdpRecord* packed_q_find_by_index(cdpPackedQ* pkdq, size_t index) 
     for (cdpPackedQNode* pNode = pkdq->pHead;  pNode;  pNode = pNode->pNext) {
         size_t chunk = cdp_ptr_idx(pNode->first, pNode->last, sizeof(cdpRecord)) + 1;
         if (chunk > index) {
-            return &pNode->record[index];
+            return &pNode->first[index];
         }
         index -= chunk;
     }
@@ -198,7 +200,9 @@ static inline void packed_q_remove_record(cdpPackedQ* pkdq, cdpRecord* record) {
             pkdq->pHead = pkdq->pHead->pNext;
             if (pkdq->pHead)
                 pkdq->pHead->pPrev = NULL;
-            packed_q_node_del(pNode);
+            else
+                pkdq->pTail = NULL;
+            packed_q_node_del(pNode);       //ToDo: keep last node for re-use.
         }
     } else if (record == pkdq->pTail->last) {
         pkdq->pTail->last--;
@@ -209,6 +213,8 @@ static inline void packed_q_remove_record(cdpPackedQ* pkdq, cdpRecord* record) {
             pkdq->pTail = pkdq->pTail->pPrev;
             if (pkdq->pTail)
                 pkdq->pTail->pNext = NULL;
+            else
+                pkdq->pHead = NULL;
             packed_q_node_del(pNode);
         }
     } else {
