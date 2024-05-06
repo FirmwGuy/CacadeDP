@@ -53,7 +53,7 @@ enum {
 enum {
     CDP_STO_CHD_LINKED_LIST,    // Children stored in a doubly linked list.
     CDP_STO_CHD_ARRAY,          // Children stored in an array.
-    CDP_STO_CHD_PACKED_QUEUE,    // Children stored in a circular buffer (record must be a book).
+    CDP_STO_CHD_PACKED_QUEUE,   // Children stored in a packed queue (record must be a book).
     CDP_STO_CHD_RED_BLACK_T,    // Children stored in a red-black tree (record must be a dictionary).
     //
     CDP_STO_CHD_COUNT
@@ -77,7 +77,7 @@ typedef uint32_t cdpNameID;
 
 typedef struct {
     uint32_t  proFlag: 4,       // Flags for record properties (multiple parents, private, sorted).
-              reStyle: 2,       // Style of the record (book, register or link)
+              reStyle: 2,       // Style of the record (book, dictionary, register or link)
               stoTech: 2,       // Record storage technique (it depends of the style of record).
               typeID: 24;       // Type identifier for the record.
     cdpNameID nameID;           // Name/field identifier in the parent record.

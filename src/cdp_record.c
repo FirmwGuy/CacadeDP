@@ -97,23 +97,19 @@
     * Storage Techniques: Each storage technique is selected to 
     optimize specific aspects of data management, addressing the 
     system's goals of flexibility, efficiency, and navigability.
+      
+      Doubly Linked List: Provides flexibility for frequent insertions 
+      and deletions at arbitrary positions with minimal overhead per 
+      operation.
     
       Array: Offers fast access and efficient cache utilization for 
       densely packed records. Ideal for situations where the number of 
       children is relatively static and operations are predominantly at 
       the tail end.
-      
-      Circular Buffer: Enhances the array model with efficient head and 
-      tail operations, suitable for queues or streaming data scenarios.
-      
-      Doubly Linked List: Provides flexibility for frequent insertions 
-      and deletions at arbitrary positions with minimal overhead per 
-      operation.
-      
-      Packed List: Strikes a balance between the cache efficiency of 
+
+      Packed Queue: Strikes a balance between the cache efficiency of 
       arrays and the flexibility of linked lists. It's optimized for 
-      scenarios where both random access and dynamic modifications are 
-      common.
+      scenarios where operations in head and tail are common.
       
       Red-Black Tree: Ensures balanced tree structure for ordered data, 
       offering logarithmic time complexity for insertions, deletions, 
@@ -150,7 +146,7 @@ static inline int record_compare_by_name_s(const cdpRecord* restrict key, const 
 
 #define STORAGE_TECH_SELECT(stoTech)                                           \
     assert((stoTech) < CDP_STO_CHD_COUNT);                                     \
-    static void* const chdStoTech[] = {&&LINKED_LIST, &&PACKED_QUEUE,           \
+    static void* const chdStoTech[] = {&&LINKED_LIST, &&PACKED_QUEUE,          \
         &&ARRAY, &&RED_BLACK_T};                                               \
     goto *chdStoTech[stoTech];                                                 \
     do

@@ -45,7 +45,7 @@ typedef struct {
 
 
 /*
-    Dynamic Circular buffer implementation
+    Packed Queue implementation
 */
 
 static inline cdpPackedQ* packed_q_new(int capacity) {
