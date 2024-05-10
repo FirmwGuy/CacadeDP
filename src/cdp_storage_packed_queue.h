@@ -69,11 +69,11 @@ static inline cdpPackedQNode* packed_q_node_from_record(cdpPackedQ* pkdq, cdpRec
 }
 
 
-static inline cdpRecord* packed_q_add(cdpPackedQ* pkdq, cdpRecord* parent, bool push, cdpRecMeta* metadata) {   
+static inline cdpRecord* packed_q_add(cdpPackedQ* pkdq, cdpRecord* parent, bool prepend, cdpRecMeta* metadata) {
     assert(cdp_record_is_book(parent));
     cdpRecord* child;
     if (pkdq->parentEx.chdCount) {
-        if (push) {
+        if (prepend) {
             // Prepend
             if (pkdq->pHead->first > pkdq->pHead->record) {
                 pkdq->pHead->first--;

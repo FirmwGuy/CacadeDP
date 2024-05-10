@@ -54,7 +54,7 @@ static inline cdpListNode* list_node_from_record(cdpRecord* record) {
 }
 
 
-static inline cdpRecord* list_add(cdpList* list, cdpRecord* parent, bool push, cdpRecMeta* metadata) {
+static inline cdpRecord* list_add(cdpList* list, cdpRecord* parent, bool prepend, cdpRecMeta* metadata) {
     CDP_NEW(cdpListNode, node);
     node->record.metadata = *metadata;
     
@@ -84,7 +84,7 @@ static inline cdpRecord* list_add(cdpList* list, cdpRecord* parent, bool push, c
             list->tail = node;
         }
     } else {
-        if (push) {
+        if (prepend) {
             // Prepend node
             node->next = list->head;
             if (list->head)

@@ -22,111 +22,6 @@
  */
 
 
-/*
-    Cascade Data Processing System - Layer 1
-    ------------------------------------------
-
-    CascadeDP Layer 1 is designed to represent and manage hierarchical 
-    data structures in a distributed execution environment, similar in 
-    flexibility to representing complex XML or JSON data models. It 
-    facilitates the storage, navigation, and manipulation of records, 
-    which can be mainly data registers (holding actual data values or 
-    pointers to data) or books (acting as nodes in the hierarchical 
-    structure with potential to have unique or repeatable fields).
-
-    Key Components
-    --------------
-
-    * Record: The fundamental unit within the system, capable of acting 
-    as either a book, a dictionary, a register or a link.
-    
-    * Book: A type of record that contains child records. Records are 
-    kept in the order they are added. Duplicated keys are allowed.
-    
-    * Dictionary: A book that always keep its child records in sorted 
-    order (defined by a compare function). Duplicates are not allowed.
-    
-    * Register: A type of record designed to store actual data, either 
-    directly within the record if small enough or through a pointer to 
-    larger data sets.
-    
-    * Link: A record that points to another record.
-    
-    * Metadata and Flags: Each record contains metadata, including 
-    flags that specify the record's characteristics, an identifier 
-    indicating the record's role or "name" within its parent, and a 
-    "type" tag, enabling precise navigation and representation within 
-    the hierarchy.
-
-    The system is optimized for efficient storage and access, fitting 
-    within processor cache lines to enhance performance. It supports 
-    navigating from any record to the root of the database, 
-    reconstructing paths within the data hierarchy based on field 
-    identifiers in parent records.
-
-    Goals
-    -----
-
-    * Flexibility: To accommodate diverse data models, from strictly 
-    structured to loosely defined, allowing for dynamic schema changes.
-    
-    * Efficiency: To ensure data structures are compact, minimizing 
-    memory usage and optimizing for cache access patterns.
-    
-    * Navigability: To allow easy traversal of the hierarchical data 
-    structure, facilitating operations like queries, updates, and path 
-    reconstruction.
-
-    The system is adept at managing hierarchical data structures 
-    through a variety of storage techniques, encapsulated within the 
-    cdpVariantBook type. This flexibility allows the system to adapt to 
-    different use cases and optimization requirements, particularly 
-    focusing on cache efficiency and operation speed for insertions, 
-    deletions, and lookups.
-
-    Book and Storage Techniques
-    ---------------------------
-    
-    * cdpVariantBook: Serves as a versatile container within the 
-    system, holding child records through diverse storage strategies. 
-    Each cdpVariantBook can adopt one of several child storage 
-    mechanisms, determined by the stoTech indicator in its metadata. 
-    This design enables tailored optimization based on specific needs, 
-    such as operation frequency, data volume, and access patterns.
-
-    * Storage Techniques: Each storage technique is selected to 
-    optimize specific aspects of data management, addressing the 
-    system's goals of flexibility, efficiency, and navigability.
-      
-      Doubly Linked List: Provides flexibility for frequent insertions 
-      and deletions at arbitrary positions with minimal overhead per 
-      operation.
-    
-      Array: Offers fast access and efficient cache utilization for 
-      densely packed records. Ideal for situations where the number of 
-      children is relatively static and operations are predominantly at 
-      the tail end.
-
-      Packed Queue: Strikes a balance between the cache efficiency of 
-      arrays and the flexibility of linked lists. It's optimized for 
-      scenarios where operations in head and tail are common.
-      
-      Red-Black Tree: Ensures balanced tree structure for ordered data, 
-      offering logarithmic time complexity for insertions, deletions, 
-      and lookups. Particularly useful for datasets requiring sorted 
-      access.
-    
-    * Locking System: The lock mechanism is implemented by serializing 
-    all IOs and keeping a list of currently locked book paths and a 
-    list of locked register pointers. On each input/output the system 
-    checks on the lists depending of the specified record.
-    
-    * Private Records: Records may be private, in which case no locking 
-    is necessary since they are never made public.
-
-*/
-
-
 #include "cdp_record.h"
 #include <stdarg.h>
 
@@ -236,26 +131,26 @@ static inline void* record_create_storage(unsigned storage, va_list args) {
 /* 
     Creates a new record of the specified style on parent book.
 */
-cdpRecord* cdp_record_create(cdpRecord* parent, unsigned style, cdpNameID nameID, uint32_t typeID, bool push, bool priv, ...) {
+cdpRecord* cdp_record_create(cdpRecord* parent, unsigned style, cdpNameID nameID, uint32_t typeID, bool prepend, bool priv, ...) {
     assert(cdp_record_is_book_or_dic(parent) && nameID && typeID);
     cdpParentEx* parentEx = CDP_PARENTEX(parent->recData.book.children);
     if (cdp_record_is_dictionary(parent))
-        assert(!push && !parentEx->compare);    // Only sorting by name is allowed here.
+        assert(!prepend && !parentEx->compare);    // Only sorting by name is allowed here.
     cdpRecMeta metadata = {.proFlag = priv? CDP_FLAG_PRIVATE: 0, .reStyle = style, .typeID = typeID, .nameID = nameID};
     cdpRecord* child;
     
     // Add new record to parent book/dict.
     STORAGE_TECH_SELECT(parent->metadata.stoTech) {
       LINKED_LIST: {
-        child = list_add(parent->recData.book.children, parent, push, &metadata);
+        child = list_add(parent->recData.book.children, parent, prepend, &metadata);
         break;
       }
       ARRAY: {
-        child = array_add(parent->recData.book.children, parent, push, &metadata);
+        child = array_add(parent->recData.book.children, parent, prepend, &metadata);
         break;
       }
       PACKED_QUEUE: {
-        child = packed_q_add(parent->recData.book.children, parent, push, &metadata);
+        child = packed_q_add(parent->recData.book.children, parent, prepend, &metadata);
         break;
       }        
       RED_BLACK_T: {

@@ -123,7 +123,7 @@ static void test_records_tech_book(unsigned storage) {
     // Push and lookups
     test_records_zero_item_ops(book);
     value = 1;
-    reg = cdp_record_push_register(book, NAME_UNSIGNED, NAME_UNSIGNED, false, &value, sizeof(value));
+    reg = cdp_record_prepend_register(book, NAME_UNSIGNED, NAME_UNSIGNED, false, &value, sizeof(value));
     test_records_register_val(reg, value);
     test_records_one_item_ops(book, reg);
     
@@ -167,7 +167,7 @@ static void test_records_tech_book(unsigned storage) {
         } else {
             index = 0;
             
-            reg = cdp_record_push_register(book, NAME_UNSIGNED+n, NAME_UNSIGNED+n, false, &value, sizeof(value));
+            reg = cdp_record_prepend_register(book, NAME_UNSIGNED+n, NAME_UNSIGNED+n, false, &value, sizeof(value));
             test_records_register_val(reg, value);
 
             found = cdp_record_top(book, false);
@@ -194,7 +194,7 @@ static void test_records_tech_book(unsigned storage) {
     /* Nested books */
     
     cdpRecord* chdBook = cdp_record_add_book(book, NAME_TEST_BOOK, NAME_TEST_BOOK, storage, 20);
-    reg = cdp_record_push_register(chdBook, NAME_UNSIGNED+30, NAME_UNSIGNED+30, false, &value, sizeof(value));
+    reg = cdp_record_prepend_register(chdBook, NAME_UNSIGNED+30, NAME_UNSIGNED+30, false, &value, sizeof(value));
     test_records_register_val(reg, value);
     assert_true(cdp_record_deep_traverse(book, 3, print_values, NULL, NULL));    
     

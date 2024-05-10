@@ -84,7 +84,7 @@ static inline void array_update_children_parent_ptr(cdpRecord* record, cdpRecord
 }
 
 
-static inline cdpRecord* array_add(cdpArray* array, cdpRecord* parent, bool push, cdpRecMeta* metadata) {
+static inline cdpRecord* array_add(cdpArray* array, cdpRecord* parent, bool prepend, cdpRecMeta* metadata) {
     // Increase array space if necessary
     if (array->capacity == array->parentEx.chdCount) {
         assert(array->capacity);
@@ -112,7 +112,7 @@ static inline cdpRecord* array_add(cdpArray* array, cdpRecord* parent, bool push
                 array_update_children_parent_ptr(child + 1, &array->record[array->parentEx.chdCount]);
                 CDP_0(child);
             }
-        } else if (push) {
+        } else if (prepend) {
             // Prepend
             child = array->record;
             memmove(child + 1, child, array->parentEx.chdCount * sizeof(cdpRecord)); 
@@ -224,5 +224,6 @@ static inline void array_del_all_children(cdpArray* array, unsigned maxDepth) {
     cdpRecord* child = array->record;
     for (size_t n = 0; n < array->parentEx.chdCount; n++, child++) {
         record_delete_storage(child, maxDepth - 1);
+        CDP_0(child);   // ToDo: this may be skipped.
     }
 }
