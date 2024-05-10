@@ -125,7 +125,8 @@
     checks on the lists depending of the specified record.
 
     * Private Records: Records may be private, in which case no locking
-    is necessary since they are never made public.
+    is necessary since they are not meant to be available to other than
+    the creator.
 
 */
 
@@ -182,11 +183,13 @@ typedef uint32_t cdpNameID;
 
 typedef struct {
     uint32_t  proFlag: 4,       // Flags for record properties (multiple parents, private, sorted).
-              reStyle: 2,       // Style of the record (book, dictionary, register or link)
+              reStyle: 2,       // Style of the record (book, dictionary, register or link).
               stoTech: 2,       // Record storage technique (it depends of the style of record).
               typeID: 24;       // Type identifier for the record.
     cdpNameID nameID;           // Name/field identifier in the parent record.
 } cdpRecMeta;
+
+#define CDP_TYPE_ID_MAX     0xFFFFFF
 
 
 /*

@@ -80,8 +80,10 @@ static inline void record_delete_storage(cdpRecord* record, unsigned maxDepth);
  ***********************************************/
 
 
-// The root dictionary is the same as "/" in text paths.
-cdpRecord ROOT = {.metadata = {.reStyle = CDP_REC_STYLE_DICTIONARY, .stoTech = CDP_STO_CHD_ARRAY}};
+/* The root dictionary is the same as "/" in text paths.
+   Both name and type must be equal to '1' (see cdp_process.h).
+*/
+cdpRecord ROOT = {.metadata = {.nameID = 1, typeID = 1, .reStyle = CDP_REC_STYLE_DICTIONARY, .stoTech = CDP_STO_CHD_ARRAY}};
 
 
 /*
@@ -89,7 +91,7 @@ cdpRecord ROOT = {.metadata = {.reStyle = CDP_REC_STYLE_DICTIONARY, .stoTech = C
 */
 void cdp_record_system_initiate(void) {
     assert(!ROOT.recData.book.children);
-    cdpArray* array = array_new(4);
+    cdpArray* array = array_new(8);
     array->parentEx.book = &ROOT;
     ROOT.recData.book.children = array;
 }
