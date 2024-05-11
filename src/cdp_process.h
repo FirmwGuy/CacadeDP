@@ -38,23 +38,40 @@
     management within the network.
 
     ### Directory Structure:
+    The directory structure is explained using CascadeDP records, hece 
+    with each entry having a name (represented with text), a type 
+    (enclosed in parenthesys), and an index (represented here with 
+    "[]"). Registers may have values (represented by ":"), while links 
+    are represented by "->". UTF8 text is represented by quoted text.
 
     #### 1. **/system/**
     The `/system/` directory stores internal information needed by the 
     (distributed) record system. This is local to each node.
     - **Example Structure**:
       ```
-      /system/
-          /name/
-              /name001
-              /name002
-              /type001
-              /type002
-          /type/
-              /type001/
-                  /nameID
-                  /size
-                  /description
+      /system/ (system)
+          /name/ (enumeration)
+              /name:"process001"
+              /[51] name:"process002"
+          /type/ (enumeration)
+              /[100] type/
+                  /name:"type010"
+                  /allow/
+                      /register001
+                      /register002
+                  /deny/
+                      /any
+              /[101] type/
+                  /name:"type020"
+                  /required/
+                      /field:register001
+                      /field:register002
+                  /optional/
+                      /field:register003
+              /[102] type/
+                  /name:"type030"
+                  /size:4
+                  /description:"..."
       ```
 
     #### 2. **/instance/**
@@ -185,22 +202,41 @@
 #include "cdp_record.h"
 
 
-// Initial CascadeDP system type and name IDs:
-enum _CDP_ID {
-    CDP_ID_NONE,
+// Initial CascadeDP system nameID:
+enum _CDP_NAME {
+    CDP_NAME_Empty,     // This represents the empty string.
+    CDP_NAME_ROOT,      // For bootstrapping reasons this must be 0x01.
+    CDP_NAME_SYSTEM,
+    CDP_NAME_NAME,
+    CDP_NAME_TYPE,
+    CDP_NAME_INSTANCE,
+    CDP_NAME_USER,
+    CDP_NAME_PRIVATE,
+    CDP_NAME_PUBLIC,
+    CDP_NAME_DATA,
+    CDP_NAME_PROCESS,
+    CDP_NAME_NETWORK
+};
 
-    // Book/Dictionary types
-    CDP_ID_ROOT,      // For bootstrapping reasons this must be 0x01.
-    CDP_ID_SYSTEM,
-    CDP_ID_NAME,
-    CDP_ID_TYPE,
-    CDP_ID_INSTANCE,
-    CDP_ID_USER,
-    CDP_ID_PRIVATE,
-    CDP_ID_PUBLIC,
-    CDP_ID_DATA,
-    CDP_ID_PROCESS,
-    CDP_ID_NETWORK,
+
+// Initial CascadeDP system typeID:
+enum _CDP_TYPE {
+    CDP_TYPE_NONE,      // This is the "no type" type.
+
+    // Dictionary types
+    CDP_TYPE_ROOT,      // For bootstrapping reasons this must be 0x01.
+    CDP_TYPE_SYSTEM,
+    CDP_TYPE_NAME,
+    CDP_TYPE_TYPE,
+    CDP_TYPE_INSTANCE,
+    CDP_TYPE_USER,
+    CDP_TYPE_PRIVATE,
+    CDP_TYPE_PUBLIC,
+    CDP_TYPE_DATA,
+    CDP_TYPE_PROCESS,
+    CDP_TYPE_NETWORK,
+    
+    // Book types
     
     // Register types
     CDP_ID_BOOLEAN,

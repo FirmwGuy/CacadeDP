@@ -85,10 +85,10 @@ cdpRecord* cdp_system_type(unsigned typeID) {
 
 #define register_name_id(r, str)  cdp_record_add_register(r, CDP_ID_NAME, CDP_ID_UTF8, true, str, strlen(str))
 
-static inline cdpRecord* register_type_id(cdpRecord* r, cdpNameID nameID, unsigned size, unsigned value) {
+static inline cdpRecord* register_type_id(cdpRecord* r, const char* text, unsigned sizeID, unsigned sizeVal) {
     cdpRecord* type = cdp_record_add_dictionary(r, CDP_ID_TYPE, CDP_ID_TYPE, CDP_STO_CHD_ARRAY, NULL, NULL, 2);
-    cdp_record_add_unsigned(type, CDP_ID_NAME, nameID);
-    cdp_record_add_unsigned(type, size, value);
+    cdp_record_add_text(type, CDP_ID_NAME, text);
+    cdp_record_add_unsigned(type, sizeID, sizeVal);
     return type;
 }
 
@@ -152,6 +152,19 @@ void cdp_system_initiate(void) {
             register_type_id(TYPE, CDP_ID_DATA,     idSize, 0);
             register_type_id(TYPE, CDP_ID_PROCESS,  idSize, 0);
             register_type_id(TYPE, CDP_ID_NETWORK,  idSize, 0);
+
+            register_name_id(NAME, "boolean");
+            register_name_id(NAME, "binary/unsigned; size=8");
+            register_name_id(NAME, "binary/unsigned; size=16");
+            register_name_id(NAME, "binary/unsigned");
+            register_name_id(NAME, "binary/unsigned; size=64");
+            register_name_id(NAME, "binary/integer; size=16");
+            register_name_id(NAME, "binary/integer");
+            register_name_id(NAME, "binary/integer; size=64");
+            register_name_id(NAME, "binary/float");
+            register_name_id(NAME, "binary/float; size=64");
+            register_name_id(NAME, "text/utf");
+
             
             register_type_id(TYPE, CDP_ID_BOOLEAN,  idSize, 1);
             register_type_id(TYPE, CDP_ID_UINT8,    idSize, sizeof(uint8_t));
