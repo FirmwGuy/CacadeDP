@@ -27,8 +27,9 @@
 
 
 
-cdpRecord* NONE;
 extern cdpRecord ROOT;
+
+cdpRecord* NONE;
 cdpRecord* SYSTEM;
 cdpRecord* NAME;
 cdpRecord* TYPE;
@@ -40,45 +41,15 @@ cdpRecord* PROCESS;
 cdpRecord* NETWORK;
 
 
-#define NAME_NONE       "None"
-
-#define NAME_ROOT       "/"
-#define NAME_SYSTEM     "system"
-#define NAME_NAME       "name"
-#define NAME_TYPE       "type"
-#define NAME_INSTANCE   "instance"
-#define NAME_USER       "user"
-#define NAME_PRIVATE    "private"
-#define NAME_PUBLIC     "public"
-#define NAME_DATA       "data"
-#define NAME_PROCESS    "process"
-#define NAME_NETWORK    "network"
-
-#define NAME_BOOLEAN    "Boolean"
-#define NAME_UINT8      "Binary/Unsigned; size=8"
-#define NAME_UINT16     "Binary/Unsigned; size=16"
-#define NAME_UINT32     "Binary/Unsigned"
-#define NAME_UINT64     "Binary/Unsigned; size=64"
-#define NAME_UINT128    "Binary/Unsigned; size=128"
-#define NAME_SIGN8      "Binary/Integer; size=8"
-#define NAME_SIGN16     "Binary/Integer; size=16"
-#define NAME_SIGN32     "Binary/Integer"
-#define NAME_SIGN64     "Binary/Integer; size=64"
-#define NAME_SIGN128    "Binary/Integer; size=128"
-#define NAME_FLOAT32    "Binary/Float"
-#define NAME_FLOAT64    "Binary/Float; size=64"
-#define NAME_FLOAT80    "Binary/Float; size=80; format=x87"
-#define NAME_UTF8       "Text/UTF"
-
 
 
 
 cdpRecord* cdp_process_load(const char* name,
                             cdpCreate   create,
-                            cdpTic      tic,
-                            cdpSave     save,
-                            cdpLoad     load,
-                            cdpDestroy  destroy) {
+                            cdpInstance tic,
+                            cdpInstance save,
+                            cdpInstance restore,
+                            cdpInstance destroy) {
 }
 
 
@@ -86,6 +57,9 @@ cdpRecord* cdp_process_load(const char* name,
 
 
 cdpNameID cdp_system_enter_name(const char* name, size_t length) {
+  for (unsigned n=0; n<length; n++) {
+      assert(!isupper(name[n]));
+  }
 }
 
 cdpNameID cdp_system_enter_name_static(const char* name, size_t length) {
@@ -109,66 +83,96 @@ cdpRecord* cdp_system_type(unsigned typeID) {
 
 
 
+#define register_name_id(r, str)  cdp_record_add_register(r, CDP_ID_NAME, CDP_ID_UTF8, true, str, strlen(str))
+
+static inline cdpRecord* register_type_id(cdpRecord* r, cdpNameID nameID, unsigned size, unsigned value) {
+    cdpRecord* type = cdp_record_add_dictionary(r, CDP_ID_TYPE, CDP_ID_TYPE, CDP_STO_CHD_ARRAY, NULL, NULL, 2);
+    cdp_record_add_unsigned(type, CDP_ID_NAME, nameID);
+    cdp_record_add_unsigned(type, size, value);
+    return type;
+}
+
 
 void cdp_system_initiate(void) {
     assert(!SYSTEM);
     cdp_record_system_initiate();
     
     SYSTEM = cdp_record_add_dictionary(&ROOT, CDP_ID_SYSTEM, CDP_ID_SYSTEM, CDP_STO_CHD_ARRAY, NULL, NULL, 2); {
+        unsigned idSize;
+        
+        /*
+           The content of NAME and TYPE books must be entered in the exact same order
+           of the _CDP_ID enumeration (since each nameID is just an index
+           to each book entry).
+           WARNING: Please keep it in sync with cdp_process.h!
+        */
+        
         NAME = cdp_record_add_book(SYSTEM, CDP_ID_NAME, CDP_ID_NAME, CDP_STO_CHD_PACKED_QUEUE, 32); {
-            /* This must be done in the exact same order of the _CDP_ID enumeration (since each nameID
-               is just an index to this book entry).
-               WARNING: Please keep it in sync with cdp_process.h!
-            */
-            cdp_record_add_register(NAME, CDP_ID_NAME, CDP_ID_UTF8, true, NAME_NONE, strlen(NAME_NONE));
+            register_name_id(NAME, "none");
             
-            cdp_record_add_register(NAME, CDP_ID_NAME, CDP_ID_UTF8, true, NAME_ROOT,        strlen(NAME_ROOT));
-            cdp_record_add_register(NAME, CDP_ID_NAME, CDP_ID_UTF8, true, NAME_SYSTEM,      strlen(NAME_SYSTEM));
-            cdp_record_add_register(NAME, CDP_ID_NAME, CDP_ID_UTF8, true, NAME_NAME,        strlen(NAME_NAME));
-            cdp_record_add_register(NAME, CDP_ID_NAME, CDP_ID_UTF8, true, NAME_TYPE,        strlen(NAME_TYPE));
-            cdp_record_add_register(NAME, CDP_ID_NAME, CDP_ID_UTF8, true, NAME_INSTANCE,    strlen(NAME_INSTANCE));
-            cdp_record_add_register(NAME, CDP_ID_NAME, CDP_ID_UTF8, true, NAME_USER,        strlen(NAME_USER));
-            cdp_record_add_register(NAME, CDP_ID_NAME, CDP_ID_UTF8, true, NAME_PRIVATE,     strlen(NAME_PRIVATE));
-            cdp_record_add_register(NAME, CDP_ID_NAME, CDP_ID_UTF8, true, NAME_PUBLIC,      strlen(NAME_PUBLIC));
-            cdp_record_add_register(NAME, CDP_ID_NAME, CDP_ID_UTF8, true, NAME_DATA,        strlen(NAME_DATA));
-            cdp_record_add_register(NAME, CDP_ID_NAME, CDP_ID_UTF8, true, NAME_PROCESS,     strlen(NAME_PROCESS));
-            cdp_record_add_register(NAME, CDP_ID_NAME, CDP_ID_UTF8, true, NAME_NETWORK,     strlen(NAME_NETWORK));
+            register_name_id(NAME, "/");          // Root directory.
+            register_name_id(NAME, "system");
+            register_name_id(NAME, "name");
+            register_name_id(NAME, "type");
+            register_name_id(NAME, "instance");
+            register_name_id(NAME, "user");
+            register_name_id(NAME, "private");
+            register_name_id(NAME, "public");
+            register_name_id(NAME, "data");
+            register_name_id(NAME, "process");
+            register_name_id(NAME, "network");
             
-            cdp_record_add_register(NAME, CDP_ID_NAME, CDP_ID_UTF8, true, NAME_BOOLEAN, strlen(NAME_BOOLEAN));
-            cdp_record_add_register(NAME, CDP_ID_NAME, CDP_ID_UTF8, true, NAME_, strlen());
-            cdp_record_add_register(NAME, CDP_ID_NAME, CDP_ID_UTF8, true, NAME_, strlen());
-            cdp_record_add_register(NAME, CDP_ID_NAME, CDP_ID_UTF8, true, NAME_, strlen());
-            cdp_record_add_register(NAME, CDP_ID_NAME, CDP_ID_UTF8, true, NAME_, strlen());
-            cdp_record_add_register(NAME, CDP_ID_NAME, CDP_ID_UTF8, true, NAME_, strlen());
-            cdp_record_add_register(NAME, CDP_ID_NAME, CDP_ID_UTF8, true, NAME_, strlen());
-            cdp_record_add_register(NAME, CDP_ID_NAME, CDP_ID_UTF8, true, NAME_, strlen());
-            cdp_record_add_register(NAME, CDP_ID_NAME, CDP_ID_UTF8, true, NAME_, strlen());
-            cdp_record_add_register(NAME, CDP_ID_NAME, CDP_ID_UTF8, true, NAME_, strlen());
-            cdp_record_add_register(NAME, CDP_ID_NAME, CDP_ID_UTF8, true, NAME_, strlen());
-            cdp_record_add_register(NAME, CDP_ID_NAME, CDP_ID_UTF8, true, NAME_, strlen());
-                
-    // Register types
-    CDP_ID_BOOLEAN,
-    CDP_ID_UINT8,
-    CDP_ID_UINT16,
-    CDP_ID_UINT32,
-    CDP_ID_UINT64,
-    CDP_ID_UINT128,
-    CDP_ID_SIGN8,
-    CDP_ID_SIGN16,
-    CDP_ID_SIGN32,
-    CDP_ID_SIGN64,
-    CDP_ID_SIGN128,
-    CDP_ID_FLOAT32,
-    CDP_ID_FLOAT64,
-    CDP_ID_FLOAT80,
-    CDP_ID_UTF8,
+            register_name_id(NAME, "boolean");
+            register_name_id(NAME, "binary/unsigned; size=8");
+            register_name_id(NAME, "binary/unsigned; size=16");
+            register_name_id(NAME, "binary/unsigned");
+            register_name_id(NAME, "binary/unsigned; size=64");
+            register_name_id(NAME, "binary/integer; size=16");
+            register_name_id(NAME, "binary/integer");
+            register_name_id(NAME, "binary/integer; size=64");
+            register_name_id(NAME, "binary/float");
+            register_name_id(NAME, "binary/float; size=64");
+            register_name_id(NAME, "text/utf");
             
+            // The following may be in any order
+            idSize = cdp_system_enter_name_string("size");    // Maximum bits per element on each type.
         }
         
-        TYPE = cdp_record_add_book(SYSTEM, CDP_ID_TYPE, CDP_ID_TYPE, CDP_STO_CHD_PACKED_QUEUE, 8);
+        TYPE = cdp_record_add_book(SYSTEM, CDP_ID_TYPE, CDP_ID_TYPE, CDP_STO_CHD_PACKED_QUEUE, 32); {
+            NONE = register_type_id(TYPE, CDP_ID_NONE, idSize, 0);
+            
+            register_type_id(TYPE, CDP_ID_ROOT,     idSize, 0);
+            register_type_id(TYPE, CDP_ID_SYSTEM,   idSize, 0);
+            register_type_id(TYPE, CDP_ID_NAME,     idSize, 0);
+            register_type_id(TYPE, CDP_ID_TYPE,     idSize, 0);
+            register_type_id(TYPE, CDP_ID_INSTANCE, idSize, 0);
+            register_type_id(TYPE, CDP_ID_USER,     idSize, 0);
+            register_type_id(TYPE, CDP_ID_PRIVATE,  idSize, 0);
+            register_type_id(TYPE, CDP_ID_PUBLIC,   idSize, 0);
+            register_type_id(TYPE, CDP_ID_DATA,     idSize, 0);
+            register_type_id(TYPE, CDP_ID_PROCESS,  idSize, 0);
+            register_type_id(TYPE, CDP_ID_NETWORK,  idSize, 0);
+            
+            register_type_id(TYPE, CDP_ID_BOOLEAN,  idSize, 1);
+            register_type_id(TYPE, CDP_ID_UINT8,    idSize, sizeof(uint8_t));
+            register_type_id(TYPE, CDP_ID_UINT16,   idSize, sizeof(uint16_t));
+            register_type_id(TYPE, CDP_ID_UINT32,   idSize, sizeof(uint32_t));
+            register_type_id(TYPE, CDP_ID_UINT64,   idSize, sizeof(uint64_t));
+            register_type_id(TYPE, CDP_ID_SIGN16,   idSize, sizeof(int16_t));
+            register_type_id(TYPE, CDP_ID_SIGN32,   idSize, sizeof(int32_t));
+            register_type_id(TYPE, CDP_ID_SIGN64,   idSize, sizeof(int64_t));
+            register_type_id(TYPE, CDP_ID_FLOAT32,  idSize, sizeof(float));
+            register_type_id(TYPE, CDP_ID_FLOAT64,  idSize, sizeof(double));
+            register_type_id(TYPE, CDP_ID_UTF8,     idSize, 4 * sizeof(uint8_t));
+        }
     }
-    INSTANCE = cdp_record_add_dictionary(&ROOT, CDP_ID_SYSTEM, CDP_ID_SYSTEM, CDP_STO_CHD_ARRAY, NULL, NULL, 2);    
+    
+    INSTANCE = cdp_record_add_dictionary(&ROOT, CDP_ID_INSTANCE, CDP_ID_INSTANCE, CDP_STO_CHD_RED_BLACK_T, NULL, NULL);    
+    USER     = cdp_record_add_dictionary(&ROOT, CDP_ID_USER,     CDP_ID_USER,     CDP_STO_CHD_RED_BLACK_T, NULL, NULL);    
+    PUBLIC   = cdp_record_add_dictionary(&ROOT, CDP_ID_PUBLIC,   CDP_ID_PUBLIC,   CDP_STO_CHD_RED_BLACK_T, NULL, NULL);    
+    DATA     = cdp_record_add_dictionary(&ROOT, CDP_ID_DATA,     CDP_ID_DATA,     CDP_STO_CHD_RED_BLACK_T, NULL, NULL);    
+    PROCESS  = cdp_record_add_dictionary(&ROOT, CDP_ID_PROCESS,  CDP_ID_PROCESS,  CDP_STO_CHD_RED_BLACK_T, NULL, NULL);    
+    NETWORK  = cdp_record_add_dictionary(&ROOT, CDP_ID_NETWORK,  CDP_ID_NETWORK,  CDP_STO_CHD_RED_BLACK_T, NULL, NULL);    
     
 }
 

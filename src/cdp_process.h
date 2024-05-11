@@ -208,37 +208,36 @@ enum _CDP_ID {
     CDP_ID_UINT16,
     CDP_ID_UINT32,
     CDP_ID_UINT64,
-    CDP_ID_UINT128,
-    CDP_ID_SIGN8,
     CDP_ID_SIGN16,
     CDP_ID_SIGN32,
     CDP_ID_SIGN64,
-    CDP_ID_SIGN128,
     CDP_ID_FLOAT32,
     CDP_ID_FLOAT64,
-    CDP_ID_FLOAT80,
     CDP_ID_UTF8,
 };
 
 
-typedef bool (*cdpCreate) (cdpRecord* instance, void** context);
-typedef bool (*cdpTic)    (cdpRecord* instance, void* context);
-typedef bool (*cdpSave)   (cdpRecord* instance, void* context);
-typedef bool (*cdpLoad)   (cdpRecord* instance, void* context);
-typedef bool (*cdpDestroy)(cdpRecord* instance, void* context);
+static inline cdpRecord* cdp_record_add_unsigned(cdpRecord* parent, cdpNameID name, unsigned value) {
+    return cdp_record_add_register(parent, name, CDP_ID_UINT32, false, &value, sizeof(value));
+}
+
+
+typedef bool (*cdpCreate)(cdpRecord* instance, void** context);
+typedef bool (*cdpInstance)(cdpRecord* instance, void* context);
 
 
 cdpRecord* cdp_process_load(const char* name,
                             cdpCreate   create,
-                            cdpTic      tic,
-                            cdpSave     save,
-                            cdpLoad     load,
-                            cdpDestroy  destroy);
+                            cdpInstance tic,
+                            cdpInstance save,
+                            cdpInstance restore,
+                            cdpInstance destroy);
 
 
-cdpNameID cdp_system_enter_name(const char* name, size_t length);
-cdpNameID cdp_system_enter_name_static(const char* name, size_t length);
+cdpNameID cdp_system_enter_name(const char* name, size_t length, bool staticStr);
 cdpRecord* cdp_system_name(cdpNameID);
+#define cdp_system_enter_name_string(str)   cdp_system_enter_name(str, strlen(str), true)
+
 
 unsigned cdp_system_enter_type(cdpNameID nameID, size_t baseSize);
 cdpRecord* cdp_system_type(unsigned typeID);
