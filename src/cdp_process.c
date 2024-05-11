@@ -94,10 +94,10 @@ static inline cdpRecord* register_type_id(cdpRecord* r, const char* text, unsign
 
 
 void cdp_system_initiate(void) {
-    assert(!SYSTEM);
+    assert(!TYPE);
     cdp_record_system_initiate();
     
-    SYSTEM = cdp_record_add_dictionary(&ROOT, CDP_ID_SYSTEM, CDP_ID_SYSTEM, CDP_STO_CHD_ARRAY, NULL, NULL, 2); {
+    TYPE = cdp_record_add_dictionary(&ROOT, CDP_NAME_TYPE, CDP_TYPE_DICTIONARY, CDP_STO_CHD_ARRAY, NULL, NULL, 2); {
         unsigned idSize;
         
         /*
@@ -191,13 +191,13 @@ void cdp_system_initiate(void) {
 
 
 bool cdp_system_tic(void) {
-    assert(SYSTEM);
+    assert(TYPE);
 }
 
 
 
 void cdp_system_shutdown(void) {
-    assert(SYSTEM);
+    assert(TYPE);
     cdp_record_system_shutdown();
 }
 

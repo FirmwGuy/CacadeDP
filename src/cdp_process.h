@@ -39,57 +39,124 @@
 
     ### Directory Structure:
     The directory structure is explained using CascadeDP records, hece 
-    with each entry having a name (represented with text), a type 
-    (enclosed in parenthesys), and an index (represented here with 
-    "[]"). Registers may have values (represented by ":"), while links 
-    are represented by "->". UTF8 text is represented by quoted text.
+    with each entry having a nameID (represented with text), a type 
+    (enclosed in parentheses), and an index (represented here inside 
+    brackets). Registers may have values (following the ":"), while links 
+    are represented by "->". UTF8 text content is represented by quoted
+    text (its type is implied). The root of the tree is the dictionary "/".
 
-    #### 1. **/system/**
-    The `/system/` directory stores internal information needed by the 
-    (distributed) record system. This is local to each node.
+    #### 1. **/type/**
+    The `/type/` directory stores internal information needed by the 
+    (distributed) record system about types. This is local to each node.
     - **Example Structure**:
       ```
-      /system/ (system)
-          /name/ (enumeration)
-              /name:"process001"
-              /[51] name:"process002"
-          /type/ (enumeration)
-              /[100] type/
-                  /name:"type010"
-                  /allow/
-                      /register001
-                      /register002
-                  /deny/
-                      /any
-              /[101] type/
-                  /name:"type020"
-                  /required/
-                      /field:register001
-                      /field:register002
-                  /optional/
-                      /field:register003
-              /[102] type/
-                  /name:"type030"
-                  /size:4
-                  /description:"..."
+      /type/ (catalog)
+          /[0] none/ (type)
+              /text:"none"
+              /description: "A type for describing nothingness."
+          /[1] type/ (type)
+              /text:"type"
+              /description: "A type for describing other types."
+          /[2] book/ (type)
+              /text:"book"
+              /description: "A homogeneous list of records."
+          /[3] dictionary/ (type)
+              /text:"dictionary"
+              /description: "A book with records ordered by some criteria."
+          /[4] register/ (type)
+              /text:"register"
+              /description: "A record that holds data."
+          /[5] link/ (type)
+              /text:"link"
+              /description: "A link to another record."
+          /[6] set/ (type)
+              /text:"set"
+              /description: "A book with unsorted unique names."
+          /[7] utf8/
+              /text:"utf8"
+              /description: "A register with text in UTF8 format."
+          /[8] nameid/ (type)
+              /text:"nameid"
+              /description: "A name token for creating paths."
+              /value/ (set)
+                  /[0] empty:""
+                  /[1] root:"/"
+                  /[2] type:"type"
+                  /[3] system:"system"
+                  
+          /[8] list/ (type)
+              /text:"list"
+              /description: "A heterogeneous list of records."
+          /[10] queue/ (type)
+              /text:"queue"
+              /description: "A list that only operates on his own beginning and end."
+          /[9] encyclopedia/ (type)
+              /text:"encyclopedia"
+              /description: "A dictionary that never deletes entries."
+          /[7] catalog/ (type)
+              /text:"catalog"
+              /description: "A set that never deletes entries."
+          /[9] collection/ (type)
+              /text:"collection"
+              /description: "A list that never deletes entries."
+              
+          /[] name/ (type)
+              /text:"name"
+              /description: "A register where the only data is its own nameID."
+              /size:4 (unsigned)
+          /[] index/
+              /text:"index"
+              /description: "A register with the index position of a record."
+              /size:4 (unsigned)
+          /[] boolean (type)
+              /text:"boolean"
+              /description: "A boolean value."
+              /value/ (set)
+                  /[0] false (name)
+                  /[1] true (name)
+              /size:1 (unsigned)
+          /[] byte (type)
+              /text:"byte"
+              /description: "A register with a unsigned 8 bit integer (byte) value."
+              /size:1 (unsigned)
+          /[] uword (type)
+              /text:"uword"
+              /description: "A register with a unsigned 16 bit integer (word) value."
+              /size:2 (unsigned)
+          /[] unsigned (type)
+              /text:"unsigned"
+              /description: "A register with a unsigned 32 bit integer value."
+              /size:4 (unsigned)
+          /[] qword (type)
+              /text:"qword"
+              /description: "A register with an unsigned 64 bit integer (quad-word) value."
+              /size:8 (unsigned)
+          /shorti
+          /integer
+          /longi
+          /float
+          /double
       ```
 
-    #### 2. **/instance/**
-    The `/instance/` directory is used for storing (per process) 
+    #### 2. **/system/**
+    The `/system/` directory is used for storing (per process) 
     private records generated or used by the local node. This includes 
     registers and links as local resources that might be only accessed 
     inside each process instance.
     - **Example Structure**:
       ```
-      /instance/
-          /process001/
-              /555/
-                  /input/arg
-                  /output/result -> /instance/process002/557/input/arg
-              /556/
-                  /input/arg
-                  /output/result -> /instance/process002/558/input/arg
-          /process002/
+      /system/ (dictionary)
+          /process001/ (index)
+              /[555] process/ (dictionary)
+                  /input/ (dictionary)
+                      /arg
+                  /output/ (dictionary)
+                      /result -> /instance/process002/557/input/arg
+              /[556] process/ (dictionary)
+                  /input/ (dictionary)
+                      /arg
+                  /output/ (dictionary)
+                      /result -> /instance/process002/558/input/arg
       ```
 
     #### 3. **/user/**
@@ -99,9 +166,9 @@
     This directory may be replicated to other nodes.
     - **Example Structure**:
       ```
-      /user/
-          /user1/
-          /user2/
+      /user/ (dictionary)
+          /user1/ (dictionary)
+          /user2/ (dictionary)
       ```
 
     #### 4. **~/private/**
@@ -111,12 +178,11 @@
     replicated.
     - **Example Structure**:
       ```
-      /user/
-          /user1/
-              /private/
-                  /process01/
-                      /saved-data/
-          /user2/
+      /user/ (dictionary)
+          /user1/ (dictionary)
+              /private/ (dictionary)
+                  /process01/ (book)
+                      /saved-data/ (book)
       ```
 
     #### 5. **/public/**
@@ -126,15 +192,15 @@
     be accessed (and/or cached/replicated) by other nodes.
     - **Example Structure**:
       ```
-      /public/
-          /process001/
-              /instance/
-                  /555/
-                      /measurements/
-                          /car01
-              /shared/
-                  /count
-                  /events/
+      /public/ (dictionary)
+          /process001/ (dictionary)
+              /instance/ (dictionary/keyed)
+                  /key:555 (binary/unsigned)
+                  /measurements/ (dictionary)
+                      /car01/ (dictionary)
+              /shared/ (dictionary)
+                  /count:123 (binary/unsigned)
+                  /events/ (list)
       ```
 
     #### 6. **/data/**
@@ -144,9 +210,9 @@
     accessed within the network.
     - **Example Structure**:
       ```
-      /data/
-          /process001/
-              /measurements/
+      /data/ (dictionary)
+          /process001/ (dictionary)
+              /measurements/ (dictionary)
                   /car01 -> /network/node001/public/process001/instance/555/measurements/car01
                   /car02 -> /network/node002/public/process001/instance/333/measurements/car02
               /shared/   -> /network/node001/public/process001/shared/
@@ -159,14 +225,13 @@
     nodes. This directory is replicated as needded in the whole network.
     - **Example Structure**:
       ```
-      /process/
-          /process001/
+      /process/ (dictionary)
+          /process001/ (dictionary)
               /node -> /network/node001/
+              /input/ (list)
+              /output/ (list)
               /description
-              /bin/
-              /input/
-              /output/
-          /process002/
+              /bin
       ```
 
     #### 8. **/network/**
@@ -175,14 +240,13 @@
     (foreign) connected node with respect to the local one.
     - **Example Structure**:
       ```
-      /network/
-          /node001/
-              /protocol
+      /network/ (dictionary)
+          /node001/ (dictionary)
+              /protocol (dictionary)
                   /address
                   /config/
                   /status
-              /public/
-          /node002/
+              /public/ (dictionary)
       ```
 
     ### Additional Considerations:
@@ -202,54 +266,54 @@
 #include "cdp_record.h"
 
 
+// Initial CascadeDP system typeID:
+enum _CDP_TYPE_ID {
+    CDP_TYPE_NONE,      // This is the "no type" type.
+    CDP_TYPE_TYPE,
+    CDP_TYPE_BOOK,
+    CDP_TYPE_DICTIONARY,
+    CDP_TYPE_REGISTER,
+    CDP_TYPE_LINK,
+    CDP_TYPE_SET,
+    CDP_TYPE_UTF8,
+    CDP_TYPE_NAMEID,
+    //
+    CDP_TYPE_LIST,
+    CDP_TYPE_QUEUE,
+    CDP_TYPE_COLLECTION,
+    CDP_TYPE_CATALOG,
+    CDP_TYPE_ENCYCLOPEDIA,
+    //
+    CDP_TYPE_NAME,
+    CDP_TYPE_INDEX,
+    CDP_TYPE_BOOLEAN,
+    CDP_TYPE_UINT8,
+    CDP_TYPE_UINT16,
+    CDP_TYPE_UINT32,
+    CDP_TYPE_UINT64,
+    CDP_TYPE_SIGN16,
+    CDP_TYPE_SIGN32,
+    CDP_TYPE_SIGN64,
+    CDP_TYPE_FLOAT32,
+    CDP_TYPE_FLOAT64,
+};
+
+
 // Initial CascadeDP system nameID:
-enum _CDP_NAME {
+enum _CDP_NAME_ID {
     CDP_NAME_Empty,     // This represents the empty string.
     CDP_NAME_ROOT,      // For bootstrapping reasons this must be 0x01.
-    CDP_NAME_SYSTEM,
-    CDP_NAME_NAME,
     CDP_NAME_TYPE,
-    CDP_NAME_INSTANCE,
+    CDP_NAME_TEXT,
+    CDP_NAME_VALUE,
+    //
+    CDP_NAME_SYSTEM,
     CDP_NAME_USER,
     CDP_NAME_PRIVATE,
     CDP_NAME_PUBLIC,
     CDP_NAME_DATA,
     CDP_NAME_PROCESS,
     CDP_NAME_NETWORK
-};
-
-
-// Initial CascadeDP system typeID:
-enum _CDP_TYPE {
-    CDP_TYPE_NONE,      // This is the "no type" type.
-
-    // Dictionary types
-    CDP_TYPE_ROOT,      // For bootstrapping reasons this must be 0x01.
-    CDP_TYPE_SYSTEM,
-    CDP_TYPE_NAME,
-    CDP_TYPE_TYPE,
-    CDP_TYPE_INSTANCE,
-    CDP_TYPE_USER,
-    CDP_TYPE_PRIVATE,
-    CDP_TYPE_PUBLIC,
-    CDP_TYPE_DATA,
-    CDP_TYPE_PROCESS,
-    CDP_TYPE_NETWORK,
-    
-    // Book types
-    
-    // Register types
-    CDP_ID_BOOLEAN,
-    CDP_ID_UINT8,
-    CDP_ID_UINT16,
-    CDP_ID_UINT32,
-    CDP_ID_UINT64,
-    CDP_ID_SIGN16,
-    CDP_ID_SIGN32,
-    CDP_ID_SIGN64,
-    CDP_ID_FLOAT32,
-    CDP_ID_FLOAT64,
-    CDP_ID_UTF8,
 };
 
 
