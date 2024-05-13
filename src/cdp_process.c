@@ -27,13 +27,13 @@
 
 
 
+cdpRecord* NONE;
+cdpRecord* TYPE;
+cdpRecord* NAME;
+
 extern cdpRecord ROOT;
 
-cdpRecord* NONE;
 cdpRecord* SYSTEM;
-cdpRecord* NAME;
-cdpRecord* TYPE;
-cdpRecord* INSTANCE;
 cdpRecord* USER;
 cdpRecord* PUBLIC;
 cdpRecord* DATA;
@@ -83,12 +83,19 @@ cdpRecord* cdp_system_type(unsigned typeID) {
 
 
 
-#define register_name_id(r, str)  cdp_record_add_register(r, CDP_ID_NAME, CDP_ID_UTF8, true, str, strlen(str))
-
-static inline cdpRecord* register_type_id(cdpRecord* r, const char* text, unsigned sizeID, unsigned sizeVal) {
-    cdpRecord* type = cdp_record_add_dictionary(r, CDP_ID_TYPE, CDP_ID_TYPE, CDP_STO_CHD_ARRAY, NULL, NULL, 2);
-    cdp_record_add_text(type, CDP_ID_NAME, text);
-    cdp_record_add_unsigned(type, sizeID, sizeVal);
+static inline cdpRecord* system_initiate_type(cdpRecord* t, const char* name, const char* description, unsigned size) {
+    unsigned items = 1;
+    if (*description) items++;
+    if (size) items++;
+    
+    cdpRecord* type = cdp_record_add_dictionary(t, CDP_NAME_TYPE, CDP_TYPE_TYPE, CDP_STO_CHD_ARRAY, NULL, NULL, items); {
+        cdp_record_add_text(t, CDP_NAME_NAME, name);
+        if (*description)
+            cdp_record_add_text(t, CDP_NAME_DESCRIPTION, description);
+        if (size)
+            cdp_record_add_unsigned(t, CDP_NAME_SIZE, size);
+    }
+    
     return type;
 }
 
@@ -97,95 +104,86 @@ void cdp_system_initiate(void) {
     assert(!TYPE);
     cdp_record_system_initiate();
     
-    TYPE = cdp_record_add_dictionary(&ROOT, CDP_NAME_TYPE, CDP_TYPE_DICTIONARY, CDP_STO_CHD_ARRAY, NULL, NULL, 2); {
-        unsigned idSize;
-        
+    TYPE = cdp_record_add_book(&ROOT, CDP_NAME_TYPE, CDP_TYPE_COLLECTION, CDP_STO_CHD_ARRAY, CDP_TYPE_COUNT); {
         /*
-           The content of NAME and TYPE books must be entered in the exact same order
-           of the _CDP_ID enumeration (since each nameID is just an index
-           to each book entry).
-           WARNING: Please keep it in sync with cdp_process.h!
+           Each type must be entered in the exact same order of the _CDP_TYPE_ID
+           enumeration (since each typeID is just an index to the TYPE collection).
+           
+           *** WARNING: Please keep it in sync with cdp_process.h! ***
         */
+        NONE = system_initiate_type(TYPE, "none", "A type for describing nothingness.", 0);
+        system_initiate_type(TYPE, "type",          "Dictionary for describing types.", 0);
         
-        NAME = cdp_record_add_book(SYSTEM, CDP_ID_NAME, CDP_ID_NAME, CDP_STO_CHD_PACKED_QUEUE, 32); {
-            register_name_id(NAME, "none");
-            
-            register_name_id(NAME, "/");          // Root directory.
-            register_name_id(NAME, "system");
-            register_name_id(NAME, "name");
-            register_name_id(NAME, "type");
-            register_name_id(NAME, "instance");
-            register_name_id(NAME, "user");
-            register_name_id(NAME, "private");
-            register_name_id(NAME, "public");
-            register_name_id(NAME, "data");
-            register_name_id(NAME, "process");
-            register_name_id(NAME, "network");
-            
-            register_name_id(NAME, "boolean");
-            register_name_id(NAME, "binary/unsigned; size=8");
-            register_name_id(NAME, "binary/unsigned; size=16");
-            register_name_id(NAME, "binary/unsigned");
-            register_name_id(NAME, "binary/unsigned; size=64");
-            register_name_id(NAME, "binary/integer; size=16");
-            register_name_id(NAME, "binary/integer");
-            register_name_id(NAME, "binary/integer; size=64");
-            register_name_id(NAME, "binary/float");
-            register_name_id(NAME, "binary/float; size=64");
-            register_name_id(NAME, "text/utf");
-            
-            // The following may be in any order
-            idSize = cdp_system_enter_name_string("size");    // Maximum bits per element on each type.
-        }
+        // Book/dictionary types
+        system_initiate_type(TYPE, "book",          "Generic container of records.", 0);
+        system_initiate_type(TYPE, "dictionary",    "Book of records sorted by their unique name.", 0);
+        system_initiate_type(TYPE, "catalog",       "Book with records ordered by some (user defined) criteria.", 0);
+        system_initiate_type(TYPE, "list",          "Book that never inserts records to places other than its beginning or end.", 0);
+        system_initiate_type(TYPE, "set",           "List with records of unique value.", 0);
+        system_initiate_type(TYPE, "queue",         "List that only removes records from its beginning or adds them to its end.", 0);
+        system_initiate_type(TYPE, "chronicle",     "Book that never removes records.", 0);
+        system_initiate_type(TYPE, "encyclopedia",  "Dictionary that never removes records.", 0);
+        system_initiate_type(TYPE, "compendium",    "Catalog that never removes records.", 0);
+        system_initiate_type(TYPE, "collection",    "Set that never removes records.", 0);
+        system_initiate_type(TYPE, "log",           "Queue that never removes records.", 0);
         
-        TYPE = cdp_record_add_book(SYSTEM, CDP_ID_TYPE, CDP_ID_TYPE, CDP_STO_CHD_PACKED_QUEUE, 32); {
-            NONE = register_type_id(TYPE, CDP_ID_NONE, idSize, 0);
-            
-            register_type_id(TYPE, CDP_ID_ROOT,     idSize, 0);
-            register_type_id(TYPE, CDP_ID_SYSTEM,   idSize, 0);
-            register_type_id(TYPE, CDP_ID_NAME,     idSize, 0);
-            register_type_id(TYPE, CDP_ID_TYPE,     idSize, 0);
-            register_type_id(TYPE, CDP_ID_INSTANCE, idSize, 0);
-            register_type_id(TYPE, CDP_ID_USER,     idSize, 0);
-            register_type_id(TYPE, CDP_ID_PRIVATE,  idSize, 0);
-            register_type_id(TYPE, CDP_ID_PUBLIC,   idSize, 0);
-            register_type_id(TYPE, CDP_ID_DATA,     idSize, 0);
-            register_type_id(TYPE, CDP_ID_PROCESS,  idSize, 0);
-            register_type_id(TYPE, CDP_ID_NETWORK,  idSize, 0);
-
-            register_name_id(NAME, "boolean");
-            register_name_id(NAME, "binary/unsigned; size=8");
-            register_name_id(NAME, "binary/unsigned; size=16");
-            register_name_id(NAME, "binary/unsigned");
-            register_name_id(NAME, "binary/unsigned; size=64");
-            register_name_id(NAME, "binary/integer; size=16");
-            register_name_id(NAME, "binary/integer");
-            register_name_id(NAME, "binary/integer; size=64");
-            register_name_id(NAME, "binary/float");
-            register_name_id(NAME, "binary/float; size=64");
-            register_name_id(NAME, "text/utf");
-
-            
-            register_type_id(TYPE, CDP_ID_BOOLEAN,  idSize, 1);
-            register_type_id(TYPE, CDP_ID_UINT8,    idSize, sizeof(uint8_t));
-            register_type_id(TYPE, CDP_ID_UINT16,   idSize, sizeof(uint16_t));
-            register_type_id(TYPE, CDP_ID_UINT32,   idSize, sizeof(uint32_t));
-            register_type_id(TYPE, CDP_ID_UINT64,   idSize, sizeof(uint64_t));
-            register_type_id(TYPE, CDP_ID_SIGN16,   idSize, sizeof(int16_t));
-            register_type_id(TYPE, CDP_ID_SIGN32,   idSize, sizeof(int32_t));
-            register_type_id(TYPE, CDP_ID_SIGN64,   idSize, sizeof(int64_t));
-            register_type_id(TYPE, CDP_ID_FLOAT32,  idSize, sizeof(float));
-            register_type_id(TYPE, CDP_ID_FLOAT64,  idSize, sizeof(double));
-            register_type_id(TYPE, CDP_ID_UTF8,     idSize, 4 * sizeof(uint8_t));
+        // Register types
+        system_initiate_type(TYPE, "register",      "Generic record that holds data.", 0);
+        cdpRecord* nameid = system_initiate_type(TYPE, "nameid", "Id of text token for creating record paths.", 0); {
+            NAME = cdp_record_add_book(nameid, CDP_NAME_VALUE, CDP_TYPE_COLLECTION, CDP_STO_CHD_ARRAY, CDP_NAME_COUNT); {
         }
+        system_initiate_type(TYPE, "name",          "Register whose only data is its own nameID.", 0);
+        system_initiate_type(TYPE, "utf8",          "Text encoded in UTF8.", 0);
+        
+        cdpRecord* boolean = system_initiate_type(TYPE, "boolean", "Boolean value.", 1); {
+            cdpRecord* value = cdp_record_add_book(boolean, CDP_NAME_VALUE, CDP_TYPE_COLLECTION, CDP_STO_CHD_ARRAY, 2); {
+                cdp_record_add_text(value, CDP_NAME_VALUE, "false");
+                cdp_record_add_text(value, CDP_NAME_VALUE, "true");
+            }
+        }
+        system_initiate_type(TYPE, "byte",          "Unsigned integer number of 8 bits.", sizeof(uint8_t));
+        system_initiate_type(TYPE, "uint16",        "Unsigned integer number of 16 bits.", sizeof(uint16_t));
+        system_initiate_type(TYPE, "uint32",        "Unsigned integer number of 32 bits.", sizeof(uint32_t));
+        system_initiate_type(TYPE, "uint64",        "Unsigned integer number of 64 bits.", sizeof(uint64_t));
+        system_initiate_type(TYPE, "int16",         "Integer number of 16 bits.", sizeof(int16_t));
+        system_initiate_type(TYPE, "int32"          "Integer number of 32 bits.", sizeof(int32_t));
+        system_initiate_type(TYPE, "int64"          "Integer number of 64 bits.", sizeof(int64_t));
+        system_initiate_type(TYPE, "float32"        "Floating point number of 32 bits.", sizeof(float));
+        system_initiate_type(TYPE, "float64"        "Floating point number of 64 bits.", sizeof(double));
+
+
+        /*
+           Each name must be entered in the exact same order of the _CDP_NAME_ID
+           enumeration (since each nameID is just an index to the value collection).
+           
+           *** WARNING: Please keep it in sync with cdp_process.h! ***
+        */
+        cdp_record_add_text(NAME, CDP_NAME_VALUE, "");
+        
+        cdp_record_add_text(NAME, CDP_NAME_VALUE, "name");
+        cdp_record_add_text(NAME, CDP_NAME_VALUE, "value");
+        cdp_record_add_text(NAME, CDP_NAME_VALUE, "size");
+        cdp_record_add_text(NAME, CDP_NAME_VALUE, "description");
+        
+            
+        cdp_record_add_text(NAME, CDP_NAME_VALUE, "/");         // Root directory.
+        cdp_record_add_text(NAME, CDP_NAME_VALUE, "type");
+        cdp_record_add_text(NAME, CDP_NAME_VALUE, "system");
+        cdp_record_add_text(NAME, CDP_NAME_VALUE, "user");
+        cdp_record_add_text(NAME, CDP_NAME_VALUE, "private");
+        cdp_record_add_text(NAME, CDP_NAME_VALUE, "public");
+        cdp_record_add_text(NAME, CDP_NAME_VALUE, "data");
+        cdp_record_add_text(NAME, CDP_NAME_VALUE, "process");
+        cdp_record_add_text(NAME, CDP_NAME_VALUE, "network");
     }
+        
     
-    INSTANCE = cdp_record_add_dictionary(&ROOT, CDP_ID_INSTANCE, CDP_ID_INSTANCE, CDP_STO_CHD_RED_BLACK_T, NULL, NULL);    
-    USER     = cdp_record_add_dictionary(&ROOT, CDP_ID_USER,     CDP_ID_USER,     CDP_STO_CHD_RED_BLACK_T, NULL, NULL);    
-    PUBLIC   = cdp_record_add_dictionary(&ROOT, CDP_ID_PUBLIC,   CDP_ID_PUBLIC,   CDP_STO_CHD_RED_BLACK_T, NULL, NULL);    
-    DATA     = cdp_record_add_dictionary(&ROOT, CDP_ID_DATA,     CDP_ID_DATA,     CDP_STO_CHD_RED_BLACK_T, NULL, NULL);    
-    PROCESS  = cdp_record_add_dictionary(&ROOT, CDP_ID_PROCESS,  CDP_ID_PROCESS,  CDP_STO_CHD_RED_BLACK_T, NULL, NULL);    
-    NETWORK  = cdp_record_add_dictionary(&ROOT, CDP_ID_NETWORK,  CDP_ID_NETWORK,  CDP_STO_CHD_RED_BLACK_T, NULL, NULL);    
+    SYSTEM  = cdp_record_add_dictionary(&ROOT, CDP_NAME_SYSTEM,   CDP_TYPE_DICTIONARY,  CDP_STO_CHD_RED_BLACK_T, NULL, NULL);    
+    USER    = cdp_record_add_dictionary(&ROOT, CDP_NAME_USER,     CDP_TYPE_DICTIONARY,  CDP_STO_CHD_RED_BLACK_T, NULL, NULL);    
+    PUBLIC  = cdp_record_add_dictionary(&ROOT, CDP_NAME_PUBLIC,   CDP_TYPE_DICTIONARY,  CDP_STO_CHD_RED_BLACK_T, NULL, NULL);    
+    DATA    = cdp_record_add_dictionary(&ROOT, CDP_NAME_DATA,     CDP_TYPE_DICTIONARY,  CDP_STO_CHD_RED_BLACK_T, NULL, NULL);    
+    PROCESS = cdp_record_add_dictionary(&ROOT, CDP_NAME_PROCESS,  CDP_TYPE_DICTIONARY,  CDP_STO_CHD_RED_BLACK_T, NULL, NULL);    
+    NETWORK = cdp_record_add_dictionary(&ROOT, CDP_NAME_NETWORK,  CDP_TYPE_DICTIONARY,  CDP_STO_CHD_RED_BLACK_T, NULL, NULL);    
     
 }
 

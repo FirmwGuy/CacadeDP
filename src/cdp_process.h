@@ -50,92 +50,24 @@
     (distributed) record system about types. This is local to each node.
     - **Example Structure**:
       ```
-      /type/ (log)
-          [0] type/ (type)
-              name:"none"
-              description: "A type for describing nothingness."
-          [1] type/ (type)
-              name:"type"
-              description: "A type for describing other types."
-          [2] type/ (type)
-              name:"book"
-              description: "A generic container of records."
-          [3] set/ (type)
-              name:"set"
-              description: "A book of unsorted records with unique names."
-          [4] type/ (type)
-              name:"catalog"
-              description: "A book with records ordered by some criteria."
-          [5] type/ (type)
-              name:"dictionary"
-              description: "A catalog of records sorted by their unique name."
-          [6] list/ (type)
-              name:"list"
-              description: "A book that adds/removes only on his beginning and/or end."
+      /type/ (collection)
           [7] queue/ (type)
               name:"queue"
-              description: "A list that only removes from its beginning and adds to its end."
-          [8] type/ (type)
-              name:"chronicle"
-              description: "A book that never removes records."
+              description: "A list that only removes records from its beginning and adds them to its end."
           [9] type/ (type)
               name:"collection"
               description: "A set that never removes records."
-          [10] type/ (type)
-              name:"compendium"
-              description: "A catalog that never removes records."
-          [11] type/ (type)
-              name:"encyclopedia"
-              description: "A dictionary that never removes records."
           [12] type/ (type)
               name:"log"
               description: "A queue that never removes records."
-              
-          [13] type/ (type)
-              name:"register"
-              description: "A generic record that holds data."
-          [14] type/ (type)
-              name:"nameid"
-              description: "A name token for creating record paths."
-              value/ (log)
-                  [0] value:""
-                  [1] value:"/"
-                  [2] value:"type"
-                  [3] value:"system"
-          /[] name/ (type)
-              /name:"name"
-              /description: "A register where the only data is its own nameID."
-          /[7] type/
-              /name:"utf8"
-              /description: "A register with text in UTF8 format."
-          /[] boolean (type)
-              /name:"boolean"
-              /description: "A boolean value."
-              /value/ (log)
-                  /[0] value:"false"
-                  /[1] value:"true"
-              /size:1 (unsigned)
-          /[] byte (type)
-              /name:"byte"
-              /description: "A register with a unsigned 8 bit integer (byte) value."
-              /size:1 (unsigned)
-          /[] uword (type)
-              /name:"uword"
-              /description: "A register with a unsigned 16 bit integer (word) value."
-              /size:2 (unsigned)
-          /[] unsigned (type)
-              /name:"unsigned"
-              /description: "A register with a unsigned 32 bit integer value."
-              /size:4 (unsigned)
-          /[] qword (type)
-              /name:"qword"
-              /description: "A register with an unsigned 64 bit integer (quad-word) value."
-              /size:8 (unsigned)
-          /shorti
-          /integer
-          /longi
-          /float
-          /double
+          [17] boolean (type)
+              name:"boolean"
+              description: "A boolean value."
+              value/ (collection)
+                  [0] value:"false"
+                  [1] value:"true"
+              size:1 (uint32)
+
       ```
 
     #### 2. **/system/**
@@ -148,13 +80,13 @@
       /system/ (dictionary)
           process001/ (catalog)
               instance/ (dictionary)
-                  id:555 (unsigned)
+                  id:555 (uint32)
                   input/ (dictionary)
                       arg
                   output/ (dictionary)
                       result -> /instance/process002/instance(id=557)/input/arg
               instance/ (dictionary)
-                  id:556 (unsigned)
+                  id:556 (uint32)
                   input/ (dictionary)
                       arg
                   output/ (dictionary)
@@ -197,11 +129,11 @@
       /public/ (dictionary)
           process001/ (dictionary)
               instance/ (catalog)
-                  id:555 (unsigned)
+                  id:555 (uint32)
                   measurements/ (dictionary)
                       car01/ (dictionary)
               shared/ (dictionary)
-                  count:123 (unsigned)
+                  count:123 (uint32)
                   events/ (queue)
       ```
 
@@ -271,19 +203,19 @@
 // Initial CascadeDP system typeID:
 enum _CDP_TYPE_ID {
     CDP_TYPE_NONE,      // This is the "no type" type.
+    CDP_TYPE_TYPE,
     
     // Book/dict types
-    CDP_TYPE_TYPE,
     CDP_TYPE_BOOK,
-    CDP_TYPE_SET,
+    CDP_TYPE_DICTIONARY,    // For bootstrapping reasons this must be 0x05 (see cdp_record.h)
     CDP_TYPE_CATALOG,
-    CDP_TYPE_DICTIONARY,
     CDP_TYPE_LIST,
+    CDP_TYPE_SET,
     CDP_TYPE_QUEUE,
     CDP_TYPE_CHRONICLE,
-    CDP_TYPE_COLLECTION,
-    CDP_TYPE_COMPENDIUM,
     CDP_TYPE_ENCYCLOPEDIA,
+    CDP_TYPE_COMPENDIUM,
+    CDP_TYPE_COLLECTION,.
     CDP_TYPE_LOG,
     
     // Register types
@@ -291,14 +223,15 @@ enum _CDP_TYPE_ID {
     CDP_TYPE_NAMEID,
     CDP_TYPE_NAME,
     CDP_TYPE_UTF8,
+    //
     CDP_TYPE_BOOLEAN,
-    CDP_TYPE_UINT8,
+    CDP_TYPE_BYTE,
     CDP_TYPE_UINT16,
     CDP_TYPE_UINT32,
     CDP_TYPE_UINT64,
-    CDP_TYPE_SIGN16,
-    CDP_TYPE_SIGN32,
-    CDP_TYPE_SIGN64,
+    CDP_TYPE_INT16,
+    CDP_TYPE_INT32,
+    CDP_TYPE_INT64,
     CDP_TYPE_FLOAT32,
     CDP_TYPE_FLOAT64,
     
@@ -309,20 +242,28 @@ enum _CDP_TYPE_ID {
 // Initial CascadeDP system nameID:
 enum _CDP_NAME_ID {
     CDP_NAME_Empty,     // This represents the empty string.
-    CDP_NAME_ROOT,      // For bootstrapping reasons this must be 0x01.
-    CDP_NAME_TYPE,
+    
     CDP_NAME_NAME,
     CDP_NAME_VALUE,
-    //
+    CDP_NAME_SIZE,
+    CDP_NAME_DESCRIPTION,    
+    
+    CDP_NAME_ROOT,      // For bootstrapping reasons this must be 0x05 (see cdp_record.h).
+    CDP_NAME_TYPE,
     CDP_NAME_SYSTEM,
     CDP_NAME_USER,
     CDP_NAME_PRIVATE,
     CDP_NAME_PUBLIC,
     CDP_NAME_DATA,
     CDP_NAME_PROCESS,
-    CDP_NAME_NETWORK
+    CDP_NAME_NETWORK,
+    
+    CDP_NAME_COUNT
 };
 
+
+
+static inline cdpRecord* cdp_record_none(void)  {extern cdpRecord NONE; assert(NONE);  return NONE;}
 
 static inline cdpRecord* cdp_record_add_unsigned(cdpRecord* parent, cdpNameID name, unsigned value) {
     return cdp_record_add_register(parent, name, CDP_ID_UINT32, false, &value, sizeof(value));
