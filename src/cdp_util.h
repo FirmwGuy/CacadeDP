@@ -173,4 +173,11 @@ typedef void (*cdpDel)(void*);
 #define     CDP_BR(e, ...)            CDP_IF_DO((e), goto CDP_BREAK, ##__VA_ARGS__)
 
 
+#ifdef NDEBUG
+  #define CDP_ON_DEBUG(code)
+#else
+  #define CDP_ON_DEBUG(code)     code
+#endif
+
+
 #endif

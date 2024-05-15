@@ -51,18 +51,15 @@
     - **Example Structure**:
       ```
       /type/ (collection)
-          [7] queue/ (type)
-              name:"queue"
-              description: "A list that only removes records from its beginning and adds them to its end."
           [9] type/ (type)
               name:"collection"
-              description: "A set that never removes records."
+              description: "Set that never removes records."
           [12] type/ (type)
               name:"log"
-              description: "A queue that never removes records."
+              description: "Queue that never removes records."
           [17] boolean (type)
               name:"boolean"
-              description: "A boolean value."
+              description: "Boolean value."
               value/ (collection)
                   [0] value:"false"
                   [1] value:"true"
@@ -121,24 +118,22 @@
 
     #### 5. **/public/**
     The `/public/` directory is used for storing public records 
-    generated or used by the processes in the network. This records are 
+    generated or used by the processes in the local node. This records are 
     advertised along this node when it connects to the network and may 
     be accessed (and/or cached/replicated) by other nodes.
     - **Example Structure**:
       ```
       /public/ (dictionary)
           process001/ (dictionary)
-              instance/ (catalog)
-                  id:555 (uint32)
-                  measurements/ (dictionary)
-                      car01/ (dictionary)
+              measurements/ (dictionary)
+                  car01/ (dictionary)
               shared/ (dictionary)
                   count:123 (uint32)
                   events/ (queue)
       ```
 
     #### 6. **/data/**
-    The `/data/` directory is a virtual space used for accessing public 
+    The `/data/` directory is a virtual space used for mapping public 
     records generated or used by the processes in connected nodes. 
     This includes registers and links as shared resources that might be 
     accessed within the network.
@@ -147,8 +142,8 @@
       /data/ (dictionary)
           process001/ (dictionary)
               measurements/ (dictionary)
-                  car01 -> /network/node001/public/process001/instance(id=555)/measurements/car01
-                  car02 -> /network/node002/public/process001/instance(id=333)/measurements/car02
+                  car01 -> /network/node001/public/process001/measurements/car01
+                  car02 -> /network/node002/public/process001/measurements/car02
               shared/   -> /network/node001/public/process001/shared/
       ```
 
@@ -165,7 +160,7 @@
               input/ (dictionary)
               output/ (dictionary)
               description
-              bin
+              executable/
       ```
 
     #### 8. **/network/**
@@ -207,7 +202,7 @@ enum _CDP_TYPE_ID {
     
     // Book/dict types
     CDP_TYPE_BOOK,
-    CDP_TYPE_DICTIONARY,    // For bootstrapping reasons this must be 0x05 (see cdp_record.h)
+    CDP_TYPE_DICTIONARY,    // For bootstrapping reasons this must be 0x03 (see cdp_record.h)
     CDP_TYPE_CATALOG,
     CDP_TYPE_LIST,
     CDP_TYPE_SET,
@@ -215,7 +210,7 @@ enum _CDP_TYPE_ID {
     CDP_TYPE_CHRONICLE,
     CDP_TYPE_ENCYCLOPEDIA,
     CDP_TYPE_COMPENDIUM,
-    CDP_TYPE_COLLECTION,.
+    CDP_TYPE_COLLECTION,
     CDP_TYPE_LOG,
     
     // Register types
@@ -265,10 +260,23 @@ enum _CDP_NAME_ID {
 
 static inline cdpRecord* cdp_record_none(void)  {extern cdpRecord NONE; assert(NONE);  return NONE;}
 
-static inline cdpRecord* cdp_record_add_unsigned(cdpRecord* parent, cdpNameID name, unsigned value) {
-    return cdp_record_add_register(parent, name, CDP_ID_UINT32, false, &value, sizeof(value));
+
+cdpNameID cdp_name_id_add(const char* name, bool borrow);
+#define cdp_name_id_add_static(name)  cdp_name_id_add(name, true);
+cdpRecord* cdp_name_id_text(cdpNameID nameID);
+
+
+static inline cdpRecord* cdp_record_add_uint32(cdpRecord* parent, cdpNameID name, unsigned value) {
+    return cdp_record_add_register(parent, name, CDP_TYPE_UINT32, false, &value, sizeof(value));
 }
 
+static inline cdpRecord* cdp_record_add_text(cdpRecord* parent, cdpNameID name, const char* text) {
+    return cdp_record_add_register(parent, name, CDP_TYPE_UTF8, false, text, strlen(text));
+}
+
+static inline cdpRecord* cdp_record_add_static_text(cdpRecord* parent, cdpNameID name, const char* text) {
+    return cdp_record_add_register(parent, name, CDP_TYPE_UTF8, true, text, strlen(text));
+}
 
 typedef bool (*cdpCreate)(cdpRecord* instance, void** context);
 typedef bool (*cdpInstance)(cdpRecord* instance, void* context);
@@ -276,7 +284,7 @@ typedef bool (*cdpInstance)(cdpRecord* instance, void* context);
 
 cdpRecord* cdp_process_load(const char* name,
                             cdpCreate   create,
-                            cdpInstance tic,
+                            cdpInstance step,
                             cdpInstance save,
                             cdpInstance restore,
                             cdpInstance destroy);

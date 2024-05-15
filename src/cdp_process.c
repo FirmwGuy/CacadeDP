@@ -43,31 +43,20 @@ cdpRecord* NETWORK;
 
 
 
-
-cdpRecord* cdp_process_load(const char* name,
-                            cdpCreate   create,
-                            cdpInstance tic,
-                            cdpInstance save,
-                            cdpInstance restore,
-                            cdpInstance destroy) {
+cdpNameID cdp_name_id_add(const char* name, bool borrow) {
+    assert(name && *name);
+    size_t length = strlen(name);
+    CDP_ON_DEBUG(for (unsigned n=0; n<length; n++) {assert(!isupper(name[n]));})
+    
+    cdpNameID nameID = cdp_record_book_or_dic_children(NAME);
+    cdp_record_add_register(NAME, CDP_NAME_VALUE, CDP_TYPE_UTF8, borrow, name, length);
+    return nameID;
 }
 
 
-
-
-
-cdpNameID cdp_system_enter_name(const char* name, size_t length) {
-  for (unsigned n=0; n<length; n++) {
-      assert(!isupper(name[n]));
-  }
-}
-
-cdpNameID cdp_system_enter_name_static(const char* name, size_t length) {
-}
-
-
-
-cdpRecord* cdp_system_name(cdpNameID) {
+cdpRecord* cdp_name_id_text(cdpNameID nameID) {
+    assert(nameID < cdp_record_book_or_dic_children(NAME));
+    return cdp_record_by_index(NAME, nameID);
 }
 
 
@@ -83,7 +72,7 @@ cdpRecord* cdp_system_type(unsigned typeID) {
 
 
 
-static inline cdpRecord* system_initiate_type(cdpRecord* t, const char* name, const char* description, unsigned size) {
+static inline cdpRecord* system_initiate_type(cdpRecord* t, const char* name, const char* description, uint32_t size) {
     unsigned items = 1;
     if (*description) items++;
     if (size) items++;
@@ -91,9 +80,9 @@ static inline cdpRecord* system_initiate_type(cdpRecord* t, const char* name, co
     cdpRecord* type = cdp_record_add_dictionary(t, CDP_NAME_TYPE, CDP_TYPE_TYPE, CDP_STO_CHD_ARRAY, NULL, NULL, items); {
         cdp_record_add_text(t, CDP_NAME_NAME, name);
         if (*description)
-            cdp_record_add_text(t, CDP_NAME_DESCRIPTION, description);
+            cdp_record_add_static_text(t, CDP_NAME_DESCRIPTION, description);
         if (size)
-            cdp_record_add_unsigned(t, CDP_NAME_SIZE, size);
+            cdp_record_add_uint32(t, CDP_NAME_SIZE, size);
     }
     
     return type;
@@ -114,10 +103,10 @@ void cdp_system_initiate(void) {
         NONE = system_initiate_type(TYPE, "none", "A type for describing nothingness.", 0);
         system_initiate_type(TYPE, "type",          "Dictionary for describing types.", 0);
         
-        // Book/dictionary types
+        // Book types
         system_initiate_type(TYPE, "book",          "Generic container of records.", 0);
         system_initiate_type(TYPE, "dictionary",    "Book of records sorted by their unique name.", 0);
-        system_initiate_type(TYPE, "catalog",       "Book with records ordered by some (user defined) criteria.", 0);
+        system_initiate_type(TYPE, "catalog",       "Book with records ordered by some user-defined criteria.", 0);
         system_initiate_type(TYPE, "list",          "Book that never inserts records to places other than its beginning or end.", 0);
         system_initiate_type(TYPE, "set",           "List with records of unique value.", 0);
         system_initiate_type(TYPE, "queue",         "List that only removes records from its beginning or adds them to its end.", 0);
@@ -158,26 +147,25 @@ void cdp_system_initiate(void) {
            
            *** WARNING: Please keep it in sync with cdp_process.h! ***
         */
-        cdp_record_add_text(NAME, CDP_NAME_VALUE, "");
+        cdp_record_add_static_text(NAME, CDP_NAME_VALUE, "");
         
-        cdp_record_add_text(NAME, CDP_NAME_VALUE, "name");
-        cdp_record_add_text(NAME, CDP_NAME_VALUE, "value");
-        cdp_record_add_text(NAME, CDP_NAME_VALUE, "size");
-        cdp_record_add_text(NAME, CDP_NAME_VALUE, "description");
+        cdp_record_add_static_text(NAME, CDP_NAME_VALUE, "name");
+        cdp_record_add_static_text(NAME, CDP_NAME_VALUE, "value");
+        cdp_record_add_static_text(NAME, CDP_NAME_VALUE, "size");
+        cdp_record_add_static_text(NAME, CDP_NAME_VALUE, "description");
         
             
-        cdp_record_add_text(NAME, CDP_NAME_VALUE, "/");         // Root directory.
-        cdp_record_add_text(NAME, CDP_NAME_VALUE, "type");
-        cdp_record_add_text(NAME, CDP_NAME_VALUE, "system");
-        cdp_record_add_text(NAME, CDP_NAME_VALUE, "user");
-        cdp_record_add_text(NAME, CDP_NAME_VALUE, "private");
-        cdp_record_add_text(NAME, CDP_NAME_VALUE, "public");
-        cdp_record_add_text(NAME, CDP_NAME_VALUE, "data");
-        cdp_record_add_text(NAME, CDP_NAME_VALUE, "process");
-        cdp_record_add_text(NAME, CDP_NAME_VALUE, "network");
+        cdp_record_add_static_text(NAME, CDP_NAME_VALUE, "/");         // Root directory.
+        cdp_record_add_static_text(NAME, CDP_NAME_VALUE, "type");
+        cdp_record_add_static_text(NAME, CDP_NAME_VALUE, "system");
+        cdp_record_add_static_text(NAME, CDP_NAME_VALUE, "user");
+        cdp_record_add_static_text(NAME, CDP_NAME_VALUE, "private");
+        cdp_record_add_static_text(NAME, CDP_NAME_VALUE, "public");
+        cdp_record_add_static_text(NAME, CDP_NAME_VALUE, "data");
+        cdp_record_add_static_text(NAME, CDP_NAME_VALUE, "process");
+        cdp_record_add_static_text(NAME, CDP_NAME_VALUE, "network");
     }
         
-    
     SYSTEM  = cdp_record_add_dictionary(&ROOT, CDP_NAME_SYSTEM,   CDP_TYPE_DICTIONARY,  CDP_STO_CHD_RED_BLACK_T, NULL, NULL);    
     USER    = cdp_record_add_dictionary(&ROOT, CDP_NAME_USER,     CDP_TYPE_DICTIONARY,  CDP_STO_CHD_RED_BLACK_T, NULL, NULL);    
     PUBLIC  = cdp_record_add_dictionary(&ROOT, CDP_NAME_PUBLIC,   CDP_TYPE_DICTIONARY,  CDP_STO_CHD_RED_BLACK_T, NULL, NULL);    
@@ -196,8 +184,29 @@ bool cdp_system_tic(void) {
 
 void cdp_system_shutdown(void) {
     assert(TYPE);
+    cdp_record_book_reset(&ROOT);
     cdp_record_system_shutdown();
 }
 
+
+
+
+cdpRecord* cdp_process_load(const char* name,
+                            cdpCreate   create,
+                            cdpInstance step,
+                            cdpInstance save,
+                            cdpInstance restore,
+                            cdpInstance destroy) {
+    cdpRecord* process;
+    
+    if (!cdp_record_book_or_dic_children(PROCESS)) {
+        
+        
+    }
+    
+    cdpNameID ;
+    
+    return process;
+}
 
 
