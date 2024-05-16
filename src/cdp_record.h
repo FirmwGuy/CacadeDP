@@ -145,7 +145,7 @@ typedef struct _cdpPath         cdpPath;
 #define CDP_FLAG_PRIVATE    0x01    // Record and all its children are private (unlockables).
 #define CDP_FLAG_SHADOWED   0x02    // Record has shadow records (links pointing to it).
 #define CDP_FLAG_VERSIONED  0x04    // Record contains its own past.
-#define CDP_FLAG_RESERVED2  0x08    // This flag is also for future use.
+#define CDP_FLAG_STATIC     0x08    // Record can't be modified anymore.
 
 enum {
     CDP_REC_STYLE_BOOK,

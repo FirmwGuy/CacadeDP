@@ -37,6 +37,7 @@ cdpRecord* SYSTEM;
 cdpRecord* USER;
 cdpRecord* PUBLIC;
 cdpRecord* DATA;
+cdpRecord* SERVICE;
 cdpRecord* PROCESS;
 cdpRecord* NETWORK;
 
@@ -63,11 +64,16 @@ cdpRecord* cdp_name_id_text(cdpNameID nameID) {
 
 
 unsigned cdp_system_enter_type(cdpNameID nameID, size_t baseSize) {
+    assert(cdp_record_book_or_dic_children(TYPE) < CDP_TYPE_ID_MAX);
+    
+    return 0;
 }
 
 
 
 cdpRecord* cdp_system_type(unsigned typeID) {
+    
+    return NULL;
 }
 
 
@@ -93,7 +99,7 @@ void cdp_system_initiate(void) {
     assert(!TYPE);
     cdp_record_system_initiate();
     
-    TYPE = cdp_record_add_book(&ROOT, CDP_NAME_TYPE, CDP_TYPE_COLLECTION, CDP_STO_CHD_ARRAY, CDP_TYPE_COUNT); {
+    TYPE = cdp_record_add_book(&ROOT, CDP_NAME_TYPE, CDP_TYPE_LOG, CDP_STO_CHD_ARRAY, CDP_TYPE_COUNT); {
         /*
            Each type must be entered in the exact same order of the _CDP_TYPE_ID
            enumeration (since each typeID is just an index to the TYPE collection).
@@ -118,14 +124,15 @@ void cdp_system_initiate(void) {
         
         // Register types
         system_initiate_type(TYPE, "register",      "Generic record that holds data.", 0);
-        cdpRecord* nameid = system_initiate_type(TYPE, "nameid", "Id of text token for creating record paths.", 0); {
-            NAME = cdp_record_add_book(nameid, CDP_NAME_VALUE, CDP_TYPE_COLLECTION, CDP_STO_CHD_ARRAY, CDP_NAME_COUNT); {
+        system_initiate_type(TYPE, "patch",         "Record that can patch other record.", 0);
+        cdpRecord* nameid = system_initiate_type(TYPE, "nameid", "Id of text token for creating record paths.", 4); {
+            NAME = cdp_record_add_book(nameid, CDP_NAME_VALUE, CDP_TYPE_LOG, CDP_STO_CHD_PACKED_QUEUE, CDP_NAME_COUNT); {
         }
         system_initiate_type(TYPE, "name",          "Register whose only data is its own nameID.", 0);
         system_initiate_type(TYPE, "utf8",          "Text encoded in UTF8.", 0);
         
         cdpRecord* boolean = system_initiate_type(TYPE, "boolean", "Boolean value.", 1); {
-            cdpRecord* value = cdp_record_add_book(boolean, CDP_NAME_VALUE, CDP_TYPE_COLLECTION, CDP_STO_CHD_ARRAY, 2); {
+            cdpRecord* value = cdp_record_add_book(boolean, CDP_NAME_VALUE, CDP_TYPE_SET, CDP_STO_CHD_ARRAY, 2); {
                 cdp_record_add_text(value, CDP_NAME_VALUE, "false");
                 cdp_record_add_text(value, CDP_NAME_VALUE, "true");
             }
@@ -162,6 +169,7 @@ void cdp_system_initiate(void) {
         cdp_record_add_static_text(NAME, CDP_NAME_VALUE, "private");
         cdp_record_add_static_text(NAME, CDP_NAME_VALUE, "public");
         cdp_record_add_static_text(NAME, CDP_NAME_VALUE, "data");
+        cdp_record_add_static_text(NAME, CDP_NAME_VALUE, "service");
         cdp_record_add_static_text(NAME, CDP_NAME_VALUE, "process");
         cdp_record_add_static_text(NAME, CDP_NAME_VALUE, "network");
     }
@@ -170,14 +178,16 @@ void cdp_system_initiate(void) {
     USER    = cdp_record_add_dictionary(&ROOT, CDP_NAME_USER,     CDP_TYPE_DICTIONARY,  CDP_STO_CHD_RED_BLACK_T, NULL, NULL);    
     PUBLIC  = cdp_record_add_dictionary(&ROOT, CDP_NAME_PUBLIC,   CDP_TYPE_DICTIONARY,  CDP_STO_CHD_RED_BLACK_T, NULL, NULL);    
     DATA    = cdp_record_add_dictionary(&ROOT, CDP_NAME_DATA,     CDP_TYPE_DICTIONARY,  CDP_STO_CHD_RED_BLACK_T, NULL, NULL);    
+    SERVICE = cdp_record_add_dictionary(&ROOT, CDP_NAME_SERVICE,  CDP_TYPE_DICTIONARY,  CDP_STO_CHD_RED_BLACK_T, NULL, NULL);    
     PROCESS = cdp_record_add_dictionary(&ROOT, CDP_NAME_PROCESS,  CDP_TYPE_DICTIONARY,  CDP_STO_CHD_RED_BLACK_T, NULL, NULL);    
     NETWORK = cdp_record_add_dictionary(&ROOT, CDP_NAME_NETWORK,  CDP_TYPE_DICTIONARY,  CDP_STO_CHD_RED_BLACK_T, NULL, NULL);    
-    
 }
 
 
 bool cdp_system_tic(void) {
     assert(TYPE);
+    
+    return true;
 }
 
 
@@ -197,14 +207,16 @@ cdpRecord* cdp_process_load(const char* name,
                             cdpInstance save,
                             cdpInstance restore,
                             cdpInstance destroy) {
-    cdpRecord* process;
-    
-    if (!cdp_record_book_or_dic_children(PROCESS)) {
+    if (!TYPE) {
+        cdp_system_initiate();
         
+        // Create "service" instance
         
     }
     
-    cdpNameID ;
+    cdpRecord* process;
+    
+    cdpNameID nameID = cdp_name_id_add_static(name);
     
     return process;
 }
