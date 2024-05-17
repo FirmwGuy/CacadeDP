@@ -141,7 +141,7 @@ typedef struct _cdpPath         cdpPath;
 /*
  * Record Metadata
  */
- 
+
 #define CDP_FLAG_PRIVATE    0x01    // Record and all its children are private (unlockables).
 #define CDP_FLAG_SHADOWED   0x02    // Record has shadow records (links pointing to it).
 #define CDP_FLAG_VERSIONED  0x04    // Record contains its own past.
@@ -208,7 +208,7 @@ typedef struct {
     } data;
     size_t size;            // Data buffer size in bytes
 } cdpRegisterData;
- 
+
 typedef struct {
     union {
       cdpRecord* address;   // Memory address of target record.
@@ -377,6 +377,17 @@ cdpRecord* cdp_record_add_link(cdpRecord* book, cdpNameID nameID, cdpRecord* rec
 // Initiate and shutdown record system.
 void cdp_record_system_initiate(void);
 void cdp_record_system_shutdown(void);
+
+
+/*
+    TODO:
+    - Rename API functions.
+    - Traverse should use a user-provided entry struct.
+    - Add find by register value function.
+    - Add indexof for records;
+    - Perhaps separate dict and catalog, and redefine user callback based main ops.
+    - Perhaps nameIDs should be an unsorted tree (instead of a log) and use the deep-traverse index.
+*/
 
 
 #endif
