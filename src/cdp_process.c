@@ -83,17 +83,32 @@ cdpRecord* cdp_name_id_text(cdpNameID nameID) {
 
 
 
-unsigned cdp_system_enter_type(cdpNameID nameID, size_t baseSize) {
+unsigned cdp_type_add(cdpNameID nameID, size_t baseSize) {
     assert(cdp_record_book_or_dic_children(TYPE) < CDP_TYPE_ID_MAX);
+
+    // Add factory type descriptions
+
+    // with parent types and minimum fields
+
+    // for each field there must be a dictionary of allowed type names.
 
     return 0;
 }
 
 
+cdpRecord* cdp_type(unsigned typeID) {
+    assert(typeID < cdp_record_book_or_dic_children(TYPE));
+    return cdp_record_by_index(TYPE, typeID);
+}
 
-cdpRecord* cdp_system_type(unsigned typeID) {
 
-    return NULL;
+bool cdp_type_validate(cdpRecord* record) {
+
+    // Check minimal fields and types from description
+
+    // Flag it as valid!
+
+    return true;
 }
 
 
@@ -103,6 +118,12 @@ static inline cdpRecord* system_initiate_type(cdpRecord* t, const char* name, co
     if (*description) items++;
     if (size) items++;
 
+    /*  /type/ (catalog)
+            type (type)/
+                name (utf8)
+                description (utf8)
+                size (uint32)
+    */
     cdpRecord* type = cdp_record_add_dictionary(t, CDP_NAME_TYPE, CDP_TYPE_TYPE, CDP_STO_CHD_ARRAY, NULL, NULL, items); {
         cdp_record_add_text(t, CDP_NAME_NAME, name);
         if (*description)
@@ -207,7 +228,7 @@ void cdp_system_initiate(void) {
 }
 
 
-bool cdp_system_tic(void) {
+bool cdp_system_step(void) {
     assert(TYPE);
 
     return true;
@@ -224,7 +245,7 @@ void cdp_system_shutdown(void) {
 
 
 
-cdpNameID cdp_process_load(const char* name,
+cdpNameID cdp_process_load( const char* name,
                             cdpCreate   create,
                             cdpInstance step,
                             cdpInstance destroy,
@@ -235,13 +256,12 @@ cdpNameID cdp_process_load(const char* name,
 
     if (!createNID) {
         cdp_system_initiate();
+        callbackTID = cdp_system_enter_type(cdp_name_id_add_static("callback"),
+                                            "CDP callback address.",
+                                            sizeof(void*));
         createNID  = cdp_name_id_add_static("create");
         stepNID    = cdp_name_id_add_static("step");
         destroyNID = cdp_name_id_add_static("destroy");
-        callbackTID = cdp_system_enter_type(cdp_name_id_add_static("callback"),
-                                            "CDP callback address",
-                                            sizeof(void*));
-
     }
     cdpNameID nameID = cdp_name_id_add_static(name);
 
@@ -255,5 +275,20 @@ cdpNameID cdp_process_load(const char* name,
     }
 
     return nameID;
+}
+
+
+bool cdp_process_instance_creation_service(void) {
+    // look for instance request
+
+    // create instances
+
+    return true;
+}
+
+
+cdpRecord* cdp_process_instantiate(cdpNameID processNID, ...) {
+
+    return NULL;
 }
 

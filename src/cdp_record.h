@@ -146,6 +146,8 @@ typedef struct _cdpPath         cdpPath;
 #define CDP_FLAG_SHADOWED   0x02    // Record has shadow records (links pointing to it).
 #define CDP_FLAG_VERSIONED  0x04    // Record contains its own past.
 #define CDP_FLAG_STATIC     0x08    // Record can't be modified anymore.
+#define CDP_FLAG_CACHED     0x10    // Record has cached content (either register data or book children).
+#define CDP_FLAG_NAMED      0x20    // Record ID corresponds to an interned string.
 
 enum {
     CDP_REC_STYLE_BOOK,
@@ -381,11 +383,14 @@ void cdp_record_system_shutdown(void);
 
 /*
     TODO:
+    - Rename nameID to ID and use CDP_FLAG_NAMED + autoincrement.
+    - Perhaps separate dict and catalog, and redefine user callback based main ops.
+    - Change "index" to "position" in the API.
+    - Add book/dict properties dict to cdpVariantBook.
     - Rename API functions.
     - Traverse should use a user-provided entry struct.
     - Add find by register value function.
     - Add indexof for records;
-    - Perhaps separate dict and catalog, and redefine user callback based main ops.
     - Perhaps nameIDs should be an unsorted tree (instead of a log) and use the deep-traverse index.
 */
 
