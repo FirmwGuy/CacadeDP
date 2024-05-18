@@ -32,7 +32,7 @@ struct _cdpListNode {
 };
 
 typedef struct {
-    cdpParentEx   parentEx;       // Parent info.
+    cdpChdStore   store;       // Parent info.
     //
     cdpListNode*  head;           // Head of the doubly linked list
     cdpListNode*  tail;           // Tail of the doubly linked list for quick append
@@ -54,11 +54,11 @@ static inline cdpListNode* list_node_from_record(cdpRecord* record) {
 }
 
 
-static inline cdpRecord* list_add(cdpList* list, cdpRecord* parent, bool prepend, cdpRecMeta* metadata) {
+static inline cdpRecord* list_add(cdpList* list, cdpRecord* parent, bool prepend, cdpMetadata* metadata) {
     CDP_NEW(cdpListNode, node);
     node->record.metadata = *metadata;
 
-    if (list->parentEx.chdCount && cdp_record_is_dictionary(parent)) {
+    if (list->store.chdCount && cdp_record_is_dictionary(parent)) {  // FixMe: catalog.
         // Sorted insert
         cdpListNode* next;
         for (next = list->head;  next;  next = next->next) {
@@ -106,8 +106,13 @@ static inline cdpRecord* list_add(cdpList* list, cdpRecord* parent, bool prepend
 }
 
 
-static inline cdpRecord* list_top(cdpList* list, bool last) {
-   return last?  &list->tail->record:  &list->head->record;
+static inline cdpRecord* list_first(cdpList* list) {
+   return &list->head->record;
+}
+
+
+static inline cdpRecord* list_last(cdpList* list) {
+   return &list->tail->record;
 }
 
 
@@ -120,11 +125,11 @@ static inline cdpRecord* list_find_by_name(cdpList* list, cdpID id) {
 }
 
 
-static inline cdpRecord* list_find_by_index(cdpList* list, size_t index) {
+static inline cdpRecord* list_find_by_position(cdpList* list, size_t position) {
     // ToDo: use from tail to head if index is closer to it.
     size_t n = 0;
     for (cdpListNode* node = list->head;  node;  node = node->next, n++) {
-        if (n == index)
+        if (n == position)
             return &node->record;
     }
     return NULL;
@@ -166,7 +171,7 @@ static inline bool list_traverse(cdpList* list, cdpRecord* book, cdpRecordTraver
         entry.next = next? &next->record: NULL;
         if (!func(&entry, 0, context))
             return false;
-        entry.index++;
+        entry.position++;
         entry.prev = entry.record;
         node = next;
     } while (node);

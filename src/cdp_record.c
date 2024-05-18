@@ -30,28 +30,38 @@
 
 #define cdpFunc     void*
 
-static inline int record_compare_by_name(const cdpRecord* restrict key, const cdpRecord* restrict record) {
-    return key->metadata.id - record->metadata.id;
+
+static inline int record_compare_by_name(const cdpRecord* restrict key, const cdpRecord* restrict rec) {
+    bool keyNamed = cdp_record_is_named(key);
+    bool recNamed = cdp_record_is_named(rec);
+    
+    if (keyNamed != recNamed)
+        return keyNamed - recNamed;   // Unnamed records should come before named records.
+    
+    if (keyNamed)
+        return rec->metadata.id - key->metadata.id;   // Sorted by decreasing id if named.
+    
+    return key->metadata.id - rec->metadata.id;   // Sorted by increasing id if unnamed.
 }
+
 
 static inline int record_compare_by_name_s(const cdpRecord* restrict key, const cdpRecord* restrict record, void* unused) {
     return record_compare_by_name(key, record);
 }
 
 
-#define STORAGE_TECH_SELECT(storeTech)                                   \
-    assert((storeTech) < CDP_STO_CHD_COUNT);                             \
-    static void* const chdStoTech[] = {&&LINKED_LIST, &&ARRAY,         \
-        &&PACKED_QUEUE, &&RED_BLACK_T};                                \
-    goto *chdStoTech[storeTech];                                         \
+#define STORE_TECH_SELECT(storeTech)                                           \
+    assert((storeTech) < CDP_STO_CHD_COUNT);                                   \
+    static void* const chdStoreTech[] = {&&LINKED_LIST, &&ARRAY,               \
+        &&PACKED_QUEUE, &&RED_BLACK_T};                                        \
+    goto *chdStoreTech[storeTech];                                             \
     do
 
 
-#define RECORD_STYLE_SELECT(reStyle)                                   \
-    assert((reStyle) < CDP_REC_STYLE_COUNT);                           \
-    static void* const recordStyle[] = {&&BOOK, &&DICTIONARY,          \
-        &&REGISTER, &&LINK};                                           \
-    goto *recordStyle[reStyle];                                        \
+#define RECORD_PRIMAL_SELECT(primal)                                           \
+    assert((primal) && (primal) < CDP_REC_STYLE_COUNT);                        \
+    static void* const recordStyle[] = {&&BOOK, &&REGISTER, &&LINK};           \
+    goto *recordStyle[(primal)-1];                                             \
     do
 
 #define SELECTION_END                                                  \
@@ -81,9 +91,13 @@ static inline void record_delete_storage(cdpRecord* record, unsigned maxDepth);
 
 
 /* The root dictionary is the same as "/" in text paths.
-   Both id and type must be equal to values specified in "cdp_process.h".
 */
-cdpRecord ROOT = {.metadata = {.id = 5, type = 3, .reStyle = CDP_REC_STYLE_DICTIONARY, .storeTech = CDP_STO_CHD_ARRAY}};
+cdpRecord ROOT = {.metadata = {
+    .primal    = CDP_TYPE_BOOK, 
+    .id        = CDP_NAME_ROOT, 
+    .type      = CDP_TYPE_DICTIONARY, 
+    .storeTech = CDP_STO_CHD_ARRAY
+}};
 
 
 /*
@@ -92,7 +106,7 @@ cdpRecord ROOT = {.metadata = {.id = 5, type = 3, .reStyle = CDP_REC_STYLE_DICTI
 void cdp_record_system_initiate(void) {
     assert(!ROOT.recData.book.children);
     cdpArray* array = array_new(8);
-    array->parentEx.book = &ROOT;
+    array->store.book = &ROOT;
     ROOT.recData.book.children = array;
 }
 
@@ -108,7 +122,7 @@ void cdp_record_system_shutdown(void) {
 }
 
 static inline void* record_create_storage(unsigned storage, va_list args) {
-    STORAGE_TECH_SELECT(storage) {
+    STORE_TECH_SELECT(storage) {
       LINKED_LIST: {
         return list_new();
       }
@@ -131,18 +145,18 @@ static inline void* record_create_storage(unsigned storage, va_list args) {
 
 
 /*
-    Creates a new record of the specified style on parent book.
+    Creates a new record of the specified primal on parent book.
 */
-cdpRecord* cdp_record_create(cdpRecord* parent, unsigned style, cdpID id, uint32_t type, bool prepend, bool priv, ...) {
-    assert(cdp_record_is_book(parent) && id && type);
-    cdpParentEx* parentEx = CDP_PARENTEX(parent->recData.book.children);
-    if (cdp_record_is_dictionary(parent))
-        assert(!prepend && !parentEx->compare);    // Only sorting by name is allowed here.
-    cdpRecMeta metadata = {.attribute = priv? CDP_ATTRIB_PRIVATE: 0, .reStyle = style, .type = type, .id = id};
+cdpRecord* cdp_book_add(cdpRecord* parent, unsigned primal, unsigned attrib, cdpID id, uint32_t type, bool prepend, ...) {
+    assert(cdp_record_is_book(parent) && primal && type);
+    attrib &= CDP_ATTRIB_PUB_MASK;
+    cdpChdStore* store = CDP_STORE(parent->recData.book.children);
+    CDP_DEBUG(if (cdp_record_is_dictionary(parent)) assert(!prepend && !store->compare););    // Only sorting by name is allowed in here.
+    cdpMetadata metadata = {.primal = primal, .attribute = attrib, .id = id, .type = type};
     cdpRecord* child;
 
-    // Add new record to parent book/dict.
-    STORAGE_TECH_SELECT(parent->metadata.storeTech) {
+    // Add new record to parent book.
+    STORE_TECH_SELECT(parent->metadata.storeTech) {
       LINKED_LIST: {
         child = list_add(parent->recData.book.children, parent, prepend, &metadata);
         break;
@@ -162,44 +176,43 @@ cdpRecord* cdp_record_create(cdpRecord* parent, unsigned style, cdpID id, uint32
     } SELECTION_END;
 
     // Update child.
-    child->storage = parentEx;
+    child->store = store;
 
     // Update parent.
-    parentEx->chdCount++;
+    store->chdCount++;
 
     // Create child record storage.
     //
     va_list args;
     va_start(args, priv);
 
-    RECORD_STYLE_SELECT(style) {
+    RECORD_PRIMAL_SELECT(primal) {
       BOOK: {
-        unsigned storage = va_arg(args, unsigned);
-        assert(storage != CDP_STO_CHD_RED_BLACK_T);
+        unsigned reqStore = va_arg(args, unsigned);
 
-        cdpParentEx* chdParentEx = record_create_storage(storage, args);
+        if (type == CDP_TYPE_CATALOG) {
+            cdpCompare compare = va_arg(args, cdpCompare);
+            void*      context = va_arg(args, void*);
+            assert(reqStore != CDP_STO_CHD_PACKED_QUEUE);
 
-        // Link child book with its own (grand) child storage.
-        chdParentEx->book = child;
-        child->metadata.storeTech = storage;
-        child->recData.book.children = chdParentEx;
-        break;
-      }
+            cdpChdStore* chdStore = record_create_storage(reqStore, args);
 
-      DICTIONARY: {
-        unsigned   storage = va_arg(args, unsigned);
-        cdpCompare compare = va_arg(args, cdpCompare);
-        void*      context = va_arg(args, void*);
-        assert(storage != CDP_STO_CHD_PACKED_QUEUE);
+            // Link child dictionary with its own (grand) child storage.
+            chdStore->compare = compare;
+            chdStore->context = context;
+            chdStore->book = child;
+            child->metadata.storeTech = reqStore;
+            child->recData.book.children = chdStore;
+        } else {
+            assert(reqStore != CDP_STO_CHD_RED_BLACK_T);
 
-        cdpParentEx* chdParentEx = record_create_storage(storage, args);
+            cdpChdStore* chdStore = record_create_storage(reqStore, args);
 
-        // Link child dictionary with its own (grand) child storage.
-        chdParentEx->compare = compare;
-        chdParentEx->context = context;
-        chdParentEx->book = child;
-        child->metadata.storeTech = storage;
-        child->recData.book.children = chdParentEx;
+            // Link child book with its own (grand) child storage.
+            chdStore->book = child;
+            child->metadata.storeTech = reqStore;
+            child->recData.book.children = chdStore;
+        }
         break;
       }
 
@@ -211,7 +224,7 @@ cdpRecord* cdp_record_create(cdpRecord* parent, unsigned style, cdpID id, uint32
 
         // Allocate storage for child register.
         if (borrow) {
-            assert(priv && data);
+            assert(data);
             child->recData.reg.data.ptr = data;
             child->metadata.storeTech = CDP_STO_REG_BORROWED;
         } else if (data) {
@@ -239,7 +252,7 @@ cdpRecord* cdp_record_create(cdpRecord* parent, unsigned style, cdpID id, uint32
 /*
    Reads register data from position and puts it on data buffer (atomically).
 */
-void* cdp_record_register_read(cdpRecord* reg, size_t position, void* data, size_t* size) {
+void* cdp_register_read(cdpRecord* reg, size_t position, void* data, size_t* size) {
     assert(cdp_record_is_register(reg));
 
     // Calculate the actual number of bytes that can be read.
@@ -263,7 +276,7 @@ void* cdp_record_register_read(cdpRecord* reg, size_t position, void* data, size
 /*
    Writes the data of a register record at position (atomically and it may reallocate memory).
 */
-void* cdp_record_register_write(cdpRecord* reg, size_t position, const void* data, size_t size) {
+void* cdp_register_write(cdpRecord* reg, size_t position, const void* data, size_t size) {
     assert(cdp_record_is_register(reg) && data && size);
 
     // Ensure the buffer is large enough to accommodate the write
@@ -326,29 +339,29 @@ bool cdp_record_path(cdpRecord* record, cdpPath** path) {
 
 
 /*
-    Gets the first (or last) record from a book.
+    Gets the first record from a book.
 */
-cdpRecord* cdp_record_top(cdpRecord* book, bool last) {
+cdpRecord* cdp_book_first(cdpRecord* book) {
     assert(cdp_record_is_book(book));
-    cdpParentEx* parentEx = CDP_PARENTEX(book->recData.book.children);
-    CDP_CK(parentEx->chdCount);
+    cdpChdStore* store = CDP_STORE(book->recData.book.children);
+    CDP_CK(store->chdCount);
     cdpRecord* record;
 
-    STORAGE_TECH_SELECT(book->metadata.storeTech) {
+    STORE_TECH_SELECT(book->metadata.storeTech) {
       LINKED_LIST: {
-        record = list_top(book->recData.book.children, last);
+        record = list_first(book->recData.book.children);
         break;
       }
       ARRAY: {
-        record = array_top(book->recData.book.children, last);
+        record = array_first(book->recData.book.children);
         break;
       }
       PACKED_QUEUE: {
-        record = packed_q_top(book->recData.book.children, last);
+        record = packed_q_first(book->recData.book.children);
         break;
       }
       RED_BLACK_T: {
-        record = rb_tree_top(book->recData.book.children, last);
+        record = rb_tree_first(book->recData.book.children);
         break;
       }
     } SELECTION_END;
@@ -357,17 +370,48 @@ cdpRecord* cdp_record_top(cdpRecord* book, bool last) {
 }
 
 
+/*
+    Gets the last record from a book.
+*/
+cdpRecord* cdp_book_last(cdpRecord* book) {
+    assert(cdp_record_is_book(book));
+    cdpChdStore* store = CDP_STORE(book->recData.book.children);
+    CDP_CK(store->chdCount);
+    cdpRecord* record;
+
+    STORE_TECH_SELECT(book->metadata.storeTech) {
+      LINKED_LIST: {
+        record = list_last(book->recData.book.children);
+        break;
+      }
+      ARRAY: {
+        record = array_last(book->recData.book.children);
+        break;
+      }
+      PACKED_QUEUE: {
+        record = packed_q_last(book->recData.book.children);
+        break;
+      }
+      RED_BLACK_T: {
+        record = rb_tree_last(book->recData.book.children);
+        break;
+      }
+    } SELECTION_END;
+
+    return record;
+}
+
 
 /*
     Retrieves a child record by its id.
 */
-cdpRecord* cdp_record_by_name(cdpRecord* book, cdpID id) {
-    assert(cdp_record_is_book(book) && id);
-    cdpParentEx* parentEx = CDP_PARENTEX(book->recData.book.children);
-    CDP_CK(parentEx->chdCount);
+cdpRecord* cdp_book_find_by_name(cdpRecord* book, cdpID id) {
+    assert(cdp_record_is_book(book));
+    cdpChdStore* store = CDP_STORE(book->recData.book.children);
+    CDP_CK(store->chdCount);
     cdpRecord* record;
 
-    STORAGE_TECH_SELECT(book->metadata.storeTech) {
+    STORE_TECH_SELECT(book->metadata.storeTech) {
       LINKED_LIST: {
         record = list_find_by_name(book->recData.book.children, id);
         break;
@@ -395,9 +439,9 @@ cdpRecord* cdp_record_by_name(cdpRecord* book, cdpID id) {
 /*
     Finds a child record based on specified key.
 */
-cdpRecord* cdp_record_by_key(cdpRecord* book, cdpRecord* key) {
-    assert(cdp_record_is_book(book) && key);
-    // ToDo: fully define key storage system.
+cdpRecord* cdp_book_find_by_key(cdpRecord* book, cdpRecord* key) {
+    assert(cdp_record_is_catalog(book) && key);
+    // ToDo: implement the whole catalog thing.
     return NULL;
 }
 
@@ -405,28 +449,28 @@ cdpRecord* cdp_record_by_key(cdpRecord* book, cdpRecord* key) {
 /*
     Gets the record at index position from book.
 */
-cdpRecord* cdp_record_by_index(cdpRecord* book, size_t index) {
+cdpRecord* cdp_book_find_by_position(cdpRecord* book, size_t position) {
     assert(cdp_record_is_book(book));
-    cdpParentEx* parentEx = CDP_PARENTEX(book->recData.book.children);
-    CDP_CK(parentEx->chdCount);
-    assert(index < parentEx->chdCount);
+    cdpChdStore* store = CDP_STORE(book->recData.book.children);
+    CDP_CK(store->chdCount);
+    assert(position < store->chdCount);
     cdpRecord* record;
 
-    STORAGE_TECH_SELECT(book->metadata.storeTech) {
+    STORE_TECH_SELECT(book->metadata.storeTech) {
       LINKED_LIST: {
-        record = list_find_by_index(book->recData.book.children, index);
+        record = list_find_by_position(book->recData.book.children, position);
         break;
       }
       ARRAY: {
-        record = array_find_by_index(book->recData.book.children, index);
+        record = array_find_by_position(book->recData.book.children, position);
         break;
       }
       PACKED_QUEUE: {
-        record = packed_q_find_by_index(book->recData.book.children, index);
+        record = packed_q_find_by_position(book->recData.book.children, position);
         break;
       }
       RED_BLACK_T: {
-        record = rb_tree_find_by_index(book->recData.book.children, index, book);
+        record = rb_tree_find_by_position(book->recData.book.children, position, book);
         break;
       }
     } SELECTION_END;
@@ -438,13 +482,13 @@ cdpRecord* cdp_record_by_index(cdpRecord* book, size_t index) {
 /*
     Gets the record by its path from start record.
 */
-cdpRecord* cdp_record_by_path(cdpRecord* start, const cdpPath* path) {
+cdpRecord* cdp_book_find_by_path(cdpRecord* start, const cdpPath* path) {
     assert(cdp_record_is_book(start) && path && path->length);
-    CDP_CK(cdp_record_book_or_dic_children(start));
+    CDP_CK(cdp_book_children(start));
     cdpRecord* record = start;
 
     for (unsigned depth = 0;  depth < path->length;  depth++) {
-        record = cdp_record_by_name(record, path->id[depth]);
+        record = cdp_book_find_by_name(record, path->id[depth]);
         if (!record) return NULL;
     }
 
@@ -458,20 +502,20 @@ cdpRecord* cdp_record_by_path(cdpRecord* start, const cdpPath* path) {
 /*
     Retrieves the previous sibling of record.
 */
-cdpRecord* cdp_record_prev(cdpRecord* book, cdpRecord* record) {
+cdpRecord* cdp_book_prev(cdpRecord* book, cdpRecord* record) {
     assert(record);
-    cdpParentEx* parentEx;
+    cdpChdStore* store;
     if (book) {
         assert(cdp_record_is_book(book));
-        parentEx = CDP_PARENTEX(book->recData.book.children);
+        store = CDP_STORE(book->recData.book.children);
     } else {
-        parentEx = cdp_record_parent_ex(record);
-        book = parentEx->book;
+        store = cdp_record_chd_store(record);
+        book = store->book;
     }
-    CDP_CK(parentEx->chdCount);
+    CDP_CK(store->chdCount);
     cdpRecord* prev;
 
-    STORAGE_TECH_SELECT(book->metadata.storeTech) {
+    STORE_TECH_SELECT(book->metadata.storeTech) {
       LINKED_LIST: {
         prev = list_prev(record);
         break;
@@ -497,20 +541,20 @@ cdpRecord* cdp_record_prev(cdpRecord* book, cdpRecord* record) {
 /*
     Retrieves the next sibling of record (sorted or unsorted).
 */
-cdpRecord* cdp_record_next(cdpRecord* book, cdpRecord* record) {
+cdpRecord* cdp_book_next(cdpRecord* book, cdpRecord* record) {
     assert(record);
-    cdpParentEx* parentEx;
+    cdpChdStore* store;
     if (book) {
         assert(cdp_record_is_book(book));
-        parentEx = CDP_PARENTEX(book->recData.book.children);
+        store = CDP_STORE(book->recData.book.children);
     } else {
-        parentEx = cdp_record_parent_ex(record);
-        book = parentEx->book;
+        store = cdp_record_chd_store(record);
+        book = store->book;
     }
-    CDP_CK(parentEx->chdCount);
+    CDP_CK(store->chdCount);
     cdpRecord* next;
 
-    STORAGE_TECH_SELECT(book->metadata.storeTech) {
+    STORE_TECH_SELECT(book->metadata.storeTech) {
       LINKED_LIST: {
         next = list_next(record);
         break;
@@ -538,16 +582,16 @@ cdpRecord* cdp_record_next(cdpRecord* book, cdpRecord* record) {
 /*
     Retrieves the first/next child record by its id.
 */
-cdpRecord* cdp_record_next_by_name(cdpRecord* book, cdpID id, uintptr_t* childIdx) {
+cdpRecord* cdp_book_find_next_by_name(cdpRecord* book, cdpID id, uintptr_t* childIdx) {
     if (cdp_record_is_dictionary(book) || !childIdx) {
         CDP_PTR_SEC_SET(childIdx, 0);
-        return cdp_record_by_name(book, id);
+        return cdp_book_find_by_name(book, id);
     }
-    cdpParentEx* parentEx = CDP_PARENTEX(book->recData.book.children);
-    CDP_CK(parentEx->chdCount);
+    cdpChdStore* store = CDP_STORE(book->recData.book.children);
+    CDP_CK(store->chdCount);
     cdpRecord* record;
 
-    STORAGE_TECH_SELECT(book->metadata.storeTech) {
+    STORE_TECH_SELECT(book->metadata.storeTech) {
       LINKED_LIST: {
         record = list_next_by_name(book->recData.book.children, id, (cdpListNode**)childIdx);
         break;
@@ -572,15 +616,15 @@ cdpRecord* cdp_record_next_by_name(cdpRecord* book, cdpID id, uintptr_t* childId
 /*
     Gets the next record with the (same) id as specified for each branch.
 */
-cdpRecord* cdp_record_next_by_path(cdpRecord* start, cdpPath* path, uintptr_t* prev) {
+cdpRecord* cdp_book_find_next_by_path(cdpRecord* start, cdpPath* path, uintptr_t* prev) {
     assert(cdp_record_is_book(start) && path && path->length);
-    CDP_CK(cdp_record_book_or_dic_children(start));
+    CDP_CK(cdp_book_children(start));
     cdpRecord* record = start;
 
     for (unsigned depth = 0;  depth < path->length;  depth++) {
         // FixMe: depth must be stored in a stack as well!
         // ...(pending)
-        record = cdp_record_next_by_name(record, path->id[depth], prev);
+        record = cdp_book_find_by_next_by_name(record, path->id[depth], prev);
         if (!record) return NULL;
     }
 
@@ -591,13 +635,13 @@ cdpRecord* cdp_record_next_by_path(cdpRecord* start, cdpPath* path, uintptr_t* p
 /*
     Traverses the children of a book record, applying a function to each.
 */
-bool cdp_record_traverse(cdpRecord* book, cdpRecordTraverse func, void* context) {
+bool cdp_book_traverse(cdpRecord* book, cdpRecordTraverse func, void* context) {
     assert(cdp_record_is_book(book) && func);
-    cdpParentEx* parentEx = CDP_PARENTEX(book->recData.book.children);
-    CDP_GO(!parentEx->chdCount);
+    cdpChdStore* store = CDP_STORE(book->recData.book.children);
+    CDP_GO(!store->chdCount);
     bool done;
 
-    STORAGE_TECH_SELECT(book->metadata.storeTech) {
+    STORE_TECH_SELECT(book->metadata.storeTech) {
       LINKED_LIST: {
         done = list_traverse(book->recData.book.children, book, func, context);
         break;
@@ -611,7 +655,7 @@ bool cdp_record_traverse(cdpRecord* book, cdpRecordTraverse func, void* context)
         break;
       }
       RED_BLACK_T: {
-        done = rb_tree_traverse(book->recData.book.children, book, cdp_bitson(parentEx->chdCount) + 2, func, context);
+        done = rb_tree_traverse(book->recData.book.children, book, cdp_bitson(store->chdCount) + 2, func, context);
         break;
       }
     } SELECTION_END;
@@ -625,15 +669,15 @@ bool cdp_record_traverse(cdpRecord* book, cdpRecordTraverse func, void* context)
 */
 #define CDP_MAX_FAST_STACK_DEPTH  16
 
-bool cdp_record_deep_traverse(cdpRecord* book, unsigned maxDepth, cdpRecordTraverse func, cdpRecordTraverse endFunc, void* context) {
+bool cdp_book_deep_traverse(cdpRecord* book, unsigned maxDepth, cdpRecordTraverse func, cdpRecordTraverse endFunc, void* context) {
     assert(cdp_record_is_book(book) && maxDepth && (func || endFunc));
-    cdpParentEx* parentEx = CDP_PARENTEX(book->recData.book.children);
-    CDP_GO(!parentEx->chdCount);
+    cdpChdStore* store = CDP_STORE(book->recData.book.children);
+    CDP_GO(!store->chdCount);
 
     bool ok = true;
     cdpRecord* child;
     unsigned depth = 0;
-    cdpBookEntry entry = {.record = cdp_record_top(book, false), .parent = book};
+    cdpBookEntry entry = {.record = cdp_record_first(book), .parent = book};
 
     // Non-recursive version of branch descent:
     cdpBookEntry* stack = (maxDepth > CDP_MAX_FAST_STACK_DEPTH)?  cdp_malloc(maxDepth * sizeof(cdpBookEntry)):  cdp_alloca(maxDepth * sizeof(cdpBookEntry));
@@ -649,27 +693,27 @@ bool cdp_record_deep_traverse(cdpRecord* book, unsigned maxDepth, cdpRecordTrave
             }
 
             // Next record.
-            entry.record = stack[depth].next;
-            entry.parent = stack[depth].parent;
-            entry.prev   = stack[depth].record;
-            entry.next   = NULL;
-            entry.index  = stack[depth].index + 1;
+            entry.record   = stack[depth].next;
+            entry.parent   = stack[depth].parent;
+            entry.prev     = stack[depth].record;
+            entry.next     = NULL;
+            entry.position = stack[depth].position + 1;
             continue;
         }
 
       NEXT_SIBLING:
         // Get sibling...
-        STORAGE_TECH_SELECT(entry.parent->metadata.storeTech) {
+        STORE_TECH_SELECT(entry.parent->metadata.storeTech) {
           LINKED_LIST: {
             entry.next = list_next(entry.record);
             break;
           }
           ARRAY: {
-            entry.next = array_next(entry.record->storage, entry.record);
+            entry.next = array_next(entry.record->store, entry.record);
             break;
           }
           PACKED_QUEUE: {
-            entry.next = packed_q_next(entry.record->storage, entry.record);
+            entry.next = packed_q_next(entry.record->store, entry.record);
             break;
           }
           RED_BLACK_T: {
@@ -690,10 +734,10 @@ bool cdp_record_deep_traverse(cdpRecord* book, unsigned maxDepth, cdpRecordTrave
 
             stack[depth++] = entry;
 
-            entry.parent = entry.record;
-            entry.record = child;
-            entry.prev   = NULL;
-            entry.index  = 0;
+            entry.parent   = entry.record;
+            entry.record   = child;
+            entry.prev     = NULL;
+            entry.position = 0;
 
             goto NEXT_SIBLING;
         }
@@ -701,7 +745,7 @@ bool cdp_record_deep_traverse(cdpRecord* book, unsigned maxDepth, cdpRecordTrave
         // Next record.
         entry.prev   = entry.record;
         entry.record = entry.next;
-        entry.index += 1;
+        entry.position += 1;
     }
 
     if (maxDepth > CDP_MAX_FAST_STACK_DEPTH)
@@ -716,18 +760,50 @@ bool cdp_record_deep_traverse(cdpRecord* book, unsigned maxDepth, cdpRecordTrave
 /*
     Converts an unsorted book into a dictionary.
 */
-void cdp_record_sort(cdpRecord* book, cdpCompare compare, void* context) {
-    CDP_AB(cdp_record_is_dictionary(book));
+void cdp_book_to_dictionary(cdpRecord* book) {
+    CDP_AB(cdp_record_is_dict_or_cat(book));
     assert(cdp_record_is_book(book));
-    cdpParentEx* parentEx = CDP_PARENTEX(book->recData.book.children);
-    assert(!parentEx->compare);
+    cdpChdStore* store = CDP_STORE(book->recData.book.children);
+    assert(!store->compare);
 
-    book->metadata.reStyle = CDP_REC_STYLE_DICTIONARY;
-    parentEx->compare = compare? compare: record_compare_by_name_s;
-    parentEx->context = context;
-    CDP_AB(parentEx->chdCount <= 1);
+    book->metadata.type = CDP_TYPE_DICTIONARY;
+    CDP_AB(store->chdCount <= 1);
 
-    STORAGE_TECH_SELECT(book->metadata.storeTech) {
+    STORE_TECH_SELECT(book->metadata.storeTech) {
+      LINKED_LIST: {
+        list_sort(book->recData.book.children, record_compare_by_name_s, NULL);
+        break;
+      }
+      ARRAY: {
+        array_sort(book->recData.book.children, record_compare_by_name_s, NULL);
+        break;
+      }
+      PACKED_QUEUE: {
+        assert(book->metadata.storeTech == CDP_STO_CHD_PACKED_QUEUE);    // Unsupported.
+        break;
+      }
+      RED_BLACK_T: {    // Unused.
+        break;
+      }
+    } SELECTION_END;
+}
+
+
+/*
+    Converts an unsorted book into a catalog.
+*/
+void cdp_book_to_catalog(cdpRecord* book, cdpCompare compare, void* context) {
+    CDP_AB(cdp_record_is_dict_or_cat(book));
+    assert(cdp_record_is_book(book) && compare);
+    cdpChdStore* store = CDP_STORE(book->recData.book.children);
+    assert(!store->compare);
+
+    book->metadata.type = CDP_TYPE_CATALOG;
+    store->compare = compare;
+    store->context = context;
+    CDP_AB(store->chdCount <= 1);
+
+    STORE_TECH_SELECT(book->metadata.storeTech) {
       LINKED_LIST: {
         list_sort(book->recData.book.children, compare, context);
         break;
@@ -752,10 +828,9 @@ static inline void record_delete_storage(cdpRecord* record, unsigned maxDepth) {
     assert(!cdp_record_has_shadows(record));
 
     // Delete storage (and children).
-    RECORD_STYLE_SELECT(record->metadata.reStyle) {
-      BOOK:;
-      DICTIONARY: {
-        STORAGE_TECH_SELECT(record->metadata.storeTech) {
+    RECORD_PRIMAL_SELECT(record->metadata.primal) {
+      BOOK: {
+        STORE_TECH_SELECT(record->metadata.storeTech) {
           LINKED_LIST: {
             cdpList* list = record->recData.book.children;
             list_del_all_children(list, maxDepth);
@@ -785,7 +860,7 @@ static inline void record_delete_storage(cdpRecord* record, unsigned maxDepth) {
       }
 
       REGISTER: {
-        if (!cdp_record_register_is_borrowed(record))
+        if (!cdp_register_is_borrowed(record))
             cdp_free(record->recData.reg.data.ptr);
         break;
       }
@@ -802,14 +877,14 @@ static inline void record_delete_storage(cdpRecord* record, unsigned maxDepth) {
 bool cdp_record_remove(cdpRecord* record, unsigned maxDepth) {
     assert(record && maxDepth);
     assert(!cdp_record_has_shadows(record));
-    cdpParentEx* parentEx = cdp_record_parent_ex(record);
-    cdpRecord* book = parentEx->book;
+    cdpChdStore* store = cdp_record_chd_store(record);
+    cdpRecord* book = store->book;
 
     // Delete storage (along children, if any).
     record_delete_storage(record, maxDepth);
 
     // Remove this record from its parent (re-organizing siblings).
-    STORAGE_TECH_SELECT(book->metadata.storeTech) {
+    STORE_TECH_SELECT(book->metadata.storeTech) {
       LINKED_LIST: {
         list_remove_record(book->recData.book.children, record);
         break;
@@ -828,22 +903,22 @@ bool cdp_record_remove(cdpRecord* record, unsigned maxDepth) {
       }
     } SELECTION_END;
 
-    parentEx->chdCount--;
+    store->chdCount--;
 
     return true;
 }
 
 
 /*
-    Deletes all children of a book/dictionary.
+    Deletes all children of a book.
 */
-size_t cdp_record_book_reset(cdpRecord* book, unsigned maxDepth) {
+size_t cdp_book_reset(cdpRecord* book, unsigned maxDepth) {
     assert(cdp_record_is_book(book) && maxDepth);
-    cdpParentEx* parentEx = CDP_PARENTEX(book->recData.book.children);
-    size_t children = parentEx->chdCount;
+    cdpChdStore* store = CDP_STORE(book->recData.book.children);
+    size_t children = store->chdCount;
     CDP_CK(children);
 
-    STORAGE_TECH_SELECT(book->metadata.storeTech) {
+    STORE_TECH_SELECT(book->metadata.storeTech) {
       LINKED_LIST: {
         list_del_all_children(book->recData.book.children, maxDepth);
         break;
@@ -862,7 +937,7 @@ size_t cdp_record_book_reset(cdpRecord* book, unsigned maxDepth) {
       }
     } SELECTION_END;
 
-    parentEx->chdCount = 0;
+    store->chdCount = 0;
     return children;
 }
 

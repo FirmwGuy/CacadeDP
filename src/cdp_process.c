@@ -48,10 +48,10 @@ cdpRecord* TEMP;
 struct NIF {const char* name; size_t length; size_t index;}
 
 static bool name_id_find(cdpBookEntry* entry, unsigned depth, struct NIF* nif) {
-    name = cdp_record_register_read(entry->record, 0, NUll, NUll);
+    name = cdp_register_read(entry->record, 0, NUll, NUll);
     if (entry->record->recData.reg.size == nif->length
      && 0 == memcmp(name, nif->name, nif->length)) {
-        nif->index = entry.index;
+        nif->index = entry.position;
         return false;
     }
     return true;
@@ -60,31 +60,31 @@ static bool name_id_find(cdpBookEntry* entry, unsigned depth, struct NIF* nif) {
 cdpID cdp_name_id_add(const char* name, bool borrow) {
     assert(name && *name);
     size_t length = strlen(name);
-    CDP_ON_DEBUG(for (unsigned n=0; n<length; n++) {assert(!isupper(name[n]));})
+    CDP_DEBUG(for (unsigned n=0; n<length; n++) {assert(!isupper(name[n]));})
 
     // Find previous
     struct NIF nif = {name, length, 0};
-    if (!cdp_record_traverse(NAME, name_id_find, &nif)) {
+    if (!cdp_book_traverse(NAME, name_id_find, &nif)) {
         return nif.index;
     }
 
     // Add new
-    cdpID id = cdp_record_book_or_dic_children(NAME);
+    cdpID id = cdp_book_children(NAME);
     cdp_record_add_register(NAME, CDP_NAME_VALUE, CDP_TYPE_UTF8, borrow, name, length);
     return id;
 }
 
 
 cdpRecord* cdp_name_id_text(cdpID id) {
-    assert(id < cdp_record_book_or_dic_children(NAME));
-    return cdp_record_by_index(NAME, id);
+    assert(id < cdp_book_children(NAME));
+    return cdp_book_find_by_position(NAME, id);
 }
 
 
 
 
 unsigned cdp_type_add(cdpID id, size_t baseSize) {
-    assert(cdp_record_book_or_dic_children(TYPE) < CDP_TYPE_MAX_ID);
+    assert(cdp_book_children(TYPE) < CDP_TYPE_MAX_ID);
 
     // Add factory type descriptions
 
@@ -97,8 +97,8 @@ unsigned cdp_type_add(cdpID id, size_t baseSize) {
 
 
 cdpRecord* cdp_type(unsigned type) {
-    assert(type < cdp_record_book_or_dic_children(TYPE));
-    return cdp_record_by_index(TYPE, type);
+    assert(type < cdp_book_children(TYPE));
+    return cdp_book_find_by_position(TYPE, type);
 }
 
 
@@ -238,7 +238,7 @@ bool cdp_system_step(void) {
 
 void cdp_system_shutdown(void) {
     assert(TYPE);
-    cdp_record_book_reset(&ROOT);
+    cdp_book_reset(&ROOT);
     cdp_record_system_shutdown();
 }
 

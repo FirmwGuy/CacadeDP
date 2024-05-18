@@ -234,72 +234,6 @@
 #include "cdp_record.h"
 
 
-// Initial CascadeDP system type:
-enum _CDP_TYPE {
-    CDP_TYPE_NONE,          // This is the "no type" type.
-    CDP_TYPE_TYPE,
-
-    // Book/dict types
-    CDP_TYPE_BOOK,
-    CDP_TYPE_DICTIONARY,    // For bootstrapping reasons this must be 0x03 (see cdp_record.h)
-    CDP_TYPE_CATALOG,
-    CDP_TYPE_LIST,
-    CDP_TYPE_SET,
-    CDP_TYPE_QUEUE,
-    CDP_TYPE_CHRONICLE,
-    CDP_TYPE_ENCYCLOPEDIA,
-    CDP_TYPE_COMPENDIUM,
-    CDP_TYPE_COLLECTION,
-    CDP_TYPE_LOG,
-
-    // Register types
-    CDP_TYPE_REGISTER,
-    CDP_TYPE_PATCH,
-    CDP_TYPE_ID,
-    CDP_TYPE_NAME,
-    CDP_TYPE_UTF8,
-    //
-    CDP_TYPE_BOOLEAN,
-    CDP_TYPE_BYTE,
-    CDP_TYPE_UINT16,
-    CDP_TYPE_UINT32,
-    CDP_TYPE_UINT64,
-    CDP_TYPE_INT16,
-    CDP_TYPE_INT32,
-    CDP_TYPE_INT64,
-    CDP_TYPE_FLOAT32,
-    CDP_TYPE_FLOAT64,
-
-    CDP_TYPE_COUNT
-};
-
-
-// Initial CascadeDP system id:
-enum _CDP_NAME_ID {
-    CDP_NAME_Empty,     // This represents the empty string.
-
-    CDP_NAME_NAME,
-    CDP_NAME_VALUE,
-    CDP_NAME_SIZE,
-    CDP_NAME_DESCRIPTION,
-
-    CDP_NAME_ROOT,      // For bootstrapping reasons this must be 0x05 (see cdp_record.h).
-    CDP_NAME_TYPE,
-    CDP_NAME_SYSTEM,
-    CDP_NAME_USER,
-    CDP_NAME_PRIVATE,
-    CDP_NAME_PUBLIC,
-    CDP_NAME_DATA,
-    CDP_NAME_SERVICE,
-    CDP_NAME_PROCESS,
-    CDP_NAME_NETWORK,
-    CDP_NAME_TEMP,
-
-    CDP_NAME_COUNT
-};
-
-
-
 static inline cdpRecord* cdp_record_none(void)  {extern cdpRecord NONE; assert(NONE);  return NONE;}
 
 
@@ -307,18 +241,6 @@ cdpID cdp_name_id_add(const char* name, bool borrow);
 #define cdp_name_id_add_static(name)  cdp_name_id_add(name, true);
 cdpRecord* cdp_name_id_text(cdpID id);
 
-
-static inline cdpRecord* cdp_record_add_uint32(cdpRecord* parent, cdpID name, unsigned value) {
-    return cdp_record_add_register(parent, name, CDP_TYPE_UINT32, false, &value, sizeof(value));
-}
-
-static inline cdpRecord* cdp_record_add_text(cdpRecord* parent, cdpID name, const char* text) {
-    return cdp_record_add_register(parent, name, CDP_TYPE_UTF8, false, text, strlen(text));
-}
-
-static inline cdpRecord* cdp_record_add_static_text(cdpRecord* parent, cdpID name, const char* text) {
-    return cdp_record_add_register(parent, name, CDP_TYPE_UTF8, true, text, strlen(text));
-}
 
 typedef bool (*cdpCreate)(cdpRecord* instance, void** context);
 typedef bool (*cdpInstance)(cdpRecord* instance, void* context);

@@ -76,8 +76,7 @@
   #define   cdp_alloca  __builtin_alloca
   #define   cdp_free    free
 #endif                               
-#define     cdp_malloc0(z, ...)       cdp_calloc(1, z __VA_ARGS__)
-#define     cdp_dyn_malloc(Ts, Tm, l) cdp_malloc(sizeof(Ts) + ((l) * sizeof(Tm)))
+#define     cdp_malloc0(z, ...)         cdp_calloc(1, z __VA_ARGS__)
                                      
                                      
 CDP_AUTOFREE_(cdp_free)              
@@ -135,7 +134,10 @@ typedef void (*cdpDel)(void*);
 #define     cdp_bitsof(T)             (sizeof(T) << 3)
 #define     cdp_bitson(v)             (cdp_bitsof(v) - cdp_clz(v))
 #define     cdp_lengthof(a)           (sizeof(a)/sizeof(*a))
+
 #define     cdp_dyn_size(Ts, Tm, l)   (sizeof(Ts) + ((l) * sizeof(Tm)))
+#define     cdp_dyn_malloc(Ts, Tm, l) cdp_malloc(cdp_dyn_size(Ts, Tm, l))
+#define     cdp_dyn_malloc0(Ts,Tm,l)  cdp_malloc0(cdp_dyn_size(Ts, Tm, l))
 
 #define     cdp_is_pow_of_two(u)      (1 == cdp_popcount(u))
 #define     cdp_max_pow_of_two(u)     (((typeof(u))1) << (cdp_bitsof(u) - 1))
@@ -145,7 +147,7 @@ typedef void (*cdpDel)(void*);
 
 
 /*
- * Bounds Checking
+ * Value Checking
  */
  
 #define     cdp_const_min(a, b)       ((a < b)? a: b)
@@ -157,6 +159,8 @@ typedef void (*cdpDel)(void*);
 
 #define     cdp_in_r(x, l, u)         ((x) >= (l)  &&  (x) <= (u))
 #define     cdp_insd(x, l, u)         ((x) >  (l)  &&  (x)  < (u))
+
+#define     cdp_is_set(v, f)          (((v) & (f)) != 0)
 
 #define     CDP_DEFAULT(x, d)         ({if (!(x)) (x) = (d);  (x);})
 #define     _CDP_TRUNCATE(_, x, _u)   (__builtin_constant_p(_u)?  (((x) > (_u))? ((x) = (_u)): (x))  :  ({CDP_U(_,u, _u);  if ((x) > CDP(_,u)) (x) = CDP(_,u);  (x);}))
@@ -174,9 +178,9 @@ typedef void (*cdpDel)(void*);
 
 
 #ifdef NDEBUG
-  #define CDP_ON_DEBUG(code)
+  #define CDP_DEBUG()
 #else
-  #define CDP_ON_DEBUG(code)     code
+  #define CDP_DEBUG(code)   {code;}
 #endif
 
 

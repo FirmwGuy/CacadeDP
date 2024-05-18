@@ -23,7 +23,7 @@
 
 
 typedef struct {
-    cdpParentEx parentEx;         // Parent info.
+    cdpChdStore store;         // Parent info.
     //
     size_t      capacity;         // Total capacity of the array to manage allocations
     //
@@ -52,13 +52,13 @@ static inline void array_del(cdpArray* array) {
 
 
 static inline cdpRecord* array_search(cdpArray* array, void* key, cdpCompare compare, void* context, size_t* index) {
-    size_t imax = cdp_ptr_has_val(index)? *index - 1: array->parentEx.chdCount - 1;
+    size_t imax = cdp_ptr_has_val(index)? *index - 1: array->store.chdCount - 1;
     size_t imin = 0, i;
     cdpRecord* record;
     do {
         i = (imax + imin) >> 1;  // (max + min) / 2
         record = &array->record[i];
-        int res = compare(key, record, array->parentEx.context);
+        int res = compare(key, record, array->store.context);
         if (0 > res) {
             if (!i) break;
             imax = i - 1;
@@ -77,50 +77,50 @@ static inline cdpRecord* array_search(cdpArray* array, void* key, cdpCompare com
 static inline void array_update_children_parent_ptr(cdpRecord* record, cdpRecord* last) {
     for (;  record <= last;  record++) {
         if (cdp_record_is_book(record)) {
-            cdpParentEx* parentEx = record->recData.book.children;
-            parentEx->book = record;    // Update (grand) child link to the (child) parent.
+            cdpChdStore* store = record->recData.book.children;
+            store->book = record;    // Updates (grand) child link to the (child) parent.
         }
     }
 }
 
 
-static inline cdpRecord* array_add(cdpArray* array, cdpRecord* parent, bool prepend, cdpRecMeta* metadata) {
+static inline cdpRecord* array_add(cdpArray* array, cdpRecord* parent, bool prepend, cdpMetadata* metadata) {
     // Increase array space if necessary
-    if (array->capacity == array->parentEx.chdCount) {
+    if (array->capacity == array->store.chdCount) {
         assert(array->capacity);
         array->capacity *= 2;
         CDP_REALLOC(array->record, array->capacity * sizeof(cdpRecord));
-        memset(&array->record[array->parentEx.chdCount], 0, array->parentEx.chdCount * sizeof(cdpRecord));
-        array_update_children_parent_ptr(array->record, &array->record[array->parentEx.chdCount - 1]);
+        memset(&array->record[array->store.chdCount], 0, array->store.chdCount * sizeof(cdpRecord));
+        array_update_children_parent_ptr(array->record, &array->record[array->store.chdCount - 1]);
     }
 
     // Insert
     cdpRecord* child;
-    if (array->parentEx.chdCount) {
-        if (cdp_record_is_dictionary(parent)) {
+    if (array->store.chdCount) {
+        if (cdp_record_is_dictionary(parent)) {   // FixMe: catalog.
             // Sorted
             cdpRecord key = {.metadata = *metadata};
             size_t index = 0;
-            cdpRecord* prev = array_search(array, &key, record_compare_by_name_s, array->parentEx.context, &index);
+            cdpRecord* prev = array_search(array, &key, record_compare_by_name_s, array->store.context, &index);
             if (prev) {
                 // FixMe: delete children.
                 assert(prev);
             }
             child = &array->record[index];
-            if (index < array->parentEx.chdCount) {
-                memmove(child + 1, child, array->parentEx.chdCount * sizeof(cdpRecord));
-                array_update_children_parent_ptr(child + 1, &array->record[array->parentEx.chdCount]);
+            if (index < array->store.chdCount) {
+                memmove(child + 1, child, array->store.chdCount * sizeof(cdpRecord));
+                array_update_children_parent_ptr(child + 1, &array->record[array->store.chdCount]);
                 CDP_0(child);
             }
         } else if (prepend) {
             // Prepend
             child = array->record;
-            memmove(child + 1, child, array->parentEx.chdCount * sizeof(cdpRecord));
-            array_update_children_parent_ptr(child + 1, &array->record[array->parentEx.chdCount]);
+            memmove(child + 1, child, array->store.chdCount * sizeof(cdpRecord));
+            array_update_children_parent_ptr(child + 1, &array->record[array->store.chdCount]);
             CDP_0(child);
         } else {
             // Append
-            child = &array->record[array->parentEx.chdCount];
+            child = &array->record[array->store.chdCount];
         }
     } else {
             child = array->record;
@@ -130,19 +130,23 @@ static inline cdpRecord* array_add(cdpArray* array, cdpRecord* parent, bool prep
 }
 
 
-static inline cdpRecord* array_top(cdpArray* array, bool last) {
-    assert(array->capacity >= array->parentEx.chdCount);
-    return last?  &array->record[array->parentEx.chdCount - 1]:  array->record;
+static inline cdpRecord* array_first(cdpArray* array) {
+    return array->record;
+}
+
+
+static inline cdpRecord* array_last(cdpArray* array) {
+    return &array->record[array->store.chdCount - 1];
 }
 
 
 static inline cdpRecord* array_find_by_name(cdpArray* array, cdpID id, cdpRecord* book) {
-    if (cdp_record_is_dictionary(book) && !array->parentEx.compare) {
+    if (cdp_record_is_dictionary(book) && !array->store.compare) {    // FixMe: catalog
         cdpRecord key = {.metadata.id = id};
         return array_search(array, &key, record_compare_by_name_s, NULL, NULL);
     } else {
         cdpRecord* record = array->record;
-        for (size_t i = 0; i < array->parentEx.chdCount; i++, record++) {
+        for (size_t i = 0; i < array->store.chdCount; i++, record++) {
             if (record->metadata.id == id)
                 return record;
         }
@@ -151,9 +155,9 @@ static inline cdpRecord* array_find_by_name(cdpArray* array, cdpID id, cdpRecord
 }
 
 
-static inline cdpRecord* array_find_by_index(cdpArray* array, size_t index) {
-    assert(index < array->parentEx.chdCount);
-    return &array->record[index];
+static inline cdpRecord* array_find_by_position(cdpArray* array, size_t position) {
+    assert(position < array->store.chdCount);
+    return &array->record[position];
 }
 
 
@@ -163,14 +167,14 @@ static inline cdpRecord* array_prev(cdpArray* array, cdpRecord* record) {
 
 
 static inline cdpRecord* array_next(cdpArray* array, cdpRecord* record) {
-    cdpRecord* last = &array->record[array->parentEx.chdCount - 1];
+    cdpRecord* last = &array->record[array->store.chdCount - 1];
     return (record < last)? record + 1: NULL;
 }
 
 
 static inline cdpRecord* array_next_by_name(cdpArray* array, cdpID id, uintptr_t* prev) {
     cdpRecord* record = array->record;
-    for (size_t i = prev? (*prev + 1): 0;  i < array->parentEx.chdCount;  i++, record++){
+    for (size_t i = prev? (*prev + 1): 0;  i < array->store.chdCount;  i++, record++){
         if (record->metadata.id == id)
             return record;
     }
@@ -178,14 +182,14 @@ static inline cdpRecord* array_next_by_name(cdpArray* array, cdpID id, uintptr_t
 }
 
 static inline bool array_traverse(cdpArray* array, cdpRecord* book, cdpRecordTraverse func, void* context) {
-    assert(array && array->capacity >= array->parentEx.chdCount);
+    assert(array && array->capacity >= array->store.chdCount);
     cdpBookEntry entry = {.parent = book, .next = array->record};
-    cdpRecord* last = &array->record[array->parentEx.chdCount - 1];
+    cdpRecord* last = &array->record[array->store.chdCount - 1];
     do {
         if (entry.record) {
             if (!func(&entry, 0, context))
                 return false;
-            entry.index++;
+            entry.position++;
             entry.prev = entry.record;
         }
         entry.record = entry.next;
@@ -197,23 +201,20 @@ static inline bool array_traverse(cdpArray* array, cdpRecord* book, cdpRecordTra
 
 
 static inline void array_sort(cdpArray* array, cdpCompare compare, void* context) {
-    if (!compare) {
-        qsort(array->record, array->parentEx.chdCount, sizeof(cdpRecord), (cdpFunc) record_compare_by_name);
-    } else {
-      #ifdef _GNU_SOURCE
-        qsort_r
-      #else
-        qsort_s
-      #endif
-        (array->record, array->parentEx.chdCount, sizeof(cdpRecord), (cdpFunc) compare, context);
-    }
-    array_update_children_parent_ptr(array->record, &array->record[array->parentEx.chdCount - 1]);
+  #ifdef _GNU_SOURCE
+    qsort_r
+  #else
+    qsort_s
+  #endif
+        (array->record, array->store.chdCount, sizeof(cdpRecord), (cdpFunc) compare, context);
+    
+    array_update_children_parent_ptr(array->record, &array->record[array->store.chdCount - 1]);
 }
 
 
 static inline void array_remove_record(cdpArray* array, cdpRecord* record) {
-    assert(array && array->capacity >= array->parentEx.chdCount);
-    cdpRecord* last = &array->record[array->parentEx.chdCount - 1];
+    assert(array && array->capacity >= array->store.chdCount);
+    cdpRecord* last = &array->record[array->store.chdCount - 1];
     if (record < last)
         memmove(record, record + 1, (size_t) cdp_ptr_dif(last, record));
     CDP_0(last);
@@ -222,7 +223,7 @@ static inline void array_remove_record(cdpArray* array, cdpRecord* record) {
 
 static inline void array_del_all_children(cdpArray* array, unsigned maxDepth) {
     cdpRecord* child = array->record;
-    for (size_t n = 0; n < array->parentEx.chdCount; n++, child++) {
+    for (size_t n = 0; n < array->store.chdCount; n++, child++) {
         record_delete_storage(child, maxDepth - 1);
         CDP_0(child);   // ToDo: this may be skipped.
     }

@@ -34,7 +34,7 @@ struct _cdpPackedQNode {
 };
 
 typedef struct {
-    cdpParentEx     parentEx;   // Parent info.
+    cdpChdStore     store;   // Parent info.
     //
     size_t          pSize;      // Pack size in bytes.
     cdpPackedQNode* pHead;      // Head of the buffer list.
@@ -69,10 +69,11 @@ static inline cdpPackedQNode* packed_q_node_from_record(cdpPackedQ* pkdq, cdpRec
 }
 
 
-static inline cdpRecord* packed_q_add(cdpPackedQ* pkdq, cdpRecord* parent, bool prepend, cdpRecMeta* metadata) {
+static inline cdpRecord* packed_q_add(cdpPackedQ* pkdq, cdpRecord* parent, bool prepend, cdpMetadata* metadata) {
     assert(cdp_record_is_book(parent));
+    
     cdpRecord* child;
-    if (pkdq->parentEx.chdCount) {
+    if (pkdq->store.chdCount) {
         if (prepend) {
             // Prepend
             if (pkdq->pHead->first > pkdq->pHead->record) {
@@ -106,12 +107,18 @@ static inline cdpRecord* packed_q_add(cdpPackedQ* pkdq, cdpRecord* parent, bool 
             child = pNode->last;
     }
     child->metadata = *metadata;
+    
     return child;
 }
 
 
-static inline cdpRecord* packed_q_top(cdpPackedQ* pkdq, bool last) {
-    return last?  pkdq->pTail->last:  pkdq->pHead->first;
+static inline cdpRecord* packed_q_first(cdpPackedQ* pkdq) {
+    return pkdq->pHead->first;
+}
+
+
+static inline cdpRecord* packed_q_last(cdpPackedQ* pkdq) {
+    return pkdq->pTail->last;
 }
 
 
@@ -126,14 +133,14 @@ static inline cdpRecord* packed_q_find_by_name(cdpPackedQ* pkdq, cdpID id) {
 }
 
 
-static inline cdpRecord* packed_q_find_by_index(cdpPackedQ* pkdq, size_t index) {
+static inline cdpRecord* packed_q_find_by_position(cdpPackedQ* pkdq, size_t position) {
     // ToDo: use from tail to head if index is closer to it.
     for (cdpPackedQNode* pNode = pkdq->pHead;  pNode;  pNode = pNode->pNext) {
         size_t chunk = cdp_ptr_idx(pNode->first, pNode->last, sizeof(cdpRecord)) + 1;
-        if (chunk > index) {
-            return &pNode->first[index];
+        if (chunk > position) {
+            return &pNode->first[position];
         }
-        index -= chunk;
+        position -= chunk;
     }
     return NULL;
 }
@@ -177,7 +184,7 @@ static inline bool packed_q_traverse(cdpPackedQ* pkdq, cdpRecord* book, cdpRecor
             if (entry.record) {
                 if (!func(&entry, 0, context))
                     return false;
-                entry.index++;
+                entry.position++;
                 entry.prev = entry.record;
             }
             entry.record = entry.next;
