@@ -136,7 +136,7 @@ static inline cdpRecord* rb_tree_add(cdpRbTree* tree, cdpRecord* parent, cdpRecM
     tnode->isRed = true;
     cdpRecord* child = &tnode->record;
     child->metadata = *metadata;
-    
+
     if (tree->root) {
         cdpRbTreeNode* x = tree->root, *y;
         do {
@@ -161,7 +161,7 @@ static inline cdpRecord* rb_tree_add(cdpRbTree* tree, cdpRecord* parent, cdpRecM
         tree->root = tnode;
     }
     rb_tree_fix_insert(tree, tnode);
-    
+
     return child;
 }
 
@@ -171,7 +171,7 @@ static inline cdpRecord* rb_tree_top(cdpRbTree* tree, bool last) {
     if (last) {
         while (tnode->right)  tnode = tnode->right;
     } else {
-        while (tnode->left)   tnode = tnode->left;        
+        while (tnode->left)   tnode = tnode->left;
     }
     return &tnode->record;
 }
@@ -201,37 +201,37 @@ static inline bool rb_tree_traverse(cdpRbTree* tree, cdpRecord* book, unsigned m
           tnode = tnode->right;
       }
   } while (top != -1 || tnode);
-  
+
   entry.next = NULL;
   entry.record = &tnodePrev->record;
   return func(&entry, 0, context);
 }
 
 
-struct RbFindByName {cdpNameID nameID; cdpRecord* found;};
+struct RbFindByName {cdpID id; cdpRecord* found;};
 
 static inline int rb_traverse_func_break_at_name(cdpBookEntry* entry, unsigned u, struct RbFindByName* fbn) {
-    if (entry->record->metadata.nameID == fbn->nameID) {
+    if (entry->record->metadata.id == fbn->id) {
         fbn->found = entry->record;
         return false;
     }
     return true;
 }
 
-static inline cdpRecord* rb_tree_find_by_name(cdpRbTree* tree, cdpNameID nameID, cdpRecord* book) {
+static inline cdpRecord* rb_tree_find_by_name(cdpRbTree* tree, cdpID id, cdpRecord* book) {
     if (!tree->parentEx.compare) {
         cdpRbTreeNode* tnode = tree->root;
         do {
-            if (nameID < tnode->record.metadata.nameID) {
+            if (id < tnode->record.metadata.id) {
                 tnode = tnode->left;
-            } else if (nameID > tnode->record.metadata.nameID) {
+            } else if (id > tnode->record.metadata.id) {
                 tnode = tnode->right;
             } else {
                 return &tnode->record;
             }
         } while (tnode);
     } else {
-        struct RbFindByName fbn = {.nameID = nameID};
+        struct RbFindByName fbn = {.id = id};
         rb_tree_traverse(tree, book, cdp_bitson(tree->parentEx.chdCount) + 2, (cdpFunc) rb_traverse_func_break_at_name, &fbn);
         return fbn.found;
     }
@@ -392,18 +392,18 @@ static inline void rb_tree_remove_record(cdpRbTree* tree, cdpRecord* record) {
         rb_tree_fixremove_node(tree, x);
 
     cdp_free(tnode);
-}      
+}
 
 
 static inline void rb_tree_del_all_children_recursively(cdpRbTreeNode* tnode, unsigned maxDepth) {
-    if (tnode->left) 
+    if (tnode->left)
         rb_tree_del_all_children_recursively(tnode->left, maxDepth);
-        
+
     record_delete_storage(&tnode->record, maxDepth - 1);
-    
+
     if (tnode->right)
         rb_tree_del_all_children_recursively(tnode->right, maxDepth);
-    
+
     cdp_free(tnode);
 }
 

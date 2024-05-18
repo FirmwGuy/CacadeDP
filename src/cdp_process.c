@@ -57,7 +57,7 @@ static bool name_id_find(cdpBookEntry* entry, unsigned depth, struct NIF* nif) {
     return true;
 }
 
-cdpNameID cdp_name_id_add(const char* name, bool borrow) {
+cdpID cdp_name_id_add(const char* name, bool borrow) {
     assert(name && *name);
     size_t length = strlen(name);
     CDP_ON_DEBUG(for (unsigned n=0; n<length; n++) {assert(!isupper(name[n]));})
@@ -69,22 +69,22 @@ cdpNameID cdp_name_id_add(const char* name, bool borrow) {
     }
 
     // Add new
-    cdpNameID nameID = cdp_record_book_or_dic_children(NAME);
+    cdpID id = cdp_record_book_or_dic_children(NAME);
     cdp_record_add_register(NAME, CDP_NAME_VALUE, CDP_TYPE_UTF8, borrow, name, length);
-    return nameID;
+    return id;
 }
 
 
-cdpRecord* cdp_name_id_text(cdpNameID nameID) {
-    assert(nameID < cdp_record_book_or_dic_children(NAME));
-    return cdp_record_by_index(NAME, nameID);
+cdpRecord* cdp_name_id_text(cdpID id) {
+    assert(id < cdp_record_book_or_dic_children(NAME));
+    return cdp_record_by_index(NAME, id);
 }
 
 
 
 
-unsigned cdp_type_add(cdpNameID nameID, size_t baseSize) {
-    assert(cdp_record_book_or_dic_children(TYPE) < CDP_TYPE_ID_MAX);
+unsigned cdp_type_add(cdpID id, size_t baseSize) {
+    assert(cdp_record_book_or_dic_children(TYPE) < CDP_TYPE_MAX_ID);
 
     // Add factory type descriptions
 
@@ -96,9 +96,9 @@ unsigned cdp_type_add(cdpNameID nameID, size_t baseSize) {
 }
 
 
-cdpRecord* cdp_type(unsigned typeID) {
-    assert(typeID < cdp_record_book_or_dic_children(TYPE));
-    return cdp_record_by_index(TYPE, typeID);
+cdpRecord* cdp_type(unsigned type) {
+    assert(type < cdp_record_book_or_dic_children(TYPE));
+    return cdp_record_by_index(TYPE, type);
 }
 
 
@@ -142,8 +142,8 @@ void cdp_system_initiate(void) {
 
     TYPE = cdp_record_add_book(&ROOT, CDP_NAME_TYPE, CDP_TYPE_LOG, CDP_STO_CHD_ARRAY, CDP_TYPE_COUNT); {
         /*
-           Each type must be entered in the exact same order of the _CDP_TYPE_ID
-           enumeration (since each typeID is just an index to the TYPE collection).
+           Each type must be entered in the exact same order of the _CDP_TYPE
+           enumeration (since each type is just an index to the TYPE collection).
 
            *** WARNING: Please keep it in sync with cdp_process.h! ***
         */
@@ -154,8 +154,8 @@ void cdp_system_initiate(void) {
         system_initiate_type(TYPE, "book",          "Generic container of records.", 0);
         system_initiate_type(TYPE, "dictionary",    "Book of records sorted by their unique name.", 0);
         system_initiate_type(TYPE, "catalog",       "Book with records ordered by some user-defined criteria.", 0);
-        system_initiate_type(TYPE, "list",          "Book that never inserts/removes records to places other than its beginning or end.", 0);
-        system_initiate_type(TYPE, "set",           "Book with unsorted records of unique value.", 0);
+        system_initiate_type(TYPE, "list",          "Book with records oredered by how they are added/removed", 0);
+        system_initiate_type(TYPE, "set",           "List with records of unique value.", 0);
         system_initiate_type(TYPE, "queue",         "List that only removes records from its beginning or adds them to its end.", 0);
         system_initiate_type(TYPE, "chronicle",     "Book that never removes records.", 0);
         system_initiate_type(TYPE, "encyclopedia",  "Dictionary that never removes records.", 0);
@@ -169,7 +169,7 @@ void cdp_system_initiate(void) {
         cdpRecord* nameid = system_initiate_type(TYPE, "nameid", "Id of text token for creating record paths.", 4); {
             NAME = cdp_record_add_book(nameid, CDP_NAME_VALUE, CDP_TYPE_LOG, CDP_STO_CHD_PACKED_QUEUE, CDP_NAME_COUNT); {
         }
-        system_initiate_type(TYPE, "name",          "Register whose only data is its own nameID.", 0);
+        system_initiate_type(TYPE, "name",          "Register whose only data is its own id.", 0);
         system_initiate_type(TYPE, "utf8",          "Text encoded in UTF8.", 0);
 
         cdpRecord* boolean = system_initiate_type(TYPE, "boolean", "Boolean value.", 1); {
@@ -191,7 +191,7 @@ void cdp_system_initiate(void) {
 
         /*
            Each name must be entered in the exact same order of the _CDP_NAME_ID
-           enumeration (since each nameID is just an index to the value collection).
+           enumeration (since each id is just an index to the value collection).
 
            *** WARNING: Please keep it in sync with cdp_process.h! ***
         */
@@ -245,14 +245,14 @@ void cdp_system_shutdown(void) {
 
 
 
-cdpNameID cdp_process_load( const char* name,
+cdpID cdp_process_load( const char* name,
                             cdpCreate   create,
                             cdpInstance step,
                             cdpInstance destroy,
                             cdpInstance save,
                             cdpInstance restore) {
     assert(name && *name && create && step);
-    static cdpNameID createNID, stepNID, destroyNID, callbackTID;
+    static cdpID createNID, stepNID, destroyNID, callbackTID;
 
     if (!createNID) {
         cdp_system_initiate();
@@ -263,18 +263,18 @@ cdpNameID cdp_process_load( const char* name,
         stepNID    = cdp_name_id_add_static("step");
         destroyNID = cdp_name_id_add_static("destroy");
     }
-    cdpNameID nameID = cdp_name_id_add_static(name);
+    cdpID id = cdp_name_id_add_static(name);
 
     // FixMe: find and report previous.
 
-    cdpRecord* process = cdp_record_add_dictionary(PROCESS, nameID, CDP_TYPE_DICTIONARY, CDP_STO_CHD_ARRAY, NULL, NULL, 8); {
+    cdpRecord* process = cdp_record_add_dictionary(PROCESS, id, CDP_TYPE_DICTIONARY, CDP_STO_CHD_ARRAY, NULL, NULL, 8); {
         cdp_record_add_register(process, createNID, callbackTID, create, sizeof(create));
         cdp_record_add_register(process, stepNID,   callbackTID, step,   sizeof(step));
         if (destroy)
             cdp_record_add_register(process, destroyNID, callbackTID, destroy, sizeof(destroy));
     }
 
-    return nameID;
+    return id;
 }
 
 
@@ -287,7 +287,7 @@ bool cdp_process_instance_creation_service(void) {
 }
 
 
-cdpRecord* cdp_process_instantiate(cdpNameID processNID, ...) {
+cdpRecord* cdp_process_instantiate(cdpID processNID, ...) {
 
     return NULL;
 }

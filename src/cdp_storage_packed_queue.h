@@ -35,7 +35,7 @@ struct _cdpPackedQNode {
 
 typedef struct {
     cdpParentEx     parentEx;   // Parent info.
-    //                          
+    //
     size_t          pSize;      // Pack size in bytes.
     cdpPackedQNode* pHead;      // Head of the buffer list.
     cdpPackedQNode* pTail;      // Tail of the buffer list.
@@ -115,10 +115,10 @@ static inline cdpRecord* packed_q_top(cdpPackedQ* pkdq, bool last) {
 }
 
 
-static inline cdpRecord* packed_q_find_by_name(cdpPackedQ* pkdq, cdpNameID nameID) {
+static inline cdpRecord* packed_q_find_by_name(cdpPackedQ* pkdq, cdpID id) {
     for (cdpPackedQNode* pNode = pkdq->pHead;  pNode;  pNode = pNode->pNext) {
         for (cdpRecord* record = pNode->first;  record <= pNode->last;  record++) {
-            if (record->metadata.nameID == nameID)
+            if (record->metadata.id == id)
                 return record;
         }
     }
@@ -141,7 +141,7 @@ static inline cdpRecord* packed_q_find_by_index(cdpPackedQ* pkdq, size_t index) 
 
 static inline cdpRecord* packed_q_prev(cdpPackedQ* pkdq, cdpRecord* record) {
     cdpPackedQNode* pNode = packed_q_node_from_record(pkdq, record);
-    assert(pNode);    
+    assert(pNode);
     if (pNode->first == record)
         return NULL;
     return record - 1;
@@ -150,20 +150,20 @@ static inline cdpRecord* packed_q_prev(cdpPackedQ* pkdq, cdpRecord* record) {
 
 static inline cdpRecord* packed_q_next(cdpPackedQ* pkdq, cdpRecord* record) {
     cdpPackedQNode* pNode = packed_q_node_from_record(pkdq, record);
-    assert(pNode);    
+    assert(pNode);
     if (pNode->last == record)
         return NULL;
     return record + 1;
 }
 
 
-static inline cdpRecord* packed_q_next_by_name(cdpPackedQ* pkdq, cdpNameID nameID, cdpPackedQNode** prev) {
+static inline cdpRecord* packed_q_next_by_name(cdpPackedQ* pkdq, cdpID id, cdpPackedQNode** prev) {
     for (cdpPackedQNode* pNode = prev? (*prev)->pNext: pkdq->pHead;  pNode;  pNode = pNode->pNext) {
         for (cdpRecord* record = pNode->first;  record <= pNode->last;  record++) {
-            if (record->metadata.nameID == nameID)
+            if (record->metadata.id == id)
                 return record;
         }
-    }  
+    }
     return NULL;
 }
 

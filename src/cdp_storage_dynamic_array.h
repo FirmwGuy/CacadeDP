@@ -76,7 +76,7 @@ static inline cdpRecord* array_search(cdpArray* array, void* key, cdpCompare com
 
 static inline void array_update_children_parent_ptr(cdpRecord* record, cdpRecord* last) {
     for (;  record <= last;  record++) {
-        if (cdp_record_is_book_or_dic(record)) {
+        if (cdp_record_is_book(record)) {
             cdpParentEx* parentEx = record->recData.book.children;
             parentEx->book = record;    // Update (grand) child link to the (child) parent.
         }
@@ -93,7 +93,7 @@ static inline cdpRecord* array_add(cdpArray* array, cdpRecord* parent, bool prep
         memset(&array->record[array->parentEx.chdCount], 0, array->parentEx.chdCount * sizeof(cdpRecord));
         array_update_children_parent_ptr(array->record, &array->record[array->parentEx.chdCount - 1]);
     }
-    
+
     // Insert
     cdpRecord* child;
     if (array->parentEx.chdCount) {
@@ -108,14 +108,14 @@ static inline cdpRecord* array_add(cdpArray* array, cdpRecord* parent, bool prep
             }
             child = &array->record[index];
             if (index < array->parentEx.chdCount) {
-                memmove(child + 1, child, array->parentEx.chdCount * sizeof(cdpRecord)); 
+                memmove(child + 1, child, array->parentEx.chdCount * sizeof(cdpRecord));
                 array_update_children_parent_ptr(child + 1, &array->record[array->parentEx.chdCount]);
                 CDP_0(child);
             }
         } else if (prepend) {
             // Prepend
             child = array->record;
-            memmove(child + 1, child, array->parentEx.chdCount * sizeof(cdpRecord)); 
+            memmove(child + 1, child, array->parentEx.chdCount * sizeof(cdpRecord));
             array_update_children_parent_ptr(child + 1, &array->record[array->parentEx.chdCount]);
             CDP_0(child);
         } else {
@@ -136,14 +136,14 @@ static inline cdpRecord* array_top(cdpArray* array, bool last) {
 }
 
 
-static inline cdpRecord* array_find_by_name(cdpArray* array, cdpNameID nameID, cdpRecord* book) {
+static inline cdpRecord* array_find_by_name(cdpArray* array, cdpID id, cdpRecord* book) {
     if (cdp_record_is_dictionary(book) && !array->parentEx.compare) {
-        cdpRecord key = {.metadata.nameID = nameID};
+        cdpRecord key = {.metadata.id = id};
         return array_search(array, &key, record_compare_by_name_s, NULL, NULL);
     } else {
         cdpRecord* record = array->record;
         for (size_t i = 0; i < array->parentEx.chdCount; i++, record++) {
-            if (record->metadata.nameID == nameID)
+            if (record->metadata.id == id)
                 return record;
         }
     }
@@ -168,12 +168,12 @@ static inline cdpRecord* array_next(cdpArray* array, cdpRecord* record) {
 }
 
 
-static inline cdpRecord* array_next_by_name(cdpArray* array, cdpNameID nameID, uintptr_t* prev) {
+static inline cdpRecord* array_next_by_name(cdpArray* array, cdpID id, uintptr_t* prev) {
     cdpRecord* record = array->record;
     for (size_t i = prev? (*prev + 1): 0;  i < array->parentEx.chdCount;  i++, record++){
-        if (record->metadata.nameID == nameID)
+        if (record->metadata.id == id)
             return record;
-    }   
+    }
     return NULL;
 }
 

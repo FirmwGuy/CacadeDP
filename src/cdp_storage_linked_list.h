@@ -57,7 +57,7 @@ static inline cdpListNode* list_node_from_record(cdpRecord* record) {
 static inline cdpRecord* list_add(cdpList* list, cdpRecord* parent, bool prepend, cdpRecMeta* metadata) {
     CDP_NEW(cdpListNode, node);
     node->record.metadata = *metadata;
-    
+
     if (list->parentEx.chdCount && cdp_record_is_dictionary(parent)) {
         // Sorted insert
         cdpListNode* next;
@@ -111,9 +111,9 @@ static inline cdpRecord* list_top(cdpList* list, bool last) {
 }
 
 
-static inline cdpRecord* list_find_by_name(cdpList* list, cdpNameID nameID) {
+static inline cdpRecord* list_find_by_name(cdpList* list, cdpID id) {
     for (cdpListNode* node = list->head;  node;  node = node->next) {
-        if (node->record.metadata.nameID == nameID)
+        if (node->record.metadata.id == id)
             return &node->record;
     }
     return NULL;
@@ -143,10 +143,10 @@ static inline cdpRecord* list_next(cdpRecord* record) {
 }
 
 
-static inline cdpRecord* list_next_by_name(cdpList* list, cdpNameID nameID, cdpListNode** prev) {
+static inline cdpRecord* list_next_by_name(cdpList* list, cdpID id, cdpListNode** prev) {
     cdpListNode* node = *prev?  (*prev)->next:  list->head;
     while (node) {
-        if (node->record.metadata.nameID == nameID) {
+        if (node->record.metadata.id == id) {
             *prev = node;
             return &node->record;
         }
@@ -183,8 +183,8 @@ static inline void list_sort(cdpList* list, cdpCompare compare, void* context) {
             next = node->next;
             prev->next = next;
             if (next) next->prev = prev;
-            
-            // Look backwards for a smaller nameID.
+
+            // Look backwards for a smaller id.
             for (smal = prev->prev;  smal;  smal = smal->prev) {
                 if (0 <= compare(&node->record, &smal->record, context))
                     break;
@@ -216,13 +216,13 @@ static inline void list_remove_record(cdpList* list, cdpRecord* record) {
     cdpListNode* node = list_node_from_record(record);
     cdpListNode* next = node->next;
     cdpListNode* prev = node->prev;
-    
+
     // Unlink node.
     if (next) next->prev = prev;
     else      list->tail = prev;
     if (prev) prev->next = next;
     else      list->head = next;
-    
+
     cdp_free(node);
 }
 

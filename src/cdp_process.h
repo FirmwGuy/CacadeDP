@@ -61,7 +61,7 @@
 
     ### Directory Structure:
     The book structure is explained using CascadeDP records, hence
-    with each entry having a nameID (represented with text), a type
+    with each entry having a id (represented with text), a type
     (enclosed in parentheses), and an index (represented here inside
     brackets). Registers may have values (following the ":"), while links
     are represented by "->". UTF8 text content is represented by quoted
@@ -234,8 +234,8 @@
 #include "cdp_record.h"
 
 
-// Initial CascadeDP system typeID:
-enum _CDP_TYPE_ID {
+// Initial CascadeDP system type:
+enum _CDP_TYPE {
     CDP_TYPE_NONE,          // This is the "no type" type.
     CDP_TYPE_TYPE,
 
@@ -255,7 +255,7 @@ enum _CDP_TYPE_ID {
     // Register types
     CDP_TYPE_REGISTER,
     CDP_TYPE_PATCH,
-    CDP_TYPE_NAMEID,
+    CDP_TYPE_ID,
     CDP_TYPE_NAME,
     CDP_TYPE_UTF8,
     //
@@ -274,7 +274,7 @@ enum _CDP_TYPE_ID {
 };
 
 
-// Initial CascadeDP system nameID:
+// Initial CascadeDP system id:
 enum _CDP_NAME_ID {
     CDP_NAME_Empty,     // This represents the empty string.
 
@@ -303,20 +303,20 @@ enum _CDP_NAME_ID {
 static inline cdpRecord* cdp_record_none(void)  {extern cdpRecord NONE; assert(NONE);  return NONE;}
 
 
-cdpNameID cdp_name_id_add(const char* name, bool borrow);
+cdpID cdp_name_id_add(const char* name, bool borrow);
 #define cdp_name_id_add_static(name)  cdp_name_id_add(name, true);
-cdpRecord* cdp_name_id_text(cdpNameID nameID);
+cdpRecord* cdp_name_id_text(cdpID id);
 
 
-static inline cdpRecord* cdp_record_add_uint32(cdpRecord* parent, cdpNameID name, unsigned value) {
+static inline cdpRecord* cdp_record_add_uint32(cdpRecord* parent, cdpID name, unsigned value) {
     return cdp_record_add_register(parent, name, CDP_TYPE_UINT32, false, &value, sizeof(value));
 }
 
-static inline cdpRecord* cdp_record_add_text(cdpRecord* parent, cdpNameID name, const char* text) {
+static inline cdpRecord* cdp_record_add_text(cdpRecord* parent, cdpID name, const char* text) {
     return cdp_record_add_register(parent, name, CDP_TYPE_UTF8, false, text, strlen(text));
 }
 
-static inline cdpRecord* cdp_record_add_static_text(cdpRecord* parent, cdpNameID name, const char* text) {
+static inline cdpRecord* cdp_record_add_static_text(cdpRecord* parent, cdpID name, const char* text) {
     return cdp_record_add_register(parent, name, CDP_TYPE_UTF8, true, text, strlen(text));
 }
 
@@ -332,13 +332,13 @@ cdpRecord* cdp_process_load(const char* name,
                             cdpInstance restore);
 
 
-cdpNameID cdp_system_enter_name(const char* name, size_t length, bool staticStr);
-cdpRecord* cdp_system_name(cdpNameID);
+cdpID cdp_system_enter_name(const char* name, size_t length, bool staticStr);
+cdpRecord* cdp_system_name(cdpID);
 #define cdp_system_enter_name_string(str)   cdp_system_enter_name(str, strlen(str), true)
 
 
-unsigned cdp_system_enter_type(cdpNameID nameID, size_t baseSize);
-cdpRecord* cdp_system_type(unsigned typeID);
+unsigned cdp_system_enter_type(cdpID id, size_t baseSize);
+cdpRecord* cdp_system_type(unsigned type);
 
 void cdp_system_initiate(void);
 bool cdp_system_tic(void);
