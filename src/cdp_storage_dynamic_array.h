@@ -140,7 +140,7 @@ static inline cdpRecord* array_last(cdpArray* array) {
 }
 
 
-static inline cdpRecord* array_find_by_name(cdpArray* array, cdpID id, cdpRecord* book) {
+static inline cdpRecord* array_find_by_name(cdpArray* array, cdpID id, const cdpRecord* book) {
     if (cdp_record_is_dictionary(book) && !array->store.compare) {    // FixMe: catalog
         cdpRecord key = {.metadata.id = id};
         return array_search(array, &key, record_compare_by_name_s, NULL, NULL);
@@ -207,7 +207,7 @@ static inline void array_sort(cdpArray* array, cdpCompare compare, void* context
     qsort_s
   #endif
         (array->record, array->store.chdCount, sizeof(cdpRecord), (cdpFunc) compare, context);
-    
+
     array_update_children_parent_ptr(array->record, &array->record[array->store.chdCount - 1]);
 }
 

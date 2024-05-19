@@ -132,7 +132,7 @@ static inline void rb_tree_fix_insert(cdpRbTree* tree, cdpRbTreeNode* z) {
 
 static inline cdpRecord* rb_tree_add(cdpRbTree* tree, cdpRecord* parent, cdpMetadata* metadata) {
     assert(cdp_record_is_dict_or_cat(parent));
-    
+
     CDP_NEW(cdpRbTreeNode, tnode);
     tnode->isRed = true;
     cdpRecord* child = &tnode->record;
@@ -222,7 +222,7 @@ static inline int rb_traverse_func_break_at_name(cdpBookEntry* entry, unsigned u
     return true;
 }
 
-static inline cdpRecord* rb_tree_find_by_name(cdpRbTree* tree, cdpID id, cdpRecord* book) {
+static inline cdpRecord* rb_tree_find_by_name(cdpRbTree* tree, cdpID id, const cdpRecord* book) {
     if (cdp_record_is_dictionary(book) && !tree->store.compare) {  // FixMe: catalog.
         cdpRecord key = {.metadata.id = id};
         cdpRbTreeNode* tnode = tree->root;
@@ -238,7 +238,7 @@ static inline cdpRecord* rb_tree_find_by_name(cdpRbTree* tree, cdpID id, cdpReco
         } while (tnode);
     } else {
         struct RbFindByName fbn = {.id = id};
-        rb_tree_traverse(tree, book, cdp_bitson(tree->store.chdCount) + 2, (cdpFunc) rb_traverse_func_break_at_name, &fbn);
+        rb_tree_traverse(tree, (cdpRecord*)book, cdp_bitson(tree->store.chdCount) + 2, (cdpFunc) rb_traverse_func_break_at_name, &fbn);
         return fbn.found;
     }
     return NULL;
@@ -255,9 +255,9 @@ static inline int rb_traverse_func_break_at_index(cdpBookEntry* entry, unsigned 
     return true;
 }
 
-static inline cdpRecord* rb_tree_find_by_position(cdpRbTree* tree, size_t position, cdpRecord* book) {
+static inline cdpRecord* rb_tree_find_by_position(cdpRbTree* tree, size_t position, const cdpRecord* book) {
     struct RbBreakAtIndex bai = {.position = position};
-    if (!rb_tree_traverse(tree, book, cdp_bitson(tree->store.chdCount) + 2, (void*) rb_traverse_func_break_at_index, &bai))
+    if (!rb_tree_traverse(tree, (cdpRecord*)book, cdp_bitson(tree->store.chdCount) + 2, (void*) rb_traverse_func_break_at_index, &bai))
         return bai.record;
     return NULL;
 }

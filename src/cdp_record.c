@@ -34,13 +34,13 @@
 static inline int record_compare_by_name(const cdpRecord* restrict key, const cdpRecord* restrict rec) {
     bool keyNamed = cdp_record_is_named(key);
     bool recNamed = cdp_record_is_named(rec);
-    
+
     if (keyNamed != recNamed)
         return keyNamed - recNamed;   // Unnamed records should come before named records.
-    
+
     if (keyNamed)
         return rec->metadata.id - key->metadata.id;   // Sorted by decreasing id if named.
-    
+
     return key->metadata.id - rec->metadata.id;   // Sorted by increasing id if unnamed.
 }
 
@@ -58,10 +58,10 @@ static inline int record_compare_by_name_s(const cdpRecord* restrict key, const 
     do
 
 
-#define RECORD_PRIMAL_SELECT(primal)                                           \
-    assert((primal) && (primal) < CDP_REC_STYLE_COUNT);                        \
-    static void* const recordStyle[] = {&&BOOK, &&REGISTER, &&LINK};           \
-    goto *recordStyle[(primal)-1];                                             \
+#define RECORD_PRIMAL_SELECT(primal)                                   \
+    assert((primal) && (primal) < CDP_TYPE_PRIMAL_COUNT);              \
+    static void* const recordStyle[] = {&&BOOK, &&REGISTER, &&LINK};   \
+    goto *recordStyle[(primal)-1];                                     \
     do
 
 #define SELECTION_END                                                  \
@@ -93,9 +93,9 @@ static inline void record_delete_storage(cdpRecord* record, unsigned maxDepth);
 /* The root dictionary is the same as "/" in text paths.
 */
 cdpRecord ROOT = {.metadata = {
-    .primal    = CDP_TYPE_BOOK, 
-    .id        = CDP_NAME_ROOT, 
-    .type      = CDP_TYPE_DICTIONARY, 
+    .primal    = CDP_TYPE_BOOK,
+    .id        = CDP_NAME_ROOT,
+    .type      = CDP_TYPE_DICTIONARY,
     .storeTech = CDP_STO_CHD_ARRAY
 }};
 
@@ -184,7 +184,7 @@ cdpRecord* cdp_book_add(cdpRecord* parent, unsigned primal, unsigned attrib, cdp
     // Create child record storage.
     //
     va_list args;
-    va_start(args, priv);
+    va_start(args, prepend);
 
     RECORD_PRIMAL_SELECT(primal) {
       BOOK: {
@@ -252,7 +252,7 @@ cdpRecord* cdp_book_add(cdpRecord* parent, unsigned primal, unsigned attrib, cdp
 /*
    Reads register data from position and puts it on data buffer (atomically).
 */
-void* cdp_register_read(cdpRecord* reg, size_t position, void* data, size_t* size) {
+void* cdp_register_read(const cdpRecord* reg, size_t position, void* data, size_t* size) {
     assert(cdp_record_is_register(reg));
 
     // Calculate the actual number of bytes that can be read.
@@ -277,7 +277,7 @@ void* cdp_register_read(cdpRecord* reg, size_t position, void* data, size_t* siz
    Writes the data of a register record at position (atomically and it may reallocate memory).
 */
 void* cdp_register_write(cdpRecord* reg, size_t position, const void* data, size_t size) {
-    assert(cdp_record_is_register(reg) && data && size);
+    assert(cdp_record_is_register(reg) && !cdp_record_is_factual(reg) && data && size);
 
     // Ensure the buffer is large enough to accommodate the write
     size_t newSize = position + size;
@@ -303,7 +303,7 @@ void* cdp_register_write(cdpRecord* reg, size_t position, const void* data, size
 */
 #define CDP_RECORD_PATH_INITIAL_LENGTH  16
 
-bool cdp_record_path(cdpRecord* record, cdpPath** path) {
+bool cdp_record_path(const cdpRecord* record, cdpPath** path) {
     assert(record && path);
 
     cdpPath* tempPath;
@@ -318,7 +318,7 @@ bool cdp_record_path(cdpRecord* record, cdpPath** path) {
     tempPath->length = 0;
 
     // Traverse up the hierarchy to construct the path in reverse order
-    for (cdpRecord* current = record;  current;  current = cdp_record_parent(current)) {  // FixMe: assuming single parenthood for now.
+    for (const cdpRecord* current = record;  current;  current = cdp_record_parent(current)) {  // FixMe: assuming single parenthood for now.
         if (tempPath->length >= tempPath->capacity) {
             unsigned newCapacity = tempPath->capacity * 2;
             cdpPath* newPath = cdp_dyn_malloc(cdpPath, cdpID, newCapacity);     // FixMe: use realloc.
@@ -341,7 +341,7 @@ bool cdp_record_path(cdpRecord* record, cdpPath** path) {
 /*
     Gets the first record from a book.
 */
-cdpRecord* cdp_book_first(cdpRecord* book) {
+cdpRecord* cdp_book_first(const cdpRecord* book) {
     assert(cdp_record_is_book(book));
     cdpChdStore* store = CDP_STORE(book->recData.book.children);
     CDP_CK(store->chdCount);
@@ -373,7 +373,7 @@ cdpRecord* cdp_book_first(cdpRecord* book) {
 /*
     Gets the last record from a book.
 */
-cdpRecord* cdp_book_last(cdpRecord* book) {
+cdpRecord* cdp_book_last(const cdpRecord* book) {
     assert(cdp_record_is_book(book));
     cdpChdStore* store = CDP_STORE(book->recData.book.children);
     CDP_CK(store->chdCount);
@@ -405,7 +405,7 @@ cdpRecord* cdp_book_last(cdpRecord* book) {
 /*
     Retrieves a child record by its id.
 */
-cdpRecord* cdp_book_find_by_name(cdpRecord* book, cdpID id) {
+cdpRecord* cdp_book_find_by_name(const cdpRecord* book, cdpID id) {
     assert(cdp_record_is_book(book));
     cdpChdStore* store = CDP_STORE(book->recData.book.children);
     CDP_CK(store->chdCount);
@@ -439,7 +439,7 @@ cdpRecord* cdp_book_find_by_name(cdpRecord* book, cdpID id) {
 /*
     Finds a child record based on specified key.
 */
-cdpRecord* cdp_book_find_by_key(cdpRecord* book, cdpRecord* key) {
+cdpRecord* cdp_book_find_by_key(const cdpRecord* book, cdpRecord* key) {
     assert(cdp_record_is_catalog(book) && key);
     // ToDo: implement the whole catalog thing.
     return NULL;
@@ -449,7 +449,7 @@ cdpRecord* cdp_book_find_by_key(cdpRecord* book, cdpRecord* key) {
 /*
     Gets the record at index position from book.
 */
-cdpRecord* cdp_book_find_by_position(cdpRecord* book, size_t position) {
+cdpRecord* cdp_book_find_by_position(const cdpRecord* book, size_t position) {
     assert(cdp_record_is_book(book));
     cdpChdStore* store = CDP_STORE(book->recData.book.children);
     CDP_CK(store->chdCount);
@@ -482,17 +482,17 @@ cdpRecord* cdp_book_find_by_position(cdpRecord* book, size_t position) {
 /*
     Gets the record by its path from start record.
 */
-cdpRecord* cdp_book_find_by_path(cdpRecord* start, const cdpPath* path) {
+cdpRecord* cdp_book_find_by_path(const cdpRecord* start, const cdpPath* path) {
     assert(cdp_record_is_book(start) && path && path->length);
     CDP_CK(cdp_book_children(start));
-    cdpRecord* record = start;
+    const cdpRecord* record = start;
 
     for (unsigned depth = 0;  depth < path->length;  depth++) {
         record = cdp_book_find_by_name(record, path->id[depth]);
         if (!record) return NULL;
     }
 
-    return record;
+    return (cdpRecord*)record;
 }
 
 
@@ -502,7 +502,7 @@ cdpRecord* cdp_book_find_by_path(cdpRecord* start, const cdpPath* path) {
 /*
     Retrieves the previous sibling of record.
 */
-cdpRecord* cdp_book_prev(cdpRecord* book, cdpRecord* record) {
+cdpRecord* cdp_book_prev(const cdpRecord* book, cdpRecord* record) {
     assert(record);
     cdpChdStore* store;
     if (book) {
@@ -541,7 +541,7 @@ cdpRecord* cdp_book_prev(cdpRecord* book, cdpRecord* record) {
 /*
     Retrieves the next sibling of record (sorted or unsorted).
 */
-cdpRecord* cdp_book_next(cdpRecord* book, cdpRecord* record) {
+cdpRecord* cdp_book_next(const cdpRecord* book, cdpRecord* record) {
     assert(record);
     cdpChdStore* store;
     if (book) {
@@ -582,7 +582,7 @@ cdpRecord* cdp_book_next(cdpRecord* book, cdpRecord* record) {
 /*
     Retrieves the first/next child record by its id.
 */
-cdpRecord* cdp_book_find_next_by_name(cdpRecord* book, cdpID id, uintptr_t* childIdx) {
+cdpRecord* cdp_book_find_next_by_name(const cdpRecord* book, cdpID id, uintptr_t* childIdx) {
     if (cdp_record_is_dictionary(book) || !childIdx) {
         CDP_PTR_SEC_SET(childIdx, 0);
         return cdp_book_find_by_name(book, id);
@@ -616,19 +616,19 @@ cdpRecord* cdp_book_find_next_by_name(cdpRecord* book, cdpID id, uintptr_t* chil
 /*
     Gets the next record with the (same) id as specified for each branch.
 */
-cdpRecord* cdp_book_find_next_by_path(cdpRecord* start, cdpPath* path, uintptr_t* prev) {
+cdpRecord* cdp_book_find_next_by_path(const cdpRecord* start, cdpPath* path, uintptr_t* prev) {
     assert(cdp_record_is_book(start) && path && path->length);
     CDP_CK(cdp_book_children(start));
-    cdpRecord* record = start;
+    const cdpRecord* record = start;
 
     for (unsigned depth = 0;  depth < path->length;  depth++) {
         // FixMe: depth must be stored in a stack as well!
         // ...(pending)
-        record = cdp_book_find_by_next_by_name(record, path->id[depth], prev);
+        record = cdp_book_find_next_by_name(record, path->id[depth], prev);
         if (!record) return NULL;
     }
 
-    return record;
+    return (cdpRecord*)record;
 }
 
 
@@ -677,7 +677,7 @@ bool cdp_book_deep_traverse(cdpRecord* book, unsigned maxDepth, cdpRecordTravers
     bool ok = true;
     cdpRecord* child;
     unsigned depth = 0;
-    cdpBookEntry entry = {.record = cdp_record_first(book), .parent = book};
+    cdpBookEntry entry = {.record = cdp_book_first(book), .parent = book};
 
     // Non-recursive version of branch descent:
     cdpBookEntry* stack = (maxDepth > CDP_MAX_FAST_STACK_DEPTH)?  cdp_malloc(maxDepth * sizeof(cdpBookEntry)):  cdp_alloca(maxDepth * sizeof(cdpBookEntry));
@@ -729,7 +729,7 @@ bool cdp_book_deep_traverse(cdpRecord* book, unsigned maxDepth, cdpRecordTravers
 
         // Descent to children if it's a book.
         if (cdp_record_is_book(entry.record)
-        && ((child = cdp_record_top(entry.record, false)))) {
+        && ((child = cdp_book_first(entry.record)))) {
             assert(depth < maxDepth);
 
             stack[depth++] = entry;
@@ -825,7 +825,7 @@ void cdp_book_to_catalog(cdpRecord* book, cdpCompare compare, void* context) {
 
 static inline void record_delete_storage(cdpRecord* record, unsigned maxDepth) {
     assert(record && maxDepth);
-    assert(!cdp_record_has_shadows(record));
+    assert(!cdp_record_is_shadowed(record));
 
     // Delete storage (and children).
     RECORD_PRIMAL_SELECT(record->metadata.primal) {
@@ -876,7 +876,7 @@ static inline void record_delete_storage(cdpRecord* record, unsigned maxDepth) {
 */
 bool cdp_record_remove(cdpRecord* record, unsigned maxDepth) {
     assert(record && maxDepth);
-    assert(!cdp_record_has_shadows(record));
+    assert(!cdp_record_is_shadowed(record));
     cdpChdStore* store = cdp_record_chd_store(record);
     cdpRecord* book = store->book;
 

@@ -33,21 +33,13 @@
 #include "cdp_record.h"
 
 
-enum {
-    NAME_NONE = 0,
-    //
-    NAME_TEST_BOOK,
-    NAME_TEST_DICT,
-    NAME_UNSIGNED
-};
-
 
 static void test_records_print(cdpRecord* record, char *sval) {
     if (!record) {
         strcpy(sval, "None");
     } else if (cdp_record_is_book(record)) {
         sprintf(sval, "[%d]", record->metadata.id);
-    } else if (cdp_record_is_dict_or_cat(record)) {
+    } else if (cdp_record_is_dictionary(record)) {
         sprintf(sval, "{%d}", record->metadata.id);
     } else if (cdp_record_is_register(record)) {
         unsigned uval;
@@ -78,8 +70,8 @@ static void test_records_register_val(cdpRecord* reg, unsigned value) {
 
 static void test_records_zero_item_ops(cdpRecord* book) {
     assert_true(cdp_record_is_book(book));
-    assert_null(cdp_record_top(book, true));
-    assert_null(cdp_book_find_by_name(book, NAME_UNSIGNED));
+    assert_null(cdp_book_last(book));
+    assert_null(cdp_book_find_by_name(book, CDP_NAME_VALUE));
     assert_null(cdp_book_find_by_position(book, 0));
     cdpPath* path = cdp_alloca(sizeof(cdpPath) + (1 * sizeof(cdpID)));
     path->length = 1;
@@ -91,7 +83,7 @@ static void test_records_zero_item_ops(cdpRecord* book) {
 
 
 static void test_records_one_item_ops(cdpRecord* book, cdpRecord* reg) {
-    cdpRecord* found = cdp_record_top(book, true);
+    cdpRecord* found = cdp_book_last(book);
     assert_ptr_equal(found, reg);
     found = cdp_book_find_by_name(book, reg->metadata.id);
     assert_ptr_equal(found, reg);
@@ -108,22 +100,22 @@ static void test_records_one_item_ops(cdpRecord* book, cdpRecord* reg) {
 
 
 static void test_records_tech_book(unsigned storage) {
-    cdpRecord* book  = cdp_root_add_book(NAME_TEST_BOOK, storage+1, storage, 20);
+    cdpRecord* book  = cdp_book_add_book(cdp_root(), CDP_NAME_TEMP, CDP_TYPE_BOOK, storage, 20);
 
     /* One item operations */
 
     // Append, lookups and delete
     test_records_zero_item_ops(book);
     unsigned value = 1;
-    cdpRecord* reg = cdp_record_add_register(book, NAME_UNSIGNED, NAME_UNSIGNED, false, &value, sizeof(value));
+    cdpRecord* reg = cdp_book_add_uint32(book, CDP_NAME_VALUE, value);
     test_records_register_val(reg, value);
     test_records_one_item_ops(book, reg);
-    cdp_record_remove_register(reg);
+    cdp_register_remove(reg);
 
     // Push and lookups
     test_records_zero_item_ops(book);
     value = 1;
-    reg = cdp_record_prepend_register(book, NAME_UNSIGNED, NAME_UNSIGNED, false, &value, sizeof(value));
+    reg = cdp_book_prepend_uint32(book, CDP_NAME_VALUE, value);
     test_records_register_val(reg, value);
     test_records_one_item_ops(book, reg);
 
@@ -139,13 +131,13 @@ static void test_records_tech_book(unsigned storage) {
         if (cdp_book_children(book) > 2) {
             switch (munit_rand_int_range(0, 2)) {
               case 1:
-                cdp_record_remove_register(cdp_record_top(book, false));
-                found = cdp_record_top(book, false);
+                cdp_register_remove(cdp_book_first(book));
+                found = cdp_book_first(book);
                 cdp_register_read(found, 0, &first, NULL);
                 break;
               case 2:
-                cdp_record_remove_register(cdp_record_top(book, true));
-                found = cdp_record_top(book, true);
+                cdp_register_remove(cdp_book_last(book));
+                found = cdp_book_last(book);
                 cdp_register_read(found, 0, &last, NULL);
                 break;
             }
@@ -155,24 +147,24 @@ static void test_records_tech_book(unsigned storage) {
         if (munit_rand_uint32() & 1) {
             index = cdp_book_children(book);
 
-            reg = cdp_record_add_register(book, NAME_UNSIGNED+n, NAME_UNSIGNED+n, false, &value, sizeof(value));
+            reg = cdp_bool_add_uint32(book, CDP_NAME_VALUE+n, value);
             test_records_register_val(reg, value);
 
-            found = cdp_record_top(book, false);
+            found = cdp_book_first(book);
             test_records_register_val(found, first);
-            found = cdp_record_top(book, true);
+            found = cdp_book_last(book);
             test_records_register_val(found, value);
 
             last = value;
         } else {
             index = 0;
 
-            reg = cdp_record_prepend_register(book, NAME_UNSIGNED+n, NAME_UNSIGNED+n, false, &value, sizeof(value));
+            reg = cdp_record_prepend_register(book, CDP_NAME_VALUE+n, CDP_NAME_VALUE+n, false, &value, sizeof(value));
             test_records_register_val(reg, value);
 
-            found = cdp_record_top(book, false);
+            found = cdp_book_first(book);
             test_records_register_val(found, value);
-            found = cdp_record_top(book, true);
+            found = cdp_book_last(book);
             test_records_register_val(found, last);
 
             first = value;
@@ -194,7 +186,7 @@ static void test_records_tech_book(unsigned storage) {
     /* Nested books */
 
     cdpRecord* chdBook = cdp_record_add_book(book, NAME_TEST_BOOK, NAME_TEST_BOOK, storage, 20);
-    reg = cdp_record_prepend_register(chdBook, NAME_UNSIGNED+30, NAME_UNSIGNED+30, false, &value, sizeof(value));
+    reg = cdp_record_prepend_register(chdBook, CDP_NAME_VALUE+30, CDP_NAME_VALUE+30, false, &value, sizeof(value));
     test_records_register_val(reg, value);
     assert_true(cdp_book_deep_traverse(book, 3, print_values, NULL, NULL));
 
@@ -210,10 +202,10 @@ static void test_records_tech_dictionary(unsigned storage) {
     // Isert, lookups and delete
     test_records_zero_item_ops(dict);
     unsigned value = 1;
-    cdpRecord* reg = cdp_record_add_register(dict, NAME_UNSIGNED, NAME_UNSIGNED, false, &value, sizeof(value));
+    cdpRecord* reg = cdp_record_add_register(dict, CDP_NAME_VALUE, CDP_NAME_VALUE, false, &value, sizeof(value));
     test_records_register_val(reg, value);
     test_records_one_item_ops(dict, reg);
-    cdp_record_remove_register(reg);
+    cdp_register_remove(reg);
 
     // Multi-item ops
     cdpPath* path = cdp_alloca(sizeof(cdpPath) + (1 * sizeof(cdpID)));
@@ -226,12 +218,12 @@ static void test_records_tech_dictionary(unsigned storage) {
         if (cdp_book_children(dict) > 2) {
             switch (munit_rand_int_range(0, 2)) {
               case 1:
-                cdp_record_remove_register(cdp_record_top(dict, false));
+                cdp_register_remove(cdp_record_top(dict, false));
                 found = cdp_record_top(dict, false);
                 cdp_register_read(found, 0, &vmin, NULL);
                 break;
               case 2:
-                cdp_record_remove_register(cdp_record_top(dict, true));
+                cdp_register_remove(cdp_record_top(dict, true));
                 found = cdp_record_top(dict, true);
                 cdp_register_read(found, 0, &vmax, NULL);
                 break;
@@ -240,7 +232,7 @@ static void test_records_tech_dictionary(unsigned storage) {
 
         do {
             value = munit_rand_int_range(1, 1000);
-            name = NAME_UNSIGNED + value;
+            name = CDP_NAME_VALUE + value;
             found = cdp_book_find_by_name(dict, name);
         } while (found);
         if (value < vmin)   vmin = value;
@@ -274,7 +266,7 @@ static void test_records_tech_dictionary(unsigned storage) {
     /* Nested books */
 
     cdpRecord* chdDict = cdp_record_add_dictionary(dict, NAME_TEST_DICT+2000, NAME_TEST_DICT, storage, NULL, NULL, 20);
-    reg = cdp_record_add_register(chdDict, NAME_UNSIGNED, NAME_UNSIGNED, false, &value, sizeof(value));
+    reg = cdp_record_add_register(chdDict, CDP_NAME_VALUE, CDP_NAME_VALUE, false, &value, sizeof(value));
     test_records_register_val(reg, value);
     assert_true(cdp_book_deep_traverse(dict, 3, print_values, NULL, NULL));
 
@@ -292,21 +284,21 @@ static void test_records_tech_sequencing_book(void) {
 
     for (unsigned n = 0; n < maxItems;  n++) {
         unsigned value = 1 + (munit_rand_uint32() % (maxItems>>1));
-        unsigned name = NAME_UNSIGNED + value;
+        unsigned name = CDP_NAME_VALUE + value;
 
-        if ((foundL = cdp_book_find_by_name(bookL, name))) cdp_record_remove_register(foundL);
-        if ((foundA = cdp_book_find_by_name(bookA, name))) cdp_record_remove_register(foundA);
+        if ((foundL = cdp_book_find_by_name(bookL, name))) cdp_register_remove(foundL);
+        if ((foundA = cdp_book_find_by_name(bookA, name))) cdp_register_remove(foundA);
         assert((!foundL && !foundA) || (foundL && foundA));
 
         if (cdp_book_children(bookL)) {
             switch (munit_rand_int_range(0, 4)) {
               case 1:
-                cdp_record_remove_register(cdp_record_top(bookL, false));
-                cdp_record_remove_register(cdp_record_top(bookA, false));
+                cdp_register_remove(cdp_record_top(bookL, false));
+                cdp_register_remove(cdp_record_top(bookA, false));
                 break;
               case 2:
-                cdp_record_remove_register(cdp_record_top(bookL, true));
-                cdp_record_remove_register(cdp_record_top(bookA, true));
+                cdp_register_remove(cdp_record_top(bookL, true));
+                cdp_register_remove(cdp_record_top(bookA, true));
                 break;
             }
         }
@@ -344,24 +336,24 @@ static void test_records_tech_sequencing_dictionary(void) {
 
     for (unsigned n = 0; n < maxItems;  n++) {
         unsigned value = 1 + (munit_rand_uint32() % (maxItems>>1));
-        unsigned name = NAME_UNSIGNED + value;
+        unsigned name = CDP_NAME_VALUE + value;
 
-        if ((foundL = cdp_book_find_by_name(dictL, name))) cdp_record_remove_register(foundL);
-        if ((foundA = cdp_book_find_by_name(dictA, name))) cdp_record_remove_register(foundA);
-        if ((foundT = cdp_book_find_by_name(dictT, name))) cdp_record_remove_register(foundT);
+        if ((foundL = cdp_book_find_by_name(dictL, name))) cdp_register_remove(foundL);
+        if ((foundA = cdp_book_find_by_name(dictA, name))) cdp_register_remove(foundA);
+        if ((foundT = cdp_book_find_by_name(dictT, name))) cdp_register_remove(foundT);
         assert((!foundL && !foundA && !foundT) || (foundL && foundA && foundT));
 
         if (cdp_book_children(dictL)) {
             switch (munit_rand_int_range(0, 4)) {
               case 1:
-                cdp_record_remove_register(cdp_record_top(dictL, false));
-                cdp_record_remove_register(cdp_record_top(dictA, false));
-                cdp_record_remove_register(cdp_record_top(dictT, false));
+                cdp_register_remove(cdp_record_top(dictL, false));
+                cdp_register_remove(cdp_record_top(dictA, false));
+                cdp_register_remove(cdp_record_top(dictT, false));
                 break;
               case 2:
-                cdp_record_remove_register(cdp_record_top(dictL, true));
-                cdp_record_remove_register(cdp_record_top(dictA, true));
-                cdp_record_remove_register(cdp_record_top(dictT, true));
+                cdp_register_remove(cdp_record_top(dictL, true));
+                cdp_register_remove(cdp_record_top(dictA, true));
+                cdp_register_remove(cdp_record_top(dictT, true));
                 break;
             }
         }
