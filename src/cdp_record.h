@@ -199,8 +199,8 @@ enum _CDP_TYPE_PRIMAL {
 enum _CDP_TYPE {
     // Book types
     CDP_TYPE_LIST = CDP_TYPE_PRIMAL_COUNT,
-    CDP_TYPE_SET,
     CDP_TYPE_QUEUE,
+    CDP_TYPE_STACK,
     //
     CDP_TYPE_DICTIONARY,
     CDP_TYPE_CATALOG,
@@ -362,18 +362,18 @@ static inline bool cdp_record_is_dict_or_cat(const cdpRecord* record)  {assert(r
 
 
 // Parent properties
-#define CDP_STORE(children)             ({assert(children);  (cdpChdStore*)(children);})
-#define cdp_record_chd_store(record)    CDP_STORE((record)->store)
-static inline cdpRecord* cdp_record_parent  (const cdpRecord* record)  {assert(record);  return CDP_EXPECT_PTR(record->store)? cdp_record_chd_store(record)->book: NULL;}
-static inline size_t     cdp_record_siblings(const cdpRecord* record)  {assert(record);  return CDP_EXPECT_PTR(record->store)? cdp_record_chd_store(record)->chdCount: 0;}
+#define CDP_CHD_STORE(children)         ({assert(children);  (cdpChdStore*)(children);})
+#define cdp_record_par_store(record)    CDP_CHD_STORE((record)->store)
+static inline cdpRecord* cdp_record_parent  (const cdpRecord* record)   {assert(record);  return CDP_EXPECT_PTR(record->store)? cdp_record_par_store(record)->book: NULL;}
+static inline size_t     cdp_record_siblings(const cdpRecord* record)   {assert(record);  return CDP_EXPECT_PTR(record->store)? cdp_record_par_store(record)->chdCount: 0;}
 
 
 // Register property check
 static inline bool cdp_register_is_borrowed(const cdpRecord* reg)  {assert(cdp_record_is_register(reg));  return (reg->metadata.storeTech == CDP_STO_REG_BORROWED);}
 
 // Book property check
-static inline size_t cdp_book_children(const cdpRecord* book)   {assert(cdp_record_is_book(book));  return CDP_STORE(book->recData.book.children)->chdCount;}
-static inline bool   cdp_book_pushable(const cdpRecord* book)   {assert(cdp_record_is_book(book));  return (book->metadata.storeTech != CDP_STO_CHD_RED_BLACK_T);}
+static inline size_t cdp_book_children(const cdpRecord* book)       {assert(cdp_record_is_book(book));  return CDP_CHD_STORE(book->recData.book.children)->chdCount;}
+static inline bool   cdp_book_prependable(const cdpRecord* book)    {assert(cdp_record_is_book(book));  return (book->metadata.storeTech != CDP_STO_CHD_RED_BLACK_T);}
 
 
 // Appends, inserts or prepends a new record into a book.
