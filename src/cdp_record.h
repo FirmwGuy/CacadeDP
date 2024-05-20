@@ -480,7 +480,8 @@ void cdp_record_system_shutdown(void);
 
 /*
     TODO:
-    - Implement create book from static struct (would be used for ROOT).
+    - Implement record creation from static struct (would be used for ROOT).
+    - Implement catalog.
     - Implement auto-increment in books.
     - Redefine user callback based on typed book ops.
     - Add book properties dict to cdpVariantBook.
