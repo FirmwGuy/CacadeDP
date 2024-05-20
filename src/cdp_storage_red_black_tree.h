@@ -130,13 +130,13 @@ static inline void rb_tree_fix_insert(cdpRbTree* tree, cdpRbTreeNode* z) {
     tree->root->isRed = false;
 }
 
-static inline cdpRecord* rb_tree_add(cdpRbTree* tree, cdpRecord* parent, cdpMetadata* metadata) {
+static inline cdpRecord* rb_tree_add(cdpRbTree* tree, cdpRecord* parent, const cdpRecord* record) {
     assert(cdp_record_is_dict_or_cat(parent));
 
     CDP_NEW(cdpRbTreeNode, tnode);
     tnode->isRed = true;
     cdpRecord* child = &tnode->record;
-    child->metadata = *metadata;
+    *child = *record;
 
     if (tree->root) {
         cdpRbTreeNode* x = tree->root, *y;
@@ -405,7 +405,7 @@ static inline void rb_tree_del_all_children_recursively(cdpRbTreeNode* tnode, un
     if (tnode->left)
         rb_tree_del_all_children_recursively(tnode->left, maxDepth);
 
-    record_delete_storage(&tnode->record, maxDepth - 1);
+    cdp_record_finalize(&tnode->record, maxDepth - 1);
 
     if (tnode->right)
         rb_tree_del_all_children_recursively(tnode->right, maxDepth);

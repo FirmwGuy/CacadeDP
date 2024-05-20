@@ -346,6 +346,9 @@ typedef bool (*cdpRecordTraverse)(cdpBookEntry*, unsigned, void*);
  * Record Operations
  */
 
+bool cdp_record_initiate(cdpRecord* record, unsigned primal, unsigned attrib, cdpID id, uint32_t type, ...);
+void cdp_record_finalize(cdpRecord* record, unsigned maxDepth);
+
 // General property check
 static inline bool cdp_record_is_none       (const cdpRecord* record)  {assert(record);  return (record->metadata.primal == CDP_TYPE_NONE);}
 static inline bool cdp_record_is_book       (const cdpRecord* record)  {assert(record);  return (record->metadata.primal == CDP_TYPE_BOOK);}
@@ -369,15 +372,16 @@ static inline size_t     cdp_record_siblings(const cdpRecord* record)   {assert(
 
 
 // Register property check
-static inline bool cdp_register_is_borrowed(const cdpRecord* reg)  {assert(cdp_record_is_register(reg));  return (reg->metadata.storeTech == CDP_STO_REG_BORROWED);}
+static inline bool cdp_register_is_borrowed(const cdpRecord* reg)   {assert(cdp_record_is_register(reg));  return (reg->metadata.storeTech == CDP_STO_REG_BORROWED);}
 
 // Book property check
 static inline size_t cdp_book_children(const cdpRecord* book)       {assert(cdp_record_is_book(book));  return CDP_CHD_STORE(book->recData.book.children)->chdCount;}
 static inline bool   cdp_book_prependable(const cdpRecord* book)    {assert(cdp_record_is_book(book));  return (book->metadata.storeTech != CDP_STO_CHD_RED_BLACK_T);}
 
 
-// Appends, inserts or prepends a new record into a book.
-cdpRecord* cdp_book_add(cdpRecord* parent, unsigned primal, unsigned attribute, cdpID id, uint32_t type, bool prepend, ...);
+// Appends, inserts or prepends a copy of record into a book.
+cdpRecord* cdp_book_add_record(cdpRecord* book, cdpRecord* record, bool prepend);
+#define cdp_book_add(b, primal, attribute, id, type, prepend, ...)  ({cdpRecord r={0}; cdp_record_initiate(&r, primal, attribute, id, type, ##__VA_ARGS__)? cdp_book_add_record(b, &r, prepend): NULL;})
 
 #define cdp_book_add_register(b, attrib, id, type, borrow, data, size)          cdp_book_add(b, CDP_TYPE_REGISTER, attrib, id, type, false, ((unsigned)(borrow)), data, ((size_t)(size)))
 #define cdp_book_prepend_register(b, attrib, id, type, borrow, data, size)      cdp_book_add(b, CDP_TYPE_REGISTER, attrib, id, type,  true, ((unsigned)(borrow)), data, ((size_t)(size)))
@@ -387,7 +391,7 @@ static inline cdpRecord* cdp_book_add_text(cdpRecord* book, cdpID id, const char
 
 #define CDP_FUNC_ADD_VAL_(func, ctype, rtype)                                  \
     static inline cdpRecord* cdp_book_add_##func(cdpRecord* book, cdpID id, ctype value)    {assert(cdp_record_is_book(book));  return cdp_book_add_register(book, 0, id, rtype, false, &value, sizeof(value));}\
-    static inline cdpRecord* cdp_book_prepend_##func(cdpRecord* book, cdpID id, ctype value){assert(cdp_record_is_book(book));  return cdp_book_prepend_register(book, 0, id, rtype, false, &value, sizeof(value));}
+    static inline cdpRecord* cdp_book_prepend_##func(cdpRecord* book, cdpID id, ctype value){assert(cdp_book_prependable(book));  return cdp_book_prepend_register(book, 0, id, rtype, false, &value, sizeof(value));}
 
     CDP_FUNC_ADD_VAL_(boolean, uint8_t,  CDP_TYPE_BOOLEAN)
     CDP_FUNC_ADD_VAL_(byte,    uint8_t,  CDP_TYPE_BYTE)
@@ -480,7 +484,6 @@ void cdp_record_system_shutdown(void);
 
 /*
     TODO:
-    - Implement record creation from static struct (would be used for ROOT).
     - Implement catalog.
     - Implement auto-increment in books.
     - Redefine user callback based on typed book ops.

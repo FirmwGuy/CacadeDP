@@ -68,8 +68,6 @@ static inline int record_compare_by_name_s(const cdpRecord* restrict key, const 
     while (0)
 
 
-static inline void record_delete_storage(cdpRecord* record, unsigned maxDepth);
-
 
 
 /*
@@ -90,24 +88,15 @@ static inline void record_delete_storage(cdpRecord* record, unsigned maxDepth);
  ***********************************************/
 
 
-/* The root dictionary is the same as "/" in text paths.
-*/
-cdpRecord ROOT = {.metadata = {
-    .primal    = CDP_TYPE_BOOK,
-    .id        = CDP_NAME_ROOT,
-    .type      = CDP_TYPE_DICTIONARY,
-    .storeTech = CDP_STO_CHD_ARRAY
-}};
+cdpRecord ROOT;
 
 
 /*
     Initiates the record system.
 */
 void cdp_record_system_initiate(void) {
-    assert(!ROOT.recData.book.children);
-    cdpArray* array = array_new(8);
-    array->store.book = &ROOT;
-    ROOT.recData.book.children = array;
+    // The root dictionary is the same as "/" in text paths.
+    cdp_record_initiate(&ROOT, CDP_TYPE_BOOK, 0, CDP_NAME_ROOT, CDP_TYPE_DICTIONARY, CDP_STO_CHD_ARRAY, 16);
 }
 
 
@@ -115,13 +104,13 @@ void cdp_record_system_initiate(void) {
     Shutdowns the record system.
 */
 void cdp_record_system_shutdown(void) {
-    assert(ROOT.recData.book.children);
-    cdpArray* array = ROOT.recData.book.children;
-    ROOT.recData.book.children = NULL;
-    array_del(array);
+    cdp_record_finalize(&ROOT, 64);   // FixMe: maxDepth.
 }
 
-static inline void* record_create_storage(unsigned storage, va_list args) {
+
+
+
+static inline void* book_create_storage(unsigned storage, va_list args) {
     STORE_TECH_SELECT(storage) {
       LINKED_LIST: {
         return list_new();
@@ -145,46 +134,21 @@ static inline void* record_create_storage(unsigned storage, va_list args) {
 
 
 /*
-    Creates a new record of the specified primal on parent book.
+    Initiates a record struct with the requested parameters.
 */
-cdpRecord* cdp_book_add(cdpRecord* parent, unsigned primal, unsigned attrib, cdpID id, uint32_t type, bool prepend, ...) {
-    assert(cdp_record_is_book(parent) && primal && type);
-    attrib &= CDP_ATTRIB_PUB_MASK;
-    cdpChdStore* store = CDP_CHD_STORE(parent->recData.book.children);
-    CDP_DEBUG(if (cdp_record_is_dictionary(parent)) assert(!prepend && !store->compare););    // Only sorting by name is allowed in here.
-    cdpMetadata metadata = {.primal = primal, .attribute = attrib, .id = id, .type = type};
-    cdpRecord* child;
+bool cdp_record_initiate(cdpRecord* record, unsigned primal, unsigned attrib, cdpID id, uint32_t type, ...) {
+    assert(record && primal && type);
+    //CDP_0(record);
 
-    // Add new record to parent book.
-    STORE_TECH_SELECT(parent->metadata.storeTech) {
-      LINKED_LIST: {
-        child = list_add(parent->recData.book.children, parent, prepend, &metadata);
-        break;
-      }
-      ARRAY: {
-        child = array_add(parent->recData.book.children, parent, prepend, &metadata);
-        break;
-      }
-      PACKED_QUEUE: {
-        child = packed_q_add(parent->recData.book.children, parent, prepend, &metadata);
-        break;
-      }
-      RED_BLACK_T: {
-        child = rb_tree_add(parent->recData.book.children, parent, &metadata);
-        break;
-      }
-    } SELECTION_END;
-
-    // Update child.
-    child->store = store;
-
-    // Update parent.
-    store->chdCount++;
+    record->metadata.attribute = attrib & CDP_ATTRIB_PUB_MASK;
+    record->metadata.primal    = primal;
+    record->metadata.id        = id;
+    record->metadata.type      = type;
 
     // Create child record storage.
     //
     va_list args;
-    va_start(args, prepend);
+    va_start(args, type);
 
     RECORD_PRIMAL_SELECT(primal) {
       BOOK: {
@@ -196,7 +160,7 @@ cdpRecord* cdp_book_add(cdpRecord* parent, unsigned primal, unsigned attrib, cdp
             void*      context = va_arg(args, void*);
             assert(reqStore != CDP_STO_CHD_PACKED_QUEUE);
 
-            chdStore = record_create_storage(reqStore, args);
+            chdStore = book_create_storage(reqStore, args);
             chdStore->compare = compare;
             chdStore->context = context;
         } else {
@@ -207,13 +171,13 @@ cdpRecord* cdp_book_add(cdpRecord* parent, unsigned primal, unsigned attrib, cdp
                     assert(reqStore != CDP_STO_CHD_RED_BLACK_T);    // Any other type of book should be prependable.
             );
 
-            chdStore = record_create_storage(reqStore, args);
+            chdStore = book_create_storage(reqStore, args);
         }
 
-        // Link child book with its own (grand) child storage.
-        chdStore->book = child;
-        child->metadata.storeTech = reqStore;
-        child->recData.book.children = chdStore;
+        // Link book record with its children storage.
+        chdStore->book = record;
+        record->metadata.storeTech = reqStore;
+        record->recData.book.children = chdStore;
         break;
       }
 
@@ -223,18 +187,18 @@ cdpRecord* cdp_book_add(cdpRecord* parent, unsigned primal, unsigned attrib, cdp
         size_t size   = va_arg(args, size_t);
         assert(size);
 
-        // Allocate storage for child register.
+        // Allocate storage for register record.
         if (borrow) {
             assert(data);
-            child->recData.reg.data.ptr = data;
-            child->metadata.storeTech = CDP_STO_REG_BORROWED;
+            record->recData.reg.data.ptr = data;
+            record->metadata.storeTech = CDP_STO_REG_BORROWED;
         } else if (data) {
-            child->recData.reg.data.ptr = cdp_malloc(size);
-            memcpy(child->recData.reg.data.ptr, data, size);
+            record->recData.reg.data.ptr = cdp_malloc(size);
+            memcpy(record->recData.reg.data.ptr, data, size);
         }
         else
-            child->recData.reg.data.ptr = cdp_malloc0(size);
-        child->recData.reg.size = size;
+            record->recData.reg.data.ptr = cdp_malloc0(size);
+        record->recData.reg.size = size;
         break;
       }
 
@@ -243,6 +207,49 @@ cdpRecord* cdp_book_add(cdpRecord* parent, unsigned primal, unsigned attrib, cdp
     } SELECTION_END;
 
     va_end(args);
+
+    return true;
+}
+
+
+
+
+/*
+    Adds/inserts a *copy* of the specified record to a book.
+*/
+cdpRecord* cdp_book_add_record(cdpRecord* book, cdpRecord* record, bool prepend) {
+    assert(cdp_record_is_book(book) && !cdp_record_is_none(record));    // 'None' type of records are never inserted in books.
+    cdpChdStore* store = CDP_CHD_STORE(book->recData.book.children);
+    CDP_DEBUG(if (cdp_record_is_dictionary(book)) assert(!prepend && !store->compare););    // Only sorting by name is allowed in here.
+    cdpRecord* child;
+
+    // Add new record to parent book.
+    STORE_TECH_SELECT(book->metadata.storeTech) {
+      LINKED_LIST: {
+        child = list_add(book->recData.book.children, book, prepend, record);
+        break;
+      }
+      ARRAY: {
+        child = array_add(book->recData.book.children, book, prepend, record);
+        break;
+      }
+      PACKED_QUEUE: {
+        child = packed_q_add(book->recData.book.children, book, prepend, record);
+        break;
+      }
+      RED_BLACK_T: {
+        child = rb_tree_add(book->recData.book.children, book, record);
+        break;
+      }
+    } SELECTION_END;
+
+    record->metadata.type = CDP_TYPE_NONE;
+
+    // Update child.
+    child->store = store;
+
+    // Update parent.
+    store->chdCount++;
 
     return child;
 }
@@ -824,8 +831,11 @@ void cdp_book_to_catalog(cdpRecord* book, cdpCompare compare, void* context) {
 }
 
 
-static inline void record_delete_storage(cdpRecord* record, unsigned maxDepth) {
-    assert(record && maxDepth);
+/*
+    De-initiates a record.
+*/
+void cdp_record_finalize(cdpRecord* record, unsigned maxDepth) {
+    assert(!cdp_record_is_none(record) && maxDepth);
     assert(!cdp_record_is_shadowed(record));
 
     // Delete storage (and children).
@@ -882,7 +892,7 @@ bool cdp_record_remove(cdpRecord* record, unsigned maxDepth) {
     cdpRecord* book = store->book;
 
     // Delete storage (along children, if any).
-    record_delete_storage(record, maxDepth);
+    cdp_record_finalize(record, maxDepth);
 
     // Remove this record from its parent (re-organizing siblings).
     STORE_TECH_SELECT(book->metadata.storeTech) {

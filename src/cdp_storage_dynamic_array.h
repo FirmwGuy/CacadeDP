@@ -51,7 +51,7 @@ static inline void array_del(cdpArray* array) {
 }
 
 
-static inline cdpRecord* array_search(cdpArray* array, void* key, cdpCompare compare, void* context, size_t* index) {
+static inline cdpRecord* array_search(cdpArray* array, const void* key, cdpCompare compare, void* context, size_t* index) {
     size_t imax = cdp_ptr_has_val(index)? *index - 1: array->store.chdCount - 1;
     size_t imin = 0, i;
     cdpRecord* record;
@@ -84,7 +84,7 @@ static inline void array_update_children_parent_ptr(cdpRecord* record, cdpRecord
 }
 
 
-static inline cdpRecord* array_add(cdpArray* array, cdpRecord* parent, bool prepend, cdpMetadata* metadata) {
+static inline cdpRecord* array_add(cdpArray* array, cdpRecord* parent, bool prepend, const cdpRecord* record) {
     // Increase array space if necessary
     if (array->capacity == array->store.chdCount) {
         assert(array->capacity);
@@ -99,9 +99,8 @@ static inline cdpRecord* array_add(cdpArray* array, cdpRecord* parent, bool prep
     if (array->store.chdCount) {
         if (cdp_record_is_dictionary(parent)) {   // FixMe: catalog.
             // Sorted
-            cdpRecord key = {.metadata = *metadata};
             size_t index = 0;
-            cdpRecord* prev = array_search(array, &key, record_compare_by_name_s, array->store.context, &index);
+            cdpRecord* prev = array_search(array, record, record_compare_by_name_s, array->store.context, &index);
             if (prev) {
                 // FixMe: delete children.
                 assert(prev);
@@ -125,7 +124,7 @@ static inline cdpRecord* array_add(cdpArray* array, cdpRecord* parent, bool prep
     } else {
             child = array->record;
     }
-    child->metadata = *metadata;
+    *child = *record;
     return child;
 }
 
@@ -224,7 +223,7 @@ static inline void array_remove_record(cdpArray* array, cdpRecord* record) {
 static inline void array_del_all_children(cdpArray* array, unsigned maxDepth) {
     cdpRecord* child = array->record;
     for (size_t n = 0; n < array->store.chdCount; n++, child++) {
-        record_delete_storage(child, maxDepth - 1);
+        cdp_record_finalize(child, maxDepth - 1);
         CDP_0(child);   // ToDo: this may be skipped.
     }
 }

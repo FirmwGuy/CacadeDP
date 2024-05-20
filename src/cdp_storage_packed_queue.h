@@ -69,9 +69,9 @@ static inline cdpPackedQNode* packed_q_node_from_record(cdpPackedQ* pkdq, cdpRec
 }
 
 
-static inline cdpRecord* packed_q_add(cdpPackedQ* pkdq, cdpRecord* parent, bool prepend, cdpMetadata* metadata) {
+static inline cdpRecord* packed_q_add(cdpPackedQ* pkdq, cdpRecord* parent, bool prepend, const cdpRecord* record) {
     assert(cdp_record_is_book(parent));
-    
+
     cdpRecord* child;
     if (pkdq->store.chdCount) {
         if (prepend) {
@@ -106,8 +106,8 @@ static inline cdpRecord* packed_q_add(cdpPackedQ* pkdq, cdpRecord* parent, bool 
             pkdq->pTail = pkdq->pHead = pNode;
             child = pNode->last;
     }
-    child->metadata = *metadata;
-    
+    *child = *record;
+
     return child;
 }
 
@@ -236,7 +236,7 @@ static inline void packed_q_del_all_children(cdpPackedQ* pkdq, unsigned maxDepth
     if (pNode) {
         do {
             for (cdpRecord* record = pNode->first;  record <= pNode->last;  record++) {
-                record_delete_storage(record, maxDepth - 1);
+                cdp_record_finalize(record, maxDepth - 1);
             }
             toDel = pNode;
             pNode = pNode->pNext;

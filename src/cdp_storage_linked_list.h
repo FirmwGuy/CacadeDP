@@ -54,9 +54,9 @@ static inline cdpListNode* list_node_from_record(cdpRecord* record) {
 }
 
 
-static inline cdpRecord* list_add(cdpList* list, cdpRecord* parent, bool prepend, cdpMetadata* metadata) {
+static inline cdpRecord* list_add(cdpList* list, cdpRecord* parent, bool prepend, const cdpRecord* record) {
     CDP_NEW(cdpListNode, node);
-    node->record.metadata = *metadata;
+    node->record = *record;
 
     if (list->store.chdCount && cdp_record_is_dictionary(parent)) {  // FixMe: catalog.
         // Sorted insert
@@ -236,7 +236,7 @@ static inline void list_del_all_children(cdpList* list, unsigned maxDepth) {
     cdpListNode* node = list->head, *toDel;
     if (node) {
         do {
-            record_delete_storage(&node->record, maxDepth - 1);
+            cdp_record_finalize(&node->record, maxDepth - 1);
             toDel = node;
             node = node->next;
             cdp_free(toDel);
