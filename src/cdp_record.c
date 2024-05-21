@@ -96,7 +96,7 @@ cdpRecord ROOT;
 */
 void cdp_record_system_initiate(void) {
     // The root dictionary is the same as "/" in text paths.
-    cdp_record_initiate(&ROOT, CDP_TYPE_BOOK, 0, CDP_NAME_ROOT, CDP_TYPE_DICTIONARY, CDP_STO_CHD_ARRAY, 16);
+    cdp_record_initialize(&ROOT, CDP_TYPE_BOOK, 0, CDP_NAME_ROOT, CDP_TYPE_DICTIONARY, CDP_STO_CHD_ARRAY, 16);
 }
 
 
@@ -136,7 +136,7 @@ static inline void* book_create_storage(unsigned storage, va_list args) {
 /*
     Initiates a record struct with the requested parameters.
 */
-bool cdp_record_initiate(cdpRecord* record, unsigned primal, unsigned attrib, cdpID id, uint32_t type, ...) {
+bool cdp_record_initialize(cdpRecord* record, unsigned primal, unsigned attrib, cdpID id, uint32_t type, ...) {
     assert(record && primal && type);
     //CDP_0(record);
 
@@ -247,6 +247,9 @@ cdpRecord* cdp_book_add_record(cdpRecord* book, cdpRecord* record, bool prepend)
 
     // Update child.
     child->store = store;
+
+    if (cdp_record_is_book(child))
+        CDP_CHD_STORE(child->recData.book.children)->book = child;    // Re-link copy of child book with its own children storage.
 
     // Update parent.
     store->chdCount++;

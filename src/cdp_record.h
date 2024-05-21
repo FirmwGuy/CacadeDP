@@ -346,7 +346,7 @@ typedef bool (*cdpRecordTraverse)(cdpBookEntry*, unsigned, void*);
  * Record Operations
  */
 
-bool cdp_record_initiate(cdpRecord* record, unsigned primal, unsigned attrib, cdpID id, uint32_t type, ...);
+bool cdp_record_initialize(cdpRecord* record, unsigned primal, unsigned attrib, cdpID id, uint32_t type, ...);
 void cdp_record_finalize(cdpRecord* record, unsigned maxDepth);
 
 // General property check
@@ -381,7 +381,7 @@ static inline bool   cdp_book_prependable(const cdpRecord* book)    {assert(cdp_
 
 // Appends, inserts or prepends a copy of record into a book.
 cdpRecord* cdp_book_add_record(cdpRecord* book, cdpRecord* record, bool prepend);
-#define cdp_book_add(b, primal, attribute, id, type, prepend, ...)  ({cdpRecord r={0}; cdp_record_initiate(&r, primal, attribute, id, type, ##__VA_ARGS__)? cdp_book_add_record(b, &r, prepend): NULL;})
+#define cdp_book_add(b, primal, attribute, id, type, prepend, ...)  ({cdpRecord r={0}; cdp_record_initialize(&r, primal, attribute, id, type, ##__VA_ARGS__)? cdp_book_add_record(b, &r, prepend): NULL;})
 
 #define cdp_book_add_register(b, attrib, id, type, borrow, data, size)          cdp_book_add(b, CDP_TYPE_REGISTER, attrib, id, type, false, ((unsigned)(borrow)), data, ((size_t)(size)))
 #define cdp_book_prepend_register(b, attrib, id, type, borrow, data, size)      cdp_book_add(b, CDP_TYPE_REGISTER, attrib, id, type,  true, ((unsigned)(borrow)), data, ((size_t)(size)))
