@@ -84,6 +84,22 @@ static inline void array_update_children_parent_ptr(cdpRecord* record, cdpRecord
 }
 
 
+static inline cdpRecord* array_sorted_insert(cdpArray* array, cdpRecord* record, cdpCompare compare, void* context) {
+    size_t index = 0;
+    cdpRecord* prev = array_search(array, record, compare, context, &index);
+    if (prev) {
+        // FixMe: delete children.
+        assert(prev);
+    }
+    child = &array->record[index];
+    if (index < array->store.chdCount) {
+        memmove(child + 1, child, array->store.chdCount * sizeof(cdpRecord));
+        array_update_children_parent_ptr(child + 1, &array->record[array->store.chdCount]);
+        CDP_0(child);
+    }
+    return child;
+}
+
 static inline cdpRecord* array_add(cdpArray* array, cdpRecord* parent, bool prepend, const cdpRecord* record) {
     // Increase array space if necessary
     if (array->capacity == array->store.chdCount) {
@@ -97,20 +113,10 @@ static inline cdpRecord* array_add(cdpArray* array, cdpRecord* parent, bool prep
     // Insert
     cdpRecord* child;
     if (array->store.chdCount) {
-        if (cdp_record_is_dictionary(parent)) {   // FixMe: catalog.
-            // Sorted
-            size_t index = 0;
-            cdpRecord* prev = array_search(array, record, record_compare_by_name_s, array->store.context, &index);
-            if (prev) {
-                // FixMe: delete children.
-                assert(prev);
-            }
-            child = &array->record[index];
-            if (index < array->store.chdCount) {
-                memmove(child + 1, child, array->store.chdCount * sizeof(cdpRecord));
-                array_update_children_parent_ptr(child + 1, &array->record[array->store.chdCount]);
-                CDP_0(child);
-            }
+        if (cdp_record_is_dictionary(parent)) {
+            child = array_sorted_insert(array, record, record_compare_by_name, NULL);
+        } else if (cdp_record_is_catalog(parent)) {
+            child = array_sorted_insert(array, record, array->store->sorter.compare, array->store->sorter.context);
         } else if (prepend) {
             // Prepend
             child = array->record;
@@ -122,9 +128,10 @@ static inline cdpRecord* array_add(cdpArray* array, cdpRecord* parent, bool prep
             child = &array->record[array->store.chdCount];
         }
     } else {
-            child = array->record;
+        child = array->record;
     }
     *child = *record;
+
     return child;
 }
 
@@ -142,7 +149,7 @@ static inline cdpRecord* array_last(cdpArray* array) {
 static inline cdpRecord* array_find_by_name(cdpArray* array, cdpID id, const cdpRecord* book) {
     if (cdp_record_is_dictionary(book) && !array->store.compare) {    // FixMe: catalog
         cdpRecord key = {.metadata.id = id};
-        return array_search(array, &key, record_compare_by_name_s, NULL, NULL);
+        return array_search(array, &key, record_compare_by_name, NULL, NULL);
     } else {
         cdpRecord* record = array->record;
         for (size_t i = 0; i < array->store.chdCount; i++, record++) {

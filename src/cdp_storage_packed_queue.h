@@ -100,11 +100,11 @@ static inline cdpRecord* packed_q_add(cdpPackedQ* pkdq, cdpRecord* parent, bool 
             child = pkdq->pTail->last;
         }
     } else {
-            assert(!pkdq->pTail);
-            cdpPackedQNode* pNode = packed_q_node_new(pkdq);
-            pNode->last = pNode->first = pNode->record;
-            pkdq->pTail = pkdq->pHead = pNode;
-            child = pNode->last;
+        assert(!pkdq->pTail);
+        cdpPackedQNode* pNode = packed_q_node_new(pkdq);
+        pNode->last = pNode->first = pNode->record;
+        pkdq->pTail = pkdq->pHead = pNode;
+        child = pNode->last;
     }
     *child = *record;
 

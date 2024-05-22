@@ -54,37 +54,42 @@ static inline cdpListNode* list_node_from_record(cdpRecord* record) {
 }
 
 
+static inline void list_sorted_insert(cdpList* list, cdpListNode* node, cdpCompare compare, void* context) {
+    cdpListNode* next;
+    for (next = list->head;  next;  next = next->next) {
+        int cmp = compare(&node->record, &next->record, context);
+        if (0 > cmp) {
+            // Insert node before next.
+            if (next->prev) {
+                next->prev->next = node;
+                node->prev = next->prev;
+            } else {
+                list->head = node;
+            }
+            next->prev = node;
+            node->next = next;
+            break;
+        }
+        assert(0 != cmp);   // Duplicates are not allowed.
+    }
+    if (!next) {
+        // Make node the new list tail.
+        list->tail->next = node;
+        node->prev = list->tail;
+        list->tail = node;
+    }
+}
+
 static inline cdpRecord* list_add(cdpList* list, cdpRecord* parent, bool prepend, const cdpRecord* record) {
     CDP_NEW(cdpListNode, node);
     node->record = *record;
 
-    if (list->store.chdCount && cdp_record_is_dictionary(parent)) {  // FixMe: catalog.
-        // Sorted insert
-        cdpListNode* next;
-        for (next = list->head;  next;  next = next->next) {
-            int cmp = record_compare_by_name(&node->record, &next->record);
-            if (0 > cmp) {
-                // Insert node before next.
-                if (next->prev) {
-                    next->prev->next = node;
-                    node->prev = next->prev;
-                } else {
-                    list->head = node;
-                }
-                next->prev = node;
-                node->next = next;
-                break;
-            }
-            assert(0 != cmp);   // Duplicates are not allowed in dictionaries.
-        }
-        if (!next) {
-            // Make node the new list tail.
-            list->tail->next = node;
-            node->prev = list->tail;
-            list->tail = node;
-        }
-    } else {
-        if (prepend) {
+    if (list->store.chdCount) {
+        if (cdp_record_is_dictionary(parent)) {
+            list_sorted_insert(list, node, record_compare_by_name, NULL);
+        } else if (cdp_record_is_catalog(parent)) {
+            list_sorted_insert(list, node, list->store->sorter.compare, list->store->sorter.context);
+        } else if (prepend) {
             // Prepend node
             node->next = list->head;
             if (list->head)
@@ -101,7 +106,10 @@ static inline cdpRecord* list_add(cdpList* list, cdpRecord* parent, bool prepend
                 list->head = node;
             list->tail = node;
         }
+    } else {
+        list->head = list->tail = node;
     }
+
     return &node->record;
 }
 

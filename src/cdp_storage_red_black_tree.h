@@ -130,19 +130,13 @@ static inline void rb_tree_fix_insert(cdpRbTree* tree, cdpRbTreeNode* z) {
     tree->root->isRed = false;
 }
 
-static inline cdpRecord* rb_tree_add(cdpRbTree* tree, cdpRecord* parent, const cdpRecord* record) {
-    assert(cdp_record_is_dict_or_cat(parent));
 
-    CDP_NEW(cdpRbTreeNode, tnode);
-    tnode->isRed = true;
-    cdpRecord* child = &tnode->record;
-    *child = *record;
-
+static inline void rb_tree_sorted_insert(cdpRbTree* tree, cdpRbTreeNode* tnode, cdpCompare compare, void* context) {
     if (tree->root) {
         cdpRbTreeNode* x = tree->root, *y;
         do {
             y = x;
-            int cmp = record_compare_by_name(&tnode->record, &x->record);     // FixMe: catalog.
+            int cmp = compare(&tnode->record, &x->record, context);
             if (0 > cmp) {
                 x = x->left;
             } else if (0 < cmp) {
@@ -153,7 +147,7 @@ static inline cdpRecord* rb_tree_add(cdpRbTree* tree, cdpRecord* parent, const c
             }
         } while (x);
         tnode->tParent = y;
-        if (0 > record_compare_by_name(&tnode->record, &y->record)) {
+        if (0 > compare(&tnode->record, &y->record, context)) {
             y->left = tnode;
         } else {
             y->right = tnode;
@@ -162,6 +156,22 @@ static inline cdpRecord* rb_tree_add(cdpRbTree* tree, cdpRecord* parent, const c
         tree->root = tnode;
     }
     rb_tree_fix_insert(tree, tnode);
+}
+
+
+static inline cdpRecord* rb_tree_add(cdpRbTree* tree, cdpRecord* parent, const cdpRecord* record) {
+    assert(cdp_record_is_dict_or_cat(parent));
+
+    CDP_NEW(cdpRbTreeNode, tnode);
+    tnode->isRed = true;
+    cdpRecord* child = &tnode->record;
+    *child = *record;
+
+    if (cdp_record_is_dictionary(parent)) {
+        rb_tree_sorted_insert(tree, tnode, record_compare_by_name, NULL);
+    } else if (cdp_record_is_catalog(parent) {
+        rb_tree_sorted_insert(tree, tnode, tree->store->sorter.compare, tree->store->sorter.context);
+    }
 
     return child;
 }

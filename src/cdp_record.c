@@ -31,7 +31,7 @@
 #define cdpFunc     void*
 
 
-static inline int record_compare_by_name(const cdpRecord* restrict key, const cdpRecord* restrict rec) {
+static inline int record_compare_by_name(const cdpRecord* restrict key, const cdpRecord* restrict rec, void* unused) {
     bool keyNamed = cdp_record_is_named(key);
     bool recNamed = cdp_record_is_named(rec);
 
@@ -42,11 +42,6 @@ static inline int record_compare_by_name(const cdpRecord* restrict key, const cd
         return rec->metadata.id - key->metadata.id;   // Sorted by decreasing id if named.
 
     return key->metadata.id - rec->metadata.id;   // Sorted by increasing id if unnamed.
-}
-
-
-static inline int record_compare_by_name_s(const cdpRecord* restrict key, const cdpRecord* restrict record, void* unused) {
-    return record_compare_by_name(key, record);
 }
 
 
@@ -133,6 +128,12 @@ static inline void* book_create_storage(unsigned storage, va_list args) {
 }
 
 
+static inline void book_clean_storage(cdpChdStore* store) {
+    if (list->store->sorter)
+        cdp_free(list->store->sorter);
+}
+
+
 /*
     Initiates a record struct with the requested parameters.
 */
@@ -161,8 +162,9 @@ bool cdp_record_initialize(cdpRecord* record, unsigned primal, unsigned attrib, 
             assert(reqStore != CDP_STO_CHD_PACKED_QUEUE);
 
             chdStore = book_create_storage(reqStore, args);
-            chdStore->compare = compare;
-            chdStore->context = context;
+            chdStore->sorter = cdp_new(cdpSorter);
+            chdStore->sorter->compare = compare;
+            chdStore->sorter->context = context;
         } else {
             CDP_DEBUG(
                 if (type == CDP_TYPE_DICTIONARY)
@@ -170,7 +172,6 @@ bool cdp_record_initialize(cdpRecord* record, unsigned primal, unsigned attrib, 
                 else
                     assert(reqStore != CDP_STO_CHD_RED_BLACK_T);    // Any other type of book should be prependable.
             );
-
             chdStore = book_create_storage(reqStore, args);
         }
 
@@ -220,7 +221,7 @@ bool cdp_record_initialize(cdpRecord* record, unsigned primal, unsigned attrib, 
 cdpRecord* cdp_book_add_record(cdpRecord* book, cdpRecord* record, bool prepend) {
     assert(cdp_record_is_book(book) && !cdp_record_is_none(record));    // 'None' type of records are never inserted in books.
     cdpChdStore* store = CDP_CHD_STORE(book->recData.book.children);
-    CDP_DEBUG(if (cdp_record_is_dictionary(book)) assert(!prepend && !store->compare););    // Only sorting by name is allowed in here.
+    CDP_DEBUG(if (cdp_record_is_dictionary(book)) assert(!prepend && !store->compare));    // Only sorting by name is allowed in here.
     cdpRecord* child;
 
     // Add new record to parent book.
@@ -243,13 +244,13 @@ cdpRecord* cdp_book_add_record(cdpRecord* book, cdpRecord* record, bool prepend)
       }
     } SELECTION_END;
 
-    record->metadata.type = CDP_TYPE_NONE;
+    CDP_0(record);
 
     // Update child.
     child->store = store;
 
     if (cdp_record_is_book(child))
-        CDP_CHD_STORE(child->recData.book.children)->book = child;    // Re-link copy of child book with its own children storage.
+        CDP_CHD_STORE(child->recData.book.children)->book = child;    // Re-link new copy of child book with its own children storage.
 
     // Update parent.
     store->chdCount++;
@@ -772,21 +773,20 @@ bool cdp_book_deep_traverse(cdpRecord* book, unsigned maxDepth, cdpRecordTravers
     Converts an unsorted book into a dictionary.
 */
 void cdp_book_to_dictionary(cdpRecord* book) {
-    CDP_AB(cdp_record_is_dict_or_cat(book));
-    assert(cdp_record_is_book(book));
+    CDP_AB(cdp_record_is_dictionary(book));
     cdpChdStore* store = CDP_CHD_STORE(book->recData.book.children);
-    assert(!store->compare);
+    CDP_FREE(store->sorter);
 
     book->metadata.type = CDP_TYPE_DICTIONARY;
     CDP_AB(store->chdCount <= 1);
 
     STORE_TECH_SELECT(book->metadata.storeTech) {
       LINKED_LIST: {
-        list_sort(book->recData.book.children, record_compare_by_name_s, NULL);
+        list_sort(book->recData.book.children, record_compare_by_name, NULL);
         break;
       }
       ARRAY: {
-        array_sort(book->recData.book.children, record_compare_by_name_s, NULL);
+        array_sort(book->recData.book.children, record_compare_by_name, NULL);
         break;
       }
       PACKED_QUEUE: {
@@ -804,14 +804,14 @@ void cdp_book_to_dictionary(cdpRecord* book) {
     Converts an unsorted book into a catalog.
 */
 void cdp_book_to_catalog(cdpRecord* book, cdpCompare compare, void* context) {
-    CDP_AB(cdp_record_is_dict_or_cat(book));
     assert(cdp_record_is_book(book) && compare);
     cdpChdStore* store = CDP_CHD_STORE(book->recData.book.children);
-    assert(!store->compare);
+    CDP_FREE(store->sorter);
+    CDP_NEW(cdpSorter, store->sorter);
+    store->sorter->compare = compare;
+    store->sorter->context = context;
 
     book->metadata.type = CDP_TYPE_CATALOG;
-    store->compare = compare;
-    store->context = context;
     CDP_AB(store->chdCount <= 1);
 
     STORE_TECH_SELECT(book->metadata.storeTech) {
@@ -827,7 +827,9 @@ void cdp_book_to_catalog(cdpRecord* book, cdpCompare compare, void* context) {
         assert(book->metadata.storeTech == CDP_STO_CHD_PACKED_QUEUE);    // Unsupported.
         break;
       }
-      RED_BLACK_T: {    // Unused.
+      RED_BLACK_T: {
+        // ToDo: re-sort RB-tree.
+        assert(book->metadata.storeTech == CDP_STO_CHD_RED_BLACK_T);
         break;
       }
     } SELECTION_END;
@@ -848,24 +850,27 @@ void cdp_record_finalize(cdpRecord* record, unsigned maxDepth) {
           LINKED_LIST: {
             cdpList* list = record->recData.book.children;
             list_del_all_children(list, maxDepth);
+            book_clean_storage(list->store);
             list_del(list);
             break;
           }
           ARRAY: {
             cdpArray* array = record->recData.book.children;
             array_del_all_children(array, maxDepth);
+            book_clean_storage(array->store);
             array_del(array);
             break;
           }
           PACKED_QUEUE: {
             cdpPackedQ* pkdq = record->recData.book.children;
             packed_q_del_all_children(pkdq, maxDepth);
-            packed_q_del(pkdq);
+            packed_q_del(pkdq);     // PQ are never catalogs.
             break;
           }
           RED_BLACK_T: {
             cdpRbTree* tree = record->recData.book.children;
             rb_tree_del_all_children(tree, maxDepth);
+            book_clean_storage(tree->store);
             rb_tree_del(tree);
             break;
           }

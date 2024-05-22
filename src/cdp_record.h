@@ -302,22 +302,26 @@ struct _cdpRecord {
 
 
 /*
- * Children Storage Techniques
+ * Children Storage Structs
  */
-typedef int (*cdpCompare)(const cdpRecord* restrict, const cdpRecord* restrict, void*);
-
 
 typedef struct {
     size_t      count;            // Number of record pointers
-    cdpRecord*  record[];         // Dynamic array of links shadowing this one.
+    cdpRecord*  record[];         // Dynamic array of (local) links shadowing this one.
 } cdpShadow;
+
+typedef int (*cdpCompare)(const cdpRecord* restrict, const cdpRecord* restrict, void*);
+
+typedef struct {
+    cdpCompare  compare;          // Compare function.
+    void*       context;          // User defined context data for searches.
+} cdpSorter;
 
 typedef struct {
     cdpRecord*  book;             // Parent book owning this child storage.
     cdpShadow*  shadow;           // Pointer to a structure for managing multiple (linked) parents.
     size_t      chdCount;         // Number of child records.
-    cdpCompare  compare;          // Compare function for dictionaries.
-    void*       context;          // User defined context data for searches.
+    cdpSorter*  sorter;           // Used for sorting catalogs.
 } cdpChdStore;
 
 
@@ -359,9 +363,9 @@ static inline bool cdp_record_is_private    (const cdpRecord* record)  {assert(r
 static inline bool cdp_record_is_collector  (const cdpRecord* record)  {assert(record);  return cdp_is_set(record->metadata.attribute, CDP_ATTRIB_COLLECTOR);}
 static inline bool cdp_record_is_factual    (const cdpRecord* record)  {assert(record);  return cdp_is_set(record->metadata.attribute, CDP_ATTRIB_FACTUAL);}
 static inline bool cdp_record_is_shadowed   (const cdpRecord* record)  {assert(record);  return cdp_is_set(record->metadata.attribute, CDP_ATTRIB_SHADOWED);}
-static inline bool cdp_record_is_dictionary (const cdpRecord* record)  {assert(record);  return (record->metadata.type == CDP_TYPE_DICTIONARY);}
-static inline bool cdp_record_is_catalog    (const cdpRecord* record)  {assert(record);  return (record->metadata.type == CDP_TYPE_CATALOG);}
-static inline bool cdp_record_is_dict_or_cat(const cdpRecord* record)  {assert(record);  return (record->metadata.type == CDP_TYPE_DICTIONARY || record->metadata.type == CDP_TYPE_CATALOG);}
+static inline bool cdp_record_is_dictionary (const cdpRecord* record)  {assert(cdp_record_is_book(record));  return (record->metadata.type == CDP_TYPE_DICTIONARY);}
+static inline bool cdp_record_is_catalog    (const cdpRecord* record)  {assert(cdp_record_is_book(record));  return (record->metadata.type == CDP_TYPE_CATALOG);}
+static inline bool cdp_record_is_dict_or_cat(const cdpRecord* record)  {assert(cdp_record_is_book(record));  return (record->metadata.type == CDP_TYPE_DICTIONARY || record->metadata.type == CDP_TYPE_CATALOG);}
 
 
 // Parent properties
@@ -484,15 +488,13 @@ void cdp_record_system_shutdown(void);
 
 /*
     TODO:
-    - Implement catalog.
     - Implement auto-increment in books.
+    - Add find by register value function.
+    - Traverse should use a user-provided cdpBookEntry struct.
+    - Add indexof for records;
     - Redefine user callback based on typed book ops.
     - Add book properties dict to cdpVariantBook.
-    - Traverse should use a user-provided cdpBookEntry struct.
-    - Add find by register value function.
-    - Add indexof for records;
     - Perhaps ids should be an unsorted tree (instead of a log) and use the deep-traverse index.
-    - Move "compare" and "context" out of the cdpChdStore struct.
 */
 
 
