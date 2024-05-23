@@ -243,8 +243,8 @@ static inline cdpRecord* rb_tree_find_by_name(cdpRbTree* tree, cdpID id, const c
         } while (tnode);
     } else {
         cdpBookEntry entry = {0};
-        rb_tree_traverse(tree, CDP_P(book), cdp_bitson(tree->store.chdCount) + 2, (cdpFunc) rb_traverse_func_break_at_name, cdp_v2p(id), &entry);
-        return entry.record;
+        if (!rb_tree_traverse(tree, CDP_P(book), cdp_bitson(tree->store.chdCount) + 2, (cdpFunc) rb_traverse_func_break_at_name, cdp_v2p(id), &entry))
+            return entry.record;
     }
     return NULL;
 }

@@ -170,7 +170,7 @@ bool cdp_record_initialize(cdpRecord* record, unsigned primal, unsigned attrib, 
                 if (type == CDP_TYPE_DICTIONARY)
                     assert(reqStore != CDP_STO_CHD_PACKED_QUEUE);
                 else
-                    assert(reqStore != CDP_STO_CHD_RED_BLACK_T);    // Any other type of book should be prependable.
+                    assert(reqStore != CDP_STO_CHD_RED_BLACK_T);    // Any other type of book storage should be prependable.
             );
             chdStore = book_create_storage(reqStore, args);
         }
@@ -280,7 +280,7 @@ void* cdp_register_read(const cdpRecord* reg, size_t position, void* data, size_
         return data;
     }
 
-    assert(cdp_record_is_private(reg));
+    //assert(cdp_record_is_private(reg));       // FixMe: return atomic register if possible.
     return pointed;
 }
 

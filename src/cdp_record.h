@@ -386,6 +386,7 @@ static inline bool   cdp_book_is_prependable(const cdpRecord* book) {assert(cdp_
 // Appends, inserts or prepends a copy of record into a book.
 cdpRecord* cdp_book_add_record(cdpRecord* book, cdpRecord* record, bool prepend);
 #define cdp_book_add(b, primal, attribute, id, type, prepend, ...)  ({cdpRecord r={0}; cdp_record_initialize(&r, primal, attribute, id, type, ##__VA_ARGS__)? cdp_book_add_record(b, &r, prepend): NULL;})
+#define cdp_catalog_add(cat, record)    cdp_book_add_record(cat, record, false)
 
 #define cdp_book_add_register(b, attrib, id, type, borrow, data, size)          cdp_book_add(b, CDP_TYPE_REGISTER, attrib, id, type, false, ((unsigned)(borrow)), data, ((size_t)(size)))
 #define cdp_book_prepend_register(b, attrib, id, type, borrow, data, size)      cdp_book_add(b, CDP_TYPE_REGISTER, attrib, id, type,  true, ((unsigned)(borrow)), data, ((size_t)(size)))
@@ -402,9 +403,9 @@ static inline cdpRecord* cdp_book_add_text(cdpRecord* book, cdpID id, const char
     CDP_FUNC_ADD_VAL_(uint16,  uint16_t, CDP_TYPE_UINT16)
     CDP_FUNC_ADD_VAL_(uint32,  uint32_t, CDP_TYPE_UINT32)
     CDP_FUNC_ADD_VAL_(uint64,  uint64_t, CDP_TYPE_UINT64)
-    CDP_FUNC_ADD_VAL_(int16_t, int16_t,  CDP_TYPE_INT16)
-    CDP_FUNC_ADD_VAL_(int32_t, int32_t,  CDP_TYPE_INT32)
-    CDP_FUNC_ADD_VAL_(int64_t, int64_t,  CDP_TYPE_INT64)
+    CDP_FUNC_ADD_VAL_(int16,   int16_t,  CDP_TYPE_INT16)
+    CDP_FUNC_ADD_VAL_(int32,   int32_t,  CDP_TYPE_INT32)
+    CDP_FUNC_ADD_VAL_(int64,   int64_t,  CDP_TYPE_INT64)
     CDP_FUNC_ADD_VAL_(float32, float,    CDP_TYPE_FLOAT32)
     CDP_FUNC_ADD_VAL_(float64, double,   CDP_TYPE_FLOAT64)
 
@@ -437,6 +438,17 @@ void* cdp_register_read(const cdpRecord* reg, size_t position, void* data, size_
 void* cdp_register_write(cdpRecord* reg, size_t position, const void* data, size_t size);   // Writes the data of a register record at position (atomically and it may reallocate memory).
 #define cdp_register_update(reg, data, size)   cdp_register_write(reg, 0, data, size)
 
+#define cdp_register_read_bool(reg)     (*(uint8_t*)cdp_register_read(reg, 0, NULL, NULL))
+#define cdp_register_read_byte(reg)     (*(uint8_t*)cdp_register_read(reg, 0, NULL, NULL))
+#define cdp_register_read_uint16(reg)   (*(uint16_t*)cdp_register_read(reg, 0, NULL, NULL))
+#define cdp_register_read_uint32(reg)   (*(uint32_t*)cdp_register_read(reg, 0, NULL, NULL))
+#define cdp_register_read_uint64(reg)   (*(uint64_t*)cdp_register_read(reg, 0, NULL, NULL))
+#define cdp_register_read_int16(reg)    (*(int16_t*)cdp_register_read(reg, 0, NULL, NULL))
+#define cdp_register_read_int32(reg)    (*(int32_t*)cdp_register_read(reg, 0, NULL, NULL))
+#define cdp_register_read_int64(reg)    (*(int64_t*)cdp_register_read(reg, 0, NULL, NULL))
+#define cdp_register_read_float32(reg)  (*(float*)cdp_register_read(reg, 0, NULL, NULL))
+#define cdp_register_read_float64(reg)  (*(double*)cdp_register_read(reg, 0, NULL, NULL))
+
 
 // Accessing books
 cdpRecord* cdp_book_first(const cdpRecord* book);   // Gets the first record from book.
@@ -462,9 +474,10 @@ void cdp_book_to_catalog(cdpRecord* book, cdpCompare compare, void* context);
 
 
 // Removing records
-bool cdp_record_remove(cdpRecord* record, unsigned maxDepth);           // Deletes a record and all its children re-organizing sibling storage.
+bool cdp_record_remove(cdpRecord* record, unsigned maxDepth);   // Deletes a record and all its children re-organizing sibling storage.
 #define cdp_register_remove(reg)   cdp_record_remove(reg, 1)
-size_t cdp_book_reset(cdpRecord* book, unsigned maxDepth);       // Deletes all children of a book or dictionary.
+#define cdp_book_remove(book)      cdp_record_remove(book, 64)  /* FixMe: compute maxDepth */
+size_t cdp_book_reset(cdpRecord* book, unsigned maxDepth);      // Deletes all children of a book or dictionary.
 
 
 // To manage concurrent access to records safely.
@@ -494,6 +507,7 @@ void cdp_record_system_shutdown(void);
     - Redefine user callback based on typed book ops.
     - Add book properties dict to cdpVariantBook.
     - Perhaps ids should be an unsorted tree (instead of a log) and use the deep-traverse index.
+    - Fully define the tree (nesting) recursion limit policy.
 */
 
 
