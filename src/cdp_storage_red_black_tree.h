@@ -191,11 +191,12 @@ static inline cdpRecord* rb_tree_last(cdpRbTree* tree) {
 }
 
 
-static inline bool rb_tree_traverse(cdpRbTree* tree, cdpRecord* book, unsigned maxDepth, cdpRecordTraverse func, void* context) {
+static inline bool rb_tree_traverse(cdpRbTree* tree, cdpRecord* book, unsigned maxDepth, cdpRecordTraverse func, void* context, cdpBookEntry* entry) {
   cdpRbTreeNode* tnode = tree->root, *tnodePrev = NULL;
   cdpRbTreeNode* stack[maxDepth];
   int top = -1;  // Stack index initialized to empty.
-  cdpBookEntry entry = {.parent = book};
+
+  entry->parent = book;
   do {
       if (tnode) {
           assert(top < ((int)maxDepth - 1));
@@ -204,32 +205,26 @@ static inline bool rb_tree_traverse(cdpRbTree* tree, cdpRecord* book, unsigned m
       } else {
           tnode = stack[top--];
           if (tnodePrev) {
-              entry.next = &tnode->record;
-              entry.record = &tnodePrev->record;
-              if (!func(&entry, 0, context))
+              entry->next = &tnode->record;
+              entry->record = &tnodePrev->record;
+              if (!func(entry, 0, context))
                   return false;
-              entry.position++;
-              entry.prev = entry.record;
+              entry->position++;
+              entry->prev = entry->record;
           }
           tnodePrev = tnode;
           tnode = tnode->right;
       }
   } while (top != -1 || tnode);
 
-  entry.next = NULL;
-  entry.record = &tnodePrev->record;
-  return func(&entry, 0, context);
+  entry->next = NULL;
+  entry->record = &tnodePrev->record;
+  return func(entry, 0, context);
 }
 
 
-struct RbFindByName {cdpID id; cdpRecord* found;};
-
-static inline int rb_traverse_func_break_at_name(cdpBookEntry* entry, unsigned u, struct RbFindByName* fbn) {
-    if (entry->record->metadata.id == fbn->id) {
-        fbn->found = entry->record;
-        return false;
-    }
-    return true;
+static inline int rb_traverse_func_break_at_name(cdpBookEntry* entry, unsigned u, uintptr_t id) {
+    return (entry->record->metadata.id != id);
 }
 
 static inline cdpRecord* rb_tree_find_by_name(cdpRbTree* tree, cdpID id, const cdpRecord* book) {
@@ -247,28 +242,22 @@ static inline cdpRecord* rb_tree_find_by_name(cdpRbTree* tree, cdpID id, const c
             }
         } while (tnode);
     } else {
-        struct RbFindByName fbn = {.id = id};
-        rb_tree_traverse(tree, (cdpRecord*)book, cdp_bitson(tree->store.chdCount) + 2, (cdpFunc) rb_traverse_func_break_at_name, &fbn);
-        return fbn.found;
+        cdpBookEntry entry = {0};
+        rb_tree_traverse(tree, CDP_P(book), cdp_bitson(tree->store.chdCount) + 2, (cdpFunc) rb_traverse_func_break_at_name, cdp_v2p(id), &entry);
+        return entry.record;
     }
     return NULL;
 }
 
 
-struct RbBreakAtIndex {size_t position; cdpRecord* record;};
-
-static inline int rb_traverse_func_break_at_index(cdpBookEntry* entry, unsigned u, struct RbBreakAtIndex* bai) {
-    if (entry->position == bai->position) {
-        bai->record = entry->record;
-        return false;
-    }
-    return true;
+static inline int rb_traverse_func_break_at_position(cdpBookEntry* entry, unsigned u, uintptr_t position) {
+    return (entry->position != position);
 }
 
 static inline cdpRecord* rb_tree_find_by_position(cdpRbTree* tree, size_t position, const cdpRecord* book) {
-    struct RbBreakAtIndex bai = {.position = position};
-    if (!rb_tree_traverse(tree, (cdpRecord*)book, cdp_bitson(tree->store.chdCount) + 2, (void*) rb_traverse_func_break_at_index, &bai))
-        return bai.record;
+    cdpBookEntry entry = {0};
+    if (!rb_tree_traverse(tree, CDP_P(book), cdp_bitson(tree->store.chdCount) + 2, (void*) rb_traverse_func_break_at_position, cdp_v2p(position), &entry))
+        return entry.record;
     return NULL;
 }
 

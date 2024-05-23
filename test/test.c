@@ -80,7 +80,7 @@ static void test_records_zero_item_ops(cdpRecord* book) {
     path->capacity = 1;
     path->id[0] = 0;
     assert_null(cdp_book_find_by_path(book, path));
-    assert_true(cdp_book_traverse(book, print_values, NULL));
+    assert_true(cdp_book_traverse(book, print_values, NULL, NULL));
 }
 
 
@@ -97,7 +97,7 @@ static void test_records_one_item_ops(cdpRecord* book, cdpRecord* reg) {
     path->id[0] = reg->metadata.id;
     found = cdp_book_find_by_path(book, path);
     assert_ptr_equal(found, reg);
-    assert_true(cdp_book_traverse(book, print_values, NULL));
+    assert_true(cdp_book_traverse(book, print_values, NULL, NULL));
 }
 
 
@@ -182,7 +182,7 @@ static void test_records_tech_book(unsigned storage) {
         found = cdp_book_find_by_path(book, path);
         assert_ptr_equal(found, reg);
 
-        assert_true(cdp_book_traverse(book, print_values, NULL));
+        assert_true(cdp_book_traverse(book, print_values, NULL, NULL));
     }
 
     /* Nested books */
@@ -190,7 +190,7 @@ static void test_records_tech_book(unsigned storage) {
     cdpRecord* chdBook = cdp_book_add_book(book, CDP_NAME_TEMP, CDP_TYPE_BOOK, storage, 20);
     reg = cdp_book_prepend_uint32(chdBook, CDP_NAME_VALUE-30, value);
     test_records_register_val(reg, value);
-    assert_true(cdp_book_deep_traverse(book, 3, print_values, NULL, NULL));
+    assert_true(cdp_book_deep_traverse(book, 3, print_values, NULL, NULL, NULL));
 
     cdp_record_remove(book, 16);
 }
@@ -263,7 +263,7 @@ static void test_records_tech_dictionary(unsigned storage) {
         found = cdp_book_find_by_path(dict, path);
         assert_ptr_equal(found, reg);
 
-        assert_true(cdp_book_traverse(dict, print_values, NULL));
+        assert_true(cdp_book_traverse(dict, print_values, NULL, NULL));
     }
 
     /* Nested books */
@@ -271,7 +271,7 @@ static void test_records_tech_dictionary(unsigned storage) {
     cdpRecord* chdDict = cdp_book_add_dictionary(dict, CDP_NAME_TEMP-2000, storage, 20);
     reg = cdp_book_add_uint32(chdDict, CDP_NAME_VALUE, value);
     test_records_register_val(reg, value);
-    assert_true(cdp_book_deep_traverse(dict, 3, print_values, NULL, NULL));
+    assert_true(cdp_book_deep_traverse(dict, 3, print_values, NULL, NULL, NULL));
 
     cdp_record_remove(dict, 16);
 }

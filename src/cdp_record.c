@@ -646,27 +646,29 @@ cdpRecord* cdp_book_find_next_by_path(const cdpRecord* start, cdpPath* path, uin
 /*
     Traverses the children of a book record, applying a function to each.
 */
-bool cdp_book_traverse(cdpRecord* book, cdpRecordTraverse func, void* context) {
+bool cdp_book_traverse(cdpRecord* book, cdpRecordTraverse func, void* context, cdpBookEntry* entry) {
     assert(cdp_record_is_book(book) && func);
     cdpChdStore* store = CDP_CHD_STORE(book->recData.book.children);
     CDP_GO(!store->chdCount);
+    if (!entry) entry = cdp_alloca(sizeof(cdpBookEntry));
+    CDP_0(entry);
     bool done;
 
     STORE_TECH_SELECT(book->metadata.storeTech) {
       LINKED_LIST: {
-        done = list_traverse(book->recData.book.children, book, func, context);
+        done = list_traverse(book->recData.book.children, book, func, context, entry);
         break;
       }
       ARRAY: {
-        done = array_traverse(book->recData.book.children, book, func, context);
+        done = array_traverse(book->recData.book.children, book, func, context, entry);
         break;
       }
       PACKED_QUEUE: {
-        done = packed_q_traverse(book->recData.book.children, book, func, context);
+        done = packed_q_traverse(book->recData.book.children, book, func, context, entry);
         break;
       }
       RED_BLACK_T: {
-        done = rb_tree_traverse(book->recData.book.children, book, cdp_bitson(store->chdCount) + 2, func, context);
+        done = rb_tree_traverse(book->recData.book.children, book, cdp_bitson(store->chdCount) + 2, func, context, entry);
         break;
       }
     } SELECTION_END;
@@ -680,7 +682,7 @@ bool cdp_book_traverse(cdpRecord* book, cdpRecordTraverse func, void* context) {
 */
 #define CDP_MAX_FAST_STACK_DEPTH  16
 
-bool cdp_book_deep_traverse(cdpRecord* book, unsigned maxDepth, cdpRecordTraverse func, cdpRecordTraverse endFunc, void* context) {
+bool cdp_book_deep_traverse(cdpRecord* book, unsigned maxDepth, cdpRecordTraverse func, cdpRecordTraverse endFunc, void* context, cdpBookEntry* entry) {
     assert(cdp_record_is_book(book) && maxDepth && (func || endFunc));
     cdpChdStore* store = CDP_CHD_STORE(book->recData.book.children);
     CDP_GO(!store->chdCount);
@@ -688,13 +690,16 @@ bool cdp_book_deep_traverse(cdpRecord* book, unsigned maxDepth, cdpRecordTravers
     bool ok = true;
     cdpRecord* child;
     unsigned depth = 0;
-    cdpBookEntry entry = {.record = cdp_book_first(book), .parent = book};
+    if (!entry) entry = cdp_alloca(sizeof(cdpBookEntry));
+    CDP_0(entry);
+    entry->parent = book;
+    entry->record = cdp_book_first(book);
 
     // Non-recursive version of branch descent:
     cdpBookEntry* stack = (maxDepth > CDP_MAX_FAST_STACK_DEPTH)?  cdp_malloc(maxDepth * sizeof(cdpBookEntry)):  cdp_alloca(maxDepth * sizeof(cdpBookEntry));
     for (;;) {
         // Ascend to parent if no more siblings in branch.
-        if (!entry.record) {
+        if (!entry->record) {
             if CDP_RARELY(!depth)  break;    // endFunc is never called on root book.
             depth--;
 
@@ -704,59 +709,59 @@ bool cdp_book_deep_traverse(cdpRecord* book, unsigned maxDepth, cdpRecordTravers
             }
 
             // Next record.
-            entry.record   = stack[depth].next;
-            entry.parent   = stack[depth].parent;
-            entry.prev     = stack[depth].record;
-            entry.next     = NULL;
-            entry.position = stack[depth].position + 1;
+            entry->record   = stack[depth].next;
+            entry->parent   = stack[depth].parent;
+            entry->prev     = stack[depth].record;
+            entry->next     = NULL;
+            entry->position = stack[depth].position + 1;
             continue;
         }
 
       NEXT_SIBLING:
         // Get sibling...
-        STORE_TECH_SELECT(entry.parent->metadata.storeTech) {
+        STORE_TECH_SELECT(entry->parent->metadata.storeTech) {
           LINKED_LIST: {
-            entry.next = list_next(entry.record);
+            entry->next = list_next(entry->record);
             break;
           }
           ARRAY: {
-            entry.next = array_next(entry.record->store, entry.record);
+            entry->next = array_next(entry->record->store, entry->record);
             break;
           }
           PACKED_QUEUE: {
-            entry.next = packed_q_next(entry.record->store, entry.record);
+            entry->next = packed_q_next(entry->record->store, entry->record);
             break;
           }
           RED_BLACK_T: {
-            entry.next = rb_tree_next(entry.record);
+            entry->next = rb_tree_next(entry->record);
             break;
           }
         } SELECTION_END;
 
         if (func) {
-            ok = func(&entry, depth, context);
+            ok = func(entry, depth, context);
             if (!ok)  break;
         }
 
         // Descent to children if it's a book.
-        if (cdp_record_is_book(entry.record)
-        && ((child = cdp_book_first(entry.record)))) {
+        if (cdp_record_is_book(entry->record)
+        && ((child = cdp_book_first(entry->record)))) {
             assert(depth < maxDepth);
 
-            stack[depth++] = entry;
+            stack[depth++]  = *entry;
 
-            entry.parent   = entry.record;
-            entry.record   = child;
-            entry.prev     = NULL;
-            entry.position = 0;
+            entry->parent   = entry->record;
+            entry->record   = child;
+            entry->prev     = NULL;
+            entry->position = 0;
 
             goto NEXT_SIBLING;
         }
 
         // Next record.
-        entry.prev   = entry.record;
-        entry.record = entry.next;
-        entry.position += 1;
+        entry->prev   = entry->record;
+        entry->record = entry->next;
+        entry->position += 1;
     }
 
     if (maxDepth > CDP_MAX_FAST_STACK_DEPTH)

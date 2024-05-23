@@ -52,14 +52,14 @@
 
 #define     CDP_T(v, x, ...)          __auto_type (x) __VA_ARGS__ = (v)
 #define     CDP_U(_, x, v, ...)       CDP_T(v, CDP(_,x), ##__VA_ARGS__)
-#define     CDP_P(T, p, a, ...)       T* (p) __VA_ARGS__ = (T*) (a)
-#define     CDP_Q(_, p, T, a, ...)    CDP_P(T, CDP(_,p), a, ##__VA_ARGS__)
+#define     CDP_I(T, p, a, ...)       T* (p) __VA_ARGS__ = (T*) (a)
+#define     CDP_Q(_, p, T, a, ...)    CDP_I(T, CDP(_,p), a, ##__VA_ARGS__)
 
 #define     CDP_AUTOFREE_NAME(n)      CDPPASTE(n, _AUTO)
 #define     CDP_AUTOFREE_(f)          static inline void CDP_AUTOFREE_NAME(f)(void* p) {f(*(void**)p);}
 #define     CDP_AT(a, p, f, ...)      CDP_T(a, p, __attribute__((cleanup(CDP_AUTOFREE_NAME(f)))), ##__VA_ARGS__)
 #define     CDP_AU(_, a, p, f, ...)   CDP_V(_, a, p, __attribute__((cleanup(CDP_AUTOFREE_NAME(f)))), ##__VA_ARGS__)
-#define     CDP_AP(T, p, f, a, ...)   CDP_P(T, p, a, __attribute__((cleanup(CDP_AUTOFREE_NAME(f)))), ##__VA_ARGS__)
+#define     CDP_AP(T, p, f, a, ...)   CDP_I(T, p, a, __attribute__((cleanup(CDP_AUTOFREE_NAME(f)))), ##__VA_ARGS__)
 
 
 
@@ -83,7 +83,7 @@ CDP_AUTOFREE_(cdp_free)
 
 
 #define     cdp_new(T, ...)           cdp_malloc0(sizeof(T) __VA_ARGS__)
-#define     CDP_NEW(T, p, ...)        CDP_P(T, p, cdp_new(T, ##__VA_ARGS__))
+#define     CDP_NEW(T, p, ...)        CDP_I(T, p, cdp_new(T, ##__VA_ARGS__))
 #define     CDP_FR(T, p, ...)         T* (p) __attribute__((cleanup(CDP_AUTOFREE_NAME(cdp_free)))) __VA_ARGS__
 #define     CDP_FREE(p)               do{ cdp_free(p); (p) = NULL; }while (0)
 #define     CDP_REALLOC(p, z)         ({(p) = cdp_realloc(p, z);})
@@ -105,14 +105,15 @@ typedef void (*cdpDel)(void*);
  * Pointer Utilities
  */
 
+#define     CDP_P(p)                  ((void*)(p))
+#define     cdp_v2p(v)                ((void*)(uintptr_t)(v))
+#define     cdp_p2v(p)                ((uintptr_t)(p))
+
 #define     _cdp_align_to(_, u, _a)   ({CDP_U(_,a, _a);  assert(0 < CDP(_,a));  ((u) + (CDP(_,a) - 1)) & ~(CDP(_,a) - 1);})
 #define     cdp_align_to(...)         _cdp_align_to(__COUNTER__, __VA_ARGS__)
 #define     cdp_align_max(u)          cdp_align_to(u, __BIGGEST_ALIGNMENT__)
 #define     cdp_aligned(t)            cdp_align_to(sizeof(t), __alignof__(t))
 #define     CDP_ALIGN_TO(u, a)        ((u) = cdp_align_to(u, a))
-
-#define     cdp_v2p(v)                ((void*)(uintptr_t)(v))
-#define     cdp_p2v(p)                ((uintptr_t)(p))
 
 #define     cdp_ptr_align_to(p, a)    ((void*)cdp_align_to((uintptr_t)(p), a))
 #define     cdp_ptr_aligned(p)        ((void*)cdp_aligned((uintptr_t)(p)))

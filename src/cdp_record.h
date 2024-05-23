@@ -453,8 +453,8 @@ cdpRecord* cdp_book_next(const cdpRecord* book, cdpRecord* record);     // Retri
 cdpRecord* cdp_book_next_by_name(const cdpRecord* book, cdpID id, uintptr_t* prev);         // Retrieves the first/next (unsorted) child record by its id.
 cdpRecord* cdp_book_next_by_path(const cdpRecord* start, cdpPath* path, uintptr_t* prev);   // Finds the first/next (unsorted) record based on a path of ids starting from the root or a given book.
 
-bool cdp_book_traverse     (cdpRecord* book, cdpRecordTraverse func, void* context);  // Traverses the children of a book record, applying a function to each.
-bool cdp_book_deep_traverse(cdpRecord* book, unsigned maxDepth, cdpRecordTraverse func, cdpRecordTraverse listEnd, void* context);  // Traverses each sub-branch of a book record.
+bool cdp_book_traverse     (cdpRecord* book, cdpRecordTraverse func, void* context, cdpBookEntry* entry);  // Traverses the children of a book record, applying a function to each.
+bool cdp_book_deep_traverse(cdpRecord* book, unsigned maxDepth, cdpRecordTraverse func, cdpRecordTraverse listEnd, void* context, cdpBookEntry* entry);  // Traverses each sub-branch of a book record.
 
 // Converts an unsorted book into a sorted one.
 void cdp_book_to_dictionary(cdpRecord* book);
@@ -490,7 +490,6 @@ void cdp_record_system_shutdown(void);
     TODO:
     - Implement auto-increment in books.
     - Add find by register value function.
-    - Traverse should use a user-provided cdpBookEntry struct.
     - Add indexof for records;
     - Redefine user callback based on typed book ops.
     - Add book properties dict to cdpVariantBook.

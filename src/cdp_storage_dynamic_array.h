@@ -187,22 +187,23 @@ static inline cdpRecord* array_next_by_name(cdpArray* array, cdpID id, uintptr_t
     return NULL;
 }
 
-static inline bool array_traverse(cdpArray* array, cdpRecord* book, cdpRecordTraverse func, void* context) {
+static inline bool array_traverse(cdpArray* array, cdpRecord* book, cdpRecordTraverse func, void* context, cdpBookEntry* entry) {
     assert(array && array->capacity >= array->store.chdCount);
-    cdpBookEntry entry = {.parent = book, .next = array->record};
+    entry->parent = book;
+    entry->next   = array->record;
     cdpRecord* last = &array->record[array->store.chdCount - 1];
     do {
-        if (entry.record) {
-            if (!func(&entry, 0, context))
+        if (entry->record) {
+            if (!func(entry, 0, context))
                 return false;
-            entry.position++;
-            entry.prev = entry.record;
+            entry->position++;
+            entry->prev = entry->record;
         }
-        entry.record = entry.next;
-        entry.next++;
-    } while (entry.next <= last);
-    entry.next = NULL;
-    return func(&entry, 0, context);
+        entry->record = entry->next;
+        entry->next++;
+    } while (entry->next <= last);
+    entry->next = NULL;
+    return func(entry, 0, context);
 }
 
 

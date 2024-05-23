@@ -175,25 +175,25 @@ static inline cdpRecord* packed_q_next_by_name(cdpPackedQ* pkdq, cdpID id, cdpPa
 }
 
 
-static inline bool packed_q_traverse(cdpPackedQ* pkdq, cdpRecord* book, cdpRecordTraverse func, void* context) {
-    cdpBookEntry entry = {.parent = book};
+static inline bool packed_q_traverse(cdpPackedQ* pkdq, cdpRecord* book, cdpRecordTraverse func, void* context, cdpBookEntry* entry) {
+    entry->parent = book;
     cdpPackedQNode* pNode = pkdq->pHead;
     do {
-        entry.next = pNode->first;
+        entry->next = pNode->first;
         do {
-            if (entry.record) {
-                if (!func(&entry, 0, context))
+            if (entry->record) {
+                if (!func(entry, 0, context))
                     return false;
-                entry.position++;
-                entry.prev = entry.record;
+                entry->position++;
+                entry->prev = entry->record;
             }
-            entry.record = entry.next;
-            entry.next++;
-        } while (entry.next <= pNode->last);
+            entry->record = entry->next;
+            entry->next++;
+        } while (entry->next <= pNode->last);
         pNode = pNode->pNext;
     } while (pNode);
-    entry.next = NULL;
-    return func(&entry, 0, context);
+    entry->next = NULL;
+    return func(entry, 0, context);
 }
 
 

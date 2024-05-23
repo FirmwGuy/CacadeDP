@@ -170,17 +170,17 @@ static inline cdpRecord* list_next_by_name(cdpList* list, cdpID id, cdpListNode*
 }
 
 
-static inline bool list_traverse(cdpList* list, cdpRecord* book, cdpRecordTraverse func, void* context) {
-    cdpBookEntry entry = {.parent = book};
+static inline bool list_traverse(cdpList* list, cdpRecord* book, cdpRecordTraverse func, void* context, cdpBookEntry* entry) {
+    entry->parent = book;
     cdpListNode* node = list->head, *next;
     do {
         next = node->next;
-        entry.record = &node->record;
-        entry.next = next? &next->record: NULL;
-        if (!func(&entry, 0, context))
+        entry->record = &node->record;
+        entry->next = next? &next->record: NULL;
+        if (!func(entry, 0, context))
             return false;
-        entry.position++;
-        entry.prev = entry.record;
+        entry->position++;
+        entry->prev = entry->record;
         node = next;
     } while (node);
     return true;
