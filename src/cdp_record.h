@@ -363,9 +363,9 @@ static inline bool cdp_record_is_private    (const cdpRecord* record)  {assert(r
 static inline bool cdp_record_is_collector  (const cdpRecord* record)  {assert(record);  return cdp_is_set(record->metadata.attribute, CDP_ATTRIB_COLLECTOR);}
 static inline bool cdp_record_is_factual    (const cdpRecord* record)  {assert(record);  return cdp_is_set(record->metadata.attribute, CDP_ATTRIB_FACTUAL);}
 static inline bool cdp_record_is_shadowed   (const cdpRecord* record)  {assert(record);  return cdp_is_set(record->metadata.attribute, CDP_ATTRIB_SHADOWED);}
-static inline bool cdp_record_is_dictionary (const cdpRecord* record)  {assert(cdp_record_is_book(record));  return (record->metadata.type == CDP_TYPE_DICTIONARY);}
-static inline bool cdp_record_is_catalog    (const cdpRecord* record)  {assert(cdp_record_is_book(record));  return (record->metadata.type == CDP_TYPE_CATALOG);}
-static inline bool cdp_record_is_dict_or_cat(const cdpRecord* record)  {assert(cdp_record_is_book(record));  return (record->metadata.type == CDP_TYPE_DICTIONARY || record->metadata.type == CDP_TYPE_CATALOG);}
+static inline bool cdp_record_is_dictionary (const cdpRecord* record)  {assert(record);  return (cdp_record_is_book(record) && record->metadata.type == CDP_TYPE_DICTIONARY);}
+static inline bool cdp_record_is_catalog    (const cdpRecord* record)  {assert(record);  return (cdp_record_is_book(record) && record->metadata.type == CDP_TYPE_CATALOG);}
+static inline bool cdp_record_is_dict_or_cat(const cdpRecord* record)  {assert(record);  return (cdp_record_is_book(record) && (record->metadata.type == CDP_TYPE_DICTIONARY || record->metadata.type == CDP_TYPE_CATALOG));}
 
 
 // Parent properties
@@ -380,7 +380,7 @@ static inline bool cdp_register_is_borrowed(const cdpRecord* reg)   {assert(cdp_
 
 // Book property check
 static inline size_t cdp_book_children(const cdpRecord* book)       {assert(cdp_record_is_book(book));  return CDP_CHD_STORE(book->recData.book.children)->chdCount;}
-static inline bool   cdp_book_prependable(const cdpRecord* book)    {assert(cdp_record_is_book(book));  return (book->metadata.storeTech != CDP_STO_CHD_RED_BLACK_T);}
+static inline bool   cdp_book_is_prependable(const cdpRecord* book) {assert(cdp_record_is_book(book));  return (book->metadata.storeTech != CDP_STO_CHD_RED_BLACK_T);}
 
 
 // Appends, inserts or prepends a copy of record into a book.
@@ -395,7 +395,7 @@ static inline cdpRecord* cdp_book_add_text(cdpRecord* book, cdpID id, const char
 
 #define CDP_FUNC_ADD_VAL_(func, ctype, rtype)                                  \
     static inline cdpRecord* cdp_book_add_##func(cdpRecord* book, cdpID id, ctype value)    {assert(cdp_record_is_book(book));  return cdp_book_add_register(book, 0, id, rtype, false, &value, sizeof(value));}\
-    static inline cdpRecord* cdp_book_prepend_##func(cdpRecord* book, cdpID id, ctype value){assert(cdp_book_prependable(book));  return cdp_book_prepend_register(book, 0, id, rtype, false, &value, sizeof(value));}
+    static inline cdpRecord* cdp_book_prepend_##func(cdpRecord* book, cdpID id, ctype value){assert(cdp_book_is_prependable(book));  return cdp_book_prepend_register(book, 0, id, rtype, false, &value, sizeof(value));}
 
     CDP_FUNC_ADD_VAL_(boolean, uint8_t,  CDP_TYPE_BOOLEAN)
     CDP_FUNC_ADD_VAL_(byte,    uint8_t,  CDP_TYPE_BYTE)

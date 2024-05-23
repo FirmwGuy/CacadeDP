@@ -49,7 +49,7 @@
 /*
  * Variable Initialization
  */
- 
+
 #define     CDP_T(v, x, ...)          __auto_type (x) __VA_ARGS__ = (v)
 #define     CDP_U(_, x, v, ...)       CDP_T(v, CDP(_,x), ##__VA_ARGS__)
 #define     CDP_P(T, p, a, ...)       T* (p) __VA_ARGS__ = (T*) (a)
@@ -66,7 +66,7 @@
 /*
  * Memory Initialization
  */
- 
+
 #if  defined(CDP_MCU)  ||  (__BYTE_ORDER__ != __ORDER_LITTLE_ENDIAN__)
   #error    unsoported target platform!
 #else
@@ -75,13 +75,13 @@
   static inline void*   cdp_realloc(void* p, size_t z)         {void* r = realloc(p, z);   if CDP_RARELY(!r)  abort();  return r;}
   #define   cdp_alloca  __builtin_alloca
   #define   cdp_free    free
-#endif                               
+#endif
 #define     cdp_malloc0(z, ...)         cdp_calloc(1, z __VA_ARGS__)
-                                     
-                                     
-CDP_AUTOFREE_(cdp_free)              
-                                     
-                                     
+
+
+CDP_AUTOFREE_(cdp_free)
+
+
 #define     cdp_new(T, ...)           cdp_malloc0(sizeof(T) __VA_ARGS__)
 #define     CDP_NEW(T, p, ...)        CDP_P(T, p, cdp_new(T, ##__VA_ARGS__))
 #define     CDP_FR(T, p, ...)         T* (p) __attribute__((cleanup(CDP_AUTOFREE_NAME(cdp_free)))) __VA_ARGS__
@@ -104,7 +104,7 @@ typedef void (*cdpDel)(void*);
 /*
  * Pointer Utilities
  */
- 
+
 #define     _cdp_align_to(_, u, _a)   ({CDP_U(_,a, _a);  assert(0 < CDP(_,a));  ((u) + (CDP(_,a) - 1)) & ~(CDP(_,a) - 1);})
 #define     cdp_align_to(...)         _cdp_align_to(__COUNTER__, __VA_ARGS__)
 #define     cdp_align_max(u)          cdp_align_to(u, __BIGGEST_ALIGNMENT__)
@@ -149,7 +149,7 @@ typedef void (*cdpDel)(void*);
 /*
  * Value Checking
  */
- 
+
 #define     cdp_const_min(a, b)       ((a < b)? a: b)
 #define     cdp_const_max(a, b)       ((a > b)? a: b)
 #define     _cdp_min(_, _a, _b)       ({CDP_U(_,a, _a); CDP_U(_,b, _b);  cdp_const_min(CDP(_,a), CDP(_,b));})
@@ -180,7 +180,7 @@ typedef void (*cdpDel)(void*);
 #ifdef NDEBUG
   #define CDP_DEBUG()
 #else
-  #define CDP_DEBUG(code)   {code;}
+  #define CDP_DEBUG(code)   do{code;}while(0)
 #endif
 
 

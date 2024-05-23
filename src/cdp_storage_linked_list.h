@@ -88,7 +88,7 @@ static inline cdpRecord* list_add(cdpList* list, cdpRecord* parent, bool prepend
         if (cdp_record_is_dictionary(parent)) {
             list_sorted_insert(list, node, record_compare_by_name, NULL);
         } else if (cdp_record_is_catalog(parent)) {
-            list_sorted_insert(list, node, list->store->sorter.compare, list->store->sorter.context);
+            list_sorted_insert(list, node, list->store.sorter->compare, list->store.sorter->context);
         } else if (prepend) {
             // Prepend node
             node->next = list->head;

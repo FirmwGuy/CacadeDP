@@ -169,8 +169,8 @@ static inline cdpRecord* rb_tree_add(cdpRbTree* tree, cdpRecord* parent, const c
 
     if (cdp_record_is_dictionary(parent)) {
         rb_tree_sorted_insert(tree, tnode, record_compare_by_name, NULL);
-    } else if (cdp_record_is_catalog(parent) {
-        rb_tree_sorted_insert(tree, tnode, tree->store->sorter.compare, tree->store->sorter.context);
+    } else if (cdp_record_is_catalog(parent)) {
+        rb_tree_sorted_insert(tree, tnode, tree->store.sorter->compare, tree->store.sorter->context);
     }
 
     return child;
@@ -233,11 +233,11 @@ static inline int rb_traverse_func_break_at_name(cdpBookEntry* entry, unsigned u
 }
 
 static inline cdpRecord* rb_tree_find_by_name(cdpRbTree* tree, cdpID id, const cdpRecord* book) {
-    if (cdp_record_is_dictionary(book) && !tree->store.compare) {  // FixMe: catalog.
+    if (cdp_record_is_dictionary(book)) {
         cdpRecord key = {.metadata.id = id};
         cdpRbTreeNode* tnode = tree->root;
         do {
-            int cmp = record_compare_by_name(&key, &tnode->record);
+            int cmp = record_compare_by_name(&key, &tnode->record, NULL);
             if (0 > cmp) {
                 tnode = tnode->left;
             } else if (0 < cmp) {

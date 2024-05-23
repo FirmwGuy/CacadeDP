@@ -41,6 +41,8 @@ static void test_records_print(cdpRecord* record, char *sval) {
         sprintf(sval, "[%d]", record->metadata.id);
     } else if (cdp_record_is_dictionary(record)) {
         sprintf(sval, "{%d}", record->metadata.id);
+    } else if (cdp_record_is_catalog(record)) {
+        sprintf(sval, "<%d>", record->metadata.id);
     } else if (cdp_record_is_register(record)) {
         uint32_t uval;
         cdp_register_read(record, 0, &uval, NULL);

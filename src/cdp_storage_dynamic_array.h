@@ -58,7 +58,7 @@ static inline cdpRecord* array_search(cdpArray* array, const void* key, cdpCompa
     do {
         i = (imax + imin) >> 1;  // (max + min) / 2
         record = &array->record[i];
-        int res = compare(key, record, array->store.context);
+        int res = compare(key, record, context);
         if (0 > res) {
             if (!i) break;
             imax = i - 1;
@@ -84,14 +84,14 @@ static inline void array_update_children_parent_ptr(cdpRecord* record, cdpRecord
 }
 
 
-static inline cdpRecord* array_sorted_insert(cdpArray* array, cdpRecord* record, cdpCompare compare, void* context) {
+static inline cdpRecord* array_sorted_insert(cdpArray* array, const cdpRecord* record, cdpCompare compare, void* context) {
     size_t index = 0;
     cdpRecord* prev = array_search(array, record, compare, context, &index);
     if (prev) {
         // FixMe: delete children.
         assert(prev);
     }
-    child = &array->record[index];
+    cdpRecord* child = &array->record[index];
     if (index < array->store.chdCount) {
         memmove(child + 1, child, array->store.chdCount * sizeof(cdpRecord));
         array_update_children_parent_ptr(child + 1, &array->record[array->store.chdCount]);
@@ -116,7 +116,7 @@ static inline cdpRecord* array_add(cdpArray* array, cdpRecord* parent, bool prep
         if (cdp_record_is_dictionary(parent)) {
             child = array_sorted_insert(array, record, record_compare_by_name, NULL);
         } else if (cdp_record_is_catalog(parent)) {
-            child = array_sorted_insert(array, record, array->store->sorter.compare, array->store->sorter.context);
+            child = array_sorted_insert(array, record, array->store.sorter->compare, array->store.sorter->context);
         } else if (prepend) {
             // Prepend
             child = array->record;
@@ -147,7 +147,7 @@ static inline cdpRecord* array_last(cdpArray* array) {
 
 
 static inline cdpRecord* array_find_by_name(cdpArray* array, cdpID id, const cdpRecord* book) {
-    if (cdp_record_is_dictionary(book) && !array->store.compare) {    // FixMe: catalog
+    if (cdp_record_is_dictionary(book)) {
         cdpRecord key = {.metadata.id = id};
         return array_search(array, &key, record_compare_by_name, NULL, NULL);
     } else {
