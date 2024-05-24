@@ -250,6 +250,22 @@ static inline cdpRecord* rb_tree_find_by_name(cdpRbTree* tree, cdpID id, const c
 }
 
 
+static inline cdpRecord* rb_tree_find_by_key(cdpRbTree* tree, cdpRecord* key) {
+    cdpRbTreeNode* tnode = tree->root;
+    do {
+        int cmp = tree->store.sorter->compare(key, &tnode->record, tree->store.sorter->context);
+        if (0 > cmp) {
+            tnode = tnode->left;
+        } else if (0 < cmp) {
+            tnode = tnode->right;
+        } else {
+            return &tnode->record;
+        }
+    } while (tnode);
+    return NULL;
+}
+
+
 static inline int rb_traverse_func_break_at_position(cdpBookEntry* entry, unsigned u, uintptr_t position) {
     return (entry->position != position);
 }

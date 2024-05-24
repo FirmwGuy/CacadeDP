@@ -133,6 +133,16 @@ static inline cdpRecord* list_find_by_name(cdpList* list, cdpID id) {
 }
 
 
+
+static inline cdpRecord* list_find_by_key(cdpList* list, cdpRecord* key) {
+    for (cdpListNode* node = list->head;  node;  node = node->next) {
+        if (0 == list->store.sorter->compare(key, &node->record, list->store.sorter->context))
+            return &node->record;
+    }
+    return NULL;
+}
+
+
 static inline cdpRecord* list_find_by_position(cdpList* list, size_t position) {
     // ToDo: use from tail to head if index is closer to it.
     size_t n = 0;

@@ -161,6 +161,11 @@ static inline cdpRecord* array_find_by_name(cdpArray* array, cdpID id, const cdp
 }
 
 
+static inline cdpRecord* array_find_by_key(cdpArray* array, cdpRecord* key) {
+    return array_search(array, key, array->store.sorter->compare, array->store.sorter->context, NULL);
+}
+
+
 static inline cdpRecord* array_find_by_position(cdpArray* array, size_t position) {
     assert(position < array->store.chdCount);
     return &array->record[position];

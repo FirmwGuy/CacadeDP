@@ -357,28 +357,23 @@ cdpRecord* cdp_book_first(const cdpRecord* book) {
     assert(cdp_record_is_book(book));
     cdpChdStore* store = CDP_CHD_STORE(book->recData.book.children);
     CDP_CK(store->chdCount);
-    cdpRecord* record;
 
     STORE_TECH_SELECT(book->metadata.storeTech) {
       LINKED_LIST: {
-        record = list_first(book->recData.book.children);
-        break;
+        return list_first(book->recData.book.children);
       }
       ARRAY: {
-        record = array_first(book->recData.book.children);
-        break;
+        return array_first(book->recData.book.children);
       }
       PACKED_QUEUE: {
-        record = packed_q_first(book->recData.book.children);
-        break;
+        return packed_q_first(book->recData.book.children);
       }
       RED_BLACK_T: {
-        record = rb_tree_first(book->recData.book.children);
-        break;
+        return rb_tree_first(book->recData.book.children);
       }
     } SELECTION_END;
 
-    return record;
+    return NULL;
 }
 
 
@@ -389,28 +384,23 @@ cdpRecord* cdp_book_last(const cdpRecord* book) {
     assert(cdp_record_is_book(book));
     cdpChdStore* store = CDP_CHD_STORE(book->recData.book.children);
     CDP_CK(store->chdCount);
-    cdpRecord* record;
 
     STORE_TECH_SELECT(book->metadata.storeTech) {
       LINKED_LIST: {
-        record = list_last(book->recData.book.children);
-        break;
+        return list_last(book->recData.book.children);
       }
       ARRAY: {
-        record = array_last(book->recData.book.children);
-        break;
+        return array_last(book->recData.book.children);
       }
       PACKED_QUEUE: {
-        record = packed_q_last(book->recData.book.children);
-        break;
+        return packed_q_last(book->recData.book.children);
       }
       RED_BLACK_T: {
-        record = rb_tree_last(book->recData.book.children);
-        break;
+        return rb_tree_last(book->recData.book.children);
       }
     } SELECTION_END;
 
-    return record;
+    return NULL;
 }
 
 
@@ -421,28 +411,23 @@ cdpRecord* cdp_book_find_by_name(const cdpRecord* book, cdpID id) {
     assert(cdp_record_is_book(book));
     cdpChdStore* store = CDP_CHD_STORE(book->recData.book.children);
     CDP_CK(store->chdCount);
-    cdpRecord* record;
 
     STORE_TECH_SELECT(book->metadata.storeTech) {
       LINKED_LIST: {
-        record = list_find_by_name(book->recData.book.children, id);
-        break;
+        return list_find_by_name(book->recData.book.children, id);
       }
       ARRAY: {
-        record = array_find_by_name(book->recData.book.children, id, book);
-        break;
+        return array_find_by_name(book->recData.book.children, id, book);
       }
       PACKED_QUEUE: {
-        record = packed_q_find_by_name(book->recData.book.children, id);
-        break;
+        return packed_q_find_by_name(book->recData.book.children, id);
       }
       RED_BLACK_T: {
-        record = rb_tree_find_by_name(book->recData.book.children, id, book);
-        break;
+        return rb_tree_find_by_name(book->recData.book.children, id, book);
       }
     } SELECTION_END;
 
-    return record;
+    return NULL;
 }
 
 
@@ -451,8 +436,26 @@ cdpRecord* cdp_book_find_by_name(const cdpRecord* book, cdpID id) {
     Finds a child record based on specified key.
 */
 cdpRecord* cdp_book_find_by_key(const cdpRecord* book, cdpRecord* key) {
-    assert(cdp_record_is_catalog(book) && key);
-    // ToDo: implement the whole catalog thing.
+    assert(cdp_record_is_catalog(book) && !cdp_record_is_none(key));
+    cdpChdStore* store = CDP_CHD_STORE(book->recData.book.children);
+    CDP_CK(store->chdCount);
+
+    STORE_TECH_SELECT(book->metadata.storeTech) {
+      LINKED_LIST: {
+        return list_find_by_key(book->recData.book.children, key);
+      }
+      ARRAY: {
+        return array_find_by_key(book->recData.book.children, key);
+      }
+      PACKED_QUEUE: {
+        assert(book->metadata.storeTech == CDP_STO_CHD_PACKED_QUEUE);   // Unsupported.
+        break;
+      }
+      RED_BLACK_T: {
+        return rb_tree_find_by_key(book->recData.book.children, key);
+      }
+    } SELECTION_END;
+
     return NULL;
 }
 
@@ -465,28 +468,23 @@ cdpRecord* cdp_book_find_by_position(const cdpRecord* book, size_t position) {
     cdpChdStore* store = CDP_CHD_STORE(book->recData.book.children);
     CDP_CK(store->chdCount);
     assert(position < store->chdCount);
-    cdpRecord* record;
 
     STORE_TECH_SELECT(book->metadata.storeTech) {
       LINKED_LIST: {
-        record = list_find_by_position(book->recData.book.children, position);
-        break;
+        return list_find_by_position(book->recData.book.children, position);
       }
       ARRAY: {
-        record = array_find_by_position(book->recData.book.children, position);
-        break;
+        return array_find_by_position(book->recData.book.children, position);
       }
       PACKED_QUEUE: {
-        record = packed_q_find_by_position(book->recData.book.children, position);
-        break;
+        return packed_q_find_by_position(book->recData.book.children, position);
       }
       RED_BLACK_T: {
-        record = rb_tree_find_by_position(book->recData.book.children, position, book);
-        break;
+        return rb_tree_find_by_position(book->recData.book.children, position, book);
       }
     } SELECTION_END;
 
-    return record;
+    return NULL;
 }
 
 
@@ -524,28 +522,23 @@ cdpRecord* cdp_book_prev(const cdpRecord* book, cdpRecord* record) {
         book = store->book;
     }
     CDP_CK(store->chdCount);
-    cdpRecord* prev;
 
     STORE_TECH_SELECT(book->metadata.storeTech) {
       LINKED_LIST: {
-        prev = list_prev(record);
-        break;
+        return list_prev(record);
       }
       ARRAY: {
-        prev = array_prev(book->recData.book.children, record);
-        break;
+        return array_prev(book->recData.book.children, record);
       }
       PACKED_QUEUE: {
-        prev = packed_q_prev(book->recData.book.children, record);
-        break;
+        return packed_q_prev(book->recData.book.children, record);
       }
       RED_BLACK_T: {
-        prev = rb_tree_prev(record);
-        break;
+        return rb_tree_prev(record);
       }
     } SELECTION_END;
 
-    return prev;
+    return NULL;
 }
 
 
@@ -563,28 +556,23 @@ cdpRecord* cdp_book_next(const cdpRecord* book, cdpRecord* record) {
         book = store->book;
     }
     CDP_CK(store->chdCount);
-    cdpRecord* next;
 
     STORE_TECH_SELECT(book->metadata.storeTech) {
       LINKED_LIST: {
-        next = list_next(record);
-        break;
+        return list_next(record);
       }
       ARRAY: {
-        next = array_next(book->recData.book.children, record);
-        break;
+        return array_next(book->recData.book.children, record);
       }
       PACKED_QUEUE: {
-        next = packed_q_next(book->recData.book.children, record);
-        break;
+        return packed_q_next(book->recData.book.children, record);
       }
       RED_BLACK_T: {
-        next = rb_tree_next(record);
-        break;
+        return rb_tree_next(record);
       }
     } SELECTION_END;
 
-    return next;
+    return NULL;
 }
 
 
@@ -600,27 +588,23 @@ cdpRecord* cdp_book_find_next_by_name(const cdpRecord* book, cdpID id, uintptr_t
     }
     cdpChdStore* store = CDP_CHD_STORE(book->recData.book.children);
     CDP_CK(store->chdCount);
-    cdpRecord* record;
 
     STORE_TECH_SELECT(book->metadata.storeTech) {
       LINKED_LIST: {
-        record = list_next_by_name(book->recData.book.children, id, (cdpListNode**)childIdx);
-        break;
+        return list_next_by_name(book->recData.book.children, id, (cdpListNode**)childIdx);
       }
       ARRAY: {
-        record = array_next_by_name(book->recData.book.children, id, childIdx);
-        break;
+        return array_next_by_name(book->recData.book.children, id, childIdx);
       }
       PACKED_QUEUE: {
-        record = packed_q_next_by_name(book->recData.book.children, id, (cdpPackedQNode**)childIdx);
-        break;
+        return packed_q_next_by_name(book->recData.book.children, id, (cdpPackedQNode**)childIdx);
       }
       RED_BLACK_T: {    // Unused.
         break;
       }
     } SELECTION_END;
 
-    return record;
+    return NULL;
 }
 
 
@@ -652,28 +636,23 @@ bool cdp_book_traverse(cdpRecord* book, cdpRecordTraverse func, void* context, c
     CDP_GO(!store->chdCount);
     if (!entry) entry = cdp_alloca(sizeof(cdpBookEntry));
     CDP_0(entry);
-    bool done;
 
     STORE_TECH_SELECT(book->metadata.storeTech) {
       LINKED_LIST: {
-        done = list_traverse(book->recData.book.children, book, func, context, entry);
-        break;
+        return list_traverse(book->recData.book.children, book, func, context, entry);
       }
       ARRAY: {
-        done = array_traverse(book->recData.book.children, book, func, context, entry);
-        break;
+        return array_traverse(book->recData.book.children, book, func, context, entry);
       }
       PACKED_QUEUE: {
-        done = packed_q_traverse(book->recData.book.children, book, func, context, entry);
-        break;
+        return packed_q_traverse(book->recData.book.children, book, func, context, entry);
       }
       RED_BLACK_T: {
-        done = rb_tree_traverse(book->recData.book.children, book, cdp_bitson(store->chdCount) + 2, func, context, entry);
-        break;
+        return rb_tree_traverse(book->recData.book.children, book, cdp_bitson(store->chdCount) + 2, func, context, entry);
       }
     } SELECTION_END;
 
-    return done;
+    return true;
 }
 
 

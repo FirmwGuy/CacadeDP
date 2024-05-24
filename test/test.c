@@ -519,64 +519,70 @@ static void test_records_tech_sequencing_dictionary(void) {
 
 
 static void test_records_tech_sequencing_catalog(void) {
-#if 0
     size_t maxItems = munit_rand_int_range(2, 100);
 
     cdpRecord* catL = cdp_book_add_catalog(cdp_root(), CDP_NAME_TEMP-1, CDP_STO_CHD_LINKED_LIST, tech_catalog_compare, NULL);
     cdpRecord* catA = cdp_book_add_catalog(cdp_root(), CDP_NAME_TEMP-2, CDP_STO_CHD_ARRAY,       tech_catalog_compare, NULL, maxItems);
     cdpRecord* catT = cdp_book_add_catalog(cdp_root(), CDP_NAME_TEMP-3, CDP_STO_CHD_RED_BLACK_T, tech_catalog_compare, NULL);
 
-    cdpRecord* bookL, *bookA, *bookT, *foundL, *foundA, *foundT;
+    cdpRecord* foundL, *foundA, *foundT;
+    cdpRecord  key = *tech_catalog_create_structure(CDP_NAME_TEMP, 0);
+    cdpRecord* reg = cdp_book_find_by_name(&key, CDP_NAME_VALUE);
 
     for (unsigned n = 0; n < maxItems;  n++) {
-        uint32_t value = 1 + (munit_rand_uint32() % (maxItems>>1));
+        int32_t value = 1 + (munit_rand_uint32() % (maxItems>>1));
         cdpID name = CDP_NAME_VALUE - value;
+        cdp_register_update_int32(reg, value);
 
-        if ((foundL = cdp_book_find_by_name(catL, name))) cdp_book_remove(foundL);
-        if ((foundA = cdp_book_find_by_name(catA, name))) cdp_book_remove(foundA);
-        if ((foundT = cdp_book_find_by_name(catT, name))) cdp_book_remove(foundT);
+        if ((foundL = cdp_book_find_by_key(catL, &key))) cdp_book_remove(foundL);
+        if ((foundA = cdp_book_find_by_key(catA, &key))) cdp_book_remove(foundA);
+        if ((foundT = cdp_book_find_by_key(catT, &key))) cdp_book_remove(foundT);
         assert((!foundL && !foundA && !foundT) || (foundL && foundA && foundT));
 
         if (cdp_book_children(catL)) {
             switch (munit_rand_int_range(0, 4)) {
               case 1:
-                cdp_register_remove(cdp_book_first(dictL));
-                cdp_register_remove(cdp_book_first(dictA));
-                cdp_register_remove(cdp_book_first(dictT));
+                cdp_book_remove(cdp_book_first(catL));
+                cdp_book_remove(cdp_book_first(catA));
+                cdp_book_remove(cdp_book_first(catT));
                 break;
               case 2:
-                cdp_register_remove(cdp_book_last(dictL));
-                cdp_register_remove(cdp_book_last(dictA));
-                cdp_register_remove(cdp_book_last(dictT));
+                cdp_book_remove(cdp_book_last(catL));
+                cdp_book_remove(cdp_book_last(catA));
+                cdp_book_remove(cdp_book_last(catT));
                 break;
             }
         }
 
-        cdp_book_add_uint32(dictL, name, value);
-        cdp_book_add_uint32(dictA, name, value);
-        cdp_book_add_uint32(dictT, name, value);
+        cdp_catalog_add(catL, tech_catalog_create_structure(name, value));
+        cdp_catalog_add(catA, tech_catalog_create_structure(name, value));
+        cdp_catalog_add(catT, tech_catalog_create_structure(name, value));
 
-        cdpRecord* recordL = cdp_book_first(dictL);
-        cdpRecord* recordA = cdp_book_first(dictA);
-        cdpRecord* recordT = cdp_book_first(dictT);
+        cdpRecord* bookL = cdp_book_first(catL);
+        cdpRecord* bookA = cdp_book_first(catA);
+        cdpRecord* bookT = cdp_book_first(catT);
 
         do {
+            cdpRecord*recordL = cdp_book_find_by_name(bookL, CDP_NAME_VALUE);
+            cdpRecord*recordA = cdp_book_find_by_name(bookA, CDP_NAME_VALUE);
+            cdpRecord*recordT = cdp_book_find_by_name(bookT, CDP_NAME_VALUE);
             assert(recordL && recordA && recordT);
 
             cdp_register_read(recordL, 0, &value, NULL);
             test_records_register_val(recordA, value);
             test_records_register_val(recordT, value);
 
-            recordL = cdp_book_next(dictL, recordL);
-            recordA = cdp_book_next(dictA, recordA);
-            recordT = cdp_book_next(dictT, recordT);
-        } while (recordL);
+            bookL = cdp_book_next(catL, bookL);
+            bookA = cdp_book_next(catA, bookA);
+            bookT = cdp_book_next(catT, bookT);
+        } while (bookL);
     }
 
-    cdp_book_remove(dictT);
-    cdp_book_remove(dictA);
-    cdp_book_remove(dictL);
-#endif
+    cdp_record_finalize(&key, 4);
+
+    cdp_book_remove(catT);
+    cdp_book_remove(catA);
+    cdp_book_remove(catL);
 }
 
 

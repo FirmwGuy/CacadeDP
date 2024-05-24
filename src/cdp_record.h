@@ -449,13 +449,24 @@ void* cdp_register_write(cdpRecord* reg, size_t position, const void* data, size
 #define cdp_register_read_float32(reg)  (*(float*)cdp_register_read(reg, 0, NULL, NULL))
 #define cdp_register_read_float64(reg)  (*(double*)cdp_register_read(reg, 0, NULL, NULL))
 
+#define cdp_register_update_bool(reg, v)    cdp_register_update(reg, &(v), sizeof(uint8_t))
+#define cdp_register_update_byte(reg, v)    cdp_register_update(reg, &(v), sizeof(uint8_t))
+#define cdp_register_update_uint16(reg, v)  cdp_register_update(reg, &(v), sizeof(uint16_t))
+#define cdp_register_update_uint32(reg, v)  cdp_register_update(reg, &(v), sizeof(uint32_t))
+#define cdp_register_update_uint64(reg, v)  cdp_register_update(reg, &(v), sizeof(uint64_t))
+#define cdp_register_update_int16(reg, v)   cdp_register_update(reg, &(v), sizeof(int16_t))
+#define cdp_register_update_int32(reg, v)   cdp_register_update(reg, &(v), sizeof(int32_t))
+#define cdp_register_update_int64(reg, v)   cdp_register_update(reg, &(v), sizeof(int64_t))
+#define cdp_register_update_float32(reg, v) cdp_register_update(reg, &(v), sizeof(float))
+#define cdp_register_update_float64(reg, v) cdp_register_update(reg, &(v), sizeof(double))
+
 
 // Accessing books
 cdpRecord* cdp_book_first(const cdpRecord* book);   // Gets the first record from book.
 cdpRecord* cdp_book_last (const cdpRecord* book);   // Gets the last record from book.
 
 cdpRecord* cdp_book_find_by_name (const cdpRecord* book, cdpID id);             // Retrieves a child record by its id.
-cdpRecord* cdp_book_find_by_key  (const cdpRecord* book, cdpRecord* key);       // Finds a child record based on specified key.
+cdpRecord* cdp_book_find_by_key  (const cdpRecord* book, cdpRecord* key);       // Finds a child record based on specified key record.
 cdpRecord* cdp_book_find_by_position(const cdpRecord* book, size_t pos);        // Gets the child record at index position from book.
 cdpRecord* cdp_book_find_by_path (const cdpRecord* start, const cdpPath* path); // Finds a child record based on a path of ids starting from the root or a given book.
 
@@ -502,7 +513,6 @@ void cdp_record_system_shutdown(void);
 /*
     TODO:
     - Implement auto-increment in books.
-    - Add find by register value function.
     - Add indexof for records;
     - Redefine user callback based on typed book ops.
     - Add book properties dict to cdpVariantBook.
