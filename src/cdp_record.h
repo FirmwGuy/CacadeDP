@@ -149,15 +149,14 @@ typedef struct _cdpPath         cdpPath;
  */
 
 #define CDP_ATTRIB_PRIVATE      0x01    // Record (with all its children) is private (unlockable).
-#define CDP_ATTRIB_COLLECTOR    0x02    // Record can only grow (but never lose data).
-#define CDP_ATTRIB_FACTUAL      0x04    // Record can't be modified anymore (but it still can be deleted).
+#define CDP_ATTRIB_FACTUAL      0x02    // Record can't be modified anymore (but it still can be deleted).
 
-#define CDP_ATTRIB_PUB_MASK     (CDP_ATTRIB_PRIVATE | CDP_ATTRIB_COLLECTOR | CDP_ATTRIB_FACTUAL)
+#define CDP_ATTRIB_PUB_MASK     (CDP_ATTRIB_PRIVATE | CDP_ATTRIB_FACTUAL)
 
-#define CDP_ATTRIB_SHADOWED     0x08    // Record has shadow records (links pointing to it).
-#define CDP_ATTRIB_RESERVED     0x10    // This flag is reserved for future use.
+#define CDP_ATTRIB_SHADOWED     0x04    // Record has shadow records (links pointing to it).
+#define CDP_ATTRIB_RESERVED     0x08    // This flag is reserved for future use.
 
-#define CDP_ATTRIB_BIT_COUNT    5
+#define CDP_ATTRIB_BIT_COUNT    4
 
 
 enum {
@@ -206,11 +205,6 @@ enum _CDP_TYPE {
     CDP_TYPE_CATALOG,
 
     // Register types
-    CDP_TYPE_PATCH,
-    CDP_TYPE_ID,
-    CDP_TYPE_NAME,
-    CDP_TYPE_UTF8,
-    //
     CDP_TYPE_BOOLEAN,
     CDP_TYPE_BYTE,
     CDP_TYPE_UINT16,
@@ -221,6 +215,10 @@ enum _CDP_TYPE {
     CDP_TYPE_INT64,
     CDP_TYPE_FLOAT32,
     CDP_TYPE_FLOAT64,
+    //
+    CDP_TYPE_ID,
+    CDP_TYPE_UTF8,
+    CDP_TYPE_PATCH,
 
     // Structured types
     CDP_TYPE_TYPE,
@@ -269,7 +267,7 @@ typedef struct {
 
 typedef struct {
     void*     children;     // Pointer to either cdpArray, cdpList, cdpPackedQ, or cdpRbTree.
-    void*     property;     // Book property dictionary (as cdpRbTree). Reserved for future use.
+    void*     property;     // Book property dictionary (as cdpRbTree).
 } cdpVariantBook;
 
 typedef struct {
@@ -512,10 +510,9 @@ void cdp_record_system_shutdown(void);
 
 /*
     TODO:
-    - Implement auto-increment in books.
     - Add indexof for records;
+    - Add cdp_book_update_nested_links(old, new).
     - Redefine user callback based on typed book ops.
-    - Add book properties dict to cdpVariantBook.
     - Perhaps ids should be an unsorted tree (instead of a log) and use the deep-traverse index.
     - Fully define the tree (nesting) recursion limit policy.
 */

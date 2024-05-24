@@ -60,60 +60,56 @@
     parent relationships and specific requirements.
 
     ### Directory Structure:
-    The book structure is explained using CascadeDP records, hence
-    with each entry having a id (represented with text), a type
-    (enclosed in parentheses), and an index (represented here inside
-    brackets). Registers may have values (following the ":"), while links
-    are represented by "->". UTF8 text content is represented by quoted
-    text (its type is implied). The root of the tree is the directory "/".
+    The book structure is explained using CascadeDP records, hence with each
+    entry having an id (represented with text or number), a type (enclosed in
+    parentheses), and register value (following the ":"). Links are represented
+    by the arrow "->", while UTF8 text content is represented by quoted text
+    (its type is implied). The root of the tree is the directory "/".
 
     #### 1. **/type/**
     The `/type/` book stores internal information needed by the
-    (distributed) record system about types. This setup, however, is
+    distributed record system about types. This setup, however, is
     local to each node.
     - **Example Structure**:
       ```
       /type/ (dictionary)
           5/ (type)
               name:"catalog"
-              parent/ (set)
+              parent/ (dictionary)
                   1 -> /type/3
               description: "Book with records ordered by some user-defined criteria."
           8/ (type)
               name:"log"
-              parent/ (set)
+              parent/ (dictionary)
                   1 -> /type/7
               description: "Queue that never removes records."
           9/ (type)
               name:"boolean"
               description: "Boolean value."
-              value/ (static set)
+              value/ (dictionary)
                   1:"false"
                   2:"true"
               size:1 (uint32)
-
       ```
 
     #### 2. **/system/**
     The `/system/` book is used for storing records related to each
-    (connected) process instance, such as input queues and output
-    linkage.
+    local process instance, such as input queues and output
+    linkage to connected processes.
     - **Example Structure**:
       ```
       /system/ (dictionary)
-          process001/ (catalog)
-              instance/ (dictionary)
-                  id:555 (uint32)
+          process001/ (dictionary)
+              555/ (instance)
                   input/ (dictionary)
                       arg/ (queue)
                   output/ (dictionary)
-                      result -> /instance/process002/instance(id=557)/input/arg
-              instance/ (dictionary)
-                  id:556 (uint32)
+                      result -> /instance/process002/557/input/arg
+              556/ (instance)
                   input/ (dictionary)
                       arg/ (queue)
                   output/ (dictionary)
-                      result -> /instance/process002/instance(id=558)/input/arg
+                      result -> /instance/process002/558/input/arg
       ```
 
     #### 3. **/user/**
@@ -138,9 +134,8 @@
           user1/ (dictionary)
               private/ (dictionary)
                   system/ (dictionary)
-                      process01/ (catalog)
-                          instance/ (dictionary)
-                             id:555 (uint32)
+                      process01/ (dictionary)
+                          555/ (private_instance)
                              states/ (book)
                           saved-data/ (book)
       ```
@@ -162,10 +157,10 @@
       ```
 
     #### 6. **/data/**
-    The `/data/` book is a virtual space used for mapping public
-    records into a communal coherent structure. This includes registers
-    and links as shared resources that might be accessed within the
-    network.
+    The `/data/` book is a virtual space used for mapping distributed
+    public records into a communal coherent structure. This includes
+    registers and links as shared resources that might be accessed
+    within the network.
     - **Example Structure**:
       ```
       /data/ (dictionary)
