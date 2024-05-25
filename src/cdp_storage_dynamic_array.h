@@ -82,7 +82,16 @@ static inline void array_update_children_parent_ptr(cdpRecord* record, cdpRecord
 }
 
 
-static inline cdpRecord* array_sorted_insert(cdpArray* array, const cdpRecord* record, cdpCompare compare, void* context) {
+static inline void array_grow(cdpArray* array) {
+      assert(array->capacity);
+      array->capacity *= 2;
+      CDP_REALLOC(array->record, array->capacity * sizeof(cdpRecord));
+      memset(&array->record[array->store.chdCount], 0, array->store.chdCount * sizeof(cdpRecord));
+      array_update_children_parent_ptr(array->record, &array->record[array->store.chdCount - 1]);
+}
+
+
+static inline cdpRecord* array_sorted_insert_record(cdpArray* array, const cdpRecord* record, cdpCompare compare, void* context) {
     size_t index = 0;
     cdpRecord* prev = array_search(array, record, compare, context, &index);
     if (prev) {
@@ -98,23 +107,36 @@ static inline cdpRecord* array_sorted_insert(cdpArray* array, const cdpRecord* r
     return child;
 }
 
+
+static inline cdpRecord* array_sorted_insert(cdpArray* array, const cdpRecord* record, cdpCompare compare, void* context) {
+    // Increase array space if necessary
+    if (array->capacity == array->store.chdCount)
+        array_grow(array);
+
+    // Insert
+    cdpRecord* child;
+
+    if (array->store.chdCount)
+        child = array_sorted_insert_record(array, record, compare, context);
+    else
+        child = array->record;
+
+    *child = *record;
+
+    return child;
+}
+
+
 static inline cdpRecord* array_add(cdpArray* array, cdpRecord* parent, bool prepend, const cdpRecord* record) {
     // Increase array space if necessary
-    if (array->capacity == array->store.chdCount) {
-        assert(array->capacity);
-        array->capacity *= 2;
-        CDP_REALLOC(array->record, array->capacity * sizeof(cdpRecord));
-        memset(&array->record[array->store.chdCount], 0, array->store.chdCount * sizeof(cdpRecord));
-        array_update_children_parent_ptr(array->record, &array->record[array->store.chdCount - 1]);
-    }
+    if (array->capacity == array->store.chdCount)
+        array_grow(array);
 
     // Insert
     cdpRecord* child;
     if (array->store.chdCount) {
         if (cdp_record_is_dictionary(parent)) {
-            child = array_sorted_insert(array, record, record_compare_by_name, NULL);
-        } else if (cdp_record_is_catalog(parent)) {
-            child = array_sorted_insert(array, record, array->store.sorter->compare, array->store.sorter->context);
+            child = array_sorted_insert_record(array, record, record_compare_by_name, NULL);
         } else if (prepend) {
             // Prepend
             child = array->record;
@@ -159,8 +181,8 @@ static inline cdpRecord* array_find_by_name(cdpArray* array, cdpID id, const cdp
 }
 
 
-static inline cdpRecord* array_find_by_key(cdpArray* array, cdpRecord* key) {
-    return array_search(array, key, array->store.sorter->compare, array->store.sorter->context, NULL);
+static inline cdpRecord* array_find_by_key(cdpArray* array, cdpRecord* key, cdpCompare compare, void* context) {
+    return array_search(array, key, compare, context, NULL);
 }
 
 

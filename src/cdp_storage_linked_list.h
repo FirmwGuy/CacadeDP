@@ -54,7 +54,7 @@ static inline cdpListNode* list_node_from_record(cdpRecord* record) {
 }
 
 
-static inline void list_sorted_insert(cdpList* list, cdpListNode* node, cdpCompare compare, void* context) {
+static inline void list_sorted_insert_node(cdpList* list, cdpListNode* node, cdpCompare compare, void* context) {
     cdpListNode* next;
     for (next = list->head;  next;  next = next->next) {
         int cmp = compare(&node->record, &next->record, context);
@@ -80,15 +80,22 @@ static inline void list_sorted_insert(cdpList* list, cdpListNode* node, cdpCompa
     }
 }
 
+
+static inline cdpRecord* list_sorted_insert(cdpList* list, const cdpRecord* record, cdpCompare compare, void* context) {
+    CDP_NEW(cdpListNode, node);
+    node->record = *record;
+    list_sorted_insert_node(list, node, compare, context);
+    return &node->record;
+}
+
+
 static inline cdpRecord* list_add(cdpList* list, cdpRecord* parent, bool prepend, const cdpRecord* record) {
     CDP_NEW(cdpListNode, node);
     node->record = *record;
 
     if (list->store.chdCount) {
         if (cdp_record_is_dictionary(parent)) {
-            list_sorted_insert(list, node, record_compare_by_name, NULL);
-        } else if (cdp_record_is_catalog(parent)) {
-            list_sorted_insert(list, node, list->store.sorter->compare, list->store.sorter->context);
+            list_sorted_insert_node(list, node, record_compare_by_name, NULL);
         } else if (prepend) {
             // Prepend node
             node->next = list->head;
@@ -134,9 +141,9 @@ static inline cdpRecord* list_find_by_name(cdpList* list, cdpID id) {
 
 
 
-static inline cdpRecord* list_find_by_key(cdpList* list, cdpRecord* key) {
+static inline cdpRecord* list_find_by_key(cdpList* list, cdpRecord* key, cdpCompare compare, void* context) {
     for (cdpListNode* node = list->head;  node;  node = node->next) {
-        if (0 == list->store.sorter->compare(key, &node->record, list->store.sorter->context))
+        if (0 == compare(key, &node->record, context))
             return &node->record;
     }
     return NULL;

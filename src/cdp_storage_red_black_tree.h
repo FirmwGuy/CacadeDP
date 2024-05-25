@@ -52,7 +52,7 @@ typedef struct {
 #define rb_tree_del       cdp_free
 
 
-static inline cdpRbTreeNode* rb_tree_node_new(cdpRecord* record) {
+static inline cdpRbTreeNode* rb_tree_node_new(const cdpRecord* record) {
     CDP_NEW(cdpRbTreeNode, tnode);
     tnode->isRed = true;
     tnode->record = *record;
@@ -139,7 +139,7 @@ static inline void rb_tree_fix_insert(cdpRbTree* tree, cdpRbTreeNode* z) {
 }
 
 
-static inline void rb_tree_sorted_insert(cdpRbTree* tree, cdpRbTreeNode* tnode, cdpCompare compare, void* context) {
+static inline void rb_tree_sorted_insert_tnode(cdpRbTree* tree, cdpRbTreeNode* tnode, cdpCompare compare, void* context) {
     if (tree->root) {
         cdpRbTreeNode* x = tree->root, *y;
         do {
@@ -167,24 +167,24 @@ static inline void rb_tree_sorted_insert(cdpRbTree* tree, cdpRbTreeNode* tnode, 
 }
 
 
-static inline cdpRecord* rb_tree_add(cdpRbTree* tree, cdpRecord* parent, const cdpRecord* record) {
-    assert(cdp_record_is_dict_or_cat(parent));
-
+static inline cdpRecord* rb_tree_sorted_insert(cdpRbTree* tree, const cdpRecord* record, cdpCompare compare, void* context) {
     cdpRbTreeNode* tnode = rb_tree_node_new(record);
+    rb_tree_sorted_insert_tnode(tree, tnode, compare, context);
+    return &tnode->record;
+}
 
-    if (cdp_record_is_dictionary(parent)) {
-        rb_tree_sorted_insert(tree, tnode, record_compare_by_name, NULL);
-    } else if (cdp_record_is_catalog(parent)) {
-        rb_tree_sorted_insert(tree, tnode, tree->store.sorter->compare, tree->store.sorter->context);
-    }
 
-    return child;
+static inline cdpRecord* rb_tree_add(cdpRbTree* tree, cdpRecord* parent, const cdpRecord* record) {
+    assert(cdp_record_is_dictionary(parent));
+    cdpRbTreeNode* tnode = rb_tree_node_new(record);
+    rb_tree_sorted_insert_tnode(tree, tnode, record_compare_by_name, NULL);
+    return &tnode->record;
 }
 
 
 static inline cdpRecord* rb_tree_add_property(cdpRbTree* tree, const cdpRecord* record) {
     cdpRbTreeNode* tnode = rb_tree_node_new(record);
-    rb_tree_sorted_insert(tree, tnode, record_compare_by_name, NULL);
+    rb_tree_sorted_insert_tnode(tree, tnode, record_compare_by_name, NULL);
     return &tnode->record;
 }
 
@@ -269,10 +269,10 @@ static inline cdpRecord* rb_tree_find_by_name(cdpRbTree* tree, cdpID id, const c
 }
 
 
-static inline cdpRecord* rb_tree_find_by_key(cdpRbTree* tree, cdpRecord* key) {
+static inline cdpRecord* rb_tree_find_by_key(cdpRbTree* tree, cdpRecord* key, cdpCompare compare, void* context) {
     cdpRbTreeNode* tnode = tree->root;
     do {
-        int cmp = tree->store.sorter->compare(key, &tnode->record, tree->store.sorter->context);
+        int cmp = compare(key, &tnode->record, context);
         if (0 > cmp) {
             tnode = tnode->left;
         } else if (0 < cmp) {

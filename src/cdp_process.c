@@ -155,13 +155,8 @@ void cdp_system_initiate(void) {
         system_initiate_type(TYPE, "dictionary",    "Book of records sorted by their unique name.", 0);
         system_initiate_type(TYPE, "catalog",       "Book with records ordered by some user-defined criteria.", 0);
         system_initiate_type(TYPE, "list",          "Book with records oredered by how they are added/removed", 0);
-        system_initiate_type(TYPE, "set",           "List with records of unique value.", 0);
         system_initiate_type(TYPE, "queue",         "List that only removes records from its beginning or adds them to its end.", 0);
-        system_initiate_type(TYPE, "chronicle",     "Book that never removes records.", 0);
-        system_initiate_type(TYPE, "encyclopedia",  "Dictionary that never removes records.", 0);
-        system_initiate_type(TYPE, "compendium",    "Catalog that never removes records.", 0);
-        system_initiate_type(TYPE, "collection",    "Set that never removes records.", 0);
-        system_initiate_type(TYPE, "log",           "Queue that never removes records.", 0);
+        system_initiate_type(TYPE, "stack",         "List that only insert/removes records from its beginning.", 0);
 
         // Register types
         system_initiate_type(TYPE, "register",      "Generic record that holds data.", 0);
