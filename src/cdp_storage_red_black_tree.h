@@ -52,6 +52,14 @@ typedef struct {
 #define rb_tree_del       cdp_free
 
 
+static inline cdpRbTreeNode* rb_tree_node_new(cdpRecord* record) {
+    CDP_NEW(cdpRbTreeNode, tnode);
+    tnode->isRed = true;
+    tnode->record = *record;
+    return tnode;
+}
+
+
 static inline cdpRbTreeNode* rb_tree_node_from_record(cdpRecord* record) {
     return cdp_ptr_dif(record, offsetof(cdpRbTreeNode, record));
 }
@@ -162,10 +170,7 @@ static inline void rb_tree_sorted_insert(cdpRbTree* tree, cdpRbTreeNode* tnode, 
 static inline cdpRecord* rb_tree_add(cdpRbTree* tree, cdpRecord* parent, const cdpRecord* record) {
     assert(cdp_record_is_dict_or_cat(parent));
 
-    CDP_NEW(cdpRbTreeNode, tnode);
-    tnode->isRed = true;
-    cdpRecord* child = &tnode->record;
-    *child = *record;
+    cdpRbTreeNode* tnode = rb_tree_node_new(record);
 
     if (cdp_record_is_dictionary(parent)) {
         rb_tree_sorted_insert(tree, tnode, record_compare_by_name, NULL);
@@ -174,6 +179,13 @@ static inline cdpRecord* rb_tree_add(cdpRbTree* tree, cdpRecord* parent, const c
     }
 
     return child;
+}
+
+
+static inline cdpRecord* rb_tree_add_property(cdpRbTree* tree, const cdpRecord* record) {
+    cdpRbTreeNode* tnode = rb_tree_node_new(record);
+    rb_tree_sorted_insert(tree, tnode, record_compare_by_name, NULL);
+    return &tnode->record;
 }
 
 
@@ -227,20 +239,27 @@ static inline int rb_traverse_func_break_at_name(cdpBookEntry* entry, unsigned u
     return (entry->record->metadata.id != id);
 }
 
+
+static inline cdpRecord* rb_tree_find_by_id(cdpRbTree* tree, cdpID id) {
+    cdpRecord key = {.metadata.id = id};
+    cdpRbTreeNode* tnode = tree->root;
+    do {
+        int cmp = record_compare_by_name(&key, &tnode->record, NULL);
+        if (0 > cmp) {
+            tnode = tnode->left;
+        } else if (0 < cmp) {
+            tnode = tnode->right;
+        } else {
+            return &tnode->record;
+        }
+    } while (tnode);
+    return NULL;
+}
+
+
 static inline cdpRecord* rb_tree_find_by_name(cdpRbTree* tree, cdpID id, const cdpRecord* book) {
     if (cdp_record_is_dictionary(book)) {
-        cdpRecord key = {.metadata.id = id};
-        cdpRbTreeNode* tnode = tree->root;
-        do {
-            int cmp = record_compare_by_name(&key, &tnode->record, NULL);
-            if (0 > cmp) {
-                tnode = tnode->left;
-            } else if (0 < cmp) {
-                tnode = tnode->right;
-            } else {
-                return &tnode->record;
-            }
-        } while (tnode);
+        return rb_tree_find_by_id(tree, id);
     } else {
         cdpBookEntry entry = {0};
         if (!rb_tree_traverse(tree, CDP_P(book), cdp_bitson(tree->store.chdCount) + 2, (cdpFunc) rb_traverse_func_break_at_name, cdp_v2p(id), &entry))

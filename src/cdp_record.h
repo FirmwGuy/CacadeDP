@@ -177,6 +177,7 @@ enum {
 
 enum {
     CDP_STO_LNK_POINTER,        // Link points to an in-memory record.
+    CDP_STO_LNK_EXECUTABLE,     // Link points to a (local) procedure call.
     CDP_STO_LNK_PATH,           // Link hold the address of an off-memory record.
     //
     CDP_STO_LNK_COUNT
@@ -311,15 +312,9 @@ typedef struct {
 typedef int (*cdpCompare)(const cdpRecord* restrict, const cdpRecord* restrict, void*);
 
 typedef struct {
-    cdpCompare  compare;          // Compare function.
-    void*       context;          // User defined context data for searches.
-} cdpSorter;
-
-typedef struct {
     cdpRecord*  book;             // Parent book owning this child storage.
     cdpShadow*  shadow;           // Pointer to a structure for managing multiple (linked) parents.
     size_t      chdCount;         // Number of child records.
-    cdpSorter*  sorter;           // Used for sorting catalogs.
 } cdpChdStore;
 
 
@@ -376,9 +371,11 @@ static inline size_t     cdp_record_siblings(const cdpRecord* record)   {assert(
 // Register property check
 static inline bool cdp_register_is_borrowed(const cdpRecord* reg)   {assert(cdp_record_is_register(reg));  return (reg->metadata.storeTech == CDP_STO_REG_BORROWED);}
 
-// Book property check
+// Book properties
 static inline size_t cdp_book_children(const cdpRecord* book)       {assert(cdp_record_is_book(book));  return CDP_CHD_STORE(book->recData.book.children)->chdCount;}
 static inline bool   cdp_book_is_prependable(const cdpRecord* book) {assert(cdp_record_is_book(book));  return (book->metadata.storeTech != CDP_STO_CHD_RED_BLACK_T);}
+cdpRecord* cdp_book_add_property(cdpRecord* book, cdpRecord* record);
+cdpRecord* cdp_book_get_property(cdpRecord* book, cdpID id);
 
 
 // Appends, inserts or prepends a copy of record into a book.

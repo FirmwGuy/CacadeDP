@@ -128,9 +128,13 @@ static inline void* book_create_storage(unsigned storage, va_list args) {
 }
 
 
-static inline void book_clean_storage(cdpChdStore* store) {
-    if (store->sorter)
-        cdp_free(store->sorter);
+static inline void book_relink_storage(cdpRecord* book) {
+    cdpChdStore* store = book->recData.book.children;
+    assert(store);
+    store->book = book;         // Re-link book with its own children storage.
+    store = book->recData.book.property;
+    if (store)
+        store->book = book;     // Re-link with its own property storage.
 }
 
 
@@ -161,10 +165,13 @@ bool cdp_record_initialize(cdpRecord* record, unsigned primal, unsigned attrib, 
             void*      context = va_arg(args, void*);
             assert(compare && reqStore != CDP_STO_CHD_PACKED_QUEUE);
 
-            chdStore = book_create_storage(reqStore, args);
-            chdStore->sorter = cdp_malloc(sizeof(cdpSorter));
-            chdStore->sorter->compare = compare;
-            chdStore->sorter->context = context;
+            cdpRecord prop = {0};
+            cdp_record_initialize(&prop, CDP_TYPE_LINK, 0, CDP_NAME_COMPARE, CDP_TYPE_LINK, CDP_STO_LNK_EXECUTABLE, compare);
+            cdp_book_add_property(record, &prop);
+            if (context) {
+                cdp_record_initialize(&prop, CDP_TYPE_LINK, 0, CDP_NAME_COMPARE, CDP_TYPE_LINK, CDP_STO_LNK_EXECUTABLE, compare);
+                cdp_book_add_property(record, &prop);
+            }
         } else {
             CDP_DEBUG(
                 if (type == CDP_TYPE_DICTIONARY)
@@ -172,8 +179,8 @@ bool cdp_record_initialize(cdpRecord* record, unsigned primal, unsigned attrib, 
                 else
                     assert(reqStore != CDP_STO_CHD_RED_BLACK_T);    // Any other type of book storage should be prependable.
             );
-            chdStore = book_create_storage(reqStore, args);
         }
+        chdStore = book_create_storage(reqStore, args);
 
         // Link book record with its children storage.
         chdStore->book = record;
@@ -250,12 +257,52 @@ cdpRecord* cdp_book_add_record(cdpRecord* book, cdpRecord* record, bool prepend)
     child->store = store;
 
     if (cdp_record_is_book(child))
-        CDP_CHD_STORE(child->recData.book.children)->book = child;    // Re-link new copy of child book with its own children storage.
+        book_relink_storage(child);
 
     // Update parent.
     store->chdCount++;
 
     return child;
+}
+
+
+
+/*
+    Inserts a *copy* of the specified record as a book property.
+*/
+cdpRecord* cdp_book_add_property(cdpRecord* book, cdpRecord* record) {
+    assert(cdp_record_is_book(book) && !cdp_record_is_none(record));    // 'None' type of records are never inserted in books.
+
+    cdpRbTree* propTree = book->recData.book.property;
+    if (!propTree) {
+        propTree = rb_tree_new();
+        propTree->store.book = book;
+    }
+    cdpRecord* child = rb_tree_add_property(propTree, record);
+
+    CDP_0(record);
+
+    // Update child.
+    child->store = &propTree->store;
+
+    if (cdp_record_is_book(child))
+        book_relink_storage(child);
+
+    // Update parent.
+    propTree->store.chdCount++;
+
+    return child;
+}
+
+
+/*
+    Retrieves a book property by its id.
+*/
+cdpRecord* cdp_book_get_property(const cdpRecord* book, cdpID id) {
+    assert(cdp_record_is_book(book));
+    cdpRbTree* propTree = book->recData.book.property;
+    CDP_CK(propTree && propTree->store.chdCount);
+    return rb_tree_find_by_id(propTree, id);
 }
 
 
@@ -853,11 +900,16 @@ void cdp_record_finalize(cdpRecord* record, unsigned maxDepth) {
           RED_BLACK_T: {
             cdpRbTree* tree = record->recData.book.children;
             rb_tree_del_all_children(tree, maxDepth);
-            book_clean_storage(&tree->store);
             rb_tree_del(tree);
             break;
           }
         } SELECTION_END;
+
+        cdpRbTree* propTree = book->recData.book.property;
+        if (propTree) {
+            rb_tree_del_all_children(propTree, maxDepth);
+            rb_tree_del(propTree);
+        }
         break;
       }
 

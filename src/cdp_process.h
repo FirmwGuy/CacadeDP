@@ -229,36 +229,31 @@
 #include "cdp_record.h"
 
 
-static inline cdpRecord* cdp_record_none(void)  {extern cdpRecord NONE; assert(NONE);  return NONE;}
+typedef enum {
+    CDP_ACTION_START,
+    CDP_ACTION_INITIALIZE,
+    CDP_ACTION_FINALIZE,
+    CDP_ACTION_SAVE,
+    CDP_ACTION_LOAD,
+    CDP_ACTION_STEP,
+    CDP_ACTION_,
+} cdpAction;
 
+static inline cdpRecord* cdp_record_none(void)  {extern cdpRecord NONE; assert(NONE);  return NONE;}
 
 cdpID cdp_name_id_add(const char* name, bool borrow);
 #define cdp_name_id_add_static(name)  cdp_name_id_add(name, true);
 cdpRecord* cdp_name_id_text(cdpID id);
 
+typedef bool (*cdpInstance)(cdpRecord* instance, cdpAction action);
 
-typedef bool (*cdpCreate)(cdpRecord* instance, void** context);
-typedef bool (*cdpInstance)(cdpRecord* instance, void* context);
+cdpRecord* cdp_process_load(const char* name, cdpInstance instance);
 
-
-cdpRecord* cdp_process_load(const char* name,
-                            cdpCreate   create,
-                            cdpInstance step,
-                            cdpInstance destroy,
-                            cdpInstance save,
-                            cdpInstance restore);
-
-
-cdpID cdp_system_enter_name(const char* name, size_t length, bool staticStr);
-cdpRecord* cdp_system_name(cdpID);
-#define cdp_system_enter_name_string(str)   cdp_system_enter_name(str, strlen(str), true)
-
-
-unsigned cdp_system_enter_type(cdpID id, size_t baseSize);
-cdpRecord* cdp_system_type(unsigned type);
+cdpID cdp_type_add(const char* name, size_t baseSize);
 
 void cdp_system_initiate(void);
 bool cdp_system_tic(void);
 void cdp_system_shutdown(void);
+
 
 #endif
