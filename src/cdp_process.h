@@ -35,7 +35,7 @@
     is designed to handle a distributed system, that is, data sharing
     and service management across a distributed network of processes.
 
-    ### Process
+    ### Process:
     A process is a data processor unit, with inputs and outputs
     connected to other processes. The process is created on demand by
     the Process Instance Creation Service (or PICS), a unit whose only
@@ -44,7 +44,14 @@
     and data), allowing other processes to connect to them all across
     the network.
 
-    ### Types
+    ### Object:
+    An object is a process acting as a event handler for a specific
+    book. The object is run whenever such book is subject to an event.
+    The object may propagate instances all across the network.
+    In a way, objects are processes that "travel" along the data they
+    are bound to.
+
+    ### Types:
     The type system uses a factory pattern combined with dynamic type
     specification and validation. This approach enables structured
     creation of book types and instances, ensuring adherence to defined
@@ -110,6 +117,12 @@
                       arg/ (queue)
                   output/ (dictionary)
                       result -> /instance/process002/558/input/arg
+          object001/ (dictionary)
+              signal/ (queue)
+                  book -> /public/process001/measurements/car01
+              event/ (dictionary)
+                  signal -> /instance/object002/signal
+
       ```
 
     #### 3. **/user/**
