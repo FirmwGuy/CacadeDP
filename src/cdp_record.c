@@ -141,6 +141,16 @@ static inline void book_relink_storage(cdpRecord* book) {
 }
 
 
+static inline void store_check_auto_id(cdpChdStore* store, cdpRecord* record) {
+    if (!cdp_record_id_is_pending(record))
+        return;
+    assert(store->autoID < CDP_AUTO_ID_MAX);
+    record->metadata.id = store->autoID++;
+}
+
+
+
+
 /*
     Initiates a record struct with the requested parameters.
 */
@@ -207,15 +217,15 @@ bool cdp_record_initialize(cdpRecord* record, unsigned primal, unsigned attrib, 
 }
 
 
-
-
 /*
     Adds/inserts a *copy* of the specified record to a book.
 */
 cdpRecord* cdp_book_add_record(cdpRecord* book, cdpRecord* record, bool prepend) {
     assert(cdp_record_is_book(book) && !cdp_record_is_none(record));    // 'None' type of records are never inserted in books.
     CDP_DEBUG(if (!cdp_book_is_prependable(book)) assert(!prepend));
+
     cdpChdStore* store = CDP_CHD_STORE(book->recData.book.children);
+    store_check_auto_id(store, record);
     cdpRecord* child;
 
     // Add new record to parent book.
@@ -258,7 +268,9 @@ cdpRecord* cdp_book_add_record(cdpRecord* book, cdpRecord* record, bool prepend)
 */
 cdpRecord* cdp_book_sorted_insert(cdpRecord* book, cdpRecord* record, cdpCompare compare, void* context) {
     assert(cdp_record_is_book(book) && !cdp_record_is_none(record) && compare);    // 'None' type of records are never inserted in books.
+
     cdpChdStore* store = CDP_CHD_STORE(book->recData.book.children);
+    store_check_auto_id(store, record);
     cdpRecord* child;
 
     // Add new record to parent book.
@@ -307,6 +319,8 @@ cdpRecord* cdp_book_add_property(cdpRecord* book, cdpRecord* record) {
         propTree = rb_tree_new();
         propTree->store.book = book;
     }
+    store_check_auto_id(&propTree->store, record);
+
     cdpRecord* child = rb_tree_add_property(propTree, record);
 
     CDP_0(record);

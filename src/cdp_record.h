@@ -186,15 +186,15 @@ enum {
 
 typedef uint32_t cdpID;
 
-#define CDP_ID_MAXVAL       ((cdpID)(~0))
+#define CDP_ID_MAXVAL         ((cdpID)(-1))
 
-#define CDP_META_BITS       (CDP_ATTRIB_BIT_COUNT + 4)
-#define CDP_TYPE_MAXVAL     (CDP_ID_MAXVAL >> CDP_META_BITS)
-#define CDP_TYPE_ID_MAX     (CDP_TYPE_MAXVAL >> 1)
-#define CDP_OBJECT_FLAG     ((~(CDP_ID_MAXVAL >> 1)) >> CDP_META_BITS)
-#define CDP_OBJECT2ID(name) (CDP_OBJECT_FLAG | (name))
-#define CDP_ID2OBJECT(id)   ((id) & CDP_TYPE_ID_MAX)
-#define CDP_OBJECT_NAME_MAX CDP_TYPE_ID_MAX
+#define CDP_META_BITS         (CDP_ATTRIB_BIT_COUNT + 4)
+#define CDP_TYPE_MAXVAL       (CDP_ID_MAXVAL >> CDP_META_BITS)
+#define CDP_TYPE_COUNT_MAX    (CDP_TYPE_MAXVAL >> 1)
+#define CDP_OBJECT_FLAG       ((~(CDP_ID_MAXVAL >> 1)) >> CDP_META_BITS)
+#define CDP_OBJ2TYPE(name)    (CDP_OBJECT_FLAG | (name))
+#define CDP_TYPE2OBJ(id)      ((id) & CDP_TYPE_COUNT_MAX)
+#define CDP_OBJECT_COUNT_MAX  CDP_TYPE_COUNT_MAX
 
 // Primal types:
 enum _cdpTypePrimal {
@@ -236,16 +236,16 @@ enum _cdpTypeID {
     CDP_TYPE_TYPE,
 
     // Object types follow after this...
-    CDP_TYPE_OBJECT = CDP_OBJECT_FLAG,
+    CDP_TYPE_OBJECT = CDP_OBJECT_FLAG
 };
 
-#define CDP_AUTOINCREMENT       CDP_ID_MAXVAL
-#define CDP_AUTOINCREMENT_MAX   (CDP_ID_MAXVAL >> 1)
+#define CDP_AUTO_ID           CDP_ID_MAXVAL
+#define CDP_AUTO_ID_MAX       (CDP_ID_MAXVAL >> 1)
 
-#define CDP_NAME_FLAG           (~(CDP_ID_MAXVAL >> 1))
-#define CDP_NAME2ID(name)       (CDP_NAME_FLAG | (name))
-#define CDP_ID2NAME(id)         ((id) & (~CDP_NAME_FLAG))
-#define CDP_NAME_MAXVAL         (CDP_AUTOINCREMENT - 1)
+#define CDP_NAME_FLAG         (~(CDP_ID_MAXVAL >> 1))
+#define CDP_NAME2ID(name)     (CDP_NAME_FLAG | (name))
+#define CDP_ID2NAME(id)       ((id) & (~CDP_NAME_FLAG))
+#define CDP_NAME_COUNT_MAX    (CDP_AUTO_ID - 1)
 
 // Initial name ID:
 enum _cdpNameID {
@@ -320,16 +320,17 @@ struct _cdpRecord {
  */
 
 typedef struct {
-    size_t      count;            // Number of record pointers
-    cdpRecord*  record[];         // Dynamic array of (local) links shadowing this one.
+    size_t      count;      // Number of record pointers
+    cdpRecord*  record[];   // Dynamic array of (local) links shadowing this one.
 } cdpShadow;
 
 typedef int (*cdpCompare)(const cdpRecord* restrict, const cdpRecord* restrict, void*);
 
 typedef struct {
-    cdpRecord*  book;             // Parent book owning this child storage.
-    cdpShadow*  shadow;           // Pointer to a structure for managing multiple (linked) parents.
-    size_t      chdCount;         // Number of child records.
+    cdpRecord*  book;       // Parent book owning this child storage.
+    cdpShadow*  shadow;     // Pointer to a structure for managing multiple (linked) parents.
+    size_t      chdCount;   // Number of child records.
+    cdpID       autoID;     // Auto-increment ID for naming contained records.
 } cdpChdStore;
 
 
@@ -363,15 +364,18 @@ void cdp_record_finalize(cdpRecord* record, unsigned maxDepth);
 
 // General property check
 static inline bool cdp_record_is_none      (const cdpRecord* record)  {assert(record);  return (record->metadata.primal == CDP_TYPE_NONE);}
+static inline bool cdp_record_is_private   (const cdpRecord* record)  {assert(record);  return cdp_is_set(record->metadata.attribute, CDP_ATTRIB_PRIVATE);}
+static inline bool cdp_record_is_factual   (const cdpRecord* record)  {assert(record);  return cdp_is_set(record->metadata.attribute, CDP_ATTRIB_FACTUAL);}
+static inline bool cdp_record_is_shadowed  (const cdpRecord* record)  {assert(record);  return cdp_is_set(record->metadata.attribute, CDP_ATTRIB_SHADOWED);}
+static inline bool cdp_record_is_named     (const cdpRecord* record)  {assert(record);  if (record->metadata.id & CDP_NAME_FLAG) {assert(CDP_ID2NAME(record->metadata.id) <= CDP_NAME_COUNT_MAX); return true;} return false;}
+static inline bool cdp_record_is_object    (const cdpRecord* record)  {assert(record);  if (record->metadata.type & CDP_OBJECT_FLAG) {assert(CDP_TYPE2OBJ(record->metadata.type) <= CDP_OBJECT_COUNT_MAX); return true;} return false;}
 static inline bool cdp_record_is_book      (const cdpRecord* record)  {assert(record);  return (record->metadata.primal == CDP_TYPE_BOOK);}
 static inline bool cdp_record_is_register  (const cdpRecord* record)  {assert(record);  return (record->metadata.primal == CDP_TYPE_REGISTER);}
 static inline bool cdp_record_is_link      (const cdpRecord* record)  {assert(record);  return (record->metadata.primal == CDP_TYPE_LINK);}
-static inline bool cdp_record_is_named     (const cdpRecord* record)  {assert(record);  return (record->metadata.id < 0);}
-static inline bool cdp_record_is_private   (const cdpRecord* record)  {assert(record);  return cdp_is_set(record->metadata.attribute, CDP_ATTRIB_PRIVATE);}
-static inline bool cdp_record_is_factual   (const cdpRecord* record)  {assert(record);  return cdp_is_set(record->metadata.attribute, CDP_ATTRIB_FACTUAL);}
-static inline bool cdp_record_is_object    (const cdpRecord* record)  {assert(record);  return cdp_is_set(record->metadata.attribute, CDP_ATTRIB_OBJECT);}
-static inline bool cdp_record_is_shadowed  (const cdpRecord* record)  {assert(record);  return cdp_is_set(record->metadata.attribute, CDP_ATTRIB_SHADOWED);}
 static inline bool cdp_record_is_dictionary(const cdpRecord* record)  {assert(record);  return (cdp_record_is_book(record) && record->metadata.type == CDP_TYPE_DICTIONARY);}
+
+static inline bool cdp_record_id_is_auto   (const cdpRecord* record)  {assert(record);  return (record->metadata.id < CDP_NAME_FLAG);}
+static inline bool cdp_record_id_is_pending(const cdpRecord* record)  {assert(record);  return (record->metadata.id == CDP_AUTO_ID);}
 
 
 // Parent properties
