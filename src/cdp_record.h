@@ -132,7 +132,7 @@
 
       Factual Records: Records that are no longer a state but a fact,
       that means that they can't be modified anymore so they only convey
-      value.
+      a fixed value.
 
 */
 
@@ -150,11 +150,11 @@ typedef struct _cdpPath         cdpPath;
 
 #define CDP_ATTRIB_PRIVATE      0x01    // Record (with all its children) is private (unlockable).
 #define CDP_ATTRIB_FACTUAL      0x02    // Record can't be modified anymore (but it still can be deleted).
-#define CDP_ATTRIB_OBJECT       0x04    // Record is an object with an associated process handling its events.
 
-#define CDP_ATTRIB_PUB_MASK     (CDP_ATTRIB_PRIVATE | CDP_ATTRIB_FACTUAL | CDP_ATTRIB_OBJECT)
+#define CDP_ATTRIB_PUB_MASK     (CDP_ATTRIB_PRIVATE | CDP_ATTRIB_FACTUAL)
 
-#define CDP_ATTRIB_SHADOWED     0x08    // Record has shadow records (links pointing to it).
+#define CDP_ATTRIB_SHADOWED     0x04    // Record has shadow records (links pointing to it).
+#define CDP_ATTRIB_RESERVED     0x08    // For future use.
 
 #define CDP_ATTRIB_BIT_COUNT    4
 
@@ -184,8 +184,20 @@ enum {
 };
 
 
+typedef uint32_t cdpID;
+
+#define CDP_ID_MAXVAL       ((cdpID)(~0))
+
+#define CDP_META_BITS       (CDP_ATTRIB_BIT_COUNT + 4)
+#define CDP_TYPE_MAXVAL     (CDP_ID_MAXVAL >> CDP_META_BITS)
+#define CDP_TYPE_ID_MAX     (CDP_TYPE_MAXVAL >> 1)
+#define CDP_OBJECT_FLAG     ((~(CDP_ID_MAXVAL >> 1)) >> CDP_META_BITS)
+#define CDP_OBJECT2ID(name) (CDP_OBJECT_FLAG | (name))
+#define CDP_ID2OBJECT(id)   ((id) & CDP_TYPE_ID_MAX)
+#define CDP_OBJECT_NAME_MAX CDP_TYPE_ID_MAX
+
 // Primal types:
-enum _CDP_TYPE_PRIMAL {
+enum _cdpTypePrimal {
     CDP_TYPE_NONE,              // This is the "nothing" type.
 
     CDP_TYPE_BOOK,
@@ -196,7 +208,7 @@ enum _CDP_TYPE_PRIMAL {
 };
 
 // Initial type ID:
-enum _CDP_TYPE {
+enum _cdpTypeID {
     // Book types
     CDP_TYPE_LIST = CDP_TYPE_PRIMAL_COUNT,
     CDP_TYPE_QUEUE,
@@ -222,43 +234,46 @@ enum _CDP_TYPE {
 
     // Structured types
     CDP_TYPE_TYPE,
-    CDP_TYPE_OBJECT,
 
-    CDP_TYPE_COUNT
+    // Object types follow after this...
+    CDP_TYPE_OBJECT = CDP_OBJECT_FLAG,
 };
 
-#define CDP_TYPE_MAX_ID     (((uint32_t)(-1)) >> (CDP_ATTRIB_BIT_COUNT + 4))
+#define CDP_AUTOINCREMENT       CDP_ID_MAXVAL
+#define CDP_AUTOINCREMENT_MAX   (CDP_ID_MAXVAL >> 1)
 
+#define CDP_NAME_FLAG           (~(CDP_ID_MAXVAL >> 1))
+#define CDP_NAME2ID(name)       (CDP_NAME_FLAG | (name))
+#define CDP_ID2NAME(id)         ((id) & (~CDP_NAME_FLAG))
+#define CDP_NAME_MAXVAL         (CDP_AUTOINCREMENT - 1)
 
 // Initial name ID:
-#define CDP_NAME_NAME           -1
-#define CDP_NAME_VALUE          -2
-#define CDP_NAME_SIZE           -3
-#define CDP_NAME_DESCRIPTION    -4
+enum _cdpNameID {
+    CDP_NAME_NAME = CDP_NAME_FLAG,
+    CDP_NAME_VALUE,
+    CDP_NAME_SIZE,
+    CDP_NAME_DESCRIPTION,
+    //
+    CDP_NAME_ROOT,
+    CDP_NAME_TYPE,
+    CDP_NAME_SYSTEM,
+    CDP_NAME_USER,
+    CDP_NAME_PRIVATE,
+    CDP_NAME_PUBLIC,
+    CDP_NAME_DATA,
+    CDP_NAME_SERVICE,
+    CDP_NAME_PROCESS,
+    CDP_NAME_NETWORK,
+    CDP_NAME_TEMP,
+};
 
-#define CDP_NAME_ROOT           -5
-#define CDP_NAME_TYPE           -6
-#define CDP_NAME_SYSTEM         -7
-#define CDP_NAME_USER           -8
-#define CDP_NAME_PRIVATE        -9
-#define CDP_NAME_PUBLIC         -10
-#define CDP_NAME_DATA           -11
-#define CDP_NAME_SERVICE        -12
-#define CDP_NAME_PROCESS        -13
-#define CDP_NAME_NETWORK        -14
-#define CDP_NAME_TEMP           -15
-
-#define CDP_NAME_COUNT          15
-
-
-typedef int32_t cdpID;
 
 typedef struct {
-    uint32_t  attribute: CDP_ATTRIB_BIT_COUNT,              // Flags for record attributes.
-              primal:    2,                                 // Primal type (book, register, link).
-              storeTech: 2,                                 // Record storage technique (it depends on the primal type).
-              type:      32 - (CDP_ATTRIB_BIT_COUNT + 4);   // Type tag for this record. It includes _CDP_TYPE + user defined types.
-    cdpID     id;                                           // Name/field identifier of this record with respect to the parent record (if negative is a system-wide name ID).
+    cdpID attribute: CDP_ATTRIB_BIT_COUNT,              // Flags for record attributes.
+          primal:    2,                                 // Primal type (book, register, link).
+          storeTech: 2,                                 // Record storage technique (it depends on the primal type).
+          type:      cdp_bitsof(cdpID) - CDP_META_BITS; // Type tag for this record. It includes _cdpTypeID + user defined types.
+    cdpID id;                                           // Name/field identifier of this record with respect to the parent record (if negative is a system-wide name ID).
 } cdpMetadata;
 
 

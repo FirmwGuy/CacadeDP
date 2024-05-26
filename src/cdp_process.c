@@ -142,7 +142,7 @@ void cdp_system_initiate(void) {
 
     TYPE = cdp_record_add_book(&ROOT, CDP_NAME_TYPE, CDP_TYPE_LOG, CDP_STO_CHD_ARRAY, CDP_TYPE_COUNT); {
         /*
-           Each type must be entered in the exact same order of the _CDP_TYPE
+           Each type must be entered in the exact same order of the _cdpTypeID
            enumeration (since each type is just an index to the TYPE collection).
 
            *** WARNING: Please keep it in sync with cdp_process.h! ***
