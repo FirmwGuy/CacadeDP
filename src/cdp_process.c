@@ -27,11 +27,14 @@
 
 
 
-cdpRecord* NONE;
+extern cdpRecord CDP_ROOT;
+
+cdpRecord* CDP_VOID;
+cdpRecord* CDP_TRUE;
+cdpRecord* CDP_FALSE;
+
 cdpRecord* TYPE;
 cdpRecord* NAME;
-
-extern cdpRecord ROOT;
 
 cdpRecord* SYSTEM;
 cdpRecord* USER;
@@ -113,23 +116,17 @@ bool cdp_type_validate(cdpRecord* record) {
 
 
 
-static inline cdpRecord* system_initiate_type(cdpRecord* t, const char* name, const char* description, uint32_t size) {
+static inline cdpRecord* system_initiate_type(cdpRecord* dict, cdpID typeID, const char* name, const char* description, uint32_t size) {
     unsigned items = 1;
     if (*description) items++;
     if (size) items++;
 
-    /*  /type/ (catalog)
-            type (type)/
-                name (utf8)
-                description (utf8)
-                size (uint32)
-    */
-    cdpRecord* type = cdp_record_add_dictionary(t, CDP_NAME_TYPE, CDP_TYPE_TYPE, CDP_STO_CHD_ARRAY, NULL, NULL, items); {
-        cdp_record_add_text(t, CDP_NAME_NAME, name);
+    cdpRecord* type = cdp_book_add_dictionary(dict, typeID, CDP_STO_CHD_ARRAY, items); {
+        cdp_book_add_static_text(type, CDP_NAME_NAME, name);
         if (*description)
-            cdp_record_add_static_text(t, CDP_NAME_DESCRIPTION, description);
+            cdp_book_add_static_text(type, CDP_NAME_DESCRIPTION, description);
         if (size)
-            cdp_record_add_uint32(t, CDP_NAME_SIZE, size);
+            cdp_book_add_uint32(type, CDP_NAME_SIZE, size);
     }
 
     return type;
@@ -140,86 +137,92 @@ void cdp_system_initiate(void) {
     assert(!TYPE);
     cdp_record_system_initiate();
 
-    TYPE = cdp_record_add_book(&ROOT, CDP_NAME_TYPE, CDP_TYPE_LOG, CDP_STO_CHD_ARRAY, CDP_TYPE_COUNT); {
-        /*
-           Each type must be entered in the exact same order of the _cdpTypeID
-           enumeration (since each type is just an index to the TYPE collection).
 
-           *** WARNING: Please keep it in sync with cdp_process.h! ***
-        */
-        NONE = system_initiate_type(TYPE, "none",   "A type for describing nothingness.", 0);
-        system_initiate_type(TYPE, "type",          "Dictionary for describing types.", 0);
+    /* Initiate type system.
+    */
+    TYPE = cdp_book_add_dictionary(&CDP_ROOT, CDP_NAME_TYPE, CDP_STO_CHD_ARRAY, CDP_TYPE_COUNT); {
+        // Abstract types
+        CDP_VOID = system_initiate_type(TYPE,CDP_TYPE_VOID, "void",     "Type for describing nothingness.", 0);
+        system_initiate_type(TYPE, CDP_TYPE_TYPE,       "type",         "Dictionary for describing types.", 0);
 
         // Book types
-        system_initiate_type(TYPE, "book",          "Generic container of records.", 0);
-        system_initiate_type(TYPE, "dictionary",    "Book of records sorted by their unique name.", 0);
-        system_initiate_type(TYPE, "catalog",       "Book with records ordered by some user-defined criteria.", 0);
-        system_initiate_type(TYPE, "list",          "Book with records oredered by how they are added/removed", 0);
-        system_initiate_type(TYPE, "queue",         "List that only removes records from its beginning or adds them to its end.", 0);
-        system_initiate_type(TYPE, "stack",         "List that only insert/removes records from its beginning.", 0);
+        system_initiate_type(TYPE, CDP_TYPE_BOOK,       "book",         "Generic container of records.", 0);
+        system_initiate_type(TYPE, CDP_TYPE_LINK,       "list",         "Book with records ordered by how they are added/removed", 0);
+        system_initiate_type(TYPE, CDP_TYPE_QUEUE,      "queue",        "List that only removes records from its beginning or adds them to its end.", 0);
+        system_initiate_type(TYPE, CDP_TYPE_STACK,      "stack",        "List that only adds/removes records from its beginning.", 0);
+        system_initiate_type(TYPE, CDP_TYPE_DICTIONARY, "dictionary",   "Book of records sorted by their unique name.", 0);
 
         // Register types
-        system_initiate_type(TYPE, "register",      "Generic record that holds data.", 0);
-        system_initiate_type(TYPE, "patch",         "Record that can patch other record.", 0);
-        cdpRecord* nameid = system_initiate_type(TYPE, "nameid", "Id of text token for creating record paths.", 4); {
-            NAME = cdp_record_add_book(nameid, CDP_NAME_VALUE, CDP_TYPE_LOG, CDP_STO_CHD_PACKED_QUEUE, CDP_NAME_COUNT); {
-        }
-        system_initiate_type(TYPE, "name",          "Register whose only data is its own id.", 0);
-        system_initiate_type(TYPE, "utf8",          "Text encoded in UTF8.", 0);
-
-        cdpRecord* boolean = system_initiate_type(TYPE, "boolean", "Boolean value.", 1); {
-            cdpRecord* value = cdp_record_add_book(boolean, CDP_NAME_VALUE, CDP_TYPE_SET, CDP_STO_CHD_ARRAY, 2); {
-                cdp_record_add_text(value, CDP_NAME_VALUE, "false");
-                cdp_record_add_text(value, CDP_NAME_VALUE, "true");
+        system_initiate_type(TYPE, CDP_TYPE_REGISTER,   "register",     "Generic record that holds data.", 0);
+        cdpRecord* boolean = system_initiate_type(TYPE, CDP_TYPE_BOOLEAN, "boolean", "Boolean value.", sizeof(uint8_t)); {
+            cdpRecord* value = cdp_book_add_dictionary(boolean, CDP_NAME_VALUE, CDP_STO_CHD_ARRAY, 2); {
+                CDP_FALSE = cdp_book_add_static_text(value, CDP_AUTO_ID, "false");
+                CDP_TRUE  = cdp_book_add_static_text(value, CDP_AUTO_ID, "true");
             }
         }
-        system_initiate_type(TYPE, "byte",          "Unsigned integer number of 8 bits.",   sizeof(uint8_t));
-        system_initiate_type(TYPE, "uint16",        "Unsigned integer number of 16 bits.",  sizeof(uint16_t));
-        system_initiate_type(TYPE, "uint32",        "Unsigned integer number of 32 bits.",  sizeof(uint32_t));
-        system_initiate_type(TYPE, "uint64",        "Unsigned integer number of 64 bits.",  sizeof(uint64_t));
-        system_initiate_type(TYPE, "int16",         "Integer number of 16 bits.",           sizeof(int16_t));
-        system_initiate_type(TYPE, "int32"          "Integer number of 32 bits.",           sizeof(int32_t));
-        system_initiate_type(TYPE, "int64"          "Integer number of 64 bits.",           sizeof(int64_t));
-        system_initiate_type(TYPE, "float32"        "Floating point number of 32 bits.",    sizeof(float));
-        system_initiate_type(TYPE, "float64"        "Floating point number of 64 bits.",    sizeof(double));
+        system_initiate_type(TYPE, CDP_TYPE_BYTE,       "byte",         "Unsigned integer number of 8 bits.",   sizeof(uint8_t));
+        system_initiate_type(TYPE, CDP_TYPE_UINT16,     "uint16",       "Unsigned integer number of 16 bits.",  sizeof(uint16_t));
+        system_initiate_type(TYPE, CDP_TYPE_UINT32,     "uint32",       "Unsigned integer number of 32 bits.",  sizeof(uint32_t));
+        system_initiate_type(TYPE, CDP_TYPE_UINT64,     "uint64",       "Unsigned integer number of 64 bits.",  sizeof(uint64_t));
+        system_initiate_type(TYPE, CDP_TYPE_INT16,      "int16",        "Integer number of 16 bits.",           sizeof(int16_t));
+        system_initiate_type(TYPE, CDP_TYPE_INT32,      "int32"         "Integer number of 32 bits.",           sizeof(int32_t));
+        system_initiate_type(TYPE, CDP_TYPE_INT64,      "int64"         "Integer number of 64 bits.",           sizeof(int64_t));
+        system_initiate_type(TYPE, CDP_TYPE_FLOAT32,    "float32"       "Floating point number of 32 bits.",    sizeof(float));
+        system_initiate_type(TYPE, CDP_TYPE_FLOAT64,    "float64"       "Floating point number of 64 bits.",    sizeof(double));
 
+        system_initiate_type(TYPE, CDP_TYPE_ID,         "id",           "Register whose only data is its own id.", 0);
+        cdpRecord* nameid = system_initiate_type(TYPE, CDP_TYPE_NAME_ID, "name_id", "Id as a text token for creating record paths.", 4); {
+            NAME = cdp_book_add_dictionary(nameid, CDP_NAME_VALUE, CDP_STO_CHD_PACKED_QUEUE, CDP_NAME_COUNT);
+        }
+        system_initiate_type(TYPE, CDP_TYPE_UTF8,       "utf8",         "Text encoded in UTF8 format.", 0);
+        system_initiate_type(TYPE, CDP_TYPE_PATCH,      "patch",        "Record that can patch another record.", 0);
 
-        /*
-           Each name must be entered in the exact same order of the _CDP_NAME_ID
-           enumeration (since each id is just an index to the value collection).
+        // Link types
+        system_initiate_type(TYPE, CDP_TYPE_LINK,       "link",         "Record that points to another record.", 0);
 
-           *** WARNING: Please keep it in sync with cdp_process.h! ***
-        */
-        cdp_record_add_static_text(NAME, CDP_NAME_VALUE, "");
+        // Object types
+        system_initiate_type(TYPE, CDP_TYPE_OBJECT,     "object",       "Book with records structured and ordered by some user-defined criteria.", 0);
 
-        cdp_record_add_static_text(NAME, CDP_NAME_VALUE, "name");
-        cdp_record_add_static_text(NAME, CDP_NAME_VALUE, "value");
-        cdp_record_add_static_text(NAME, CDP_NAME_VALUE, "size");
-        cdp_record_add_static_text(NAME, CDP_NAME_VALUE, "description");
-
-
-        cdp_record_add_static_text(NAME, CDP_NAME_VALUE, "/");         // Root directory.
-        cdp_record_add_static_text(NAME, CDP_NAME_VALUE, "type");
-        cdp_record_add_static_text(NAME, CDP_NAME_VALUE, "system");
-        cdp_record_add_static_text(NAME, CDP_NAME_VALUE, "user");
-        cdp_record_add_static_text(NAME, CDP_NAME_VALUE, "private");
-        cdp_record_add_static_text(NAME, CDP_NAME_VALUE, "public");
-        cdp_record_add_static_text(NAME, CDP_NAME_VALUE, "data");
-        cdp_record_add_static_text(NAME, CDP_NAME_VALUE, "service");
-        cdp_record_add_static_text(NAME, CDP_NAME_VALUE, "process");
-        cdp_record_add_static_text(NAME, CDP_NAME_VALUE, "network");
-        cdp_record_add_static_text(NAME, CDP_NAME_VALUE, "temp");
+        // Finish core types.
+        cdp_book_set_auto_id(TYPE, CDP_TYPE_COUNT);
     }
 
-    SYSTEM  = cdp_record_add_dictionary(&ROOT, CDP_NAME_SYSTEM,   CDP_TYPE_DICTIONARY,  CDP_STO_CHD_RED_BLACK_T, NULL, NULL);
-    USER    = cdp_record_add_dictionary(&ROOT, CDP_NAME_USER,     CDP_TYPE_DICTIONARY,  CDP_STO_CHD_RED_BLACK_T, NULL, NULL);
-    PUBLIC  = cdp_record_add_dictionary(&ROOT, CDP_NAME_PUBLIC,   CDP_TYPE_DICTIONARY,  CDP_STO_CHD_RED_BLACK_T, NULL, NULL);
-    DATA    = cdp_record_add_dictionary(&ROOT, CDP_NAME_DATA,     CDP_TYPE_DICTIONARY,  CDP_STO_CHD_RED_BLACK_T, NULL, NULL);
-    SERVICE = cdp_record_add_dictionary(&ROOT, CDP_NAME_SERVICE,  CDP_TYPE_DICTIONARY,  CDP_STO_CHD_RED_BLACK_T, NULL, NULL);
-    PROCESS = cdp_record_add_dictionary(&ROOT, CDP_NAME_PROCESS,  CDP_TYPE_DICTIONARY,  CDP_STO_CHD_RED_BLACK_T, NULL, NULL);
-    NETWORK = cdp_record_add_dictionary(&ROOT, CDP_NAME_NETWORK,  CDP_TYPE_DICTIONARY,  CDP_STO_CHD_RED_BLACK_T, NULL, NULL);
 
-    TEMP    = cdp_record_add_dictionary(&ROOT, CDP_NAME_TEMP,     CDP_TYPE_BOOK,        CDP_STO_CHD_LINKED_LIST);
+    /* Initiate name (ID) interning system:
+
+       *** WARNING: this must be done in the same order as the _cdpNameID
+                    enumeration in "cdp_record.h". ***
+    */
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID,            "");
+    //
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID,        "name");
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID,       "value");
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID,        "size");
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID, "description");
+    //
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID,           "/");       // The root directory.
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID,        "type");
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID,      "system");
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID,        "user");
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID,     "private");
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID,      "public");
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID,        "data");
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID,     "service");
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID,     "process");
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID,     "network");
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID,        "temp");
+
+
+    /* Initiate root directory structure.
+    */
+    SYSTEM  = cdp_book_add_dictionary(&CDP_ROOT, CDP_NAME_SYSTEM,   CDP_STO_CHD_RED_BLACK_T);
+    USER    = cdp_book_add_dictionary(&CDP_ROOT, CDP_NAME_USER,     CDP_STO_CHD_RED_BLACK_T);
+    PUBLIC  = cdp_book_add_dictionary(&CDP_ROOT, CDP_NAME_PUBLIC,   CDP_STO_CHD_RED_BLACK_T);
+    DATA    = cdp_book_add_dictionary(&CDP_ROOT, CDP_NAME_DATA,     CDP_STO_CHD_RED_BLACK_T);
+    SERVICE = cdp_book_add_dictionary(&CDP_ROOT, CDP_NAME_SERVICE,  CDP_STO_CHD_RED_BLACK_T);
+    PROCESS = cdp_book_add_dictionary(&CDP_ROOT, CDP_NAME_PROCESS,  CDP_STO_CHD_RED_BLACK_T);
+    NETWORK = cdp_book_add_dictionary(&CDP_ROOT, CDP_NAME_NETWORK,  CDP_STO_CHD_RED_BLACK_T);
+    TEMP    = cdp_book_add_dictionary(&CDP_ROOT, CDP_NAME_TEMP,     CDP_STO_CHD_RED_BLACK_T);
 }
 
 
@@ -233,7 +236,7 @@ bool cdp_system_step(void) {
 
 void cdp_system_shutdown(void) {
     assert(TYPE);
-    cdp_book_reset(&ROOT);
+    cdp_book_reset(&CDP_ROOT, 64);    // FixMe: maxDepth.
     cdp_record_system_shutdown();
 }
 
@@ -262,7 +265,7 @@ cdpID cdp_process_load( const char* name,
 
     // FixMe: find and report previous.
 
-    cdpRecord* process = cdp_record_add_dictionary(PROCESS, id, CDP_TYPE_DICTIONARY, CDP_STO_CHD_ARRAY, NULL, NULL, 8); {
+    cdpRecord* process = cdp_book_add_dictionary(PROCESS, id, CDP_TYPE_DICTIONARY, CDP_STO_CHD_ARRAY, NULL, NULL, 8); {
         cdp_record_add_register(process, createNID, callbackTID, create, sizeof(create));
         cdp_record_add_register(process, stepNID,   callbackTID, step,   sizeof(step));
         if (destroy)

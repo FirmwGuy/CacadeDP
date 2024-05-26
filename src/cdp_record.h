@@ -198,7 +198,7 @@ typedef uint32_t cdpID;
 
 // Primal types:
 enum _cdpTypePrimal {
-    CDP_TYPE_NONE,              // This is the "nothing" type.
+    CDP_TYPE_VOID,              // This is the "nothing" type.
 
     CDP_TYPE_BOOK,
     CDP_TYPE_REGISTER,
@@ -207,7 +207,7 @@ enum _cdpTypePrimal {
     CDP_TYPE_PRIMAL_COUNT
 };
 
-// Initial type ID:
+// Initial type IDs (for a description see cdp.process.c):
 enum _cdpTypeID {
     // Book types
     CDP_TYPE_LIST = CDP_TYPE_PRIMAL_COUNT,
@@ -229,11 +229,14 @@ enum _cdpTypeID {
     CDP_TYPE_FLOAT64,
     //
     CDP_TYPE_ID,
+    CDP_TYPE_NAME_ID,
     CDP_TYPE_UTF8,
     CDP_TYPE_PATCH,
 
     // Structured types
     CDP_TYPE_TYPE,
+
+    CDP_TYPE_COUNT,
 
     // Object types follow after this...
     CDP_TYPE_OBJECT = CDP_OBJECT_FLAG
@@ -247,9 +250,11 @@ enum _cdpTypeID {
 #define CDP_ID2NAME(id)       ((id) & (~CDP_NAME_FLAG))
 #define CDP_NAME_COUNT_MAX    (CDP_AUTO_ID - 1)
 
-// Initial name ID:
+// Initial name IDs:
 enum _cdpNameID {
-    CDP_NAME_NAME = CDP_NAME_FLAG,
+    CDP_NAME_VOID = CDP_NAME_FLAG,
+    //
+    CDP_NAME_NAME,
     CDP_NAME_VALUE,
     CDP_NAME_SIZE,
     CDP_NAME_DESCRIPTION,
@@ -265,7 +270,11 @@ enum _cdpNameID {
     CDP_NAME_PROCESS,
     CDP_NAME_NETWORK,
     CDP_NAME_TEMP,
+
+    CDP_NAME_COUNTED
 };
+
+#define CDP_NAME_COUNT  (CDP_NAME_COUNTED - CDP_NAME_VOID)
 
 
 typedef struct {
@@ -363,7 +372,7 @@ bool cdp_record_initialize(cdpRecord* record, unsigned primal, unsigned attrib, 
 void cdp_record_finalize(cdpRecord* record, unsigned maxDepth);
 
 // General property check
-static inline bool cdp_record_is_none      (const cdpRecord* record)  {assert(record);  return (record->metadata.primal == CDP_TYPE_NONE);}
+static inline bool cdp_record_is_void      (const cdpRecord* record)  {assert(record);  return (record->metadata.primal == CDP_TYPE_VOID);}
 static inline bool cdp_record_is_private   (const cdpRecord* record)  {assert(record);  return cdp_is_set(record->metadata.attribute, CDP_ATTRIB_PRIVATE);}
 static inline bool cdp_record_is_factual   (const cdpRecord* record)  {assert(record);  return cdp_is_set(record->metadata.attribute, CDP_ATTRIB_FACTUAL);}
 static inline bool cdp_record_is_shadowed  (const cdpRecord* record)  {assert(record);  return cdp_is_set(record->metadata.attribute, CDP_ATTRIB_SHADOWED);}
@@ -391,6 +400,10 @@ static inline bool cdp_register_is_borrowed(const cdpRecord* reg)   {assert(cdp_
 // Book properties
 static inline size_t cdp_book_children(const cdpRecord* book)       {assert(cdp_record_is_book(book));  return CDP_CHD_STORE(book->recData.book.children)->chdCount;}
 static inline bool   cdp_book_is_prependable(const cdpRecord* book) {assert(cdp_record_is_book(book));  return (book->metadata.storeTech != CDP_STO_CHD_RED_BLACK_T);}
+
+static inline cdpID cdp_book_get_auto_id(const cdpRecord* book)           {assert(cdp_record_is_book(book));  return CDP_CHD_STORE(book->recData.book.children)->autoID;}
+static inline void  cdp_book_set_auto_id(const cdpRecord* book, cdpID id) {assert(cdp_record_is_book(book));  cdpChdStore* store = CDP_CHD_STORE(book->recData.book.children); assert(store->autoID < id); store->autoID = id;}
+
 cdpRecord* cdp_book_add_property(cdpRecord* book, cdpRecord* record);
 cdpRecord* cdp_book_get_property(const cdpRecord* book, cdpID id);
 
@@ -436,7 +449,7 @@ static inline cdpRecord* cdp_book_add_text(cdpRecord* book, cdpID id, const char
 
 
 // Root dictionary.
-static inline cdpRecord* cdp_root(void)  {extern cdpRecord ROOT; assert(ROOT.recData.book.children);  return &ROOT;}
+static inline cdpRecord* cdp_root(void)  {extern cdpRecord CDP_ROOT; assert(CDP_ROOT.recData.book.children);  return &CDP_ROOT;}
 
 
 // Constructs the full path (sequence of ids) for a given record, returning the depth.

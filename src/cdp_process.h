@@ -243,26 +243,32 @@
 
 
 typedef enum {
-    CDP_ACTION_START,
+    CDP_ACTION_STARTUP,
+    CDP_ACTION_SHUTDOWN,
+    CDP_ACTION_STEP,
     CDP_ACTION_INITIALIZE,
     CDP_ACTION_FINALIZE,
     CDP_ACTION_SAVE,
     CDP_ACTION_LOAD,
-    CDP_ACTION_STEP,
-    CDP_ACTION_,
+
+    CDP_ACTION_COUNT
 } cdpAction;
 
-static inline cdpRecord* cdp_record_none(void)  {extern cdpRecord NONE; assert(NONE);  return NONE;}
+static inline cdpRecord* cdp_record_void(void)  {extern cdpRecord CDP_VOID; assert(CDP_VOID);  return CDP_VOID;}
+
+static inline cdpID cdp_id_true(void)   {extern cdpRecord CDP_TRUE;  assert(CDP_TRUE);   return CDP_TRUE->metadata.id;}
+static inline cdpID cdp_id_false(void)  {extern cdpRecord CDP_FALSE; assert(CDP_FALSE);  return CDP_FALSE->metadata.id;}
 
 cdpID cdp_name_id_add(const char* name, bool borrow);
 #define cdp_name_id_add_static(name)  cdp_name_id_add(name, true);
 cdpRecord* cdp_name_id_text(cdpID id);
 
-typedef bool (*cdpInstance)(cdpRecord* instance, cdpAction action);
+cdpRecord* cdp_type_add(const char* name);
+cdpRecord* cdp_object_add(const char* name, cdpProcess);
 
-cdpRecord* cdp_process_load(const char* name, cdpInstance instance);
+typedef bool (*cdpProcess)(cdpRecord* instance, cdpAction action);
 
-cdpID cdp_type_add(const char* name, size_t baseSize);
+cdpRecord* cdp_process(const char* name, cdpProcess instance);
 
 void cdp_system_initiate(void);
 bool cdp_system_tic(void);

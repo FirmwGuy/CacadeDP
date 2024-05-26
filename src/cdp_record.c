@@ -86,7 +86,7 @@ static inline void book_relink_storage(cdpRecord* book);
  ***********************************************/
 
 
-cdpRecord ROOT;
+cdpRecord CDP_ROOT;
 
 
 /*
@@ -94,7 +94,7 @@ cdpRecord ROOT;
 */
 void cdp_record_system_initiate(void) {
     // The root dictionary is the same as "/" in text paths.
-    cdp_record_initialize(&ROOT, CDP_TYPE_BOOK, 0, CDP_NAME_ROOT, CDP_TYPE_DICTIONARY, CDP_STO_CHD_ARRAY, 16);
+    cdp_record_initialize(&CDP_ROOT, CDP_TYPE_BOOK, 0, CDP_NAME_ROOT, CDP_TYPE_DICTIONARY, CDP_STO_CHD_ARRAY, 16);
 }
 
 
@@ -102,7 +102,7 @@ void cdp_record_system_initiate(void) {
     Shutdowns the record system.
 */
 void cdp_record_system_shutdown(void) {
-    cdp_record_finalize(&ROOT, 64);   // FixMe: maxDepth.
+    cdp_record_finalize(&CDP_ROOT, 64);   // FixMe: maxDepth.
 }
 
 
@@ -221,7 +221,7 @@ bool cdp_record_initialize(cdpRecord* record, unsigned primal, unsigned attrib, 
     Adds/inserts a *copy* of the specified record to a book.
 */
 cdpRecord* cdp_book_add_record(cdpRecord* book, cdpRecord* record, bool prepend) {
-    assert(cdp_record_is_book(book) && !cdp_record_is_none(record));    // 'None' type of records are never inserted in books.
+    assert(cdp_record_is_book(book) && !cdp_record_is_void(record));    // 'None' type of records are never inserted in books.
     CDP_DEBUG(if (!cdp_book_is_prependable(book)) assert(!prepend));
 
     cdpChdStore* store = CDP_CHD_STORE(book->recData.book.children);
@@ -267,7 +267,7 @@ cdpRecord* cdp_book_add_record(cdpRecord* book, cdpRecord* record, bool prepend)
     Adds/inserts a *copy* of the specified record to a book.
 */
 cdpRecord* cdp_book_sorted_insert(cdpRecord* book, cdpRecord* record, cdpCompare compare, void* context) {
-    assert(cdp_record_is_book(book) && !cdp_record_is_none(record) && compare);    // 'None' type of records are never inserted in books.
+    assert(cdp_record_is_book(book) && !cdp_record_is_void(record) && compare);    // 'None' type of records are never inserted in books.
 
     cdpChdStore* store = CDP_CHD_STORE(book->recData.book.children);
     store_check_auto_id(store, record);
@@ -312,7 +312,7 @@ cdpRecord* cdp_book_sorted_insert(cdpRecord* book, cdpRecord* record, cdpCompare
     Inserts a *copy* of the specified record as a book property.
 */
 cdpRecord* cdp_book_add_property(cdpRecord* book, cdpRecord* record) {
-    assert(cdp_record_is_book(book) && !cdp_record_is_none(record));    // 'None' type of records are never inserted in books.
+    assert(cdp_record_is_book(book) && !cdp_record_is_void(record));    // 'None' type of records are never inserted in books.
 
     cdpRbTree* propTree = book->recData.book.property;
     if (!propTree) {
@@ -526,7 +526,7 @@ cdpRecord* cdp_book_find_by_name(const cdpRecord* book, cdpID id) {
     Finds a child record based on specified key.
 */
 cdpRecord* cdp_book_find_by_key(const cdpRecord* book, cdpRecord* key, cdpCompare compare, void* context) {
-    assert(cdp_record_is_book(book) && !cdp_record_is_none(key) && compare);
+    assert(cdp_record_is_book(book) && !cdp_record_is_void(key) && compare);
     cdpChdStore* store = CDP_CHD_STORE(book->recData.book.children);
     CDP_CK(store->chdCount);
 
@@ -906,7 +906,7 @@ void cdp_book_sort(cdpRecord* book, cdpCompare compare, void* context) {
     De-initiates a record.
 */
 void cdp_record_finalize(cdpRecord* record, unsigned maxDepth) {
-    assert(!cdp_record_is_none(record) && maxDepth);
+    assert(!cdp_record_is_void(record) && maxDepth);
     assert(!cdp_record_is_shadowed(record));
 
     // Delete storage (and children).
