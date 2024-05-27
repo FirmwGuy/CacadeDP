@@ -227,7 +227,9 @@ enum _cdpTypeID {
     CDP_TYPE_NAME_ID,
     CDP_TYPE_UTF8,
     CDP_TYPE_PATCH,
+    //
     CDP_TYPE_EXECUTABLE,
+    CDP_TYPE_EVENT,
 
     // Structured types
     CDP_TYPE_TYPE,
@@ -374,7 +376,11 @@ typedef bool (*cdpTraverse)(cdpBookEntry*, unsigned, void*);
 typedef enum {
     CDP_ACTION_STARTUP,
     CDP_ACTION_SHUTDOWN,
+
+    CDP_ACTION_IDLE,
     CDP_ACTION_STEP,
+    CDP_ACTION_EVENT,
+
     CDP_ACTION_INITIALIZE,
     CDP_ACTION_FINALIZE,
     CDP_ACTION_SAVE,
@@ -392,6 +398,11 @@ typedef bool (*cdpProcess)(cdpRecord* instance, cdpAction action);
 
 bool cdp_record_initialize(cdpRecord* record, unsigned primal, unsigned attrib, cdpID id, uint32_t type, ...);
 void cdp_record_finalize(cdpRecord* record, unsigned maxDepth);
+
+#define cdp_record_initialize_list(r, id, chdStorage, ...)        cdp_record_initialize(r, CDP_TYPE_BOOK, 0, id, CDP_TYPE_LIST,       ((unsigned)(chdStorage)), ##__VA_ARGS__)
+#define cdp_record_initialize_queue(r, id, chdStorage, ...)       cdp_record_initialize(r, CDP_TYPE_BOOK, 0, id, CDP_TYPE_QUEUE,      ((unsigned)(chdStorage)), ##__VA_ARGS__)
+#define cdp_record_initialize_stack(r, id, chdStorage, ...)       cdp_record_initialize(r, CDP_TYPE_BOOK, 0, id, CDP_TYPE_STACK,      ((unsigned)(chdStorage)), ##__VA_ARGS__)
+#define cdp_record_initialize_dictionary(r, id, chdStorage, ...)  cdp_record_initialize(r, CDP_TYPE_BOOK, 0, id, CDP_TYPE_DICTIONARY, ((unsigned)(chdStorage)), ##__VA_ARGS__)
 
 // General property check
 static inline cdpID cdp_record_attributes(const cdpRecord* record)  {assert(record);  return record->metadata.attribute;}
@@ -419,7 +430,8 @@ static inline bool cdp_record_is_dictionary(const cdpRecord* record)  {assert(re
 // Parent properties
 #define CDP_CHD_STORE(children)         ({assert(children);  (cdpChdStore*)(children);})
 #define cdp_record_par_store(record)    CDP_CHD_STORE((record)->store)
-static inline cdpRecord* cdp_record_parent  (const cdpRecord* record)   {assert(record);  return CDP_EXPECT_PTR(record->store)? cdp_record_par_store(record)->book: NULL;}
+static inline cdpRecord* #define cdp_book_add_set(b, id, chdStorage, ...)                    cdp_book_add_book(b, id, CDP_TYPE_SET,        ((unsigned)(chdStorage)), ##__VA_ARGS__)
+cdp_record_parent  (const cdpRecord* record)   {assert(record);  return CDP_EXPECT_PTR(record->store)? cdp_record_par_store(record)->book: NULL;}
 static inline size_t     cdp_record_siblings(const cdpRecord* record)   {assert(record);  return CDP_EXPECT_PTR(record->store)? cdp_record_par_store(record)->chdCount: 0;}
 
 
@@ -472,12 +484,13 @@ static inline cdpRecord* cdp_book_add_text(cdpRecord* book, unsigned attrib, cdp
 #define cdp_book_prepend_book(b, type, id, chdStorage, ...)         cdp_book_add(b, CDP_TYPE_BOOK, 0, id, type,  true, ((unsigned)(chdStorage)), ##__VA_ARGS__)
 
 #define cdp_book_add_list(b, id, chdStorage, ...)                   cdp_book_add_book(b, id, CDP_TYPE_LIST,       ((unsigned)(chdStorage)), ##__VA_ARGS__)
-#define cdp_book_add_set(b, id, chdStorage, ...)                    cdp_book_add_book(b, id, CDP_TYPE_SET,        ((unsigned)(chdStorage)), ##__VA_ARGS__)
 #define cdp_book_add_queue(b, id, chdStorage, ...)                  cdp_book_add_book(b, id, CDP_TYPE_QUEUE,      ((unsigned)(chdStorage)), ##__VA_ARGS__)
+#define cdp_book_add_stack(b, id, chdStorage, ...)                  cdp_book_add_book(b, id, CDP_TYPE_STACK,      ((unsigned)(chdStorage)), ##__VA_ARGS__)
 #define cdp_book_add_dictionary(b, id, chdStorage, ...)             cdp_book_add_book(b, id, CDP_TYPE_DICTIONARY, ((unsigned)(chdStorage)), ##__VA_ARGS__)
+
 #define cdp_book_prepend_list(b, id, chdStorage, ...)               cdp_book_prepend_book(b, id, CDP_TYPE_LIST,       ((unsigned)(chdStorage)), ##__VA_ARGS__)
-#define cdp_book_prepend_set(b, id, chdStorage, ...)                cdp_book_prepend_book(b, id, CDP_TYPE_SET,        ((unsigned)(chdStorage)), ##__VA_ARGS__)
 #define cdp_book_prepend_queue(b, id, chdStorage, ...)              cdp_book_prepend_book(b, id, CDP_TYPE_QUEUE,      ((unsigned)(chdStorage)), ##__VA_ARGS__)
+#define cdp_book_prepend_stack(b, id, chdStorage, ...)              cdp_book_prepend_book(b, id, CDP_TYPE_STACK,      ((unsigned)(chdStorage)), ##__VA_ARGS__)
 #define cdp_book_prepend_dictionary(b, id, chdStorage, ...)         cdp_book_prepend_book(b, id, CDP_TYPE_DICTIONARY, ((unsigned)(chdStorage)), ##__VA_ARGS__)
 
 
@@ -577,6 +590,7 @@ void cdp_record_system_shutdown(void);
     - Put move "depth" from traverse argument to inside entry structure.
     - Add cdp_book_update_nested_links(old, new).
     - CDP_NAME_VOID should never be a valid name for records.
+    - If a record is added to a book with its name explicitelly above "auto_id", then it must be updated.
     - Redefine user callback based on typed book ops.
     - Implement cdp_book_insert_at(position).
     - Perhaps ids should be an unsorted tree (instead of a log) and use the deep-traverse index.

@@ -235,8 +235,34 @@
 
 static inline cdpRecord* cdp_record_void(void)  {extern cdpRecord* CDP_VOID; assert(CDP_VOID);  return CDP_VOID;}
 
-static inline cdpID cdp_id_true(void)   {extern cdpRecord* CDP_TRUE;  assert(CDP_TRUE);   return CDP_TRUE->metadata.id;}
-static inline cdpID cdp_id_false(void)  {extern cdpRecord* CDP_FALSE; assert(CDP_FALSE);  return CDP_FALSE->metadata.id;}
+enum {
+    CDP_ID_BOOLEAN_FALSE,
+    CDP_ID_BOOLEAN_TRUE,
+
+    CDP_ID_BOOLEAN_COUNT
+};
+
+enum {
+    CDP_ID_EVENT_CONSTRUCT,
+    CDP_ID_EVENT_DESTRUCT,
+    CDP_ID_EVENT_REFERENCE,
+    CDP_ID_EVENT_FREE,
+
+    CDP_ID_EVENT_APPEND,
+    CDP_ID_EVENT_PREPEND,
+    CDP_ID_EVENT_INSERT,
+    CDP_ID_EVENT_UPDATE,
+    CDP_ID_EVENT_REMOVE,
+
+    //CDP_ID_EVENT_SORT,
+    //CDP_ID_EVENT_COPY,
+    //CDP_ID_EVENT_MOVE,
+    //CDP_ID_EVENT_PATCH,
+    //CDP_ID_EVENT_LINK,
+
+    CDP_ID_EVENT_COUNT
+};
+
 
 cdpID      cdp_name_id_add(const char* name, bool borrow);
 #define    cdp_name_id_add_static(name)   cdp_name_id_add(name, true);
@@ -245,15 +271,30 @@ cdpRecord* cdp_name_id_text(cdpID id);
 cdpID      cdp_type_add(const char* name, const char* description, size_t baseSize);
 cdpRecord* cdp_type(cdpID id);
 
-cdpID      cdp_object_add(cdpID nameID, cdpID processID, char* description, size_t baseSize);
-#define    cdp_object   cdp_type
-bool       cdp_object_validate(cdpRecord* object);
+cdpID      cdp_object_type_add(cdpID nameID, cdpID processID, char* description, size_t baseSize);
+#define    cdp_object_type    cdp_type
 
-void       cdp_system_initiate(void);
-void       cdp_system_shutdown(void);
-cdpID      cdp_system_process_add(const char* name, cdpProcess process);
+void       cdp_object_construct(cdpRecord* object, cdpID nameID, cdpID objectTypeID, cdpID storage, uint32_t base);
+void       cdp_object_destruct (cdpRecord* object);
+void       cdp_object_reference(cdpRecord* object);
+void       cdp_object_free     (cdpRecord* object);
+
+cdpRecord* cdp_object_append   (cdpRecord* object, cdpRecord* book, cdpRecord* record);
+cdpRecord* cdp_object_prepend  (cdpRecord* object, cdpRecord* book, cdpRecord* record);
+cdpRecord* cdp_object_insert   (cdpRecord* object, cdpRecord* book, cdpRecord* record);
+cdpRecord* cdp_object_update   (cdpRecord* object, cdpRecord* book, cdpRecord* record, void* data, size_t size);
+cdpRecord* cdp_object_remove   (cdpRecord* object, cdpRecord* book, cdpRecord* record);
+
+//void       cdp_object_sort(cdpRecord* object);
+
+bool       cdp_object_validate  (cdpRecord* object);
+
+
+
+cdpID      cdp_system_process_initiate(const char* name, cdpProcess process);
 cdpRecord* cdp_system_process(cdpID nameID);
-bool       cdp_system_step(void);
+bool       cdp_system_process_step(void);
+void       cdp_system_process_shutdown(void);
 
 
 #endif

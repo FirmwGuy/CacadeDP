@@ -135,7 +135,7 @@ cdpRecord* cdp_type(cdpID typeID) {
 
 
 
-cdpID cdp_object_add(cdpID nameID, cdpID processID, char* description, size_t baseSize) {
+cdpID cdp_object_type_add(cdpID nameID, cdpID processID, char* description, size_t baseSize) {
     assert((nameID & CDP_NAME_FLAG) && (processID & CDP_NAME_FLAG));
 
     // Find previous
@@ -152,6 +152,63 @@ cdpID cdp_object_add(cdpID nameID, cdpID processID, char* description, size_t ba
 }
 
 
+void cdp_object_construct(cdpRecord* object, primal, attrib, cdpID nameID, cdpID typeID, cdpID storage, uint32_t base) {
+    cdpRecord op = {0};
+    cdp_record_initialize_dictionary(&op, CDP_NAME_MESSAGE, CDP_STO_CHD_ARRAY, 4);
+
+    cdp_record_initialize(object, primal, attrib, nameID, typeID, );
+    cdp_book_add_id(&op, CDP_NAME_EVENT, CDP_ID_EVENT_CONSTRUCT);
+    cdp_book_add_id(&op, CDP_NAME_EVENT, CDP_ID_EVENT_CONSTRUCT);
+    cdp_process_send(proc, CDP_SIGNAL, &op);
+}
+
+
+void cdp_object_destruct(cdpRecord* object) {
+    assert(cdp_record_is_object(object));
+
+}
+
+
+void cdp_object_reference(cdpRecord* object) {
+    assert(cdp_record_is_object(object));
+
+}
+
+
+void cdp_object_free(cdpRecord* object) {
+    assert(cdp_record_is_object(object));
+}
+
+
+cdpRecord* cdp_object_append(cdpRecord* object, cdpRecord* book, cdpRecord* record) {
+    assert(cdp_record_is_object(object));
+
+}
+
+
+cdpRecord* cdp_object_prepend(cdpRecord* object, cdpRecord* book, cdpRecord* record) {
+    assert(cdp_record_is_object(object));
+
+}
+
+
+cdpRecord* cdp_object_insert(cdpRecord* object, cdpRecord* book, cdpRecord* record) {
+    assert(cdp_record_is_object(object));
+
+}
+
+
+cdpRecord* cdp_object_update(cdpRecord* object, cdpRecord* book, cdpRecord* record, void* data, size_t size) {
+    assert(cdp_record_is_object(object));
+
+}
+
+cdpRecord* cdp_object_remove(cdpRecord* object, cdpRecord* book, cdpRecord* record) {
+    assert(cdp_record_is_object(object));
+
+}
+
+
 bool cdp_object_validate(cdpRecord* object) {
     return false;
 }
@@ -159,7 +216,7 @@ bool cdp_object_validate(cdpRecord* object) {
 
 
 
-void cdp_system_initiate(void) {
+static void cdp_system_initiate(void) {
     assert(!SYSTEM);
     cdp_record_system_initiate();
 
@@ -176,46 +233,67 @@ void cdp_system_initiate(void) {
 
 
     /* Initiate type system. */
+    cdpRecord* type, *tvoid, *value;
 
     // Abstract types
-    cdpRecord* tvoid = system_initiate_type(CDP_TYPE_VOID, "void", "Type for describing nothingness.", 0);
-    system_initiate_type(CDP_TYPE_TYPE,         "type",         "Dictionary for describing types.", 0);
+    tvoid = system_initiate_type(CDP_TYPE_VOID,   "void",           "Type for describing nothingness.", 0);
+    system_initiate_type(CDP_TYPE_TYPE,           "type",           "Dictionary for describing types.", 0);
 
     // Book types
-    system_initiate_type(CDP_TYPE_BOOK,         "book",         "Generic container of records.", 0);
-    system_initiate_type(CDP_TYPE_LINK,         "list",         "Book with records ordered by how they are added/removed", 0);
-    system_initiate_type(CDP_TYPE_QUEUE,        "queue",        "List that only removes records from its beginning or adds them to its end.", 0);
-    system_initiate_type(CDP_TYPE_STACK,        "stack",        "List that only adds/removes records from its beginning.", 0);
-    system_initiate_type(CDP_TYPE_DICTIONARY,   "dictionary",   "Book of records sorted by their unique name.", 0);
+    system_initiate_type(CDP_TYPE_BOOK,           "book",           "Generic container of records.", 0);
+    system_initiate_type(CDP_TYPE_LINK,           "list",           "Book with records ordered by how they are added/removed", 0);
+    system_initiate_type(CDP_TYPE_QUEUE,          "queue",          "List that only removes records from its beginning or adds them to its end.", 0);
+    system_initiate_type(CDP_TYPE_STACK,          "stack",          "List that only adds/removes records from its beginning.", 0);
+    system_initiate_type(CDP_TYPE_DICTIONARY,     "dictionary",     "Book of records sorted by their unique name.", 0);
 
     // Register types
-    system_initiate_type(CDP_TYPE_REGISTER,     "register",     "Generic record that holds data.", 0);
-    cdpRecord* boolean = system_initiate_type(CDP_TYPE_BOOLEAN, "boolean", "Boolean value.", sizeof(uint8_t)); {
-        cdpRecord* value = cdp_book_add_dictionary(boolean, CDP_NAME_VALUE, CDP_STO_CHD_ARRAY, 2); {
-            CDP_FALSE = cdp_book_add_static_text(value, CDP_AUTO_ID, "false");
-            CDP_TRUE  = cdp_book_add_static_text(value, CDP_AUTO_ID, "true");
-        }
-    }
-    system_initiate_type(CDP_TYPE_BYTE,         "byte",         "Unsigned integer number of 8 bits.",   sizeof(uint8_t));
-    system_initiate_type(CDP_TYPE_UINT16,       "uint16",       "Unsigned integer number of 16 bits.",  sizeof(uint16_t));
-    system_initiate_type(CDP_TYPE_UINT32,       "uint32",       "Unsigned integer number of 32 bits.",  sizeof(uint32_t));
-    system_initiate_type(CDP_TYPE_UINT64,       "uint64",       "Unsigned integer number of 64 bits.",  sizeof(uint64_t));
-    system_initiate_type(CDP_TYPE_INT16,        "int16",        "Integer number of 16 bits.",           sizeof(int16_t));
-    system_initiate_type(CDP_TYPE_INT32,        "int32",        "Integer number of 32 bits.",           sizeof(int32_t));
-    system_initiate_type(CDP_TYPE_INT64,        "int64",        "Integer number of 64 bits.",           sizeof(int64_t));
-    system_initiate_type(CDP_TYPE_FLOAT32,      "float32",      "Floating point number of 32 bits.",    sizeof(float));
-    system_initiate_type(CDP_TYPE_FLOAT64,      "float64",      "Floating point number of 64 bits.",    sizeof(double));
+    system_initiate_type(CDP_TYPE_REGISTER,       "register",       "Generic record that holds data.", 0);
+    type = system_initiate_type(CDP_TYPE_BOOLEAN, "boolean",        "Boolean value.", sizeof(uint8_t)); {
+        value = cdp_book_add_dictionary(type, CDP_NAME_VALUE, CDP_STO_CHD_ARRAY, CDP_ID_BOOL_COUNT); {
+            cdp_book_add_static_text(value, CDP_ID_BOOLEAN_FALSE,   "false");
+            cdp_book_add_static_text(value, CDP_ID_BOOLEAN_TRUE,    "true");
+
+            assert(cdp_book_children(value) == CDP_ID_BOOLEAN_COUNT);
+            cdp_book_set_auto_id(value, CDP_ID_BOOLEAN_COUNT);
+    }   }
+    system_initiate_type(CDP_TYPE_BYTE,           "byte",           "Unsigned integer number of 8 bits.",   sizeof(uint8_t));
+    system_initiate_type(CDP_TYPE_UINT16,         "uint16",         "Unsigned integer number of 16 bits.",  sizeof(uint16_t));
+    system_initiate_type(CDP_TYPE_UINT32,         "uint32",         "Unsigned integer number of 32 bits.",  sizeof(uint32_t));
+    system_initiate_type(CDP_TYPE_UINT64,         "uint64",         "Unsigned integer number of 64 bits.",  sizeof(uint64_t));
+    system_initiate_type(CDP_TYPE_INT16,          "int16",          "Integer number of 16 bits.",           sizeof(int16_t));
+    system_initiate_type(CDP_TYPE_INT32,          "int32",          "Integer number of 32 bits.",           sizeof(int32_t));
+    system_initiate_type(CDP_TYPE_INT64,          "int64",          "Integer number of 64 bits.",           sizeof(int64_t));
+    system_initiate_type(CDP_TYPE_FLOAT32,        "float32",        "Floating point number of 32 bits.",    sizeof(float));
+    system_initiate_type(CDP_TYPE_FLOAT64,        "float64",        "Floating point number of 64 bits.",    sizeof(double));
     //
-    system_initiate_type(CDP_TYPE_ID,           "id",           "Register with the value of an id (name or type) of records.", sizeof(cdpID));
-    cdpRecord* nameid = system_initiate_type(CDP_TYPE_NAME_ID, "name_id", "Id as a text token for creating record paths.", 4); {
-        NAME = cdp_book_add_dictionary(nameid, CDP_NAME_VALUE, CDP_STO_CHD_PACKED_QUEUE, CDP_NAME_COUNT);
+    system_initiate_type(CDP_TYPE_ID,             "id",             "Register with the value of an id (name or type) of records.", sizeof(cdpID));
+    type = system_initiate_type(CDP_TYPE_NAME_ID, "name_id",        "Id as a text token for creating record paths.", 4); {    // FixMe: variant base size for UTF8?
+        NAME = cdp_book_add_dictionary(type, CDP_NAME_VALUE, CDP_STO_CHD_PACKED_QUEUE, CDP_NAME_COUNT);
     }
-    system_initiate_type(CDP_TYPE_UTF8,         "utf8",         "Text encoded in UTF8 format.", 0);
-    system_initiate_type(CDP_TYPE_PATCH,        "patch",        "Record that can patch another record.", 0);
-    system_initiate_type(CDP_TYPE_EXECUTABLE,   "executable",   "Address of a process executable entry point.", sizeof(cdpProcess));
+    system_initiate_type(CDP_TYPE_UTF8,           "utf8",           "Text encoded in UTF8 format.", 0);
+    system_initiate_type(CDP_TYPE_PATCH,          "patch",          "Record that can patch another record.", 0);
+    //
+    system_initiate_type(CDP_TYPE_EXECUTABLE,     "executable",     "Address of a process executable entry point.", sizeof(cdpProcess));
+    type = system_initiate_type(CDP_TYPE_EVENT,   "event",          "Object event.", sizeof(uint8_t)); {
+        value = cdp_book_add_dictionary(type, CDP_NAME_VALUE, CDP_STO_CHD_ARRAY, CDP_ID_EVENT_COUNT); {
+            cdp_book_add_static_text(value, CDP_ID_EVENT_CONSTRUCT, "construct");
+            cdp_book_add_static_text(value, CDP_ID_EVENT_DESTRUCT,  "destruct");
+            cdp_book_add_static_text(value, CDP_ID_EVENT_REFERENCE, "reference");
+            cdp_book_add_static_text(value, CDP_ID_EVENT_FREE,      "free");
+            cdp_book_add_static_text(value, CDP_ID_EVENT_APPEND,    "append");
+            cdp_book_add_static_text(value, CDP_ID_EVENT_PREPEND,   "prepend");
+            cdp_book_add_static_text(value, CDP_ID_EVENT_INSERT,    "insert");
+            cdp_book_add_static_text(value, CDP_ID_EVENT_SORT,      "sort");
+            cdp_book_add_static_text(value, CDP_ID_EVENT_COPY,      "copy");
+            cdp_book_add_static_text(value, CDP_ID_EVENT_MOVE,      "move");
+            cdp_book_add_static_text(value, CDP_ID_EVENT_LINK,      "link");
+
+            assert(cdp_book_children(value) == CDP_ID_EVENT_COUNT);
+            cdp_book_set_auto_id(value, CDP_ID_EVENT_COUNT);
+    }   }
 
     // Link types
-    system_initiate_type(CDP_TYPE_LINK,         "link",         "Record that points to another record.", 0);
+    system_initiate_type(CDP_TYPE_LINK,           "link",           "Record that points to another record.", 0);
 
     // Finish core types.
     assert(cdp_book_children(TYPE) == CDP_TYPE_COUNT);
@@ -260,17 +338,12 @@ void cdp_system_initiate(void) {
 }
 
 
-void cdp_system_shutdown(void) {
-    assert(SYSTEM);
-    cdp_book_reset(&CDP_ROOT, 64);    // FixMe: maxDepth.
-    cdp_record_system_shutdown();
-}
 
 
+cdpID cdp_system_process_initiate(const char* name, cdpProcess process) {
+    assert(name && *name && process);
 
-
-cdpID cdp_system_process_add(const char* name, cdpProcess process) {
-    assert(SYSTEM && name && *name && process);
+    if (!SYSTEM)  cdp_system_initiate();
 
     cdpID nameID = cdp_name_id_add_static(name);
     cdpRecord* prev = cdp_book_find_by_name(SYSTEM, nameID);
@@ -308,7 +381,13 @@ static bool system_step_traverse(cdpBookEntry* entry, unsigned unused, void* unu
 
 bool cdp_system_step(void) {
     assert(SYSTEM);
-
     return cdp_book_traverse(SYSTEM, system_step_traverse, NULL, NULL);
+}
+
+
+void cdp_system_process_shutdown(void) {
+    assert(SYSTEM);
+    cdp_book_reset(&CDP_ROOT, 64);    // FixMe: maxDepth.
+    cdp_record_system_shutdown();
 }
 
