@@ -177,7 +177,6 @@ enum {
 
 enum {
     CDP_STO_LNK_POINTER,        // Link points to an in-memory record.
-    CDP_STO_LNK_EXECUTABLE,     // Link points to a (local) procedure call.
     CDP_STO_LNK_PATH,           // Link hold the address of an off-memory record.
     //
     CDP_STO_LNK_COUNT
@@ -191,10 +190,6 @@ typedef uint32_t cdpID;
 #define CDP_META_BITS         (CDP_ATTRIB_BIT_COUNT + 4)
 #define CDP_TYPE_MAXVAL       (CDP_ID_MAXVAL >> CDP_META_BITS)
 #define CDP_TYPE_COUNT_MAX    (CDP_TYPE_MAXVAL >> 1)
-#define CDP_OBJECT_FLAG       ((~(CDP_ID_MAXVAL >> 1)) >> CDP_META_BITS)
-#define CDP_OBJ2TYPE(name)    (CDP_OBJECT_FLAG | (name))
-#define CDP_TYPE2OBJ(id)      ((id) & CDP_TYPE_COUNT_MAX)
-#define CDP_OBJECT_COUNT_MAX  CDP_TYPE_COUNT_MAX
 
 // Primal types:
 enum _cdpTypePrimal {
@@ -232,15 +227,28 @@ enum _cdpTypeID {
     CDP_TYPE_NAME_ID,
     CDP_TYPE_UTF8,
     CDP_TYPE_PATCH,
+    CDP_TYPE_EXECUTABLE,
 
     // Structured types
     CDP_TYPE_TYPE,
 
-    CDP_TYPE_COUNT,
-
-    // Object types follow after this...
-    CDP_TYPE_OBJECT = CDP_OBJECT_FLAG
+    CDP_TYPE_COUNT
 };
+
+#define CDP_OBJECT_FLAG       ((~(CDP_ID_MAXVAL >> 1)) >> CDP_META_BITS)
+#define CDP_OBJ2TYPE(name)    (CDP_OBJECT_FLAG | (name))
+#define CDP_TYPE2OBJ(id)      ((id) & CDP_TYPE_COUNT_MAX)
+#define CDP_OBJECT_COUNT_MAX  CDP_TYPE_COUNT_MAX
+
+// Initial object IDs:
+enum _cdpObjectID {
+    CDP_OBJECT_OBJECT = CDP_OBJECT_FLAG,
+    CDP_OBJECT_PROCESS,
+
+    CDP_OBJECT_FLAG_COUNT
+};
+
+#define CDP_OBJECT_COUNT  (CDP_OBJECT_FLAG_COUNT - CDP_OBJECT_OBJECT)
 
 #define CDP_AUTO_ID           CDP_ID_MAXVAL
 #define CDP_AUTO_ID_MAX       (CDP_ID_MAXVAL >> 1)
@@ -271,10 +279,10 @@ enum _cdpNameID {
     CDP_NAME_NETWORK,
     CDP_NAME_TEMP,
 
-    CDP_NAME_COUNTED
+    CDP_NAME_FLAG_COUNT
 };
 
-#define CDP_NAME_COUNT  (CDP_NAME_COUNTED - CDP_NAME_VOID)
+#define CDP_NAME_COUNT  (CDP_NAME_FLAG_COUNT - CDP_NAME_VOID)
 
 
 typedef struct {
@@ -361,7 +369,21 @@ typedef struct {
     size_t      position;
 } cdpBookEntry;
 
-typedef bool (*cdpRecordTraverse)(cdpBookEntry*, unsigned, void*);
+typedef bool (*cdpTraverse)(cdpBookEntry*, unsigned, void*);
+
+typedef enum {
+    CDP_ACTION_STARTUP,
+    CDP_ACTION_SHUTDOWN,
+    CDP_ACTION_STEP,
+    CDP_ACTION_INITIALIZE,
+    CDP_ACTION_FINALIZE,
+    CDP_ACTION_SAVE,
+    CDP_ACTION_LOAD,
+
+    CDP_ACTION_COUNT
+} cdpAction;
+
+typedef bool (*cdpProcess)(cdpRecord* instance, cdpAction action);
 
 
 /*
@@ -372,10 +394,10 @@ bool cdp_record_initialize(cdpRecord* record, unsigned primal, unsigned attrib, 
 void cdp_record_finalize(cdpRecord* record, unsigned maxDepth);
 
 // General property check
-static inline bool cdp_record_attributes(const cdpRecord* record)   {assert(record);  return record->metadata.attribute;}
-static inline bool cdp_record_primal    (const cdpRecord* record)   {assert(record);  return record->metadata.primal;}
-static inline bool cdp_record_id        (const cdpRecord* record)   {assert(record);  return record->metadata.id;}
-static inline bool cdp_record_type      (const cdpRecord* record)   {assert(record);  return record->metadata.type;}
+static inline cdpID cdp_record_attributes(const cdpRecord* record)  {assert(record);  return record->metadata.attribute;}
+static inline cdpID cdp_record_primal    (const cdpRecord* record)  {assert(record);  return record->metadata.primal;}
+static inline cdpID cdp_record_id        (const cdpRecord* record)  {assert(record);  return record->metadata.id;}
+static inline cdpID cdp_record_type      (const cdpRecord* record)  {assert(record);  return record->metadata.type;}
 
 #define cdp_record_is_void(r)       (cdp_record_primal(r) == CDP_TYPE_VOID)
 #define cdp_record_is_book(r)       (cdp_record_primal(r) == CDP_TYPE_BOOK)
@@ -442,6 +464,9 @@ static inline cdpRecord* cdp_book_add_text(cdpRecord* book, unsigned attrib, cdp
     CDP_FUNC_ADD_VAL_(float32, float,    CDP_TYPE_FLOAT32)
     CDP_FUNC_ADD_VAL_(float64, double,   CDP_TYPE_FLOAT64)
 
+    CDP_FUNC_ADD_VAL_(id, cdpID, CDP_TYPE_ID)
+    CDP_FUNC_ADD_VAL_(executable, cdpProcess, CDP_TYPE_EXECUTABLE)
+
 
 #define cdp_book_add_book(b, id, type, chdStorage, ...)             cdp_book_add(b, CDP_TYPE_BOOK, 0, id, type, false, ((unsigned)(chdStorage)), ##__VA_ARGS__)
 #define cdp_book_prepend_book(b, type, id, chdStorage, ...)         cdp_book_add(b, CDP_TYPE_BOOK, 0, id, type,  true, ((unsigned)(chdStorage)), ##__VA_ARGS__)
@@ -480,7 +505,9 @@ void* cdp_register_write(cdpRecord* reg, size_t position, const void* data, size
 #define cdp_register_read_float32(reg)  (*(float*)cdp_register_read(reg, 0, NULL, NULL))
 #define cdp_register_read_float64(reg)  (*(double*)cdp_register_read(reg, 0, NULL, NULL))
 
-#define cdp_register_read_utf8(reg)     ((const char*)cdp_register_read(reg, 0, NULL, NULL))
+#define cdp_register_read_id(reg) (*(cdpID*)cdp_register_read(reg, 0, NULL, NULL))
+#define cdp_register_read_utf8(reg) ((const char*)cdp_register_read(reg, 0, NULL, NULL))
+#define cdp_register_read_executable(reg) ((cdpProcess)cdp_register_read(reg, 0, NULL, NULL))
 
 #define cdp_register_update_bool(reg, v)    cdp_register_update(reg, &(v), sizeof(uint8_t))
 #define cdp_register_update_byte(reg, v)    cdp_register_update(reg, &(v), sizeof(uint8_t))
@@ -509,8 +536,8 @@ cdpRecord* cdp_book_next(const cdpRecord* book, cdpRecord* record);     // Retri
 cdpRecord* cdp_book_next_by_name(const cdpRecord* book, cdpID id, uintptr_t* prev);         // Retrieves the first/next (unsorted) child record by its id.
 cdpRecord* cdp_book_next_by_path(const cdpRecord* start, cdpPath* path, uintptr_t* prev);   // Finds the first/next (unsorted) record based on a path of ids starting from the root or a given book.
 
-bool cdp_book_traverse     (cdpRecord* book, cdpRecordTraverse func, void* context, cdpBookEntry* entry);  // Traverses the children of a book record, applying a function to each.
-bool cdp_book_deep_traverse(cdpRecord* book, unsigned maxDepth, cdpRecordTraverse func, cdpRecordTraverse listEnd, void* context, cdpBookEntry* entry);  // Traverses each sub-branch of a book record.
+bool cdp_book_traverse     (cdpRecord* book, cdpTraverse func, void* context, cdpBookEntry* entry);  // Traverses the children of a book record, applying a function to each.
+bool cdp_book_deep_traverse(cdpRecord* book, unsigned maxDepth, cdpTraverse func, cdpTraverse listEnd, void* context, cdpBookEntry* entry);  // Traverses each sub-branch of a book record.
 
 // Converts an unsorted book into a sorted one.
 void cdp_book_to_dictionary(cdpRecord* book);
@@ -544,11 +571,14 @@ void cdp_record_system_shutdown(void);
 
 /*
     TODO:
-    - Add indexof for records;
+    - Traverse book in internal (stoTech) order.
+    - Add indexof for records.
     - Use "recData.reg.data.direct" in registers.
+    - Put move "depth" from traverse argument to inside entry structure.
     - Add cdp_book_update_nested_links(old, new).
     - CDP_NAME_VOID should never be a valid name for records.
     - Redefine user callback based on typed book ops.
+    - Implement cdp_book_insert_at(position).
     - Perhaps ids should be an unsorted tree (instead of a log) and use the deep-traverse index.
     - Fully define the tree (nesting) recursion limit policy.
 */

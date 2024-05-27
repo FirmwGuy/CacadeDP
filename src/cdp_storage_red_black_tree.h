@@ -203,7 +203,7 @@ static inline cdpRecord* rb_tree_last(cdpRbTree* tree) {
 }
 
 
-static inline bool rb_tree_traverse(cdpRbTree* tree, cdpRecord* book, unsigned maxDepth, cdpRecordTraverse func, void* context, cdpBookEntry* entry) {
+static inline bool rb_tree_traverse(cdpRbTree* tree, cdpRecord* book, unsigned maxDepth, cdpTraverse func, void* context, cdpBookEntry* entry) {
   cdpRbTreeNode* tnode = tree->root, *tnodePrev = NULL;
   cdpRbTreeNode* stack[maxDepth];
   int top = -1;  // Stack index initialized to empty.

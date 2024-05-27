@@ -94,7 +94,7 @@ cdpRecord CDP_ROOT;
 */
 void cdp_record_system_initiate(void) {
     // The root dictionary is the same as "/" in text paths.
-    cdp_record_initialize(&CDP_ROOT, CDP_TYPE_BOOK, 0, CDP_NAME_ROOT, CDP_TYPE_DICTIONARY, CDP_STO_CHD_ARRAY, 16);
+    cdp_record_initialize(&CDP_ROOT, CDP_TYPE_BOOK, 0, CDP_NAME_ROOT, CDP_TYPE_DICTIONARY, CDP_STO_CHD_ARRAY, 8);
 }
 
 
@@ -723,7 +723,7 @@ cdpRecord* cdp_book_find_next_by_path(const cdpRecord* start, cdpPath* path, uin
 /*
     Traverses the children of a book record, applying a function to each.
 */
-bool cdp_book_traverse(cdpRecord* book, cdpRecordTraverse func, void* context, cdpBookEntry* entry) {
+bool cdp_book_traverse(cdpRecord* book, cdpTraverse func, void* context, cdpBookEntry* entry) {
     assert(cdp_record_is_book(book) && func);
     cdpChdStore* store = CDP_CHD_STORE(book->recData.book.children);
     CDP_GO(!store->chdCount);
@@ -754,7 +754,7 @@ bool cdp_book_traverse(cdpRecord* book, cdpRecordTraverse func, void* context, c
 */
 #define CDP_MAX_FAST_STACK_DEPTH  16
 
-bool cdp_book_deep_traverse(cdpRecord* book, unsigned maxDepth, cdpRecordTraverse func, cdpRecordTraverse endFunc, void* context, cdpBookEntry* entry) {
+bool cdp_book_deep_traverse(cdpRecord* book, unsigned maxDepth, cdpTraverse func, cdpTraverse endFunc, void* context, cdpBookEntry* entry) {
     assert(cdp_record_is_book(book) && maxDepth && (func || endFunc));
     cdpChdStore* store = CDP_CHD_STORE(book->recData.book.children);
     CDP_GO(!store->chdCount);
