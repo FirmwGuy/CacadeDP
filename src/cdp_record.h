@@ -372,19 +372,26 @@ bool cdp_record_initialize(cdpRecord* record, unsigned primal, unsigned attrib, 
 void cdp_record_finalize(cdpRecord* record, unsigned maxDepth);
 
 // General property check
-static inline bool cdp_record_is_void      (const cdpRecord* record)  {assert(record);  return (record->metadata.primal == CDP_TYPE_VOID);}
-static inline bool cdp_record_is_private   (const cdpRecord* record)  {assert(record);  return cdp_is_set(record->metadata.attribute, CDP_ATTRIB_PRIVATE);}
-static inline bool cdp_record_is_factual   (const cdpRecord* record)  {assert(record);  return cdp_is_set(record->metadata.attribute, CDP_ATTRIB_FACTUAL);}
-static inline bool cdp_record_is_shadowed  (const cdpRecord* record)  {assert(record);  return cdp_is_set(record->metadata.attribute, CDP_ATTRIB_SHADOWED);}
+static inline bool cdp_record_attributes(const cdpRecord* record)   {assert(record);  return record->metadata.attribute;}
+static inline bool cdp_record_primal    (const cdpRecord* record)   {assert(record);  return record->metadata.primal;}
+static inline bool cdp_record_id        (const cdpRecord* record)   {assert(record);  return record->metadata.id;}
+static inline bool cdp_record_type      (const cdpRecord* record)   {assert(record);  return record->metadata.type;}
+
+#define cdp_record_is_void(r)       (cdp_record_primal(r) == CDP_TYPE_VOID)
+#define cdp_record_is_book(r)       (cdp_record_primal(r) == CDP_TYPE_BOOK)
+#define cdp_record_is_register(r)   (cdp_record_primal(r) == CDP_TYPE_REGISTER)
+#define cdp_record_is_link(r)       (cdp_record_primal(r) == CDP_TYPE_LINK)
+
+#define cdp_record_is_private(r)    cdp_is_set(cdp_record_attributes(r), CDP_ATTRIB_PRIVATE)
+#define cdp_record_is_factual(r)    cdp_is_set(cdp_record_attributes(r), CDP_ATTRIB_FACTUAL)
+#define cdp_record_is_shadowed(r)   cdp_is_set(cdp_record_attributes(r), CDP_ATTRIB_SHADOWED)
+
 static inline bool cdp_record_is_named     (const cdpRecord* record)  {assert(record);  if (record->metadata.id & CDP_NAME_FLAG) {assert(CDP_ID2NAME(record->metadata.id) <= CDP_NAME_COUNT_MAX); return true;} return false;}
 static inline bool cdp_record_is_object    (const cdpRecord* record)  {assert(record);  if (record->metadata.type & CDP_OBJECT_FLAG) {assert(CDP_TYPE2OBJ(record->metadata.type) <= CDP_OBJECT_COUNT_MAX); return true;} return false;}
-static inline bool cdp_record_is_book      (const cdpRecord* record)  {assert(record);  return (record->metadata.primal == CDP_TYPE_BOOK);}
-static inline bool cdp_record_is_register  (const cdpRecord* record)  {assert(record);  return (record->metadata.primal == CDP_TYPE_REGISTER);}
-static inline bool cdp_record_is_link      (const cdpRecord* record)  {assert(record);  return (record->metadata.primal == CDP_TYPE_LINK);}
 static inline bool cdp_record_is_dictionary(const cdpRecord* record)  {assert(record);  return (cdp_record_is_book(record) && record->metadata.type == CDP_TYPE_DICTIONARY);}
 
-static inline bool cdp_record_id_is_auto   (const cdpRecord* record)  {assert(record);  return (record->metadata.id < CDP_NAME_FLAG);}
-static inline bool cdp_record_id_is_pending(const cdpRecord* record)  {assert(record);  return (record->metadata.id == CDP_AUTO_ID);}
+#define cdp_record_id_is_auto(r)    (cdp_record_id(r) < CDP_NAME_FLAG)
+#define cdp_record_id_is_pending(r) (cdp_record_id(r) == CDP_AUTO_ID)
 
 
 // Parent properties
@@ -394,8 +401,9 @@ static inline cdpRecord* cdp_record_parent  (const cdpRecord* record)   {assert(
 static inline size_t     cdp_record_siblings(const cdpRecord* record)   {assert(record);  return CDP_EXPECT_PTR(record->store)? cdp_record_par_store(record)->chdCount: 0;}
 
 
-// Register property check
-static inline bool cdp_register_is_borrowed(const cdpRecord* reg)   {assert(cdp_record_is_register(reg));  return (reg->metadata.storeTech == CDP_STO_REG_BORROWED);}
+// Register properties
+static inline bool   cdp_register_is_borrowed(const cdpRecord* reg) {assert(cdp_record_is_register(reg));  return (reg->metadata.storeTech == CDP_STO_REG_BORROWED);}
+static inline size_t cdp_register_size(const cdpRecord* reg)        {assert(cdp_record_is_register(reg));  return reg->recData.reg.size;}
 
 // Book properties
 static inline size_t cdp_book_children(const cdpRecord* book)       {assert(cdp_record_is_book(book));  return CDP_CHD_STORE(book->recData.book.children)->chdCount;}
@@ -416,8 +424,8 @@ cdpRecord* cdp_book_sorted_insert(cdpRecord* book, cdpRecord* record, cdpCompare
 #define cdp_book_add_register(b, attrib, id, type, borrow, data, size)          cdp_book_add(b, CDP_TYPE_REGISTER, attrib, id, type, false, ((unsigned)(borrow)), data, ((size_t)(size)))
 #define cdp_book_prepend_register(b, attrib, id, type, borrow, data, size)      cdp_book_add(b, CDP_TYPE_REGISTER, attrib, id, type,  true, ((unsigned)(borrow)), data, ((size_t)(size)))
 
-static inline cdpRecord* cdp_book_add_text(cdpRecord* book, cdpID id, const char* text)  {assert(cdp_record_is_book(book) && text && *text);  return cdp_book_add_register(book, 0, id, CDP_TYPE_UTF8, false, text, strlen(text));}
-#define cdp_book_add_static_text(b, id, text)   cdp_book_add_register(b, CDP_ATTRIB_FACTUAL, id, CDP_TYPE_UTF8, true, text, strlen(text));
+static inline cdpRecord* cdp_book_add_text(cdpRecord* book, unsigned attrib, cdpID id, bool borrow, const char* text)    {assert(cdp_record_is_book(book) && text && *text);  cdpRecord* reg = cdp_book_add_register(book, attrib, id, CDP_TYPE_UTF8, borrow, text, strlen(text) + 1); reg->recData.reg.size--; return reg;}
+#define cdp_book_add_static_text(b, id, text)   cdp_book_add_text(b, CDP_ATTRIB_FACTUAL, id, true, text)
 
 #define CDP_FUNC_ADD_VAL_(func, ctype, rtype)                                  \
     static inline cdpRecord* cdp_book_add_##func(cdpRecord* book, cdpID id, ctype value)    {assert(cdp_record_is_book(book));  return cdp_book_add_register(book, 0, id, rtype, false, &value, sizeof(value));}\
@@ -461,7 +469,7 @@ void* cdp_register_read(const cdpRecord* reg, size_t position, void* data, size_
 void* cdp_register_write(cdpRecord* reg, size_t position, const void* data, size_t size);   // Writes the data of a register record at position (atomically and it may reallocate memory).
 #define cdp_register_update(reg, data, size)   cdp_register_write(reg, 0, data, size)
 
-#define cdp_register_read_bool(reg)     (*(uint8_t*)cdp_register_read(reg, 0, NULL, NULL))
+#define cdp_register_read_bool(reg)     (*(uint8_t*)cdp_register_read(reg, 0, NULL, NULL))  // ToDo: use recData.reg.data.direct.
 #define cdp_register_read_byte(reg)     (*(uint8_t*)cdp_register_read(reg, 0, NULL, NULL))
 #define cdp_register_read_uint16(reg)   (*(uint16_t*)cdp_register_read(reg, 0, NULL, NULL))
 #define cdp_register_read_uint32(reg)   (*(uint32_t*)cdp_register_read(reg, 0, NULL, NULL))
@@ -471,6 +479,8 @@ void* cdp_register_write(cdpRecord* reg, size_t position, const void* data, size
 #define cdp_register_read_int64(reg)    (*(int64_t*)cdp_register_read(reg, 0, NULL, NULL))
 #define cdp_register_read_float32(reg)  (*(float*)cdp_register_read(reg, 0, NULL, NULL))
 #define cdp_register_read_float64(reg)  (*(double*)cdp_register_read(reg, 0, NULL, NULL))
+
+#define cdp_register_read_utf8(reg)     ((const char*)cdp_register_read(reg, 0, NULL, NULL))
 
 #define cdp_register_update_bool(reg, v)    cdp_register_update(reg, &(v), sizeof(uint8_t))
 #define cdp_register_update_byte(reg, v)    cdp_register_update(reg, &(v), sizeof(uint8_t))
@@ -535,7 +545,9 @@ void cdp_record_system_shutdown(void);
 /*
     TODO:
     - Add indexof for records;
+    - Use "recData.reg.data.direct" in registers.
     - Add cdp_book_update_nested_links(old, new).
+    - CDP_NAME_VOID should never be a valid name for records.
     - Redefine user callback based on typed book ops.
     - Perhaps ids should be an unsorted tree (instead of a log) and use the deep-traverse index.
     - Fully define the tree (nesting) recursion limit policy.

@@ -198,6 +198,7 @@ bool cdp_record_initialize(cdpRecord* record, unsigned primal, unsigned attrib, 
             record->recData.reg.data.ptr = data;
             record->metadata.storeTech = CDP_STO_REG_BORROWED;
         } else if (data) {
+            // ToDo: use "data.direct".
             record->recData.reg.data.ptr = cdp_malloc(size);
             memcpy(record->recData.reg.data.ptr, data, size);
         }
@@ -362,6 +363,8 @@ void* cdp_register_read(const cdpRecord* reg, size_t position, void* data, size_
     size_t readableSize = reg->recData.reg.size - position;
     if (size && (!*size || *size > readableSize))
         *size = readableSize;
+
+    // ToDo: read "data.direct".
 
     // Copy the data from the register to the provided buffer (if any).
     void* pointed = cdp_ptr_off(reg->recData.reg.data.ptr, position);

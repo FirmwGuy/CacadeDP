@@ -254,17 +254,21 @@ typedef enum {
     CDP_ACTION_COUNT
 } cdpAction;
 
-static inline cdpRecord* cdp_record_void(void)  {extern cdpRecord CDP_VOID; assert(CDP_VOID);  return CDP_VOID;}
+static inline cdpRecord* cdp_record_void(void)  {extern cdpRecord* CDP_VOID; assert(CDP_VOID);  return CDP_VOID;}
 
-static inline cdpID cdp_id_true(void)   {extern cdpRecord CDP_TRUE;  assert(CDP_TRUE);   return CDP_TRUE->metadata.id;}
-static inline cdpID cdp_id_false(void)  {extern cdpRecord CDP_FALSE; assert(CDP_FALSE);  return CDP_FALSE->metadata.id;}
+static inline cdpID cdp_id_true(void)   {extern cdpRecord* CDP_TRUE;  assert(CDP_TRUE);   return CDP_TRUE->metadata.id;}
+static inline cdpID cdp_id_false(void)  {extern cdpRecord* CDP_FALSE; assert(CDP_FALSE);  return CDP_FALSE->metadata.id;}
 
-cdpID cdp_name_id_add(const char* name, bool borrow);
-#define cdp_name_id_add_static(name)  cdp_name_id_add(name, true);
+cdpID      cdp_name_id_add(const char* name, bool borrow);
+#define    cdp_name_id_add_static(name)  cdp_name_id_add(name, true);
 cdpRecord* cdp_name_id_text(cdpID id);
 
-cdpRecord* cdp_type_add(const char* name);
+cdpID      cdp_type_add(const char* name, const char* description, size_t baseSize);
+cdpRecord* cdp_type(cdpID id);
+
 cdpRecord* cdp_object_add(const char* name, cdpProcess);
+cdpRecord* cdp_object(const char* name, cdpProcess);
+bool       cdp_object_validate(cdpRecord* object);
 
 typedef bool (*cdpProcess)(cdpRecord* instance, cdpAction action);
 
