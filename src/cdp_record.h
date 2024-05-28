@@ -59,7 +59,7 @@
     the hierarchy.
 
     The system is optimized for efficient storage and access, fitting
-    within processor cache lines to enhance performance. It supports
+    within objector cache lines to enhance performance. It supports
     navigating from any record to the root of the database,
     reconstructing paths within the data hierarchy based on field
     identifiers in parent records.
@@ -202,7 +202,7 @@ enum _cdpTypePrimal {
     CDP_TYPE_PRIMAL_COUNT
 };
 
-// Initial type IDs (for a description see cdp.process.c):
+// Initial type IDs (for a description see cdp_object.c):
 enum _cdpTypeID {
     // Book types
     CDP_TYPE_LIST = CDP_TYPE_PRIMAL_COUNT,
@@ -373,23 +373,7 @@ typedef struct {
 
 typedef bool (*cdpTraverse)(cdpBookEntry*, unsigned, void*);
 
-typedef enum {
-    CDP_ACTION_STARTUP,
-    CDP_ACTION_SHUTDOWN,
-
-    CDP_ACTION_IDLE,
-    CDP_ACTION_STEP,
-    CDP_ACTION_EVENT,
-
-    CDP_ACTION_INITIALIZE,
-    CDP_ACTION_FINALIZE,
-    CDP_ACTION_SAVE,
-    CDP_ACTION_LOAD,
-
-    CDP_ACTION_COUNT
-} cdpAction;
-
-typedef bool (*cdpProcess)(cdpRecord* instance, cdpAction action);
+typedef bool (*cdpObject)(cdpRecord* instance, cdpID signal, cdpRecord* );
 
 
 /*
@@ -430,8 +414,7 @@ static inline bool cdp_record_is_dictionary(const cdpRecord* record)  {assert(re
 // Parent properties
 #define CDP_CHD_STORE(children)         ({assert(children);  (cdpChdStore*)(children);})
 #define cdp_record_par_store(record)    CDP_CHD_STORE((record)->store)
-static inline cdpRecord* #define cdp_book_add_set(b, id, chdStorage, ...)                    cdp_book_add_book(b, id, CDP_TYPE_SET,        ((unsigned)(chdStorage)), ##__VA_ARGS__)
-cdp_record_parent  (const cdpRecord* record)   {assert(record);  return CDP_EXPECT_PTR(record->store)? cdp_record_par_store(record)->book: NULL;}
+static inline cdpRecord* cdp_record_parent  (const cdpRecord* record)   {assert(record);  return CDP_EXPECT_PTR(record->store)? cdp_record_par_store(record)->book: NULL;}
 static inline size_t     cdp_record_siblings(const cdpRecord* record)   {assert(record);  return CDP_EXPECT_PTR(record->store)? cdp_record_par_store(record)->chdCount: 0;}
 
 
@@ -477,7 +460,7 @@ static inline cdpRecord* cdp_book_add_text(cdpRecord* book, unsigned attrib, cdp
     CDP_FUNC_ADD_VAL_(float64, double,   CDP_TYPE_FLOAT64)
 
     CDP_FUNC_ADD_VAL_(id, cdpID, CDP_TYPE_ID)
-    CDP_FUNC_ADD_VAL_(executable, cdpProcess, CDP_TYPE_EXECUTABLE)
+    CDP_FUNC_ADD_VAL_(executable, cdpObject, CDP_TYPE_EXECUTABLE)
 
 
 #define cdp_book_add_book(b, id, type, chdStorage, ...)             cdp_book_add(b, CDP_TYPE_BOOK, 0, id, type, false, ((unsigned)(chdStorage)), ##__VA_ARGS__)
@@ -520,7 +503,7 @@ void* cdp_register_write(cdpRecord* reg, size_t position, const void* data, size
 
 #define cdp_register_read_id(reg) (*(cdpID*)cdp_register_read(reg, 0, NULL, NULL))
 #define cdp_register_read_utf8(reg) ((const char*)cdp_register_read(reg, 0, NULL, NULL))
-#define cdp_register_read_executable(reg) ((cdpProcess)cdp_register_read(reg, 0, NULL, NULL))
+#define cdp_register_read_executable(reg) ((cdpObject)cdp_register_read(reg, 0, NULL, NULL))
 
 #define cdp_register_update_bool(reg, v)    cdp_register_update(reg, &(v), sizeof(uint8_t))
 #define cdp_register_update_byte(reg, v)    cdp_register_update(reg, &(v), sizeof(uint8_t))

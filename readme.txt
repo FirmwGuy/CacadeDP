@@ -1,6 +1,6 @@
 Cascade Data Processing
 =======================
 
-CascadeDP is a distributed execution system targeted to microcontrollers and embedded systems.
+CascadeDP is a distributed execution solution targeted to microcontrollers and embedded systems.
 
-This project is under active development in pre-apha state. Check back in a year or so.
+This project is under active development in experimental state. Check back in a year or so.

@@ -22,7 +22,7 @@
  */
 
 
-#include "cdp_process.h"
+#include "cdp_object.h"
 #include <ctype.h>        // isupper()
 
 
@@ -135,8 +135,31 @@ cdpRecord* cdp_type(cdpID typeID) {
 
 
 
-cdpID cdp_object_type_add(cdpID nameID, cdpID processID, char* description, size_t baseSize) {
-    assert((nameID & CDP_NAME_FLAG) && (processID & CDP_NAME_FLAG));
+
+cdpID cdp_object_type_add(const char* name, cdpObject object) {
+    assert(name && *name && object);
+
+    if (!SYSTEM)  cdp_system_initiate();
+
+    cdpID nameID = cdp_name_id_add_static(name);
+    cdpRecord* prev = cdp_book_find_by_name(SYSTEM, nameID);
+    if (prev) {
+        assert(!prev);    // FixMe: find and report previous.
+        return CDP_NAME_VOID;
+    }
+
+    cdpRecord* procBook = cdp_book_add_dictionary(SYSTEM, nameID, CDP_TYPE_DICTIONARY, CDP_STO_CHD_RED_BLACK_T); {
+        cdpRecord procReg = {0};
+        cdp_record_initialize(&procReg, CDP_TYPE_REGISTER, CDP_ATTRIB_FACTUAL, CDP_NAME_PROCESS, CDP_TYPE_EXECUTABLE, true, object, sizeof(cdpObject));
+        cdp_book_add_property(procBook, &procReg);
+    }
+
+    return nameID;
+}
+
+
+cdpID cdp_object_type_add(cdpID nameID, cdpID objectID, char* description, size_t baseSize) {
+    assert((nameID & CDP_NAME_FLAG) && (objectID & CDP_NAME_FLAG));
 
     // Find previous
     if (cdp_book_find_by_name(TYPE, nameID)) {
@@ -145,7 +168,7 @@ cdpID cdp_object_type_add(cdpID nameID, cdpID processID, char* description, size
     }
 
     cdpRecord* object = system_initiate_type(nameID, NULL, description, baseSize); {
-        cdp_book_add_id(object, CDP_NAME_PROCESS, processID);
+        cdp_book_add_id(object, CDP_NAME_PROCESS, objectID);
     }
 
     return cdp_record_id(object);
@@ -157,9 +180,9 @@ void cdp_object_construct(cdpRecord* object, primal, attrib, cdpID nameID, cdpID
     cdp_record_initialize_dictionary(&op, CDP_NAME_MESSAGE, CDP_STO_CHD_ARRAY, 4);
 
     cdp_record_initialize(object, primal, attrib, nameID, typeID, );
-    cdp_book_add_id(&op, CDP_NAME_EVENT, CDP_ID_EVENT_CONSTRUCT);
-    cdp_book_add_id(&op, CDP_NAME_EVENT, CDP_ID_EVENT_CONSTRUCT);
-    cdp_process_send(proc, CDP_SIGNAL, &op);
+    cdp_book_add_id(&op, CDP_NAME_EVENT, CDP_SIGNAL_CONSTRUCT);
+    cdp_book_add_id(&op, CDP_NAME_EVENT, CDP_SIGNAL_CONSTRUCT);
+    cdp_object_send(proc, CDP_SIGNAL, &op);
 }
 
 
@@ -250,11 +273,11 @@ static void cdp_system_initiate(void) {
     system_initiate_type(CDP_TYPE_REGISTER,       "register",       "Generic record that holds data.", 0);
     type = system_initiate_type(CDP_TYPE_BOOLEAN, "boolean",        "Boolean value.", sizeof(uint8_t)); {
         value = cdp_book_add_dictionary(type, CDP_NAME_VALUE, CDP_STO_CHD_ARRAY, CDP_ID_BOOL_COUNT); {
-            cdp_book_add_static_text(value, CDP_ID_BOOLEAN_FALSE,   "false");
-            cdp_book_add_static_text(value, CDP_ID_BOOLEAN_TRUE,    "true");
+            cdp_book_add_static_text(value, CDP_BOOLEAN_FALSE,   "false");
+            cdp_book_add_static_text(value, CDP_BOOLEAN_TRUE,    "true");
 
-            assert(cdp_book_children(value) == CDP_ID_BOOLEAN_COUNT);
-            cdp_book_set_auto_id(value, CDP_ID_BOOLEAN_COUNT);
+            assert(cdp_book_children(value) == CDP_BOOLEAN_COUNT);
+            cdp_book_set_auto_id(value, CDP_BOOLEAN_COUNT);
     }   }
     system_initiate_type(CDP_TYPE_BYTE,           "byte",           "Unsigned integer number of 8 bits.",   sizeof(uint8_t));
     system_initiate_type(CDP_TYPE_UINT16,         "uint16",         "Unsigned integer number of 16 bits.",  sizeof(uint16_t));
@@ -273,23 +296,23 @@ static void cdp_system_initiate(void) {
     system_initiate_type(CDP_TYPE_UTF8,           "utf8",           "Text encoded in UTF8 format.", 0);
     system_initiate_type(CDP_TYPE_PATCH,          "patch",          "Record that can patch another record.", 0);
     //
-    system_initiate_type(CDP_TYPE_EXECUTABLE,     "executable",     "Address of a process executable entry point.", sizeof(cdpProcess));
+    system_initiate_type(CDP_TYPE_EXECUTABLE,     "executable",     "Address of a object executable entry point.", sizeof(cdpObject));
     type = system_initiate_type(CDP_TYPE_EVENT,   "event",          "Object event.", sizeof(uint8_t)); {
-        value = cdp_book_add_dictionary(type, CDP_NAME_VALUE, CDP_STO_CHD_ARRAY, CDP_ID_EVENT_COUNT); {
-            cdp_book_add_static_text(value, CDP_ID_EVENT_CONSTRUCT, "construct");
-            cdp_book_add_static_text(value, CDP_ID_EVENT_DESTRUCT,  "destruct");
-            cdp_book_add_static_text(value, CDP_ID_EVENT_REFERENCE, "reference");
-            cdp_book_add_static_text(value, CDP_ID_EVENT_FREE,      "free");
-            cdp_book_add_static_text(value, CDP_ID_EVENT_APPEND,    "append");
-            cdp_book_add_static_text(value, CDP_ID_EVENT_PREPEND,   "prepend");
-            cdp_book_add_static_text(value, CDP_ID_EVENT_INSERT,    "insert");
-            cdp_book_add_static_text(value, CDP_ID_EVENT_SORT,      "sort");
-            cdp_book_add_static_text(value, CDP_ID_EVENT_COPY,      "copy");
-            cdp_book_add_static_text(value, CDP_ID_EVENT_MOVE,      "move");
-            cdp_book_add_static_text(value, CDP_ID_EVENT_LINK,      "link");
+        value = cdp_book_add_dictionary(type, CDP_NAME_VALUE, CDP_STO_CHD_ARRAY, CDP_SIGNAL_COUNT); {
+            cdp_book_add_static_text(value, CDP_SIGNAL_CONSTRUCT, "construct");
+            cdp_book_add_static_text(value, CDP_SIGNAL_DESTRUCT,  "destruct");
+            cdp_book_add_static_text(value, CDP_SIGNAL_REFERENCE, "reference");
+            cdp_book_add_static_text(value, CDP_SIGNAL_FREE,      "free");
+            cdp_book_add_static_text(value, CDP_SIGNAL_APPEND,    "append");
+            cdp_book_add_static_text(value, CDP_SIGNAL_PREPEND,   "prepend");
+            cdp_book_add_static_text(value, CDP_SIGNAL_INSERT,    "insert");
+            cdp_book_add_static_text(value, CDP_SIGNAL_SORT,      "sort");
+            cdp_book_add_static_text(value, CDP_SIGNAL_COPY,      "copy");
+            cdp_book_add_static_text(value, CDP_SIGNAL_MOVE,      "move");
+            cdp_book_add_static_text(value, CDP_SIGNAL_LINK,      "link");
 
-            assert(cdp_book_children(value) == CDP_ID_EVENT_COUNT);
-            cdp_book_set_auto_id(value, CDP_ID_EVENT_COUNT);
+            assert(cdp_book_children(value) == CDP_SIGNAL_COUNT);
+            cdp_book_set_auto_id(value, CDP_SIGNAL_COUNT);
     }   }
 
     // Link types
@@ -323,7 +346,7 @@ static void cdp_system_initiate(void) {
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,      "public");
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,        "data");
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,     "service");
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID,     "process");
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID,     "object");
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,     "network");
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,        "temp");
 
@@ -340,43 +363,15 @@ static void cdp_system_initiate(void) {
 
 
 
-cdpID cdp_system_process_initiate(const char* name, cdpProcess process) {
-    assert(name && *name && process);
-
-    if (!SYSTEM)  cdp_system_initiate();
-
-    cdpID nameID = cdp_name_id_add_static(name);
-    cdpRecord* prev = cdp_book_find_by_name(SYSTEM, nameID);
-    if (prev) {
-        assert(!prev);    // FixMe: find and report previous.
-        return CDP_NAME_VOID;
-    }
-
-    cdpRecord* procBook = cdp_book_add_dictionary(SYSTEM, nameID, CDP_TYPE_DICTIONARY, CDP_STO_CHD_RED_BLACK_T); {
-        cdpRecord procReg = {0};
-        cdp_record_initialize(&procReg, CDP_TYPE_REGISTER, CDP_ATTRIB_FACTUAL, CDP_NAME_PROCESS, CDP_TYPE_EXECUTABLE, true, process, sizeof(cdpProcess));
-        cdp_book_add_property(procBook, &procReg);
-    }
-
-    return nameID;
-}
-
-
-cdpRecord* cdp_system_process(cdpID nameID) {
-    assert(nameID & CDP_NAME_FLAG);
-    return cdp_book_find_by_name(SYSTEM, nameID);
-}
-
-
-static bool system_step_traverse_instance(cdpBookEntry* entry, unsigned unused, cdpProcess process) {
-    return process(entry->record, CDP_ACTION_STEP);
+static bool system_step_traverse_instance(cdpBookEntry* entry, unsigned unused, cdpObject object) {
+    return object(entry->record, CDP_ACTION_STEP);
 }
 
 static bool system_step_traverse(cdpBookEntry* entry, unsigned unused, void* unused2) {
     cdpRecord* procReg = cdp_book_get_property(entry->record, CDP_NAME_PROCESS);
-    cdpProcess process = cdp_register_read_executable(procReg);
-    assert(process);
-    return cdp_book_traverse(entry->record, (cdpTraverse)system_step_traverse_instance, process, NULL);
+    cdpObject object = cdp_register_read_executable(procReg);
+    assert(object);
+    return cdp_book_traverse(entry->record, (cdpTraverse)system_step_traverse_instance, object, NULL);
 }
 
 bool cdp_system_step(void) {
@@ -385,7 +380,7 @@ bool cdp_system_step(void) {
 }
 
 
-void cdp_system_process_shutdown(void) {
+void cdp_system_shutdown(void) {
     assert(SYSTEM);
     cdp_book_reset(&CDP_ROOT, 64);    // FixMe: maxDepth.
     cdp_record_system_shutdown();
