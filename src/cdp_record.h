@@ -233,31 +233,17 @@ enum _cdpTypeID {
 
     // Structured types
     CDP_TYPE_TYPE,
+    CDP_OBJECT_OBJECT,
 
     CDP_TYPE_COUNT
 };
-
-#define CDP_OBJECT_FLAG       ((~(CDP_ID_MAXVAL >> 1)) >> CDP_META_BITS)
-#define CDP_OBJ2TYPE(name)    (CDP_OBJECT_FLAG | (name))
-#define CDP_TYPE2OBJ(id)      ((id) & CDP_TYPE_COUNT_MAX)
-#define CDP_OBJECT_COUNT_MAX  CDP_TYPE_COUNT_MAX
-
-// Initial object IDs:
-enum _cdpObjectID {
-    CDP_OBJECT_OBJECT = CDP_OBJECT_FLAG,
-    CDP_OBJECT_PROCESS,
-
-    CDP_OBJECT_FLAG_COUNT
-};
-
-#define CDP_OBJECT_COUNT  (CDP_OBJECT_FLAG_COUNT - CDP_OBJECT_OBJECT)
 
 #define CDP_AUTO_ID           CDP_ID_MAXVAL
 #define CDP_AUTO_ID_MAX       (CDP_ID_MAXVAL >> 1)
 
 #define CDP_NAME_FLAG         (~(CDP_ID_MAXVAL >> 1))
-#define CDP_NAME2ID(name)     (CDP_NAME_FLAG | (name))
-#define CDP_ID2NAME(id)       ((id) & (~CDP_NAME_FLAG))
+#define CDP_TEXT2ID(text)     (CDP_NAME_FLAG | (text))
+#define CDP_ID2TEXT(id)       ((id) & (~CDP_NAME_FLAG))
 #define CDP_NAME_COUNT_MAX    (CDP_AUTO_ID - 1)
 
 // Initial name IDs:
@@ -403,7 +389,7 @@ static inline cdpID cdp_record_type      (const cdpRecord* record)  {assert(reco
 #define cdp_record_is_factual(r)    cdp_is_set(cdp_record_attributes(r), CDP_ATTRIB_FACTUAL)
 #define cdp_record_is_shadowed(r)   cdp_is_set(cdp_record_attributes(r), CDP_ATTRIB_SHADOWED)
 
-static inline bool cdp_record_is_named     (const cdpRecord* record)  {assert(record);  if (record->metadata.id & CDP_NAME_FLAG) {assert(CDP_ID2NAME(record->metadata.id) <= CDP_NAME_COUNT_MAX); return true;} return false;}
+static inline bool cdp_record_is_named     (const cdpRecord* record)  {assert(record);  if (record->metadata.id & CDP_NAME_FLAG) {assert(CDP_ID2TEXT(record->metadata.id) <= CDP_NAME_COUNT_MAX); return true;} return false;}
 static inline bool cdp_record_is_object    (const cdpRecord* record)  {assert(record);  if (record->metadata.type & CDP_OBJECT_FLAG) {assert(CDP_TYPE2OBJ(record->metadata.type) <= CDP_OBJECT_COUNT_MAX); return true;} return false;}
 static inline bool cdp_record_is_dictionary(const cdpRecord* record)  {assert(record);  return (cdp_record_is_book(record) && record->metadata.type == CDP_TYPE_DICTIONARY);}
 

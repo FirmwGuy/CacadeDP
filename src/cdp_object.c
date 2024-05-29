@@ -48,7 +48,7 @@ struct NID {const char* name; size_t length; cdpID id;};
 
 
 
-static bool name_id_find_text(cdpBookEntry* entry, unsigned depth, struct NID* nid) {
+static bool name_id_traverse_find_text(cdpBookEntry* entry, unsigned depth, struct NID* nid) {
     const char* name = cdp_register_read_utf8(entry->record);
     if (entry->record->recData.reg.size == nid->length
      && 0 == memcmp(name, nid->name, nid->length)) {
@@ -65,32 +65,39 @@ cdpID cdp_name_id_add(const char* name, bool borrow) {
 
     // Find previous
     struct NID nid = {name, length};
-    if (!cdp_book_traverse(NAME, (cdpTraverse)name_id_find_text, &nid, NULL))
+    if (!cdp_book_traverse(NAME, (cdpTraverse)name_id_traverse_find_text, &nid, NULL))
         return nid.id;
 
     // Add new
-    return cdp_record_id(cdp_book_add_text(NAME, borrow? CDP_ATTRIB_FACTUAL: 0, CDP_AUTO_ID, borrow, name));
+    cdpRecord* reg = cdp_book_add_text(NAME, borrow? CDP_ATTRIB_FACTUAL: 0, CDP_AUTO_ID, borrow, name);
+    return CDP_TEXT2ID(cdp_record_id(reg));
 }
 
 
 cdpRecord* cdp_name_id_text(cdpID id) {
-    assert(id < cdp_book_get_auto_id(NAME));
-    return cdp_book_find_by_name(NAME, id);
+    cdpID textID = CDP_ID2TEXT(id);
+    assert(textID < cdp_book_get_auto_id(NAME));
+    //return cdp_book_find_by_name(NAME, textID);
+    return cdp_book_find_by_position(NAME, textID);     // FixMe: check if entry is disabled.
 }
 
 
 
 
-static inline cdpRecord* system_initiate_type(cdpID typeID, const char* name, const char* description, uint32_t size) {
+static inline cdpRecord* type_add_type(cdpID typeID, const char* name, const char* description, uint32_t size, cdpID nameID) {
     unsigned items = 1;
     if (*description) items++;
     if (size) items++;
 
     cdpRecord* type = cdp_book_add_dictionary(TYPE, typeID, CDP_STO_CHD_ARRAY, items); {
-        if (cdp_record_is_named(type))
+        if (name)
             cdp_book_add_static_text(type, CDP_NAME_NAME, name);
+        else
+            cdp_book_add_id(type, CDP_NAME_NAME, nameID);
+
         if (*description)
             cdp_book_add_static_text(type, CDP_NAME_DESCRIPTION, description);
+
         if (size)
             cdp_book_add_uint32(type, CDP_NAME_SIZE, size);
     }
@@ -98,10 +105,10 @@ static inline cdpRecord* system_initiate_type(cdpID typeID, const char* name, co
     return type;
 }
 
-static bool type_find_by_text(cdpBookEntry* entry, unsigned depth, struct NID* nid) {
-    if (cdp_record_is_object(entry->record))
-        return true;
+static bool type_traverse_find_by_text(cdpBookEntry* entry, unsigned depth, struct NID* nid) {
     cdpRecord* nameReg = cdp_book_find_by_name(entry->record, CDP_NAME_NAME);
+    if (nameReg.metadata.type == CDP_TYPE_ID)
+        nameReg = cdp_name_id_text(cdp_register_read_id(nameReg));
     const char* name = cdp_register_read_utf8(nameReg);
     if (nameReg->recData.reg.size == nid->length
      && 0 == memcmp(name, nid->name, nid->length)) {
@@ -114,22 +121,30 @@ static bool type_find_by_text(cdpBookEntry* entry, unsigned depth, struct NID* n
 cdpID cdp_type_add(const char* name, const char* description, size_t baseSize) {
     assert(name && *name);
     size_t length = strlen(name);
-    CDP_DEBUG(for (unsigned n=0; n<length; n++) {assert(!isupper(name[n]));});
+    for (unsigned n=0; n<length; n++) {
+        if (isupper(name[n])) {
+            assert(isupper(name[n]));
+            return CDP_TYPE_VOID;
+        }
+    }
+    cdpID nameID = cdp_name_id_add_static(name);
 
     // Find previous
     struct NID nid = {name, length};
-    if (!cdp_book_traverse(TYPE, (cdpTraverse)type_find_by_text, &nid, NULL)) {
-        assert(!"Type already present.");  // FixMe.
+    bool found = !cdp_book_traverse(TYPE, (cdpTraverse)type_traverse_find_by_text, &nid, NULL);
+    if (found) {
+        assert(!found);     // FixMe.
         return CDP_TYPE_VOID;
     }
 
-    return cdp_record_id(system_initiate_type(CDP_AUTO_ID, name, description, baseSize));
+    return cdp_record_id(type_add_type(CDP_AUTO_ID, NULL, description, baseSize, nameID));
 }
 
 
 cdpRecord* cdp_type(cdpID typeID) {
-    assert(typeID < cdp_book_get_auto_id(TYPE));
-    return cdp_book_find_by_name(TYPE, typeID);
+    assert(!(typeID & CDP_OBJECT_FLAG) && (typeID < cdp_book_get_auto_id(TYPE)));
+    //return cdp_book_find_by_name(TYPE, typeID);
+    return cdp_book_find_by_position(TYPE, typeID);     // FixMe: check if entry is disabled.
 }
 
 
@@ -141,12 +156,6 @@ cdpID cdp_object_type_add(const char* name, cdpObject object) {
 
     if (!SYSTEM)  cdp_system_initiate();
 
-    cdpID nameID = cdp_name_id_add_static(name);
-    cdpRecord* prev = cdp_book_find_by_name(SYSTEM, nameID);
-    if (prev) {
-        assert(!prev);    // FixMe: find and report previous.
-        return CDP_NAME_VOID;
-    }
 
     cdpRecord* procBook = cdp_book_add_dictionary(SYSTEM, nameID, CDP_TYPE_DICTIONARY, CDP_STO_CHD_RED_BLACK_T); {
         cdpRecord procReg = {0};
@@ -158,13 +167,17 @@ cdpID cdp_object_type_add(const char* name, cdpObject object) {
 }
 
 
-cdpID cdp_object_type_add(cdpID nameID, cdpID objectID, char* description, size_t baseSize) {
-    assert((nameID & CDP_NAME_FLAG) && (objectID & CDP_NAME_FLAG));
+cdpID cdp_object_type_add(const char* name, cdpObject object, char* description, size_t baseSize) {
+    assert(name && *name && object);
 
-    // Find previous
-    if (cdp_book_find_by_name(TYPE, nameID)) {
-        assert(!"Object already present.");  // FixMe.
-        return CDP_TYPE_VOID;
+    if (!SYSTEM)  cdp_system_initiate();
+
+    cdpID nameID = cdp_name_id_add_static(name);
+    //cdpRecord* prev = cdp_book_find_by_name(SYSTEM, nameID);
+    cdpRecord* prev = cdp_book_find_by_position(SYSTEM, nameID);
+    if (prev) {
+        assert(!prev);    // FixMe: find and report previous.
+        return CDP_NAME_VOID;
     }
 
     cdpRecord* object = system_initiate_type(nameID, NULL, description, baseSize); {
@@ -238,6 +251,8 @@ bool cdp_object_validate(cdpRecord* object) {
 
 
 
+
+#define system_initiate_type(t, name, desc, size)   type_add_type(t, name, desc, size, 0)
 
 static void cdp_system_initiate(void) {
     assert(!SYSTEM);
