@@ -150,38 +150,16 @@ cdpRecord* cdp_type(cdpID typeID) {
 
 
 
-
-cdpID cdp_object_type_add(const char* name, cdpObject object) {
-    assert(name && *name && object);
-
-    if (!SYSTEM)  cdp_system_initiate();
-
-
-    cdpRecord* procBook = cdp_book_add_dictionary(SYSTEM, nameID, CDP_TYPE_DICTIONARY, CDP_STO_CHD_RED_BLACK_T); {
-        cdpRecord procReg = {0};
-        cdp_record_initialize(&procReg, CDP_TYPE_REGISTER, CDP_ATTRIB_FACTUAL, CDP_NAME_PROCESS, CDP_TYPE_EXECUTABLE, true, object, sizeof(cdpObject));
-        cdp_book_add_property(procBook, &procReg);
-    }
-
-    return nameID;
-}
-
-
 cdpID cdp_object_type_add(const char* name, cdpObject object, char* description, size_t baseSize) {
     assert(name && *name && object);
 
     if (!SYSTEM)  cdp_system_initiate();
 
-    cdpID nameID = cdp_name_id_add_static(name);
-    //cdpRecord* prev = cdp_book_find_by_name(SYSTEM, nameID);
-    cdpRecord* prev = cdp_book_find_by_position(SYSTEM, nameID);
-    if (prev) {
-        assert(!prev);    // FixMe: find and report previous.
-        return CDP_NAME_VOID;
-    }
+    cdpID i = cdp_type_add(name, description, baseSize);
 
     cdpRecord* object = system_initiate_type(nameID, NULL, description, baseSize); {
-        cdp_book_add_id(object, CDP_NAME_PROCESS, objectID);
+        cdp_book_add_object(object, CDP_NAME_OBJECT, object);
+        CDP_RECORD_SET_ATRIBUTE(object, CDP_ATTRIB_FACTUAL);
     }
 
     return cdp_record_id(object);
@@ -346,22 +324,22 @@ static void cdp_system_initiate(void) {
        *** WARNING: this must be done in the same order as the _cdpNameID
                     enumeration in "cdp_record.h". ***
     */
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID,            "");
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID,            "");     // Void text.
     //
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,        "name");
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,       "value");
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,        "size");
     cdp_book_add_static_text(NAME, CDP_AUTO_ID, "description");
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID,     "object");
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID,     "private");
+    //cdp_book_add_static_text(NAME, CDP_AUTO_ID,     "service");
     //
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID,           "/");       // The root book.
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID,           "/");     // The root book.
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,        "type");
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,      "system");
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,        "user");
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID,     "private");
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,      "public");
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,        "data");
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID,     "service");
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID,     "object");
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,     "network");
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,        "temp");
 

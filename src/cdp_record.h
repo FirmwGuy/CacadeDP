@@ -254,16 +254,16 @@ enum _cdpNameID {
     CDP_NAME_VALUE,
     CDP_NAME_SIZE,
     CDP_NAME_DESCRIPTION,
+    CDP_NAME_OBJECT,
+    CDP_NAME_PRIVATE,
+    //CDP_NAME_SERVICE,
     //
     CDP_NAME_ROOT,
     CDP_NAME_TYPE,
     CDP_NAME_SYSTEM,
     CDP_NAME_USER,
-    CDP_NAME_PRIVATE,
     CDP_NAME_PUBLIC,
     CDP_NAME_DATA,
-    CDP_NAME_SERVICE,
-    CDP_NAME_PROCESS,
     CDP_NAME_NETWORK,
     CDP_NAME_TEMP,
 
@@ -374,6 +374,8 @@ void cdp_record_finalize(cdpRecord* record, unsigned maxDepth);
 #define cdp_record_initialize_stack(r, id, chdStorage, ...)       cdp_record_initialize(r, CDP_TYPE_BOOK, 0, id, CDP_TYPE_STACK,      ((unsigned)(chdStorage)), ##__VA_ARGS__)
 #define cdp_record_initialize_dictionary(r, id, chdStorage, ...)  cdp_record_initialize(r, CDP_TYPE_BOOK, 0, id, CDP_TYPE_DICTIONARY, ((unsigned)(chdStorage)), ##__VA_ARGS__)
 
+#define CDP_RECORD_SET_ATRIBUTE(r, attrib)     ((r)->metadata.attrib |= (attrib))
+
 // General property check
 static inline cdpID cdp_record_attributes(const cdpRecord* record)  {assert(record);  return record->metadata.attribute;}
 static inline cdpID cdp_record_primal    (const cdpRecord* record)  {assert(record);  return record->metadata.primal;}
@@ -446,7 +448,7 @@ static inline cdpRecord* cdp_book_add_text(cdpRecord* book, unsigned attrib, cdp
     CDP_FUNC_ADD_VAL_(float64, double,   CDP_TYPE_FLOAT64)
 
     CDP_FUNC_ADD_VAL_(id, cdpID, CDP_TYPE_ID)
-    CDP_FUNC_ADD_VAL_(executable, cdpObject, CDP_TYPE_EXECUTABLE)
+    CDP_FUNC_ADD_VAL_(object, cdpObject, CDP_TYPE_EXECUTABLE)
 
 
 #define cdp_book_add_book(b, id, type, chdStorage, ...)             cdp_book_add(b, CDP_TYPE_BOOK, 0, id, type, false, ((unsigned)(chdStorage)), ##__VA_ARGS__)
