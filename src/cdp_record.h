@@ -228,12 +228,12 @@ enum _cdpTypeID {
     CDP_TYPE_UTF8,
     CDP_TYPE_PATCH,
     //
-    CDP_TYPE_EXECUTABLE,
+    CDP_TYPE_CALLABLE,
     CDP_TYPE_EVENT,
 
     // Structured types
     CDP_TYPE_TYPE,
-    CDP_OBJECT_OBJECT,
+    CDP_TYPE_OBJECT,
 
     CDP_TYPE_COUNT
 };
@@ -254,6 +254,7 @@ enum _cdpNameID {
     CDP_NAME_VALUE,
     CDP_NAME_SIZE,
     CDP_NAME_DESCRIPTION,
+    CDP_NAME_CALLABLE,
     CDP_NAME_OBJECT,
     CDP_NAME_PRIVATE,
     //CDP_NAME_SERVICE,
@@ -359,7 +360,7 @@ typedef struct {
 
 typedef bool (*cdpTraverse)(cdpBookEntry*, unsigned, void*);
 
-typedef bool (*cdpObject)(cdpRecord* instance, cdpID signal, cdpRecord* );
+typedef bool (*cdpCallable)(cdpRecord* instance, cdpID signal, cdpRecord* args);
 
 
 /*
@@ -448,7 +449,7 @@ static inline cdpRecord* cdp_book_add_text(cdpRecord* book, unsigned attrib, cdp
     CDP_FUNC_ADD_VAL_(float64, double,   CDP_TYPE_FLOAT64)
 
     CDP_FUNC_ADD_VAL_(id, cdpID, CDP_TYPE_ID)
-    CDP_FUNC_ADD_VAL_(object, cdpObject, CDP_TYPE_EXECUTABLE)
+    CDP_FUNC_ADD_VAL_(callable, cdpCallable, CDP_TYPE_CALLABLE)
 
 
 #define cdp_book_add_book(b, id, type, chdStorage, ...)             cdp_book_add(b, CDP_TYPE_BOOK, 0, id, type, false, ((unsigned)(chdStorage)), ##__VA_ARGS__)
@@ -491,7 +492,7 @@ void* cdp_register_write(cdpRecord* reg, size_t position, const void* data, size
 
 #define cdp_register_read_id(reg) (*(cdpID*)cdp_register_read(reg, 0, NULL, NULL))
 #define cdp_register_read_utf8(reg) ((const char*)cdp_register_read(reg, 0, NULL, NULL))
-#define cdp_register_read_executable(reg) ((cdpObject)cdp_register_read(reg, 0, NULL, NULL))
+#define cdp_register_read_executable(reg) ((cdpCallable)cdp_register_read(reg, 0, NULL, NULL))
 
 #define cdp_register_update_bool(reg, v)    cdp_register_update(reg, &(v), sizeof(uint8_t))
 #define cdp_register_update_byte(reg, v)    cdp_register_update(reg, &(v), sizeof(uint8_t))
@@ -555,9 +556,9 @@ void cdp_record_system_shutdown(void);
 
 /*
     TODO:
+    - Use "recData.reg.data.direct" in registers.
     - Traverse book in internal (stoTech) order.
     - Add indexof for records.
-    - Use "recData.reg.data.direct" in registers.
     - Put move "depth" from traverse argument to inside entry structure.
     - Add cdp_book_update_nested_links(old, new).
     - CDP_NAME_VOID should never be a valid name for records.

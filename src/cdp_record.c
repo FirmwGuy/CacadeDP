@@ -449,7 +449,7 @@ bool cdp_record_path(const cdpRecord* record, cdpPath** path) {
 cdpRecord* cdp_book_first(const cdpRecord* book) {
     assert(cdp_record_is_book(book));
     cdpChdStore* store = CDP_CHD_STORE(book->recData.book.children);
-    CDP_CK(store->chdCount);
+    if (!store->chdCount) return NULL;
 
     STORE_TECH_SELECT(book->metadata.storeTech) {
       LINKED_LIST: {

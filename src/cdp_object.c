@@ -46,11 +46,14 @@ cdpRecord* NAME;
 struct NID {const char* name; size_t length; cdpID id;};
 
 
+static void system_initiate(void);
+
+
 
 
 static bool name_id_traverse_find_text(cdpBookEntry* entry, unsigned depth, struct NID* nid) {
     const char* name = cdp_register_read_utf8(entry->record);
-    if (entry->record->recData.reg.size == nid->length
+    if (cdp_register_size(entry->record) == nid->length
      && 0 == memcmp(name, nid->name, nid->length)) {
         nid->id = entry->record->metadata.id;
         return false;
@@ -110,7 +113,7 @@ static bool type_traverse_find_by_text(cdpBookEntry* entry, unsigned depth, stru
     if (nameReg.metadata.type == CDP_TYPE_ID)
         nameReg = cdp_name_id_text(cdp_register_read_id(nameReg));
     const char* name = cdp_register_read_utf8(nameReg);
-    if (nameReg->recData.reg.size == nid->length
+    if (cdp_register_size(nameReg) == nid->length
      && 0 == memcmp(name, nid->name, nid->length)) {
         nid->id = entry->record->metadata.id;
         return false;
@@ -120,6 +123,8 @@ static bool type_traverse_find_by_text(cdpBookEntry* entry, unsigned depth, stru
 
 cdpID cdp_type_add(const char* name, const char* description, size_t baseSize) {
     assert(name && *name);
+    if (!SYSTEM)  system_initiate();
+
     size_t length = strlen(name);
     for (unsigned n=0; n<length; n++) {
         if (isupper(name[n])) {
@@ -148,22 +153,18 @@ cdpRecord* cdp_type(cdpID typeID) {
 }
 
 
+cdpID cdp_type_add_object(const char* name, cdpCallable callable, char* description, size_t baseSize) {
+    assert(callable);
 
+    cdpID typeID = cdp_type_add(name, description, baseSize);
+    cdpRecord* objType = cdp_type(typeID);
+    cdp_book_add_callable(objType, CDP_NAME_CALLABLE, callable);
+    CDP_RECORD_SET_ATRIBUTE(objType, CDP_ATTRIB_FACTUAL);
 
-cdpID cdp_object_type_add(const char* name, cdpObject object, char* description, size_t baseSize) {
-    assert(name && *name && object);
-
-    if (!SYSTEM)  cdp_system_initiate();
-
-    cdpID i = cdp_type_add(name, description, baseSize);
-
-    cdpRecord* object = system_initiate_type(nameID, NULL, description, baseSize); {
-        cdp_book_add_object(object, CDP_NAME_OBJECT, object);
-        CDP_RECORD_SET_ATRIBUTE(object, CDP_ATTRIB_FACTUAL);
-    }
-
-    return cdp_record_id(object);
+    return typeID;
 }
+
+
 
 
 void cdp_object_construct(cdpRecord* object, primal, attrib, cdpID nameID, cdpID typeID, cdpID storage, uint32_t base) {
@@ -232,14 +233,15 @@ bool cdp_object_validate(cdpRecord* object) {
 
 #define system_initiate_type(t, name, desc, size)   type_add_type(t, name, desc, size, 0)
 
-static void cdp_system_initiate(void) {
-    assert(!SYSTEM);
+static void system_initiate(void) {
+    if (SYSTEM) return;
+
     cdp_record_system_initiate();
 
 
     /* Initiate root book structure.
     */
-    TYPE    = cdp_book_add_dictionary(&CDP_ROOT, CDP_NAME_TYPE,    CDP_STO_CHD_ARRAY, CDP_TYPE_COUNT + CDP_OBJECT_COUNT);
+    TYPE    = cdp_book_add_dictionary(&CDP_ROOT, CDP_NAME_TYPE,    CDP_STO_CHD_ARRAY, CDP_TYPE_COUNT);
     SYSTEM  = cdp_book_add_dictionary(&CDP_ROOT, CDP_NAME_SYSTEM,  CDP_STO_CHD_RED_BLACK_T);
     USER    = cdp_book_add_dictionary(&CDP_ROOT, CDP_NAME_USER,    CDP_STO_CHD_RED_BLACK_T);
     PUBLIC  = cdp_book_add_dictionary(&CDP_ROOT, CDP_NAME_PUBLIC,  CDP_STO_CHD_RED_BLACK_T);
@@ -253,7 +255,6 @@ static void cdp_system_initiate(void) {
 
     // Abstract types
     tvoid = system_initiate_type(CDP_TYPE_VOID,   "void",           "Type for describing nothingness.", 0);
-    system_initiate_type(CDP_TYPE_TYPE,           "type",           "Dictionary for describing types.", 0);
 
     // Book types
     system_initiate_type(CDP_TYPE_BOOK,           "book",           "Generic container of records.", 0);
@@ -289,7 +290,7 @@ static void cdp_system_initiate(void) {
     system_initiate_type(CDP_TYPE_UTF8,           "utf8",           "Text encoded in UTF8 format.", 0);
     system_initiate_type(CDP_TYPE_PATCH,          "patch",          "Record that can patch another record.", 0);
     //
-    system_initiate_type(CDP_TYPE_EXECUTABLE,     "executable",     "Address of a object executable entry point.", sizeof(cdpObject));
+    system_initiate_type(CDP_TYPE_CALLABLE,       "callable",       "Address of a callable function.", sizeof(cdpCallable));
     type = system_initiate_type(CDP_TYPE_EVENT,   "event",          "Object event.", sizeof(uint8_t)); {
         value = cdp_book_add_dictionary(type, CDP_NAME_VALUE, CDP_STO_CHD_ARRAY, CDP_SIGNAL_COUNT); {
             cdp_book_add_static_text(value, CDP_SIGNAL_CONSTRUCT, "construct");
@@ -311,13 +312,13 @@ static void cdp_system_initiate(void) {
     // Link types
     system_initiate_type(CDP_TYPE_LINK,           "link",           "Record that points to another record.", 0);
 
+    // Structured types
+    system_initiate_type(CDP_TYPE_TYPE,           "type",           "Dictionary for describing types.", 0);
+    system_initiate_type(CDP_TYPE_OBJECT,         "object",         "Records structured and ordered by event signals.", 0);
+
     // Finish core types.
     assert(cdp_book_children(TYPE) == CDP_TYPE_COUNT);
     cdp_book_set_auto_id(TYPE, CDP_TYPE_COUNT);
-
-    // Object types
-    //system_initiate_type(CDP_OBJECT_OBJECT,     "object",       "Book with records structured and ordered by some user-defined criteria.", 0);
-    //system_initiate_type(CDP_OJECT_PROCESS,     "patch",        "Record that can patch another record.", 0);
 
 
     /* Initiate name (ID) interning system:
@@ -330,7 +331,8 @@ static void cdp_system_initiate(void) {
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,       "value");
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,        "size");
     cdp_book_add_static_text(NAME, CDP_AUTO_ID, "description");
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID,     "object");
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID,    "callable");
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID,      "object");
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,     "private");
     //cdp_book_add_static_text(NAME, CDP_AUTO_ID,     "service");
     //
@@ -351,18 +353,19 @@ static void cdp_system_initiate(void) {
     CDP_VOID = cdp_book_add_boolean(TEMP, CDP_NAME_VOID, 0);
     CDP_VOID->metadata.id = CDP_VOID->metadata.primal = CDP_TYPE_VOID;
     CDP_VOID->metadata.type = tvoid->metadata.id;
+    CDP_RECORD_SET_ATRIBUTE(CDP_VOID, CDP_ATTRIB_FACTUAL);
 }
 
 
 
 
-static bool system_step_traverse_instance(cdpBookEntry* entry, unsigned unused, cdpObject object) {
-    return object(entry->record, CDP_ACTION_STEP);
+static bool system_step_traverse_instance(cdpBookEntry* entry, unsigned unused, cdpCallable callable) {
+    return callable(entry->record, CDP_ACTION_STEP, NULL);
 }
 
 static bool system_step_traverse(cdpBookEntry* entry, unsigned unused, void* unused2) {
     cdpRecord* procReg = cdp_book_get_property(entry->record, CDP_NAME_PROCESS);
-    cdpObject object = cdp_register_read_executable(procReg);
+    cdpCallable object = cdp_register_read_executable(procReg);
     assert(object);
     return cdp_book_traverse(entry->record, (cdpTraverse)system_step_traverse_instance, object, NULL);
 }
@@ -377,5 +380,6 @@ void cdp_system_shutdown(void) {
     assert(SYSTEM);
     cdp_book_reset(&CDP_ROOT, 64);    // FixMe: maxDepth.
     cdp_record_system_shutdown();
+    SYSTEM = NULL;
 }
 

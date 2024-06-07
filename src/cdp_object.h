@@ -266,9 +266,7 @@ cdpRecord* cdp_name_id_text(cdpID id);
 
 cdpID      cdp_type_add(const char* name, const char* description, size_t baseSize);
 cdpRecord* cdp_type(cdpID id);
-
-cdpID      cdp_object_type_add(cdpID nameID, cdpID objectID, char* description, size_t baseSize);
-#define    cdp_object_type    cdp_type
+cdpID      cdp_type_add_object(const char* name, cdpCallable callable, char* description, size_t baseSize);
 
 void       cdp_object_construct(cdpRecord* object, cdpID nameID, cdpID objectTypeID, cdpID storage, uint32_t base);
 void       cdp_object_destruct (cdpRecord* object);
@@ -286,6 +284,7 @@ cdpRecord* cdp_object_remove   (cdpRecord* object, cdpRecord* book, cdpRecord* r
 bool       cdp_object_validate  (cdpRecord* object);
 
 
+bool       cdp_system_startup(void);
 bool       cdp_system_step(void);
 void       cdp_system_shutdown(void);
 
