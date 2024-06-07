@@ -94,7 +94,7 @@ cdpRecord CDP_ROOT;
 */
 void cdp_record_system_initiate(void) {
     // The root dictionary is the same as "/" in text paths.
-    cdp_record_initialize_dictionary(&CDP_ROOT, CDP_NAME_ROOT, CDP_STO_CHD_ARRAY, 8);
+    cdp_record_initialize_dictionary(&CDP_ROOT, CDP_NAME_ROOT, CDP_STO_CHD_RED_BLACK_T);
 }
 
 

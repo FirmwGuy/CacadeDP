@@ -158,7 +158,7 @@ cdpID cdp_type_add_object(const char* name, cdpCallable callable, char* descript
 
     cdpID typeID = cdp_type_add(name, description, baseSize);
     cdpRecord* objType = cdp_type(typeID);
-    cdp_book_add_callable(objType, CDP_NAME_CALLABLE, callable);
+    cdp_book_add_callable(objType, CDP_NAME_CALL, callable);
     CDP_RECORD_SET_ATRIBUTE(objType, CDP_ATTRIB_FACTUAL);
 
     return typeID;
@@ -167,14 +167,26 @@ cdpID cdp_type_add_object(const char* name, cdpCallable callable, char* descript
 
 
 
-void cdp_object_construct(cdpRecord* object, primal, attrib, cdpID nameID, cdpID typeID, cdpID storage, uint32_t base) {
-    cdpRecord op = {0};
-    cdp_record_initialize_dictionary(&op, CDP_NAME_MESSAGE, CDP_STO_CHD_ARRAY, 4);
+/* Constructs a local "floating" object (not associated with any book).
+*/
+bool cdp_object_construct(cdpRecord* object, cdpID nameID, cdpID typeID, cdpID storage, uint32_t base) {
+    cdpRecord call = {0};
+    cdp_record_initialize_dictionary(&call, CDP_NAME_CALL, CDP_STO_CHD_ARRAY, 4);
 
     cdp_record_initialize(object, primal, attrib, nameID, typeID, );
     cdp_book_add_id(&op, CDP_NAME_EVENT, CDP_SIGNAL_CONSTRUCT);
-    cdp_book_add_id(&op, CDP_NAME_EVENT, CDP_SIGNAL_CONSTRUCT);
-    cdp_object_send(proc, CDP_SIGNAL, &op);
+
+    cdpRecord* objType = cdp_type(typeID);
+    assert(object);
+    cdpCallable callable = cdp_book_find_by_name(objType, CDP_NAME_CALL);
+    assert(callable);
+
+    callable(NULL, &call);
+
+    cdpRecord* returned = cdp_book_find_by_name(&call, CDP_RETURN);
+    assert(returned);
+
+    return true;
 }
 
 
@@ -251,10 +263,10 @@ static void system_initiate(void) {
 
 
     /* Initiate type system. */
-    cdpRecord* type, *tvoid, *value;
+    cdpRecord* type, *value;
 
     // Abstract types
-    tvoid = system_initiate_type(CDP_TYPE_VOID,   "void",           "Type for describing nothingness.", 0);
+    system_initiate_type(CDP_TYPE_VOID,           "void",           "Type for describing nothingness.", 0);
 
     // Book types
     system_initiate_type(CDP_TYPE_BOOK,           "book",           "Generic container of records.", 0);
@@ -285,7 +297,7 @@ static void system_initiate(void) {
     //
     system_initiate_type(CDP_TYPE_ID,             "id",             "Register with the value of an id (name or type) of records.", sizeof(cdpID));
     type = system_initiate_type(CDP_TYPE_NAME_ID, "name_id",        "Id as a text token for creating record paths.", 4); {    // FixMe: variant base size for UTF8?
-        NAME = cdp_book_add_dictionary(type, CDP_NAME_VALUE, CDP_STO_CHD_PACKED_QUEUE, CDP_NAME_COUNT);
+        NAME = cdp_book_add_dictionary(type, CDP_NAME_VALUE, CDP_STO_CHD_PACKED_QUEUE, cdp_next_pow_of_two(CDP_NAME_COUNT));
     }
     system_initiate_type(CDP_TYPE_UTF8,           "utf8",           "Text encoded in UTF8 format.", 0);
     system_initiate_type(CDP_TYPE_PATCH,          "patch",          "Record that can patch another record.", 0);
@@ -331,8 +343,12 @@ static void system_initiate(void) {
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,       "value");
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,        "size");
     cdp_book_add_static_text(NAME, CDP_AUTO_ID, "description");
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID,    "callable");
+
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID,        "call");
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID,      "return");
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID,       "error");
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,      "object");
+
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,     "private");
     //cdp_book_add_static_text(NAME, CDP_AUTO_ID,     "service");
     //
@@ -351,8 +367,8 @@ static void system_initiate(void) {
     /* Initiate global records.
     */
     CDP_VOID = cdp_book_add_boolean(TEMP, CDP_NAME_VOID, 0);
-    CDP_VOID->metadata.id = CDP_VOID->metadata.primal = CDP_TYPE_VOID;
-    CDP_VOID->metadata.type = tvoid->metadata.id;
+    CDP_VOID->metadata.type = CDP_VOID->metadata.primal = CDP_TYPE_VOID;
+    CDP_VOID->metadata.id = CDP_NAME_VOID;
     CDP_RECORD_SET_ATRIBUTE(CDP_VOID, CDP_ATTRIB_FACTUAL);
 }
 

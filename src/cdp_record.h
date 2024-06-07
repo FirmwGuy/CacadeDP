@@ -254,8 +254,12 @@ enum _cdpNameID {
     CDP_NAME_VALUE,
     CDP_NAME_SIZE,
     CDP_NAME_DESCRIPTION,
-    CDP_NAME_CALLABLE,
+    //
+    CDP_NAME_CALL,
+    CDP_NAME_RETURN,
+    CDP_NAME_ERROR,
     CDP_NAME_OBJECT,
+    //
     CDP_NAME_PRIVATE,
     //CDP_NAME_SERVICE,
     //
@@ -360,7 +364,7 @@ typedef struct {
 
 typedef bool (*cdpTraverse)(cdpBookEntry*, unsigned, void*);
 
-typedef bool (*cdpCallable)(cdpRecord* instance, cdpID signal, cdpRecord* args);
+typedef bool (*cdpCallable)(cdpRecord* instance, cdpRecord* call);
 
 
 /*

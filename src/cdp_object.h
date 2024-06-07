@@ -89,24 +89,30 @@
               size:1 (uint32)
       ```
 
+/public/app001/my_object/ (dictionary)
+    state01:true
+
+
+
+
+
     #### 2. ** /system/ **
     The `/system/` book is used for storing object connection
-    link information. It also contains local object instance data,
-    such as input queues and output links.
+    link information. It is a blueprint for creating pipelines.
     - **Example Structure**:
       ```
       /system/ (dictionary)
-          object001/ (dictionary)
-              555/ (instance)
+          pipeline01/ (list)
+              object001/ (dictionary)
                   input/ (dictionary)
                       arg/ (queue)
                   output/ (dictionary)
-                      result -> /instance/object002/557/input/arg
-              556/ (instance)
+                      result -> /system/object002/input/arg
+              object002/ (instance)
                   input/ (dictionary)
                       arg/ (queue)
                   output/ (dictionary)
-                      result -> /instance/object002/558/input/arg
+                      result -> /system/object003/input/arg
       ```
 
     #### 3. ** /user/ **
