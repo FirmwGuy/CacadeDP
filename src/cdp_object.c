@@ -170,74 +170,153 @@ cdpID cdp_type_add_object(const char* name, cdpCallable callable, char* descript
 /* Constructs a local "floating" object (not associated with any book).
 */
 bool cdp_object_construct(cdpRecord* object, cdpID nameID, cdpID typeID, cdpID storage, uint32_t base) {
+    cdpCallable callable = cdp_type_object_callable(typeID);
+
     cdpRecord call = {0};
-    cdp_record_initialize_dictionary(&call, CDP_NAME_CALL, CDP_STO_CHD_ARRAY, 4);
+    cdp_record_initialize_dictionary(&call, CDP_CALL_CONSTRUCT, CDP_STO_CHD_ARRAY, 4); {  // Arbitrary numbered ID used here.
+        cdp_book_add_uint32(&call, CDP_NAME_BASE, base);
+        cdp_book_add_id(&call, CDP_NAME_NAME, nameID);
+        cdp_book_add_id(&call, CDP_NAME_STORAGE, storage);
+        cdp_book_add_id(&call, CDP_NAME_TYPE, typeID);
+    }
 
-    cdp_record_initialize(object, primal, attrib, nameID, typeID, );
-    cdp_book_add_id(&op, CDP_NAME_EVENT, CDP_SIGNAL_CONSTRUCT);
+    bool done = callable(object, &call);
 
-    cdpRecord* objType = cdp_type(typeID);
-    assert(object);
-    cdpCallable callable = cdp_book_find_by_name(objType, CDP_NAME_CALL);
-    assert(callable);
+    //cdpRecord* returned = cdp_book_find_by_name(&call, CDP_RETURN);
+    //assert(returned);
 
-    callable(NULL, &call);
-
-    cdpRecord* returned = cdp_book_find_by_name(&call, CDP_RETURN);
-    assert(returned);
-
-    return true;
+    return done;
 }
 
 
 void cdp_object_destruct(cdpRecord* object) {
-    assert(cdp_record_is_object(object));
+    cdpCallable callable = cdp_type_object_callable(cdp_record_type(object));
 
+    cdpRecord call = {0};
+    cdp_record_initialize_dictionary(&call, CDP_CALL_DESTRUCT, CDP_STO_CHD_LINKED_LIST);
+
+    return callable(object, &call);
 }
 
 
 void cdp_object_reference(cdpRecord* object) {
-    assert(cdp_record_is_object(object));
+    cdpCallable callable = cdp_type_object_callable(cdp_record_type(object));
 
+    cdpRecord call = {0};
+    cdp_record_initialize_dictionary(&call, CDP_CALL_REFERENCE, CDP_STO_CHD_LINKED_LIST);
+
+    return callable(object, &call);
 }
 
 
 void cdp_object_free(cdpRecord* object) {
-    assert(cdp_record_is_object(object));
+    cdpCallable callable = cdp_type_object_callable(cdp_record_type(object));
+
+    cdpRecord call = {0};
+    cdp_record_initialize_dictionary(&call, CDP_CALL_FREE, CDP_STO_CHD_LINKED_LIST);
+
+    return callable(object, &call);
 }
 
 
 cdpRecord* cdp_object_append(cdpRecord* object, cdpRecord* book, cdpRecord* record) {
-    assert(cdp_record_is_object(object));
+    assert(!cdp_record_is_void(record));
+    cdpCallable callable = cdp_type_object_callable(cdp_record_type(object));
 
+    cdpRecord call = {0};
+    cdp_record_initialize_dictionary(&call, CDP_CALL_APPEND, CDP_STO_CHD_ARRAY, 4); {
+        cdp_book_add_record(&call, CDP_NAME_RECORD, record);
+        if (book)
+            cdp_book_add_link(&call, CDP_NAME_BOOK, book);
+    }
+
+    bool done = callable(object, &call);
+    if (!done)  return NULL;
+
+    cdpRecord* retReg = cdp_book_find_by_name(&call, CDP_NAME_RETURN);
+    assert(retReg);
+    cdpRecord* newObj = cdp_register_read_executable(retReg);
+    assert(newObj);
+    return newObj;
 }
 
 
 cdpRecord* cdp_object_prepend(cdpRecord* object, cdpRecord* book, cdpRecord* record) {
-    assert(cdp_record_is_object(object));
+    assert(!cdp_record_is_void(record));
+    cdpCallable callable = cdp_type_object_callable(cdp_record_type(object));
 
+    cdpRecord call = {0};
+    cdp_record_initialize_dictionary(&call, CDP_CALL_PREPEND, CDP_STO_CHD_ARRAY, 4); {
+        cdp_book_add_record(&call, CDP_NAME_RECORD, record);
+        if (book)
+            cdp_book_add_link(&call, CDP_NAME_BOOK, book);
+    }
+
+    bool done = callable(object, &call);
+    if (!done)  return NULL;
+
+    cdpRecord* retReg = cdp_book_find_by_name(&call, CDP_NAME_RETURN);
+    assert(retReg);
+    cdpRecord* newObj = cdp_register_read_executable(retReg);
+    assert(newObj);
+    return newObj;
 }
 
 
 cdpRecord* cdp_object_insert(cdpRecord* object, cdpRecord* book, cdpRecord* record) {
-    assert(cdp_record_is_object(object));
+    assert(!cdp_record_is_void(record));
+    cdpCallable callable = cdp_type_object_callable(cdp_record_type(object));
 
+    cdpRecord call = {0};
+    cdp_record_initialize_dictionary(&call, CDP_CALL_INSERT, CDP_STO_CHD_ARRAY, 4); {
+        cdp_book_add_record(&call, CDP_NAME_RECORD, record);
+        if (book)
+            cdp_book_add_link(&call, CDP_NAME_BOOK, book);
+    }
+
+    bool done = callable(object, &call);
+    if (!done)  return NULL;
+
+    cdpRecord* retReg = cdp_book_find_by_name(&call, CDP_NAME_RETURN);
+    assert(retReg);
+    cdpRecord* newObj = cdp_register_read_executable(retReg);
+    assert(newObj);
+    return newObj;
 }
 
 
-cdpRecord* cdp_object_update(cdpRecord* object, cdpRecord* book, cdpRecord* record, void* data, size_t size) {
-    assert(cdp_record_is_object(object));
+bool cdp_object_update(cdpRecord* object, cdpRecord* record, void* data, size_t size) {
+    cdpCallable callable = cdp_type_object_callable(cdp_record_type(object));
 
+    cdpRecord call = {0};
+    cdp_record_initialize_dictionary(&call, CDP_CALL_UPDATE, CDP_STO_CHD_ARRAY, 4); {
+        cdp_book_add_link(&call, CDP_NAME_RECORD, record);
+        cdp_book_add_register(&call,
+                              cdp_record_attributes(record),
+                              CDP_NAME_REGISTER,
+                              cdp_record_type(record),
+                              cdp_register_is_borrowed(record),
+                              data, size);
+    }
+    return callable(object, &call);
 }
 
-cdpRecord* cdp_object_remove(cdpRecord* object, cdpRecord* book, cdpRecord* record) {
-    assert(cdp_record_is_object(object));
 
+bool cdp_object_remove(cdpRecord* object, cdpRecord* book, cdpRecord* record) {
+    cdpCallable callable = cdp_type_object_callable(cdp_record_type(object));
+
+    cdpRecord call = {0};
+    cdp_record_initialize_dictionary(&call, CDP_CALL_REMOVE, CDP_STO_CHD_ARRAY, 4); {
+        cdp_book_add_link(&call, CDP_NAME_RECORD, record);
+        if (book)
+            cdp_book_add_link(&call, CDP_NAME_BOOK, book);
+    }
+    return callable(object, &call);
 }
 
 
 bool cdp_object_validate(cdpRecord* object) {
-    return false;
+    return true;
 }
 
 
@@ -304,21 +383,21 @@ static void system_initiate(void) {
     //
     system_initiate_type(CDP_TYPE_CALLABLE,       "callable",       "Address of a callable function.", sizeof(cdpCallable));
     type = system_initiate_type(CDP_TYPE_EVENT,   "event",          "Object event.", sizeof(uint8_t)); {
-        value = cdp_book_add_dictionary(type, CDP_NAME_VALUE, CDP_STO_CHD_ARRAY, CDP_SIGNAL_COUNT); {
-            cdp_book_add_static_text(value, CDP_SIGNAL_CONSTRUCT, "construct");
-            cdp_book_add_static_text(value, CDP_SIGNAL_DESTRUCT,  "destruct");
-            cdp_book_add_static_text(value, CDP_SIGNAL_REFERENCE, "reference");
-            cdp_book_add_static_text(value, CDP_SIGNAL_FREE,      "free");
-            cdp_book_add_static_text(value, CDP_SIGNAL_APPEND,    "append");
-            cdp_book_add_static_text(value, CDP_SIGNAL_PREPEND,   "prepend");
-            cdp_book_add_static_text(value, CDP_SIGNAL_INSERT,    "insert");
-            cdp_book_add_static_text(value, CDP_SIGNAL_SORT,      "sort");
-            cdp_book_add_static_text(value, CDP_SIGNAL_COPY,      "copy");
-            cdp_book_add_static_text(value, CDP_SIGNAL_MOVE,      "move");
-            cdp_book_add_static_text(value, CDP_SIGNAL_LINK,      "link");
+        value = cdp_book_add_dictionary(type, CDP_NAME_VALUE, CDP_STO_CHD_ARRAY, CDP_CALL_COUNT); {
+            cdp_book_add_static_text(value, CDP_CALL_CONSTRUCT, "construct");
+            cdp_book_add_static_text(value, CDP_CALL_DESTRUCT,  "destruct");
+            cdp_book_add_static_text(value, CDP_CALL_REFERENCE, "reference");
+            cdp_book_add_static_text(value, CDP_CALL_FREE,      "free");
+            cdp_book_add_static_text(value, CDP_CALL_APPEND,    "append");
+            cdp_book_add_static_text(value, CDP_CALL_PREPEND,   "prepend");
+            cdp_book_add_static_text(value, CDP_CALL_INSERT,    "insert");
+            cdp_book_add_static_text(value, CDP_CALL_SORT,      "sort");
+            cdp_book_add_static_text(value, CDP_CALL_COPY,      "copy");
+            cdp_book_add_static_text(value, CDP_CALL_MOVE,      "move");
+            cdp_book_add_static_text(value, CDP_CALL_LINK,      "link");
 
-            assert(cdp_book_children(value) == CDP_SIGNAL_COUNT);
-            cdp_book_set_auto_id(value, CDP_SIGNAL_COUNT);
+            assert(cdp_book_children(value) == CDP_CALL_COUNT);
+            cdp_book_set_auto_id(value, CDP_CALL_COUNT);
     }   }
 
     // Link types
@@ -375,20 +454,25 @@ static void system_initiate(void) {
 
 
 
-static bool system_step_traverse_instance(cdpBookEntry* entry, unsigned unused, cdpCallable callable) {
-    return callable(entry->record, CDP_ACTION_STEP, NULL);
+static bool system_startup_traverse(cdpBookEntry* entry, unsigned unused, void* unused2) {
+    cdpCallable callable = cdp_book_get_property(entry->record, CDP_NAME_CALL);
+    if (callable) {
+        cdpRecord call = {0};
+        cdp_record_initialize_dictionary(&call, CDP_CALL_STARTUP, CDP_STO_CHD_LINKED_LIST);
+        return callable(NULL, &call);
+    }
+    return true;
 }
 
-static bool system_step_traverse(cdpBookEntry* entry, unsigned unused, void* unused2) {
-    cdpRecord* procReg = cdp_book_get_property(entry->record, CDP_NAME_PROCESS);
-    cdpCallable object = cdp_register_read_executable(procReg);
-    assert(object);
-    return cdp_book_traverse(entry->record, (cdpTraverse)system_step_traverse_instance, object, NULL);
+bool cdp_system_startup(void) {
+    assert(cdp_book_children(TYPE));
+    return cdp_book_traverse(TYPE, system_startup_traverse, NULL, NULL);
 }
+
 
 bool cdp_system_step(void) {
     assert(SYSTEM);
-    return cdp_book_traverse(SYSTEM, system_step_traverse, NULL, NULL);
+    return true;
 }
 
 

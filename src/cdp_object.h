@@ -239,30 +239,30 @@ enum {
 };
 
 enum {
-    CDP_SIGNAL_STARTUP,
-    CDP_SIGNAL_SHUTDOWN,
+    CDP_CALL_STARTUP,
+    CDP_CALL_SHUTDOWN,
 
-    CDP_SIGNAL_CONSTRUCT,
-    CDP_SIGNAL_DESTRUCT,
-    CDP_SIGNAL_REFERENCE,
-    CDP_SIGNAL_FREE,
+    CDP_CALL_CONSTRUCT,
+    CDP_CALL_DESTRUCT,
+    CDP_CALL_REFERENCE,
+    CDP_CALL_FREE,
 
-    CDP_SIGNAL_APPEND,
-    CDP_SIGNAL_PREPEND,
-    CDP_SIGNAL_INSERT,
-    CDP_SIGNAL_UPDATE,
-    CDP_SIGNAL_REMOVE,
+    CDP_CALL_APPEND,
+    CDP_CALL_PREPEND,
+    CDP_CALL_INSERT,
+    CDP_CALL_UPDATE,
+    CDP_CALL_REMOVE,
 
-    //CDP_SIGNAL_SORT,
-    //CDP_SIGNAL_COPY,
-    //CDP_SIGNAL_MOVE,
-    //CDP_SIGNAL_PATCH,
-    //CDP_SIGNAL_LINK,
+    //CDP_CALL_SORT,
+    //CDP_CALL_COPY,
+    //CDP_CALL_MOVE,
+    //CDP_CALL_PATCH,
+    //CDP_CALL_LINK,
 
-    CDP_SIGNAL_SERIALIZE,
-    CDP_SIGNAL_TEXTUALIZE,
+    CDP_CALL_SERIALIZE,
+    CDP_CALL_TEXTUALIZE,
 
-    CDP_SIGNAL_COUNT
+    CDP_CALL_COUNT
 };
 
 
@@ -274,6 +274,14 @@ cdpID      cdp_type_add(const char* name, const char* description, size_t baseSi
 cdpRecord* cdp_type(cdpID id);
 cdpID      cdp_type_add_object(const char* name, cdpCallable callable, char* description, size_t baseSize);
 
+static inline cdpCallable cdp_type_object_callable(cdpID typeID) {
+    cdpRecord* objType = cdp_type(typeID);
+    assert(object);
+    cdpCallable callable = cdp_book_find_by_name(objType, CDP_NAME_CALL);
+    assert(callable);
+    return callable;
+}
+
 void       cdp_object_construct(cdpRecord* object, cdpID nameID, cdpID objectTypeID, cdpID storage, uint32_t base);
 void       cdp_object_destruct (cdpRecord* object);
 void       cdp_object_reference(cdpRecord* object);
@@ -282,12 +290,13 @@ void       cdp_object_free     (cdpRecord* object);
 cdpRecord* cdp_object_append   (cdpRecord* object, cdpRecord* book, cdpRecord* record);
 cdpRecord* cdp_object_prepend  (cdpRecord* object, cdpRecord* book, cdpRecord* record);
 cdpRecord* cdp_object_insert   (cdpRecord* object, cdpRecord* book, cdpRecord* record);
-cdpRecord* cdp_object_update   (cdpRecord* object, cdpRecord* book, cdpRecord* record, void* data, size_t size);
-cdpRecord* cdp_object_remove   (cdpRecord* object, cdpRecord* book, cdpRecord* record);
+
+bool       cdp_object_update(cdpRecord* object, cdpRecord* record, void* data, size_t size);
+bool       cdp_object_remove(cdpRecord* object, cdpRecord* book, cdpRecord* record);
 
 //void       cdp_object_sort(cdpRecord* object);
 
-bool       cdp_object_validate  (cdpRecord* object);
+bool       cdp_object_validate(cdpRecord* object);
 
 
 bool       cdp_system_startup(void);

@@ -561,6 +561,8 @@ void cdp_record_system_shutdown(void);
 /*
     TODO:
     - Use "recData.reg.data.direct" in registers.
+    - (Deep) copy registers.
+    - Move records.
     - Traverse book in internal (stoTech) order.
     - Add indexof for records.
     - Put move "depth" from traverse argument to inside entry structure.
