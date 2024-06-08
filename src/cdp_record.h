@@ -397,7 +397,6 @@ static inline cdpID cdp_record_type      (const cdpRecord* record)  {assert(reco
 #define cdp_record_is_shadowed(r)   cdp_is_set(cdp_record_attributes(r), CDP_ATTRIB_SHADOWED)
 
 static inline bool cdp_record_is_named     (const cdpRecord* record)  {assert(record);  if (record->metadata.id & CDP_NAME_FLAG) {assert(CDP_ID2TEXT(record->metadata.id) <= CDP_NAME_COUNT_MAX); return true;} return false;}
-static inline bool cdp_record_is_object    (const cdpRecord* record)  {assert(record);  if (record->metadata.type & CDP_OBJECT_FLAG) {assert(CDP_TYPE2OBJ(record->metadata.type) <= CDP_OBJECT_COUNT_MAX); return true;} return false;}
 static inline bool cdp_record_is_dictionary(const cdpRecord* record)  {assert(record);  return (cdp_record_is_book(record) && record->metadata.type == CDP_TYPE_DICTIONARY);}
 
 #define cdp_record_id_is_auto(r)    (cdp_record_id(r) < CDP_NAME_FLAG)
