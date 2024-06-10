@@ -59,7 +59,7 @@
     the hierarchy.
 
     The system is optimized for efficient storage and access, fitting
-    within objector cache lines to enhance performance. It supports
+    within processor cache lines to enhance performance. It supports
     navigating from any record to the root of the database,
     reconstructing paths within the data hierarchy based on field
     identifiers in parent records.
@@ -177,7 +177,8 @@ enum {
 
 enum {
     CDP_STO_LNK_POINTER,        // Link points to an in-memory record.
-    CDP_STO_LNK_PATH,           // Link hold the address of an off-memory record.
+    CDP_STO_LNK_PATH,           // Link holds the path of an off-memory record.
+    CDP_STO_LNK_ACTION,         // Link holds the address of an cdpAction function.
     //
     CDP_STO_LNK_COUNT
 };
@@ -188,54 +189,55 @@ typedef uint32_t cdpID;
 #define CDP_ID_MAXVAL         ((cdpID)(-1))
 
 #define CDP_META_BITS         (CDP_ATTRIB_BIT_COUNT + 4)
-#define CDP_TYPE_MAXVAL       (CDP_ID_MAXVAL >> CDP_META_BITS)
-#define CDP_TYPE_COUNT_MAX    (CDP_TYPE_MAXVAL >> 1)
+#define CDP_AGENT_MAXVAL       (CDP_ID_MAXVAL >> CDP_META_BITS)
+#define CDP_AGENT_COUNT_MAX    (CDP_AGENT_MAXVAL >> 1)
 
-// Primal types:
-enum _cdpTypePrimal {
+// Record types:
+enum {
     CDP_TYPE_VOID,              // This is the "nothing" type.
 
     CDP_TYPE_BOOK,
     CDP_TYPE_REGISTER,
     CDP_TYPE_LINK,
 
-    CDP_TYPE_PRIMAL_COUNT
+    CDP_TYPE_COUNT
 };
 
-// Initial type IDs (for a description see cdp_object.c):
-enum _cdpTypeID {
-    // Book types
-    CDP_TYPE_LIST = CDP_TYPE_PRIMAL_COUNT,
-    CDP_TYPE_QUEUE,
-    CDP_TYPE_STACK,
-    //
-    CDP_TYPE_DICTIONARY,
+// Initial agent IDs (for a description see cdp_agent.c):
+enum _cdpAgentID {
+    CDP_AGENT_VOID,              // This agent does nothing.
 
-    // Register types
-    CDP_TYPE_BOOLEAN,
-    CDP_TYPE_BYTE,
-    CDP_TYPE_UINT16,
-    CDP_TYPE_UINT32,
-    CDP_TYPE_UINT64,
-    CDP_TYPE_INT16,
-    CDP_TYPE_INT32,
-    CDP_TYPE_INT64,
-    CDP_TYPE_FLOAT32,
-    CDP_TYPE_FLOAT64,
+    // Book agents
+    CDP_AGENT_LIST,
+    CDP_AGENT_QUEUE,
+    CDP_AGENT_STACK,
     //
-    CDP_TYPE_ID,
-    CDP_TYPE_NAME_ID,
-    CDP_TYPE_UTF8,
-    CDP_TYPE_PATCH,
+    CDP_AGENT_DICTIONARY,
+
+    // Register agents
+    CDP_AGENT_BOOLEAN,
+    CDP_AGENT_BYTE,
+    CDP_AGENT_UINT16,
+    CDP_AGENT_UINT32,
+    CDP_AGENT_UINT64,
+    CDP_AGENT_INT16,
+    CDP_AGENT_INT32,
+    CDP_AGENT_INT64,
+    CDP_AGENT_FLOAT32,
+    CDP_AGENT_FLOAT64,
     //
-    CDP_TYPE_CALLABLE,
-    CDP_TYPE_EVENT,
+    CDP_AGENT_ID,
+    CDP_AGENT_NAME_ID,
+    CDP_AGENT_UTF8,
+    CDP_AGENT_PATCH,
+    //
+    CDP_AGENT_ACTION,
+    CDP_AGENT_EVENT,
 
-    // Structured types
-    CDP_TYPE_TYPE,
-    CDP_TYPE_OBJECT,
+    // Structured agents
+    CDP_AGENT_AGENT,
 
-    CDP_TYPE_COUNT
+    CDP_AGENT_COUNT
 };
 
 #define CDP_AUTO_ID           CDP_ID_MAXVAL
@@ -264,7 +266,7 @@ enum _cdpNameID {
     //CDP_NAME_SERVICE,
     //
     CDP_NAME_ROOT,
-    CDP_NAME_TYPE,
+    CDP_NAME_AGENT,
     CDP_NAME_SYSTEM,
     CDP_NAME_USER,
     CDP_NAME_PUBLIC,
@@ -280,10 +282,10 @@ enum _cdpNameID {
 
 typedef struct {
     cdpID attribute: CDP_ATTRIB_BIT_COUNT,              // Flags for record attributes.
-          primal:    2,                                 // Primal type (book, register, link).
-          storeTech: 2,                                 // Record storage technique (it depends on the primal type).
-          type:      cdp_bitsof(cdpID) - CDP_META_BITS; // Type tag for this record. It includes _cdpTypeID + user defined types.
-    cdpID id;                                           // Name/field identifier of this record with respect to the parent record (if negative is a system-wide name ID).
+          type:    2,                                 // Record type (book, register, link).
+          storeTech: 2,                                 // Record storage technique (it depends on the record type).
+          agent:     cdp_bitsof(cdpID) - CDP_META_BITS; // Agent tag for this record (it includes _cdpAgentID + user defined types).
+    cdpID id;                                           // Name/field identifier of this record with respect to the parent record.
 } cdpMetadata;
 
 
@@ -364,40 +366,40 @@ typedef struct {
 
 typedef bool (*cdpTraverse)(cdpBookEntry*, unsigned, void*);
 
-typedef bool (*cdpCallable)(cdpRecord* instance, cdpRecord* call);
+typedef bool (*cdpAction)(cdpRecord* instance, cdpRecord* signal);
 
 
 /*
  * Record Operations
  */
 
-bool cdp_record_initialize(cdpRecord* record, unsigned primal, unsigned attrib, cdpID id, uint32_t type, ...);
+bool cdp_record_initialize(cdpRecord* record, unsigned type, unsigned attrib, cdpID id, cdpID agent, ...);
 void cdp_record_finalize(cdpRecord* record, unsigned maxDepth);
 
-#define cdp_record_initialize_list(r, id, chdStorage, ...)        cdp_record_initialize(r, CDP_TYPE_BOOK, 0, id, CDP_TYPE_LIST,       ((unsigned)(chdStorage)), ##__VA_ARGS__)
-#define cdp_record_initialize_queue(r, id, chdStorage, ...)       cdp_record_initialize(r, CDP_TYPE_BOOK, 0, id, CDP_TYPE_QUEUE,      ((unsigned)(chdStorage)), ##__VA_ARGS__)
-#define cdp_record_initialize_stack(r, id, chdStorage, ...)       cdp_record_initialize(r, CDP_TYPE_BOOK, 0, id, CDP_TYPE_STACK,      ((unsigned)(chdStorage)), ##__VA_ARGS__)
-#define cdp_record_initialize_dictionary(r, id, chdStorage, ...)  cdp_record_initialize(r, CDP_TYPE_BOOK, 0, id, CDP_TYPE_DICTIONARY, ((unsigned)(chdStorage)), ##__VA_ARGS__)
+#define cdp_record_initialize_list(r, id, chdStorage, ...)        cdp_record_initialize(r, CDP_TYPE_BOOK, 0, id, CDP_AGENT_LIST,       ((unsigned)(chdStorage)), ##__VA_ARGS__)
+#define cdp_record_initialize_queue(r, id, chdStorage, ...)       cdp_record_initialize(r, CDP_TYPE_BOOK, 0, id, CDP_AGENT_QUEUE,      ((unsigned)(chdStorage)), ##__VA_ARGS__)
+#define cdp_record_initialize_stack(r, id, chdStorage, ...)       cdp_record_initialize(r, CDP_TYPE_BOOK, 0, id, CDP_AGENT_STACK,      ((unsigned)(chdStorage)), ##__VA_ARGS__)
+#define cdp_record_initialize_dictionary(r, id, chdStorage, ...)  cdp_record_initialize(r, CDP_TYPE_BOOK, 0, id, CDP_AGENT_DICTIONARY, ((unsigned)(chdStorage)), ##__VA_ARGS__)
 
 #define CDP_RECORD_SET_ATRIBUTE(r, attrib)     ((r)->metadata.attrib |= (attrib))
 
 // General property check
 static inline cdpID cdp_record_attributes(const cdpRecord* record)  {assert(record);  return record->metadata.attribute;}
-static inline cdpID cdp_record_primal    (const cdpRecord* record)  {assert(record);  return record->metadata.primal;}
-static inline cdpID cdp_record_id        (const cdpRecord* record)  {assert(record);  return record->metadata.id;}
 static inline cdpID cdp_record_type      (const cdpRecord* record)  {assert(record);  return record->metadata.type;}
+static inline cdpID cdp_record_id        (const cdpRecord* record)  {assert(record);  return record->metadata.id;}
+static inline cdpID cdp_record_agent     (const cdpRecord* record)  {assert(record);  return record->metadata.agent;}
 
-#define cdp_record_is_void(r)       (cdp_record_primal(r) == CDP_TYPE_VOID)
-#define cdp_record_is_book(r)       (cdp_record_primal(r) == CDP_TYPE_BOOK)
-#define cdp_record_is_register(r)   (cdp_record_primal(r) == CDP_TYPE_REGISTER)
-#define cdp_record_is_link(r)       (cdp_record_primal(r) == CDP_TYPE_LINK)
+#define cdp_record_is_void(r)       (cdp_record_type(r) == CDP_TYPE_VOID)
+#define cdp_record_is_book(r)       (cdp_record_type(r) == CDP_TYPE_BOOK)
+#define cdp_record_is_register(r)   (cdp_record_type(r) == CDP_TYPE_REGISTER)
+#define cdp_record_is_link(r)       (cdp_record_type(r) == CDP_TYPE_LINK)
 
 #define cdp_record_is_private(r)    cdp_is_set(cdp_record_attributes(r), CDP_ATTRIB_PRIVATE)
 #define cdp_record_is_factual(r)    cdp_is_set(cdp_record_attributes(r), CDP_ATTRIB_FACTUAL)
 #define cdp_record_is_shadowed(r)   cdp_is_set(cdp_record_attributes(r), CDP_ATTRIB_SHADOWED)
 
 static inline bool cdp_record_is_named     (const cdpRecord* record)  {assert(record);  if (record->metadata.id & CDP_NAME_FLAG) {assert(CDP_ID2TEXT(record->metadata.id) <= CDP_NAME_COUNT_MAX); return true;} return false;}
-static inline bool cdp_record_is_dictionary(const cdpRecord* record)  {assert(record);  return (cdp_record_is_book(record) && record->metadata.type == CDP_TYPE_DICTIONARY);}
+static inline bool cdp_record_is_dictionary(const cdpRecord* record)  {assert(record);  return (cdp_record_is_book(record) && record->metadata.agent == CDP_AGENT_DICTIONARY);}
 
 #define cdp_record_id_is_auto(r)    (cdp_record_id(r) < CDP_NAME_FLAG)
 #define cdp_record_id_is_pending(r) (cdp_record_id(r) == CDP_AUTO_ID)
@@ -429,44 +431,44 @@ cdpRecord* cdp_book_get_property(const cdpRecord* book, cdpID id);
 cdpRecord* cdp_book_add_record(cdpRecord* book, cdpRecord* record, bool prepend);
 cdpRecord* cdp_book_sorted_insert(cdpRecord* book, cdpRecord* record, cdpCompare compare, void* context);
 
-#define cdp_book_add(b, primal, attribute, id, type, prepend, ...)  ({cdpRecord r={0}; cdp_record_initialize(&r, primal, attribute, id, type, ##__VA_ARGS__)? cdp_book_add_record(b, &r, prepend): NULL;})
-#define cdp_book_add_register(b, attrib, id, type, borrow, data, size)          cdp_book_add(b, CDP_TYPE_REGISTER, attrib, id, type, false, ((unsigned)(borrow)), data, ((size_t)(size)))
-#define cdp_book_prepend_register(b, attrib, id, type, borrow, data, size)      cdp_book_add(b, CDP_TYPE_REGISTER, attrib, id, type,  true, ((unsigned)(borrow)), data, ((size_t)(size)))
+#define cdp_book_add(b, type, attribute, id, agent, prepend, ...)  ({cdpRecord r={0}; cdp_record_initialize(&r, type, attribute, id, agent, ##__VA_ARGS__)? cdp_book_add_record(b, &r, prepend): NULL;})
+#define cdp_book_add_register(b, attrib, id, agent, borrow, data, size)          cdp_book_add(b, CDP_TYPE_REGISTER, attrib, id, agent, false, ((unsigned)(borrow)), data, ((size_t)(size)))
+#define cdp_book_prepend_register(b, attrib, id, agent, borrow, data, size)      cdp_book_add(b, CDP_TYPE_REGISTER, attrib, id, agent,  true, ((unsigned)(borrow)), data, ((size_t)(size)))
 
-static inline cdpRecord* cdp_book_add_text(cdpRecord* book, unsigned attrib, cdpID id, bool borrow, const char* text)    {assert(cdp_record_is_book(book) && text && *text);  cdpRecord* reg = cdp_book_add_register(book, attrib, id, CDP_TYPE_UTF8, borrow, text, strlen(text) + 1); reg->recData.reg.size--; return reg;}
+static inline cdpRecord* cdp_book_add_text(cdpRecord* book, unsigned attrib, cdpID id, bool borrow, const char* text)    {assert(cdp_record_is_book(book) && text && *text);  cdpRecord* reg = cdp_book_add_register(book, attrib, id, CDP_AGENT_UTF8, borrow, text, strlen(text) + 1); reg->recData.reg.size--; return reg;}
 #define cdp_book_add_static_text(b, id, text)   cdp_book_add_text(b, CDP_ATTRIB_FACTUAL, id, true, text)
 
 #define CDP_FUNC_ADD_VAL_(func, ctype, rtype)                                  \
     static inline cdpRecord* cdp_book_add_##func(cdpRecord* book, cdpID id, ctype value)    {assert(cdp_record_is_book(book));  return cdp_book_add_register(book, 0, id, rtype, false, &value, sizeof(value));}\
     static inline cdpRecord* cdp_book_prepend_##func(cdpRecord* book, cdpID id, ctype value){assert(cdp_book_is_prependable(book));  return cdp_book_prepend_register(book, 0, id, rtype, false, &value, sizeof(value));}
 
-    CDP_FUNC_ADD_VAL_(boolean, uint8_t,  CDP_TYPE_BOOLEAN)
-    CDP_FUNC_ADD_VAL_(byte,    uint8_t,  CDP_TYPE_BYTE)
-    CDP_FUNC_ADD_VAL_(uint16,  uint16_t, CDP_TYPE_UINT16)
-    CDP_FUNC_ADD_VAL_(uint32,  uint32_t, CDP_TYPE_UINT32)
-    CDP_FUNC_ADD_VAL_(uint64,  uint64_t, CDP_TYPE_UINT64)
-    CDP_FUNC_ADD_VAL_(int16,   int16_t,  CDP_TYPE_INT16)
-    CDP_FUNC_ADD_VAL_(int32,   int32_t,  CDP_TYPE_INT32)
-    CDP_FUNC_ADD_VAL_(int64,   int64_t,  CDP_TYPE_INT64)
-    CDP_FUNC_ADD_VAL_(float32, float,    CDP_TYPE_FLOAT32)
-    CDP_FUNC_ADD_VAL_(float64, double,   CDP_TYPE_FLOAT64)
+    CDP_FUNC_ADD_VAL_(boolean, uint8_t,  CDP_AGENT_BOOLEAN)
+    CDP_FUNC_ADD_VAL_(byte,    uint8_t,  CDP_AGENT_BYTE)
+    CDP_FUNC_ADD_VAL_(uint16,  uint16_t, CDP_AGENT_UINT16)
+    CDP_FUNC_ADD_VAL_(uint32,  uint32_t, CDP_AGENT_UINT32)
+    CDP_FUNC_ADD_VAL_(uint64,  uint64_t, CDP_AGENT_UINT64)
+    CDP_FUNC_ADD_VAL_(int16,   int16_t,  CDP_AGENT_INT16)
+    CDP_FUNC_ADD_VAL_(int32,   int32_t,  CDP_AGENT_INT32)
+    CDP_FUNC_ADD_VAL_(int64,   int64_t,  CDP_AGENT_INT64)
+    CDP_FUNC_ADD_VAL_(float32, float,    CDP_AGENT_FLOAT32)
+    CDP_FUNC_ADD_VAL_(float64, double,   CDP_AGENT_FLOAT64)
 
-    CDP_FUNC_ADD_VAL_(id, cdpID, CDP_TYPE_ID)
-    CDP_FUNC_ADD_VAL_(callable, cdpCallable, CDP_TYPE_CALLABLE)
+    CDP_FUNC_ADD_VAL_(id, cdpID, CDP_AGENT_ID)
+    CDP_FUNC_ADD_VAL_(action, cdpAction, CDP_AGENT_ACTION)
 
 
-#define cdp_book_add_book(b, id, type, chdStorage, ...)             cdp_book_add(b, CDP_TYPE_BOOK, 0, id, type, false, ((unsigned)(chdStorage)), ##__VA_ARGS__)
-#define cdp_book_prepend_book(b, type, id, chdStorage, ...)         cdp_book_add(b, CDP_TYPE_BOOK, 0, id, type,  true, ((unsigned)(chdStorage)), ##__VA_ARGS__)
+#define cdp_book_add_book(b, id, agent, chdStorage, ...)             cdp_book_add(b, CDP_TYPE_BOOK, 0, id, agent, false, ((unsigned)(chdStorage)), ##__VA_ARGS__)
+#define cdp_book_prepend_book(b, agent, id, chdStorage, ...)         cdp_book_add(b, CDP_TYPE_BOOK, 0, id, agent,  true, ((unsigned)(chdStorage)), ##__VA_ARGS__)
 
-#define cdp_book_add_list(b, id, chdStorage, ...)                   cdp_book_add_book(b, id, CDP_TYPE_LIST,       ((unsigned)(chdStorage)), ##__VA_ARGS__)
-#define cdp_book_add_queue(b, id, chdStorage, ...)                  cdp_book_add_book(b, id, CDP_TYPE_QUEUE,      ((unsigned)(chdStorage)), ##__VA_ARGS__)
-#define cdp_book_add_stack(b, id, chdStorage, ...)                  cdp_book_add_book(b, id, CDP_TYPE_STACK,      ((unsigned)(chdStorage)), ##__VA_ARGS__)
-#define cdp_book_add_dictionary(b, id, chdStorage, ...)             cdp_book_add_book(b, id, CDP_TYPE_DICTIONARY, ((unsigned)(chdStorage)), ##__VA_ARGS__)
+#define cdp_book_add_list(b, id, chdStorage, ...)                   cdp_book_add_book(b, id, CDP_AGENT_LIST,       ((unsigned)(chdStorage)), ##__VA_ARGS__)
+#define cdp_book_add_queue(b, id, chdStorage, ...)                  cdp_book_add_book(b, id, CDP_AGENT_QUEUE,      ((unsigned)(chdStorage)), ##__VA_ARGS__)
+#define cdp_book_add_stack(b, id, chdStorage, ...)                  cdp_book_add_book(b, id, CDP_AGENT_STACK,      ((unsigned)(chdStorage)), ##__VA_ARGS__)
+#define cdp_book_add_dictionary(b, id, chdStorage, ...)             cdp_book_add_book(b, id, CDP_AGENT_DICTIONARY, ((unsigned)(chdStorage)), ##__VA_ARGS__)
 
-#define cdp_book_prepend_list(b, id, chdStorage, ...)               cdp_book_prepend_book(b, id, CDP_TYPE_LIST,       ((unsigned)(chdStorage)), ##__VA_ARGS__)
-#define cdp_book_prepend_queue(b, id, chdStorage, ...)              cdp_book_prepend_book(b, id, CDP_TYPE_QUEUE,      ((unsigned)(chdStorage)), ##__VA_ARGS__)
-#define cdp_book_prepend_stack(b, id, chdStorage, ...)              cdp_book_prepend_book(b, id, CDP_TYPE_STACK,      ((unsigned)(chdStorage)), ##__VA_ARGS__)
-#define cdp_book_prepend_dictionary(b, id, chdStorage, ...)         cdp_book_prepend_book(b, id, CDP_TYPE_DICTIONARY, ((unsigned)(chdStorage)), ##__VA_ARGS__)
+#define cdp_book_prepend_list(b, id, chdStorage, ...)               cdp_book_prepend_book(b, id, CDP_AGENT_LIST,       ((unsigned)(chdStorage)), ##__VA_ARGS__)
+#define cdp_book_prepend_queue(b, id, chdStorage, ...)              cdp_book_prepend_book(b, id, CDP_AGENT_QUEUE,      ((unsigned)(chdStorage)), ##__VA_ARGS__)
+#define cdp_book_prepend_stack(b, id, chdStorage, ...)              cdp_book_prepend_book(b, id, CDP_AGENT_STACK,      ((unsigned)(chdStorage)), ##__VA_ARGS__)
+#define cdp_book_prepend_dictionary(b, id, chdStorage, ...)         cdp_book_prepend_book(b, id, CDP_AGENT_DICTIONARY, ((unsigned)(chdStorage)), ##__VA_ARGS__)
 
 
 // Root dictionary.
@@ -495,7 +497,7 @@ void* cdp_register_write(cdpRecord* reg, size_t position, const void* data, size
 
 #define cdp_register_read_id(reg) (*(cdpID*)cdp_register_read(reg, 0, NULL, NULL))
 #define cdp_register_read_utf8(reg) ((const char*)cdp_register_read(reg, 0, NULL, NULL))
-#define cdp_register_read_executable(reg) ((cdpCallable)cdp_register_read(reg, 0, NULL, NULL))
+#define cdp_register_read_executable(reg) ((cdpAction)cdp_register_read(reg, 0, NULL, NULL))
 
 #define cdp_register_update_bool(reg, v)    cdp_register_update(reg, &(v), sizeof(uint8_t))
 #define cdp_register_update_byte(reg, v)    cdp_register_update(reg, &(v), sizeof(uint8_t))

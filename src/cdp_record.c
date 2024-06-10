@@ -53,10 +53,10 @@ static inline int record_compare_by_name(const cdpRecord* restrict key, const cd
     do
 
 
-#define RECORD_PRIMAL_SELECT(primal)                                   \
-    assert((primal) && (primal) < CDP_TYPE_PRIMAL_COUNT);              \
+#define RECORD_PRIMAL_SELECT(type)                                     \
+    assert((type) && (type) < CDP_TYPE_COUNT);                         \
     static void* const recordStyle[] = {&&BOOK, &&REGISTER, &&LINK};   \
-    goto *recordStyle[(primal)-1];                                     \
+    goto *recordStyle[(type)-1];                                       \
     do
 
 #define SELECTION_END                                                  \
@@ -154,25 +154,25 @@ static inline void store_check_auto_id(cdpChdStore* store, cdpRecord* record) {
 /*
     Initiates a record struct with the requested parameters.
 */
-bool cdp_record_initialize(cdpRecord* record, unsigned primal, unsigned attrib, cdpID id, uint32_t type, ...) {
-    assert(record && primal && type);
+bool cdp_record_initialize(cdpRecord* record, unsigned type, unsigned attrib, cdpID id, uint32_t agent, ...) {
+    assert(record && type && agent);
     //CDP_0(record);
 
     record->metadata.attribute = attrib & CDP_ATTRIB_PUB_MASK;
-    record->metadata.primal    = primal;
+    record->metadata.type    = type;
     record->metadata.id        = id;
-    record->metadata.type      = type;
+    record->metadata.agent     = agent;
 
     // Create child record storage.
     //
     va_list args;
-    va_start(args, type);
+    va_start(args, agent);
 
-    RECORD_PRIMAL_SELECT(primal) {
+    RECORD_PRIMAL_SELECT(type) {
       BOOK: {
         unsigned reqStore = va_arg(args, unsigned);
         CDP_DEBUG(
-            if (type == CDP_TYPE_DICTIONARY)
+            if (agent == CDP_AGENT_DICTIONARY)
                 assert(reqStore != CDP_STO_CHD_PACKED_QUEUE);
             else
                 assert(reqStore != CDP_STO_CHD_RED_BLACK_T);    // Any other type of book storage should be prependable.
@@ -852,7 +852,7 @@ void cdp_book_to_dictionary(cdpRecord* book) {
     CDP_AB(cdp_record_is_dictionary(book));
     cdpChdStore* store = CDP_CHD_STORE(book->recData.book.children);
 
-    book->metadata.type = CDP_TYPE_DICTIONARY;
+    book->metadata.agent = CDP_AGENT_DICTIONARY;
     CDP_AB(store->chdCount <= 1);
 
     STORE_TECH_SELECT(book->metadata.storeTech) {
@@ -913,7 +913,7 @@ void cdp_record_finalize(cdpRecord* record, unsigned maxDepth) {
     assert(!cdp_record_is_shadowed(record));
 
     // Delete storage (and children).
-    RECORD_PRIMAL_SELECT(record->metadata.primal) {
+    RECORD_PRIMAL_SELECT(record->metadata.type) {
       BOOK: {
         STORE_TECH_SELECT(record->metadata.storeTech) {
           LINKED_LIST: {

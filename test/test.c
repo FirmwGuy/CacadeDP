@@ -306,7 +306,7 @@ static void test_records_tech_dictionary(unsigned storage) {
 static cdpRecord* tech_catalog_create_structure(cdpID id, int32_t value) {
     static cdpRecord book;
     CDP_0(&book);
-    cdp_record_initialize(&book, CDP_TYPE_BOOK, 0, id, CDP_TYPE_DICTIONARY, CDP_STO_CHD_ARRAY, 2);
+    cdp_record_initialize(&book, CDP_TYPE_BOOK, 0, id, CDP_AGENT_DICTIONARY, CDP_STO_CHD_ARRAY, 2);
     cdpRecord* reg = cdp_book_add_int32(&book, CDP_NAME_VALUE, value);
     test_records_register_val(reg, value);
     return &book;
