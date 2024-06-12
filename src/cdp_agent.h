@@ -238,7 +238,8 @@
 #include "cdp_record.h"
 
 
-static inline cdpRecord* cdp_record_void(void)  {extern cdpRecord* CDP_VOID; assert(CDP_VOID);  return CDP_VOID;}
+static inline cdpRecord* cdp_void(void)  {extern cdpRecord* CDP_VOID; assert(CDP_VOID);  return CDP_VOID;}
+
 
 enum {
     CDP_BOOLEAN_FALSE,
@@ -247,32 +248,60 @@ enum {
     CDP_BOOLEAN_COUNT
 };
 
-enum {
-    CDP_CALL_STARTUP,
-    CDP_CALL_SHUTDOWN,
 
-    CDP_CALL_CONSTRUCT,
-    CDP_CALL_DESTRUCT,
-    CDP_CALL_REFERENCE,
-    CDP_CALL_FREE,
+// Name IDs:
+enum _cdpNameID {
+    CDP_NAME_AGENT = CDP_NAME_INITIAL_COUNT,
+    CDP_NAME_SYSTEM,
+    CDP_NAME_USER,
+    CDP_NAME_PRIVATE,
+    CDP_NAME_PUBLIC,
+    CDP_NAME_DATA,
+    CDP_NAME_NETWORK,
+    CDP_NAME_TEMP,
+    //
+    CDP_NAME_NAME,
+    CDP_NAME_SIZE,
+    CDP_NAME_VALUE,
+    //
+    CDP_NAME_ACTION,
+    CDP_NAME_RETURN,
+    CDP_NAME_ERROR,
+    //
+    CDP_NAME_STARTUP,
+    CDP_NAME_SHUTDOWN,
+    //
+    CDP_NAME_CREATE,
+    CDP_NAME_DESTROY,
+    //CDP_NAME_REFERENCE,
+    //CDP_NAME_FREE,
+    CDP_NAME_COPY,
+    CDP_NAME_MOVE,
+    CDP_NAME_LINK,
+    CDP_NAME_NEXT,
+    CDP_NAME_PREVIOUS,
+    CDP_NAME_VALIDATE,
+    //
+    CDP_NAME_SERIALIZE,
+    CDP_NAME_UNSERIALIZE,
+    //CDP_NAME_TEXTUALIZE,
+    //CDP_NAME_UNTEXTUALIZE,
+    CDP_NAME_READ,
+    CDP_NAME_UPDATE,
+    CDP_NAME_PATCH,
+    //
+    CDP_NAME_ADD,
+    CDP_NAME_PREPEND,
+    CDP_NAME_FIRST,
+    CDP_NAME_LAST,
+    CDP_NAME_SEARCH,
+    CDP_NAME_REMOVE,
+    CDP_NAME_RESET,
 
-    CDP_CALL_APPEND,
-    CDP_CALL_PREPEND,
-    CDP_CALL_INSERT,
-    CDP_CALL_UPDATE,
-    CDP_CALL_REMOVE,
-
-    //CDP_CALL_SORT,
-    //CDP_CALL_COPY,
-    //CDP_CALL_MOVE,
-    //CDP_CALL_PATCH,
-    //CDP_CALL_LINK,
-
-    CDP_CALL_SERIALIZE,
-    CDP_CALL_TEXTUALIZE,
-
-    CDP_CALL_COUNT
+    CDP_NAME_FLAG_COUNT
 };
+
+#define CDP_NAME_COUNT  (CDP_NAME_FLAG_COUNT - CDP_NAME_VOID)
 
 
 cdpID      cdp_name_id_add(const char* name, bool borrow);
@@ -289,9 +318,7 @@ cdpID cdp_agent_add(const char* name,
                     size_t baseSize,
                     cdpAssimilation assimilation,
                     cdpAction create,
-                    cdpAction destroy,
-                    cdpAction startup,
-                    cdpAction shutdown);
+                    cdpAction destroy);
 
 bool cdp_agent_add_action(cdpID agentID, cdpID contextID, cdpAction action);
 
@@ -300,26 +327,47 @@ cdpRecord* cdp_agent(cdpID id);
 static inline cdpAction cdp_agent_action(cdpID typeID) {
     cdpRecord* agent = cdp_type(typeID);
     assert(agent);
-    cdpAction action = cdp_book_find_by_name(agent, CDP_NAME_CALL);
+    cdpAction action = cdp_book_find_by_name(agent, CDP_NAME_ACTION);
     assert(action);
     return action;
 }
 
-void       cdp_agent_construct(cdpRecord* agent, cdpID nameID, cdpID agentTypeID, cdpID storage, uint32_t base);
-void       cdp_agent_destruct (cdpRecord* agent);
-void       cdp_agent_reference(cdpRecord* agent);
-void       cdp_agent_free     (cdpRecord* agent);
 
-cdpRecord* cdp_agent_append   (cdpRecord* agent, cdpRecord* book, cdpRecord* record);
-cdpRecord* cdp_agent_prepend  (cdpRecord* agent, cdpRecord* book, cdpRecord* record);
-cdpRecord* cdp_agent_insert   (cdpRecord* agent, cdpRecord* book, cdpRecord* record);
+static inline void cdp_action_initialize(cdpRecord* signal, cdpID name) {
+    CDP_0(signal);
 
-bool       cdp_agent_update(cdpRecord* agent, cdpRecord* record, void* data, size_t size);
-bool       cdp_agent_remove(cdpRecord* agent, cdpRecord* book, cdpRecord* record);
+}
 
-//void       cdp_agent_sort(cdpRecord* agent);
+#define cdp_action_finalize     cdp_record_finalize
 
-bool       cdp_agent_validate(cdpRecord* agent);
+
+bool cdp_action(cdpRecord* agent, cdpRecord* signal);
+
+
+bool cdp_create(cdpRecord* parent, cdpID nameID, cdpID agentID, ...);
+bool cdp_destroy(cdpRecord* agent);
+//void cdp_reference(cdpRecord* agent);
+//void cdp_free     (cdpRecord* agent);
+
+bool cdp_copy(cdpRecord* agent, cdpRecord* newParent);
+bool cdp_move(cdpRecord* agent, cdpRecord* newParent);
+bool cdp_link(cdpRecord* agent, cdpRecord* newParent);
+bool cdp_next(cdpRecord* agent);
+bool cdp_previous(cdpRecord* agent);
+bool cdp_validate(cdpRecord* agent);
+
+bool cdp_serialize(cdpRecord* agent);
+bool cdp_unserialize(cdpRecord* agent);
+bool cdp_read(cdpRecord* agent, void** data, size_t* size);
+bool cdp_update(cdpRecord* agent, void** data, size_t* size);
+bool cdp_patch(cdpRecord* agent, void** data, size_t* size);
+
+cdpRecord* cdp_add(cdpRecord* agent, cdpRecord* book, cdpRecord* record);
+cdpRecord* cdp_prepend  (cdpRecord* agent, cdpRecord* book, cdpRecord* record);
+cdpRecord* cdp_insert   (cdpRecord* agent, cdpRecord* book, cdpRecord* record);
+
+
+//void       cdp_sort(cdpRecord* agent);
 
 
 bool       cdp_system_startup(void);

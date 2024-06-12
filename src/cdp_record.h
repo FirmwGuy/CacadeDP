@@ -203,7 +203,7 @@ enum {
     CDP_TYPE_COUNT
 };
 
-// Initial agent IDs (for a description see cdp_agent.c):
+// Initial agent IDs (for a description see cdp_agent.h):
 enum _cdpAgentID {
     CDP_AGENT_VOID,              // This agent does nothing.
 
@@ -232,7 +232,6 @@ enum _cdpAgentID {
     CDP_AGENT_PATCH,
     //
     CDP_AGENT_ACTION,
-    CDP_AGENT_EVENT,
 
     // Structured agents
     CDP_AGENT_AGENT,
@@ -249,35 +248,13 @@ enum _cdpAgentID {
 #define CDP_NAME_COUNT_MAX    (CDP_AUTO_ID - 1)
 
 // Initial name IDs:
-enum _cdpNameID {
+enum {
     CDP_NAME_VOID = CDP_NAME_FLAG,
     //
-    CDP_NAME_NAME,
-    CDP_NAME_VALUE,
-    CDP_NAME_SIZE,
-    CDP_NAME_DESCRIPTION,
-    //
-    CDP_NAME_CALL,
-    CDP_NAME_RETURN,
-    CDP_NAME_ERROR,
-    CDP_NAME_OBJECT,
-    //
-    CDP_NAME_PRIVATE,
-    //CDP_NAME_SERVICE,
-    //
     CDP_NAME_ROOT,
-    CDP_NAME_AGENT,
-    CDP_NAME_SYSTEM,
-    CDP_NAME_USER,
-    CDP_NAME_PUBLIC,
-    CDP_NAME_DATA,
-    CDP_NAME_NETWORK,
-    CDP_NAME_TEMP,
 
-    CDP_NAME_FLAG_COUNT
+    CDP_NAME_INITIAL_COUNT
 };
-
-#define CDP_NAME_COUNT  (CDP_NAME_FLAG_COUNT - CDP_NAME_VOID)
 
 
 typedef struct {

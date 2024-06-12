@@ -127,9 +127,8 @@ cdpID cdp_agent_add(const char* name,
                     size_t baseSize,
                     cdpAssimilation assimilation,
                     cdpAction create,
-                    cdpAction destroy,
-                    cdpAction startup,
-                    cdpAction shutdown) {
+                    cdpAction destroy) {
+    assert(create || destroy);
     if (!SYSTEM)  system_initiate();
 
     cdpID nameID = cdp_name_id_add_static(name);
@@ -142,17 +141,14 @@ cdpID cdp_agent_add(const char* name,
         return CDP_TYPE_VOID;
     }
 
-    cdpRecord* agent = agent_add_entry(CDP_AUTO_ID, NULL, description, baseSize, nameID, 6);    // FixMe: 6.
-
-    // FixMe: type/ context.
-    if (create)
-        cdp_book_add_action(agent, CDP_NAME_CREATE, create);
-    if (destroy)
-        cdp_book_add_action(agent, CDP_NAME_DESTROY, destroy);
-    if (startup)
-        cdp_book_add_action(agent, CDP_NAME_STARTUP, startup);
-    if (shutdown)
-        cdp_book_add_action(agent, CDP_NAME_SHUTDOWN, shutdown);
+    // Add new
+    cdpRecord* agent = agent_add_entry(CDP_AUTO_ID, NULL, baseSize, nameID, 4); {  // FixMe.
+        // FixMe: type/ context.
+        if (create)
+            cdp_book_add_action(agent, CDP_NAME_CREATE, create);
+        if (destroy)
+            cdp_book_add_action(agent, CDP_NAME_DESTROY, destroy);
+    }
 
     return cdp_record_id(agent);
 }
@@ -426,33 +422,55 @@ static void system_initiate(void) {
     cdp_book_set_auto_id(AGENT, CDP_AGENT_COUNT);
 
 
-    /* Initiate name (ID) interning system:
+    /* Initiate name (ID) string interning system:
        *** WARNING: this must be done in the same order as the _cdpNameID
-                    enumeration in "cdp_record.h". ***
+                    enumeration in "cdp_agent.h". ***
     */
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,            "");     // Void text.
-    //
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID,        "name");
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID,       "value");
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID,        "size");
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID, "description");
-
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID,        "call");
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID,      "return");
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID,       "error");
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID,      "action");
-
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID,     "private");
-    //cdp_book_add_static_text(NAME, CDP_AUTO_ID,     "service");
-    //
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,           "/");     // The root book.
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID,        "agent");
+    //
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID,       "agent");
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,      "system");
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,        "user");
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID,     "private");
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,      "public");
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,        "data");
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,     "network");
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,        "temp");
+    //
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID,        "name");
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID,        "size");
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID,       "value");
+    //
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID,      "action");
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID,      "return");
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID,       "error");
+    //
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID,     "startup");
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID,    "shutdown");
+    //
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID,      "create");
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID,     "destroy");
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID,        "copy");
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID,        "move");
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID,        "link");
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID,        "next");
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID,    "previous");
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID,    "validate");
+    //
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID,   "serialize");
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID, "unserialize");
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID,        "read");
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID,      "update");
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID,       "patch");
+    //
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID,         "add");
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID,     "prepend");
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID,       "first");
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID,        "last");
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID,      "search");
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID,      "remove");
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID,       "reset");
 
     assert(cdp_book_get_auto_id(NAME) == CDP_NAME_COUNT);
 
