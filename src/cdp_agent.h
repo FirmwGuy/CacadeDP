@@ -1,15 +1,12 @@
 /*
- *  Copyright (c) 2024 Victor M. Barrientos <firmw.guy@gmail.com>
+ *  Copyright (c) 2024 Victor M. Barrientos (https://github.com/FirmwGuy/CacadeDP)
  *
- *  Permission is hereby granted, free of charge, to any person obtaining a copy
- *  of this software and associated documentation files (the "Software"), to deal
- *  in the Software without restriction, including without limitation the rights
- *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- *  copies of the Software, and to permit persons to whom the Software is
- *  furnished to do so, subject to the following conditions:
- *
- *  The above copyright notice and this permission notice shall be included in all
- *  copies or substantial portions of the Software.
+ *  Permission is hereby granted, free of charge, to any person obtaining a copy of
+ *  this software and associated documentation files (the "Software"), to deal in
+ *  the Software without restriction, including without limitation the rights to
+ *  use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+ *  of the Software, and to permit persons to whom the Software is furnished to do
+ *  so.
  *
  *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -251,6 +248,7 @@ enum {
 
 // Name IDs:
 enum _cdpNameID {
+    // Core directories
     CDP_NAME_AGENT = CDP_NAME_INITIAL_COUNT,
     CDP_NAME_SYSTEM,
     CDP_NAME_USER,
@@ -259,7 +257,8 @@ enum _cdpNameID {
     CDP_NAME_DATA,
     CDP_NAME_NETWORK,
     CDP_NAME_TEMP,
-    //
+
+    // Basic fields
     CDP_NAME_NAME,
     CDP_NAME_SIZE,
     CDP_NAME_VALUE,
@@ -267,36 +266,44 @@ enum _cdpNameID {
     CDP_NAME_ACTION,
     CDP_NAME_RETURN,
     CDP_NAME_ERROR,
-    //
+
+    // System signals
     CDP_NAME_STARTUP,
     CDP_NAME_SHUTDOWN,
-    //
+    CDP_NAME_CASCADE,
+    CDP_NAME_DISCASCADE,
+
+    // Record signals
     CDP_NAME_CREATE,
     CDP_NAME_DESTROY,
-    //CDP_NAME_REFERENCE,
-    //CDP_NAME_FREE,
+    CDP_NAME_RESET,
+    CDP_NAME_FREE,
+    CDP_NAME_REFERENCE,
+    CDP_NAME_LINK,
     CDP_NAME_COPY,
     CDP_NAME_MOVE,
-    CDP_NAME_LINK,
     CDP_NAME_NEXT,
     CDP_NAME_PREVIOUS,
     CDP_NAME_VALIDATE,
-    //
+
+    // Register signals
     CDP_NAME_SERIALIZE,
     CDP_NAME_UNSERIALIZE,
-    //CDP_NAME_TEXTUALIZE,
-    //CDP_NAME_UNTEXTUALIZE,
+    CDP_NAME_TEXTUALIZE,
+    CDP_NAME_UNTEXTUALIZE,
     CDP_NAME_READ,
     CDP_NAME_UPDATE,
     CDP_NAME_PATCH,
-    //
+
+    // Book signals
     CDP_NAME_ADD,
     CDP_NAME_PREPEND,
+    CDP_NAME_INSERT,
     CDP_NAME_FIRST,
     CDP_NAME_LAST,
+    CDP_NAME_POP,
     CDP_NAME_SEARCH,
     CDP_NAME_REMOVE,
-    CDP_NAME_RESET,
 
     CDP_NAME_FLAG_COUNT
 };
@@ -341,38 +348,52 @@ static inline void cdp_action_initialize(cdpRecord* signal, cdpID name) {
 #define cdp_action_finalize     cdp_record_finalize
 
 
-bool cdp_action(cdpRecord* agent, cdpRecord* signal);
-
-
-bool cdp_create(cdpRecord* parent, cdpID nameID, cdpID agentID, ...);
-bool cdp_destroy(cdpRecord* agent);
-//void cdp_reference(cdpRecord* agent);
-//void cdp_free     (cdpRecord* agent);
-
-bool cdp_copy(cdpRecord* agent, cdpRecord* newParent);
-bool cdp_move(cdpRecord* agent, cdpRecord* newParent);
-bool cdp_link(cdpRecord* agent, cdpRecord* newParent);
-bool cdp_next(cdpRecord* agent);
-bool cdp_previous(cdpRecord* agent);
-bool cdp_validate(cdpRecord* agent);
-
-bool cdp_serialize(cdpRecord* agent);
-bool cdp_unserialize(cdpRecord* agent);
-bool cdp_read(cdpRecord* agent, void** data, size_t* size);
-bool cdp_update(cdpRecord* agent, void** data, size_t* size);
-bool cdp_patch(cdpRecord* agent, void** data, size_t* size);
-
-cdpRecord* cdp_add(cdpRecord* agent, cdpRecord* book, cdpRecord* record);
-cdpRecord* cdp_prepend  (cdpRecord* agent, cdpRecord* book, cdpRecord* record);
-cdpRecord* cdp_insert   (cdpRecord* agent, cdpRecord* book, cdpRecord* record);
-
-
-//void       cdp_sort(cdpRecord* agent);
-
-
 bool       cdp_system_startup(void);
 bool       cdp_system_step(void);
 void       cdp_system_shutdown(void);
+
+
+bool cdp_action(cdpRecord* instance, cdpRecord* signal);
+
+
+cdpRecord* cdp_create_book(cdpRecord* instance, cdpID nameID, cdpID agentID, unsigned storage, unsigned baseLength);
+cdpRecord* cdp_create_register(cdpRecord* instance, cdpID nameID, cdpID agentID, void* data, size_t size);
+
+void cdp_destroy(cdpRecord* instance);
+void cdp_reset(cdpRecord* instance);
+void cdp_free(cdpRecord* instance);
+void cdp_reference(cdpRecord* instance);
+
+cdpRecord* cdp_link(cdpRecord* instance, cdpRecord* newParent);
+cdpRecord* cdp_copy(cdpRecord* instance, cdpRecord* newParent);
+cdpRecord* cdp_move(cdpRecord* instance, cdpRecord* newParent);
+
+cdpRecord* cdp_next(cdpRecord* instance);
+cdpRecord* cdp_previous(cdpRecord* instance);
+
+bool cdp_validate(cdpRecord* instance);
+
+bool cdp_serialize(cdpRecord* instance, void** data, size_t* size);
+bool cdp_unserialize(cdpRecord* instance, void* data, size_t size);
+bool cdp_textualize(cdpRecord* instance, char** data, size_t* length);
+bool cdp_untextualize(cdpRecord* instance, char* data, size_t length);
+
+void* cdp_read(cdpRecord* instance, void** data, size_t* size);
+void* cdp_update(cdpRecord* instance, void* data, size_t size);
+void* cdp_patch(cdpRecord* instance, void* data, size_t size);
+
+cdpRecord* cdp_add(cdpRecord* instance, cdpRecord* book, cdpRecord* record);
+cdpRecord* cdp_prepend(cdpRecord* instance, cdpRecord* book, cdpRecord* record);
+cdpRecord* cdp_insert(cdpRecord* instance, cdpRecord* book, cdpRecord* record);
+
+cdpRecord* cdp_first(cdpRecord* instance);
+cdpRecord* cdp_last(cdpRecord* instance);
+
+cdpRecord* cdp_pop(cdpRecord* instance, bool last);
+cdpRecord* cdp_search(cdpRecord* instance, cdpRecord* book, cdpRecord* key);
+cdpRecord* cdp_remove(cdpRecord* instance, cdpRecord* book, cdpRecord* record);
+
+//void       cdp_sort(cdpRecord* instance);
 
 
 #endif

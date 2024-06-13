@@ -1,15 +1,12 @@
 /*
- *  Copyright (c) 2024 Victor M. Barrientos <firmw.guy@gmail.com>
+ *  Copyright (c) 2024 Victor M. Barrientos (https://github.com/FirmwGuy/CacadeDP)
  *
- *  Permission is hereby granted, free of charge, to any person obtaining a copy
- *  of this software and associated documentation files (the "Software"), to deal
- *  in the Software without restriction, including without limitation the rights
- *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- *  copies of the Software, and to permit persons to whom the Software is
- *  furnished to do so, subject to the following conditions:
- *
- *  The above copyright notice and this permission notice shall be included in all
- *  copies or substantial portions of the Software.
+ *  Permission is hereby granted, free of charge, to any person obtaining a copy of
+ *  this software and associated documentation files (the "Software"), to deal in
+ *  the Software without restriction, including without limitation the rights to
+ *  use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+ *  of the Software, and to permit persons to whom the Software is furnished to do
+ *  so.
  *
  *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -177,6 +174,7 @@ enum {
 
 enum {
     CDP_STO_LNK_POINTER,        // Link points to an in-memory record.
+    CDP_STO_LNK_SHADOW,         // Link shadows another in-memory record.
     CDP_STO_LNK_PATH,           // Link holds the path of an off-memory record.
     CDP_STO_LNK_ACTION,         // Link holds the address of an cdpAction function.
     //
@@ -259,7 +257,7 @@ enum {
 
 typedef struct {
     cdpID attribute: CDP_ATTRIB_BIT_COUNT,              // Flags for record attributes.
-          type:    2,                                 // Record type (book, register, link).
+          type:    2,                                   // Record type (book, register, link).
           storeTech: 2,                                 // Record storage technique (it depends on the record type).
           agent:     cdp_bitsof(cdpID) - CDP_META_BITS; // Agent tag for this record (it includes _cdpAgentID + user defined types).
     cdpID id;                                           // Name/field identifier of this record with respect to the parent record.
@@ -288,6 +286,7 @@ typedef struct {
       cdpRecord* address;   // Memory address of target record.
       cdpPath*   path;      // Full or relative path to target.
     } target;
+    bool local;             // True if target is also a local record.
     bool inRam;             // Target record is in ram.
 } cdpLink;
 
@@ -541,6 +540,7 @@ void cdp_record_system_shutdown(void);
     - Use "recData.reg.data.direct" in registers.
     - (Deep) copy registers.
     - Move records.
+    - Implement pop() and pop_last().
     - Traverse book in internal (stoTech) order.
     - Add indexof for records.
     - Put move "depth" from traverse argument to inside entry structure.
