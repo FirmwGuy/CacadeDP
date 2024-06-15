@@ -58,6 +58,8 @@
 #define     CDP_AU(_, a, p, f, ...)   CDP_V(_, a, p, __attribute__((cleanup(CDP_AUTOFREE_NAME(f)))), ##__VA_ARGS__)
 #define     CDP_AP(T, p, f, a, ...)   CDP_I(T, p, a, __attribute__((cleanup(CDP_AUTOFREE_NAME(f)))), ##__VA_ARGS__)
 
+#define     CDP_TLS   __thread
+
 
 
 /*

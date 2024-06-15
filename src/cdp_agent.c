@@ -20,6 +20,7 @@
 
 
 #include "cdp_agent.h"
+#include "cdp_signal.h"
 #include <ctype.h>        // isupper()
 
 
@@ -39,6 +40,7 @@ cdpRecord* NETWORK;
 cdpRecord* TEMP;
 
 cdpRecord* NAME;
+
 
 struct NID {const char* name; size_t length; cdpID id;};
 
@@ -231,32 +233,14 @@ static void system_initiate(void) {
         NAME = cdp_book_add_dictionary(agent, CDP_NAME_VALUE, CDP_STO_CHD_PACKED_QUEUE, cdp_next_pow_of_two(CDP_NAME_COUNT));
     }
     system_initiate_agent(CDP_AGENT_UTF8,           "utf8",           "Text encoded in UTF8 format.", 0);
+    system_initiate_agent(CDP_AGENT_BINARY,        "binary",           "Text encoded in UTF8 format.", 0);
     system_initiate_agent(CDP_AGENT_PATCH,          "patch",          "Record that can patch another record.", 0);
-    //
-    system_initiate_agent(CDP_AGENT_ACTION,       "action",       "Address of a action function.", sizeof(cdpAction));
-    agent = system_initiate_agent(CDP_AGENT_EVENT,   "event",          "Object event.", sizeof(uint8_t)); {
-        value = cdp_book_add_dictionary(agent, CDP_NAME_VALUE, CDP_STO_CHD_ARRAY, CDP_CALL_COUNT); {
-            cdp_book_add_static_text(value, CDP_CALL_CONSTRUCT, "construct");
-            cdp_book_add_static_text(value, CDP_CALL_DESTRUCT,  "destruct");
-            cdp_book_add_static_text(value, CDP_CALL_REFERENCE, "reference");
-            cdp_book_add_static_text(value, CDP_CALL_FREE,      "free");
-            cdp_book_add_static_text(value, CDP_CALL_APPEND,    "append");
-            cdp_book_add_static_text(value, CDP_CALL_PREPEND,   "prepend");
-            cdp_book_add_static_text(value, CDP_CALL_INSERT,    "insert");
-            cdp_book_add_static_text(value, CDP_CALL_SORT,      "sort");
-            cdp_book_add_static_text(value, CDP_CALL_COPY,      "copy");
-            cdp_book_add_static_text(value, CDP_CALL_MOVE,      "move");
-            cdp_book_add_static_text(value, CDP_CALL_LINK,      "link");
-
-            assert(cdp_book_children(value) == CDP_CALL_COUNT);
-            cdp_book_set_auto_id(value, CDP_CALL_COUNT);
-    }   }
 
     // Link types
-    system_initiate_agent(CDP_TYPE_LINK,           "link",           "Record that points to another record.", 0);
+    system_initiate_agent(CDP_TYPE_LINK,            "link",           "Record that points to another record.", 0);
 
     // Structured types
-    system_initiate_agent(CDP_AGENT_AGENT,           "agent",           "Dictionary for describing types.", 0);
+    system_initiate_agent(CDP_AGENT_AGENT,          "agent",           "Dictionary for describing types.", 0);
     system_initiate_agent(CDP_AGENT_OBJECT,         "action",         "Records structured and ordered by event signals.", 0);
 
     // Finish core types.
@@ -285,45 +269,13 @@ static void system_initiate(void) {
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,       "value");
     //
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,      "action");
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID,    "argument");
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,      "return");
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,       "error");
-    //
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID,     "startup");
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID,    "shutdown");
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID,     "cascade");
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID,   "discascade");
-    //
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID,      "create");
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID,     "destroy");
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID,       "reset");
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID,        "free");
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID,   "reference");
-    //
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID,        "link");
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID,        "copy");
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID,        "move");
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID,        "next");
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID,    "previous");
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID,    "validate");
-    //
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID,   "serialize");
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID, "unserialize");
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID,  "textualize");
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID,"untextualize");
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID,        "read");
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID,      "update");
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID,       "patch");
-    //
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID,         "add");
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID,     "prepend");
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID,      "insert");
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID,       "first");
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID,        "last");
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID,         "pop");
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID,      "search");
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID,      "remove");
 
-    assert(cdp_book_get_auto_id(NAME) == CDP_NAME_COUNT);
+    cdp_signal_initiate();
+
+    assert(cdp_book_get_auto_id(NAME) == (CDP_NAME_COUNT + CDP_SIGNAL_COUNT);
 
 
     /* Initiate global records.
@@ -361,243 +313,9 @@ bool cdp_system_step(void) {
 
 void cdp_system_shutdown(void) {
     assert(SYSTEM);
+    cdp_signal_finalize();
     cdp_book_reset(&CDP_ROOT, 64);    // FixMe: maxDepth.
     cdp_record_system_shutdown();
     SYSTEM = NULL;
 }
-
-
-
-
-/* Executes the associated signal handler for the specified agent instance.
-*/
-cdpActionReturn cdp_action(cdpRecord* instance, cdpRecord* signal) {
-    assert(instance && signal);
-    cdpRecord* agent = cdp_agent(cdp_record_agent(instance));
-    cdpRecord* actionReg = cdp_book_find_by_name(agent, cdp_record_id(instance));
-    cdpAction* action = cdp_register_read_action(actionReg);
-    return action(instance, signal);
-}
-
-
-
-
-cdpRecord* cdp_create_book(cdpRecord* instance, cdpID nameID, cdpID agentID, unsigned storage, unsigned baseLength) {
-    assert(instance && nameID && agentID && storage < CDP_STO_CHD_COUNT);
-
-    cdpRecord signal = {0};     // ToDo: store signal in a system queue and pause calling task.
-    cdp_record_initialize_dictionary(&signal, CDP_NAME_CREATE, CDP_STO_CHD_ARRAY, 5); {
-        cdp_book_add_id(&signal, CDP_NAME_NAME, nameID);
-        cdp_book_add_id(&signal, CDP_NAME_AGENT, agentID);
-        cdp_book_add_id(&signal, CDP_NAME_STORAGE, storage);
-        if (baseLength)
-            cdp_book_add_uint32(&signal, CDP_NAME_BASE, base);
-    }
-
-    cdpActionReturn ret = cdp_action(instance, &signal);
-    cdp_record_finalize(&signal);
-    if (ret.error) {
-        // ToDo: report error.
-        return NULL;
-    }
-
-    cdpRecord* retReg = cdp_book_find_by_name(&signal, CDP_NAME_RETURN);
-    cdpRecord* newBook = cdp_link_read_address(retReg);
-    cdp_record_finalize(&ret);
-    return newBook;
-}
-
-
-cdpRecord* cdp_create_register(cdpRecord* instance, cdpID nameID, cdpID agentID, void* data, size_t size) {
-    assert(instance && nameID && agentID && size);
-
-    cdpRecord signal = {0};     // ToDo: store signal in a system queue and pause calling task.
-    cdp_record_initialize_dictionary(&signal, CDP_NAME_CREATE, CDP_STO_CHD_ARRAY, 5); {
-        cdp_book_add_id(&signal, CDP_NAME_NAME, nameID);
-        cdp_book_add_id(&signal, CDP_NAME_AGENT, agentID);
-        cdp_book_add_uint32(&signal, CDP_NAME_SIZE, size);
-        if (data)
-            cdp_book_add_id(&signal, CDP_NAME_DATA, data);
-    }
-
-    cdpRecord* newReg;
-    if (cdp_action(instance, &signal)) {
-        cdpRecord* retReg = cdp_book_find_by_name(&signal, CDP_NAME_RETURN);
-        newReg = cdp_link_read_address(retReg);
-    } else {
-        newReg = NULL;
-    }
-
-    cdp_record_finalize(&signal);
-    return newReg;
-}
-
-
-void cdp_destroy(cdpRecord* instance) {
-    cdpRecord signal = {0};
-    cdp_record_initialize_id(&signal, CDP_NAME_DESTROY, CDP_NAME_DESTROY);
-    cdp_action(instance, &signal);
-    cdp_record_finalize(&signal);
-}
-
-
-void cdp_reset(cdpRecord* instance) {
-    cdpRecord signal = {0};
-    cdp_record_initialize_id(&signal, CDP_NAME_RESET, CDP_NAME_RESET);
-    cdp_action(instance, &signal);
-    cdp_record_finalize(&signal);
-}
-
-
-void cdp_free(cdpRecord* instance) {
-    cdpRecord signal = {0};
-    cdp_record_initialize_id(&signal, CDP_NAME_FREE, CDP_NAME_FREE);
-    cdp_action(instance, &signal);
-    cdp_record_finalize(&signal);
-}
-
-
-void cdp_reference(cdpRecord* instance) {
-    cdpRecord signal = {0};
-    cdp_record_initialize_id(&signal, CDP_NAME_REFERENCE, CDP_NAME_REFERENCE);
-    cdp_action(instance, &signal);
-    cdp_record_finalize(&signal);
-}
-
-
-cdpRecord* cdp_copy(cdpRecord* instance, cdpRecord* newParent, cdpID nameID) {
-    assert(instance && cdp_record_is_book(newParent) && nameID);
-
-    cdpRecord signal = {0};
-    cdp_record_initialize_dictionary(&signal, CDP_NAME_COPY, CDP_STO_CHD_ARRAY, 3); {
-        cdp_book_add_link(&signal, CDP_NAME_PARENT, newParent);
-        cdp_book_add_id(&signal, CDP_NAME_NAME, nameID);
-    }
-
-    cdpRecord* newRec;
-    if (cdp_action(instance, &signal)) {
-        cdpRecord* retReg = cdp_book_find_by_name(&signal, CDP_NAME_RETURN);
-        newRec = cdp_link_read_address(retReg);
-    } else {
-        newRec = NULL;
-    }
-
-    cdp_record_finalize(&signal);
-    return newRec;
-}
-
-
-
-cdpRecord* cdp_move(cdpRecord* instance, cdpRecord* newParent, cdpID nameID) {
-    assert(instance && cdp_record_is_book(newParent) && nameID);
-
-    cdpRecord signal = {0};
-    cdp_record_initialize_dictionary(&signal, CDP_NAME_MOVE, CDP_STO_CHD_ARRAY, 3); {
-        cdp_book_add_link(&signal, CDP_NAME_PARENT, newParent);
-        cdp_book_add_id(&signal, CDP_NAME_NAME, nameID);
-    }
-
-    cdpRecord* newRec;
-    if (cdp_action(instance, &signal)) {
-        cdpRecord* retReg = cdp_book_find_by_name(&signal, CDP_NAME_RETURN);
-        newRec = cdp_link_read_address(retReg);
-    } else {
-        newRec = NULL;
-    }
-
-    cdp_record_finalize(&signal);
-    return newRec;
-}
-
-
-
-cdpRecord* cdp_link(cdpRecord* instance, cdpRecord* newParent, cdpID nameID) {
-    assert(instance && cdp_record_is_book(newParent) && nameID);
-
-    cdpRecord signal = {0};
-    cdp_record_initialize_dictionary(&signal, CDP_NAME_LINK, CDP_STO_CHD_ARRAY, 3); {
-        cdp_book_add_link(&signal, CDP_NAME_PARENT, newParent);
-        cdp_book_add_id(&signal, CDP_NAME_NAME, nameID);
-    }
-
-    cdpRecord* newRec;
-    if (cdp_action(instance, &signal)) {
-        cdpRecord* retReg = cdp_book_find_by_name(&signal, CDP_NAME_RETURN);
-        newRec = cdp_link_read_address(retReg);
-    } else {
-        newRec = NULL;
-    }
-
-    cdp_record_finalize(&signal);
-    return newRec;
-}
-
-
-
-
-cdpRecord* cdp_next(cdpRecord* instance) {
-    assert(instance);
-
-    cdpRecord signal = {0};
-    cdp_record_initialize_link(&signal, CDP_NAME_NEXT, NULL);
-
-    cdpRecord* nextRec;
-    if (cdp_action(instance, &signal)) {
-        cdpRecord* retReg = cdp_book_find_by_name(&signal, CDP_NAME_RETURN);
-        nextRec = cdp_link_read_address(retReg);
-    } else {
-        nextRec = NULL;
-    }
-
-    cdp_record_finalize(&signal);
-    return nextRec;
-}
-
-
-
-cdpRecord* cdp_previous(cdpRecord* instance) {
-    assert(instance && cdp_record_is_book(newParent) && nameID);
-
-    cdpRecord signal = {0};
-    cdp_record_initialize_dictionary(&signal, CDP_NAME_COPY, CDP_STO_CHD_ARRAY, 3); {
-        cdp_book_add_link(&signal, CDP_NAME_PARENT, newParent);
-        cdp_book_add_id(&signal, CDP_NAME_NAME, nameID);
-    }
-
-    cdpRecord* newRec;
-    if (cdp_action(instance, &signal)) {
-        cdpRecord* retReg = cdp_book_find_by_name(&signal, CDP_NAME_RETURN);
-        newRec = cdp_link_read_address(retReg);
-    } else {
-        newRec = NULL;
-    }
-
-    cdp_record_finalize(&signal);
-    return newRec;
-}
-
-
-
-
-bool cdp_validate(cdpRecord* instance);
-
-bool cdp_serialize(cdpRecord* instance, void** data, size_t* size);
-bool cdp_unserialize(cdpRecord* instance, void* data, size_t size);
-bool cdp_textualize(cdpRecord* instance, char** data, size_t* length);
-bool cdp_untextualize(cdpRecord* instance, char* data, size_t length);
-
-void* cdp_read(cdpRecord* instance, void** data, size_t* size);
-void* cdp_update(cdpRecord* instance, void* data, size_t size);
-void* cdp_patch(cdpRecord* instance, void* data, size_t size);
-
-cdpRecord* cdp_add(cdpRecord* instance, cdpRecord* book, cdpRecord* record);
-cdpRecord* cdp_prepend(cdpRecord* instance, cdpRecord* book, cdpRecord* record);
-cdpRecord* cdp_insert(cdpRecord* instance, cdpRecord* book, cdpRecord* record);
-
-cdpRecord* cdp_first(cdpRecord* instance);
-cdpRecord* cdp_last(cdpRecord* instance);
-
-cdpRecord* cdp_pop(cdpRecord* instance, bool last);
-cdpRecord* cdp_search(cdpRecord* instance, cdpRecord* book, cdpRecord* key);
-cdpRecord* cdp_remove(cdpRecord* instance, cdpRecord* book, cdpRecord* record);
 

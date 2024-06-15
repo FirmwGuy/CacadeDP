@@ -227,6 +227,7 @@ enum _cdpAgentID {
     CDP_AGENT_ID,
     CDP_AGENT_NAME_ID,
     CDP_AGENT_UTF8,
+    CDP_AGENT_BINARY,
     CDP_AGENT_PATCH,
     //
     CDP_AGENT_ACTION,
@@ -343,11 +344,12 @@ typedef struct {
 typedef bool (*cdpTraverse)(cdpBookEntry*, unsigned, void*);
 
 typedef struct {
-    cdpRecord  result;
-    cdpRecord* error;
-} cdpActionReturn;
+    cdpRecord  argument;    // Dictionary.
+    cdpRecord  result;      // Dictionary.
+    cdpRecord  error;       // Stack.
+} cdpSignal;
 
-typedef cdpActionReturn (*cdpAction)(cdpRecord* instance, cdpRecord* signal);
+typedef bool (*cdpAction)(cdpRecord* instance, cdpSignal* signal);
 
 
 /*
@@ -542,6 +544,7 @@ void cdp_record_system_shutdown(void);
 
 /*
     TODO:
+    - Fully define new roles of dictionaries and *_find_by_name() family functions.
     - Use "recData.reg.data.direct" in registers.
     - (Deep) copy registers.
     - Move records.
