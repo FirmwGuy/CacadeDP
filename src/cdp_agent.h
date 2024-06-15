@@ -364,9 +364,9 @@ void cdp_reset(cdpRecord* instance);
 void cdp_free(cdpRecord* instance);
 void cdp_reference(cdpRecord* instance);
 
-cdpRecord* cdp_link(cdpRecord* instance, cdpRecord* newParent);
-cdpRecord* cdp_copy(cdpRecord* instance, cdpRecord* newParent);
-cdpRecord* cdp_move(cdpRecord* instance, cdpRecord* newParent);
+cdpRecord* cdp_link(cdpRecord* instance, cdpRecord* newParent, cdpID nameID);
+cdpRecord* cdp_copy(cdpRecord* instance, cdpRecord* newParent, cdpID nameID);
+cdpRecord* cdp_move(cdpRecord* instance, cdpRecord* newParent, cdpID nameID);
 
 cdpRecord* cdp_next(cdpRecord* instance);
 cdpRecord* cdp_previous(cdpRecord* instance);

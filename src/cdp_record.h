@@ -342,7 +342,12 @@ typedef struct {
 
 typedef bool (*cdpTraverse)(cdpBookEntry*, unsigned, void*);
 
-typedef bool (*cdpAction)(cdpRecord* instance, cdpRecord* signal);
+typedef struct {
+    cdpRecord  result;
+    cdpRecord* error;
+} cdpActionReturn;
+
+typedef cdpActionReturn (*cdpAction)(cdpRecord* instance, cdpRecord* signal);
 
 
 /*
