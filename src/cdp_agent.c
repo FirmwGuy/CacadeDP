@@ -19,7 +19,7 @@
  */
 
 
-#include "cdp_agent.h"
+#include "cdp_system_get_agent.h"
 #include "cdp_signal.h"
 #include <ctype.h>        // isupper()
 
@@ -27,12 +27,8 @@
 
 extern cdpRecord CDP_ROOT;
 
-cdpRecord* CDP_VOID;
-cdpRecord* CDP_TRUE;
-cdpRecord* CDP_FALSE;
-
-cdpRecord* AGENT;
 cdpRecord* SYSTEM;
+cdpRecord* CASCADE;
 cdpRecord* USER;
 cdpRecord* PUBLIC;
 cdpRecord* DATA;
@@ -41,13 +37,22 @@ cdpRecord* TEMP;
 
 cdpRecord* NAME;
 
-
-struct NID {const char* name; size_t length; cdpID id;};
+cdpRecord* CDP_VOID;
+cdpRecord* CDP_TRUE;
+cdpRecord* CDP_FALSE;
 
 
 static void system_initiate(void);
 
 
+
+
+/*
+ *   String interning routines
+ */
+
+
+struct NID {const char* name; size_t length; cdpID id;};
 
 
 static bool name_id_traverse_find_text(cdpBookEntry* entry, unsigned depth, struct NID* nid) {
@@ -60,8 +65,11 @@ static bool name_id_traverse_find_text(cdpBookEntry* entry, unsigned depth, stru
     return true;
 }
 
+
 cdpID cdp_name_id_add(const char* name, bool borrow) {
     assert(name && *name);
+    if (!SYSTEM)  system_initiate();
+
     size_t length = strlen(name);
     for (unsigned n=0; n<length; n++) {
         if (isupper(name[n])) {
@@ -90,104 +98,105 @@ cdpRecord* cdp_name_id_text(cdpID id) {
 
 
 
-static inline cdpRecord* agent_add_entry(cdpID agentID, const char* name, uint32_t size, cdpID nameID, unsigned items) {
-    if (!items) items = 2;      // FixMe.
-    if (size) items++;
+/*
+ *    Agent related routines
+ */
 
-    cdpRecord* agent = cdp_book_add_dictionary(AGENT, agentID, CDP_STO_CHD_ARRAY, items); {
-        if (name)
-            cdp_book_add_static_text(agent, CDP_NAME_NAME, name);
-        else {
-            assert(nameID);
-            cdp_book_add_id(agent, CDP_NAME_NAME, nameID);
-        }
-
-        if (size)
-            cdp_book_add_uint32(agent, CDP_NAME_SIZE, size);
-    }
-
-    return agent;
-}
 
 static bool agent_traverse_find_by_text(cdpBookEntry* entry, unsigned depth, struct NID* nid) {
     cdpRecord* nameReg = cdp_book_find_by_name(entry->record, CDP_NAME_NAME);
-    if (nameReg.metadata.agent == CDP_AGENT_ID)
-        nameReg = cdp_name_id_text(cdp_register_read_id(nameReg));
     const char* name = cdp_register_read_utf8(nameReg);
     if (cdp_register_size(nameReg) == nid->length
      && 0 == memcmp(name, nid->name, nid->length)) {
-        nid->id = entry->record->metadata.id;
+        nid->id = cdp_record_agent(entry->record);
         return false;
     }
     return true;
 }
 
-cdpID cdp_agent_add(const char* name,
-                    size_t baseSize,
-                    cdpAssimilation assimilation,
-                    cdpAction create,
-                    cdpAction destroy) {
+
+cdpID cdp_system_set_agent( const char* name,
+                            size_t      baseSize,
+                            unsigned    assimLenght,
+                            cdpID*      assimilate
+                            unsigned    numAction,
+                            cdpAction   create,
+                            cdpAction   destroy ) {
     assert(create || destroy);
     if (!SYSTEM)  system_initiate();
 
-    cdpID nameID = cdp_name_id_add_static(name);
-
     // Find previous
-    struct NID nid = {name, length};
-    bool found = !cdp_book_traverse(AGENT, (cdpTraverse)agent_traverse_find_by_text, &nid, NULL);
+    struct NID nid = {name, strlen(name);};
+    bool found = !cdp_book_traverse(SYSTEM, (cdpTraverse)agent_traverse_find_by_text, &nid, NULL);
     if (found) {
         assert(!found);     // FixMe.
         return CDP_TYPE_VOID;
     }
 
     // Add new
-    cdpRecord* agent = agent_add_entry(CDP_AUTO_ID, NULL, baseSize, nameID, 4); {  // FixMe.
-        // FixMe: type/ context.
-        if (create)
-            cdp_book_add_action(agent, CDP_NAME_CREATE, create);
-        if (destroy)
-            cdp_book_add_action(agent, CDP_NAME_DESTROY, destroy);
+    unsigned storage;
+    if (numAction) {
+        storage = CDP_STO_CHD_ARRAY;
+        if (baseSize)
+            numAction += 2;
+        else
+            numAction++;
     }
+    else
+        storage = CDP_STO_CHD_RED_BLACK_T;
+
+    cdpRecord* agent = cdp_book_add_dictionary(SYSTEM, CDP_AUTO_ID, storage, numAction);
+    cdp_book_add_static_text(agent, CDP_NAME_NAME, name);
+    if (baseSize)
+        cdp_book_add_uint32(agent, CDP_NAME_SIZE, baseSize);
+    if (create)
+        cdp_book_add_action(agent, CDP_NAME_CREATE, create);
+    if (destroy)
+        cdp_book_add_action(agent, CDP_NAME_DESTROY, destroy);
 
     return cdp_record_id(agent);
 }
 
 
-cdpRecord* cdp_agent(cdpID agentID) {
-    assert(SYSTEM && agentID && (agentID < cdp_book_get_auto_id(AGENT)));
-    //return cdp_book_find_by_name(AGENT, agentID);
-    return cdp_book_find_by_position(AGENT, agentID);     // FixMe: check if entry is disabled.
+cdpRecord* cdp_system_get_agent(cdpID agentID) {
+    assert(agentID < cdp_book_get_auto_id(SYSTEM));
+    //return cdp_book_find_by_name(SYSTEM, agentID);
+    return cdp_book_find_by_position(SYSTEM, agentID);     // FixMe: check if entry is disabled.
 }
 
 
-cdpID cdp_agent_add_action(cdpID agentID, const char* name, cdpAction action) {
+void cdp_system_set_action_by_id(cdpID agentID, cdpID nameID, cdpAction action) {
     assert(SYSTEM && action);
-
-    cdpRecord* agent = cdp_agent(agentID);
-    assert(agent);
-
-    cdpID nameID = cdp_name_id_add_static(name);
-
+    cdpRecord* agent = cdp_system_get_agent(agentID);
     cdp_book_add_action(agent, nameID, action);
+}
 
+
+cdpID cdp_system_set_action(cdpID agentID, const char* name, cdpAction action) {
+    assert(SYSTEM && action);
+    cdpID nameID = cdp_name_id_add_static(name);
+    cdp_system_set_action_by_id(agentID, nameID, action);
     return nameID;
 }
 
 
+cdpAction cdp_system_get_action(cdpID agentID, cdpID actionID) {
+    assert(agentID < cdp_book_get_auto_id(SYSTEM)  &&  actionID);
 
+    cdpRecord* agent = cdp_system_get_agent(agentID);
+    cdpRecord* actionReg = cdp_book_find_by_name(agent, actionID);
+    return cdp_register_read_action(actionReg);
+}
 
-#define system_initiate_agent(t, name, desc, size)   agent_add_entry(t, name, desc, size, 0)
 
 static void system_initiate(void) {
-    if (SYSTEM) return;
-
     cdp_record_system_initiate();
 
 
     /* Initiate root book structure.
     */
-    AGENT   = cdp_book_add_dictionary(&CDP_ROOT, CDP_NAME_AGENT,   CDP_STO_CHD_ARRAY, CDP_AGENT_COUNT);
-    SYSTEM  = cdp_book_add_dictionary(&CDP_ROOT, CDP_NAME_SYSTEM,  CDP_STO_CHD_RED_BLACK_T);
+    SYSTEM  = cdp_book_add_dictionary(&CDP_ROOT, CDP_NAME_SYSTEM,  CDP_STO_CHD_ARRAY, CDP_AGENT_COUNT);
+    CASCADE = cdp_book_add_dictionary(&CDP_ROOT, CDP_NAME_CASCADE, CDP_STO_CHD_RED_BLACK_T);
     USER    = cdp_book_add_dictionary(&CDP_ROOT, CDP_NAME_USER,    CDP_STO_CHD_RED_BLACK_T);
     PUBLIC  = cdp_book_add_dictionary(&CDP_ROOT, CDP_NAME_PUBLIC,  CDP_STO_CHD_RED_BLACK_T);
     DATA    = cdp_book_add_dictionary(&CDP_ROOT, CDP_NAME_DATA,    CDP_STO_CHD_RED_BLACK_T);
@@ -195,29 +204,38 @@ static void system_initiate(void) {
     TEMP    = cdp_book_add_dictionary(&CDP_ROOT, CDP_NAME_TEMP,    CDP_STO_CHD_RED_BLACK_T);
 
 
-    /* Initiate agent system. */
+    /* Initiate agent (ID) system:
+       *** WARNING: this must be done in the same order as the _cdpAgentID
+                    enumeration in "cdp_record.h". ***
+    */
     cdpRecord* agent, *value;
 
-    // Abstract types
-    system_initiate_agent(CDP_TYPE_VOID,           "void",           "Type for describing nothingness.", 0);
+    // Abstract agent
+    cdp_system_set_agent("void", 0, NULL, 0, NULL, NULL);
 
-    // Book types
-    system_initiate_agent(CDP_TYPE_BOOK,           "book",           "Generic container of records.", 0);
-    system_initiate_agent(CDP_TYPE_LINK,           "list",           "Book with records ordered by how they are added/removed", 0);
-    system_initiate_agent(CDP_AGENT_QUEUE,          "queue",          "List that only removes records from its beginning or adds them to its end.", 0);
-    system_initiate_agent(CDP_AGENT_STACK,          "stack",          "List that only adds/removes records from its beginning.", 0);
-    system_initiate_agent(CDP_AGENT_DICTIONARY,     "dictionary",     "Book of records sorted by their unique name.", 0);
+    // Book agents
+    cdpID bookID = cdp_system_set_agent("book", 0, 0, NULL, 10, cdp_action_create_book, cdp_action_destroy);
+
+    cdp_system_set_action_by_id(bookID, CDP_NAME_RESET, cdp_action_reset);
+    cdp_system_set_action_by_id(bookID, CDP_NAME_NEXT, cdp_action_next);
+    ...
+
+    cdpID dictID = cdp_system_set_agent("dictionary", 0, 1, &bookID, 2, NULL, NULL);
+
+
+    cdpID listID = cdp_system_set_agent("list", 0, 1, &bookID, 2, NULL, NULL);
+
+    cdp_system_set_action_by_id(bookID, CDP_NAME_RESET, cdp_action_reset);
+
+    cdpID queueID = cdp_system_set_agent("queue", 0, 1, &bookID, 2, NULL, NULL);
+
+    cdpID stackID = cdp_system_set_agent("stack", 0, 1, &bookID, 2, NULL, NULL);
+
+    cdp_system_set_action_by_id(stackID, CDP_NAME_INSERT, cdp_action_error);
+
 
     // Register types
     system_initiate_agent(CDP_TYPE_REGISTER,       "register",       "Generic record that holds data.", 0);
-    agent = system_initiate_agent(CDP_AGENT_BOOLEAN, "boolean",        "Boolean value.", sizeof(uint8_t)); {
-        value = cdp_book_add_dictionary(agent, CDP_NAME_VALUE, CDP_STO_CHD_ARRAY, CDP_ID_BOOL_COUNT); {
-            cdp_book_add_static_text(value, CDP_BOOLEAN_FALSE,   "false");
-            cdp_book_add_static_text(value, CDP_BOOLEAN_TRUE,    "true");
-
-            assert(cdp_book_children(value) == CDP_BOOLEAN_COUNT);
-            cdp_book_set_auto_id(value, CDP_BOOLEAN_COUNT);
-    }   }
     system_initiate_agent(CDP_AGENT_BYTE,           "byte",           "Unsigned integer number of 8 bits.",   sizeof(uint8_t));
     system_initiate_agent(CDP_AGENT_UINT16,         "uint16",         "Unsigned integer number of 16 bits.",  sizeof(uint16_t));
     system_initiate_agent(CDP_AGENT_UINT32,         "uint32",         "Unsigned integer number of 32 bits.",  sizeof(uint32_t));
@@ -228,13 +246,22 @@ static void system_initiate(void) {
     system_initiate_agent(CDP_AGENT_FLOAT32,        "float32",        "Floating point number of 32 bits.",    sizeof(float));
     system_initiate_agent(CDP_AGENT_FLOAT64,        "float64",        "Floating point number of 64 bits.",    sizeof(double));
     //
+    system_initiate_agent(CDP_AGENT_UTF8,           "utf8",           "Text encoded in UTF8 format.", 0);
+    system_initiate_agent(CDP_AGENT_PATCH,          "patch",          "Record that can patch another record.", 0);
+
+    // Enumerations
+    agent = system_initiate_agent(CDP_AGENT_BOOLEAN, "boolean",        "Boolean value.", sizeof(uint8_t)); {
+        value = cdp_book_add_dictionary(agent, CDP_NAME_ENUMERATION, CDP_STO_CHD_ARRAY, CDP_ID_BOOL_COUNT); {
+            cdp_book_add_static_text(value, CDP_VALUE_FALSE,   "false");
+            cdp_book_add_static_text(value, CDP_VALUE_TRUE,    "true");
+
+            assert(cdp_book_children(value) == CDP_VALUE_BOOLEAN_COUNT);
+            cdp_book_set_auto_id(value, CDP_VALUE_BOOLEAN_COUNT);
+    }   }
     system_initiate_agent(CDP_AGENT_ID,             "id",             "Register with the value of an id (name or agent) of records.", sizeof(cdpID));
     agent = system_initiate_agent(CDP_AGENT_NAME_ID, "name_id",        "Id as a text token for creating record paths.", 4); {    // FixMe: variant base size for UTF8?
-        NAME = cdp_book_add_dictionary(agent, CDP_NAME_VALUE, CDP_STO_CHD_PACKED_QUEUE, cdp_next_pow_of_two(CDP_NAME_COUNT));
+        NAME = cdp_book_add_dictionary(agent, CDP_NAME_ENUMERATION, CDP_STO_CHD_PACKED_QUEUE, cdp_next_pow_of_two(CDP_NAME_COUNT));
     }
-    system_initiate_agent(CDP_AGENT_UTF8,           "utf8",           "Text encoded in UTF8 format.", 0);
-    system_initiate_agent(CDP_AGENT_BINARY,        "binary",           "Text encoded in UTF8 format.", 0);
-    system_initiate_agent(CDP_AGENT_PATCH,          "patch",          "Record that can patch another record.", 0);
 
     // Link types
     system_initiate_agent(CDP_TYPE_LINK,            "link",           "Record that points to another record.", 0);
@@ -244,8 +271,8 @@ static void system_initiate(void) {
     system_initiate_agent(CDP_AGENT_OBJECT,         "action",         "Records structured and ordered by event signals.", 0);
 
     // Finish core types.
-    assert(cdp_book_children(AGENT) == CDP_AGENT_COUNT);
-    cdp_book_set_auto_id(AGENT, CDP_AGENT_COUNT);
+    assert(cdp_book_children(SYSTEM) == CDP_AGENT_COUNT);
+    cdp_book_set_auto_id(SYSTEM, CDP_AGENT_COUNT);
 
 
     /* Initiate name (ID) string interning system:
@@ -300,8 +327,8 @@ static bool system_startup_traverse(cdpBookEntry* entry, unsigned unused, void* 
 }
 
 bool cdp_system_startup(void) {
-    assert(cdp_book_children(AGENT));
-    return cdp_book_traverse(AGENT, system_startup_traverse, NULL, NULL);
+    assert(cdp_book_children(SYSTEM));
+    return cdp_book_traverse(SYSTEM, system_startup_traverse, NULL, NULL);
 }
 
 

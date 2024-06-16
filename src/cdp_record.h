@@ -206,11 +206,10 @@ enum _cdpAgentID {
     CDP_AGENT_VOID,              // This agent does nothing.
 
     // Book agents
+    CDP_AGENT_DICTIONARY,
     CDP_AGENT_LIST,
     CDP_AGENT_QUEUE,
     CDP_AGENT_STACK,
-    //
-    CDP_AGENT_DICTIONARY,
 
     // Register agents
     CDP_AGENT_BOOLEAN,
@@ -227,7 +226,6 @@ enum _cdpAgentID {
     CDP_AGENT_ID,
     CDP_AGENT_NAME_ID,
     CDP_AGENT_UTF8,
-    CDP_AGENT_BINARY,
     CDP_AGENT_PATCH,
     //
     CDP_AGENT_ACTION,
@@ -344,8 +342,8 @@ typedef struct {
 typedef bool (*cdpTraverse)(cdpBookEntry*, unsigned, void*);
 
 typedef struct {
-    cdpRecord  argument;    // Dictionary.
-    cdpRecord  result;      // Dictionary.
+    cdpRecord  input;       // Dictionary.
+    cdpRecord  output;      // Dictionary.
     cdpRecord  error;       // Stack.
 } cdpSignal;
 

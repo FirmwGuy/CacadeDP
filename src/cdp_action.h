@@ -18,66 +18,22 @@
  *
  */
 
-#ifndef CDP_SIGNAL_H
-#define CDP_SIGNAL_H
+#ifndef CDP_ACTION_H
+#define CDP_ACTION_H
 
 
 #include "cdp_record.h"
 
 
-// Signal Name IDs:
-enum {
-    // System signals
-    CDP_NAME_STARTUP = CDP_NAME_FLAG_COUNT,
-    CDP_NAME_SHUTDOWN,
-    CDP_NAME_CASCADE,
-    CDP_NAME_DISCASCADE,
-
-    // Record signals
-    CDP_NAME_CREATE,
-    CDP_NAME_DESTROY,
-    CDP_NAME_RESET,
-    CDP_NAME_FREE,
-    CDP_NAME_REFERENCE,
-    CDP_NAME_LINK,
-    CDP_NAME_COPY,
-    CDP_NAME_MOVE,
-    CDP_NAME_NEXT,
-    CDP_NAME_PREVIOUS,
-    CDP_NAME_VALIDATE,
-
-    // Register signals
-    CDP_NAME_SERIALIZE,
-    CDP_NAME_UNSERIALIZE,
-    CDP_NAME_TEXTUALIZE,
-    CDP_NAME_UNTEXTUALIZE,
-    CDP_NAME_READ,
-    CDP_NAME_UPDATE,
-    CDP_NAME_PATCH,
-
-    // Book signals
-    CDP_NAME_ADD,
-    CDP_NAME_PREPEND,
-    CDP_NAME_INSERT,
-    CDP_NAME_FIRST,
-    CDP_NAME_LAST,
-    CDP_NAME_POP,
-    CDP_NAME_SEARCH,
-    CDP_NAME_REMOVE,
-
-    CDP_NAME_SIGNAL_COUNT
-};
-
-#define CDP_SIGNAL_COUNT  (CDP_NAME_SIGNAL_COUNT - CDP_NAME_STARTUP)
-
-
-void cdp_signal_initiate(void);
-void cdp_signal_finalize(void);
+bool cdp_action(cdpRecord* instance, cdpSignal* signal);
 
 
 cdpSignal* cdp_signal_new(cdpID nameID, unsigned itemsArg, unsigned itemsRes);
 void cdp_signal_del(cdpSignal* signal);
 void cdp_signal_reset(cdpSignal* signal);
+
+
+bool cdp_action(cdpRecord* instance, cdpSignal* signal);
 
 
 cdpRecord* cdp_create_book(cdpRecord* instance, cdpID nameID, cdpID agentID, unsigned storage, unsigned baseLength);

@@ -72,42 +72,41 @@
     ID represented with text or number, and/or register value following
     the colom. Links are represented by the arrow "->".)
 
-    #### 1. ** /agent/ **
-    The `/agent/` dictionary stores internal information needed by the
+    #### 1. ** /system/ **
+    The `/system/` dictionary stores internal information needed by the
     local record system about agents. It associates their ID with their
     name and available actions.
     - **Example Structure**:
       ```
-      /agent/
+      /system/
           5/
               name:"catalog"
-              parent/
+              assimilate/
                   1 -> /type/3
               collection/
                   add -> "catalog_add()"
                   remove -> "catalog_remove()"
           8/
               name:"log"
-              parent/
+              assimilate/
                   1 -> /type/5
               collection/
                   remove -> "log_remove()"
           9/
               name:"boolean"
-              description: "Boolean value."
               value/
                   0:"false"
                   1:"true"
               size:1
       ```
 
-    #### 2. ** /system/ **
-    The `/system/` dictionary is used for storing connection and link
-    instructions between agents. It is a blueprint for creating agent
-    cascades.
+    #### 2. ** /cascade/ **
+    The `/cascade/` dictionary is used for storing connection and link
+    instructions between agents. It contains blueprints for creating
+    agent cascades.
     - **Example Structure**:
       ```
-      /system/
+      /cascade/
           pipeline01/
               agent001/
                   input/
@@ -239,18 +238,18 @@ static inline cdpRecord* cdp_void(void)  {extern cdpRecord* CDP_VOID; assert(CDP
 
 
 enum {
-    CDP_BOOLEAN_FALSE,
-    CDP_BOOLEAN_TRUE,
+    CDP_VALUE_FALSE,
+    CDP_VALUE_TRUE,
 
-    CDP_BOOLEAN_COUNT
+    CDP_VALUE_BOOLEAN_COUNT
 };
 
 
 // Name IDs:
 enum _cdpNameID {
     // Core directories
-    CDP_NAME_AGENT = CDP_NAME_INITIAL_COUNT,
-    CDP_NAME_SYSTEM,
+    CDP_NAME_SYSTEM = CDP_NAME_INITIAL_COUNT,
+    CDP_NAME_CASCADE,
     CDP_NAME_USER,
     CDP_NAME_PRIVATE,
     CDP_NAME_PUBLIC,
@@ -260,12 +259,14 @@ enum _cdpNameID {
 
     // Basic fields
     CDP_NAME_NAME,
+    CDP_NAME_ASSIMILATE,
     CDP_NAME_SIZE,
-    CDP_NAME_VALUE,
+    CDP_NAME_ENUMERATION,
     //
+    CDP_NAME_AGENT,
     CDP_NAME_ACTION,
-    CDP_NAME_ARGUMENT,
-    CDP_NAME_RETURN,
+    CDP_NAME_INPUT,
+    CDP_NAME_OUTPUT,
     CDP_NAME_ERROR,
 
     CDP_NAME_FLAG_COUNT
@@ -279,21 +280,17 @@ cdpID      cdp_name_id_add(const char* name, bool borrow);
 cdpRecord* cdp_name_id_text(cdpID id);
 
 
-typedef struct {
-    unsigned length;
-    cdpID    assimilate[];
-} cdpAssimilation;
+cdpID cdp_system_set_agent( const char*   name,
+                            size_t        baseSize,
+                            unsigned      assimLenght,
+                            cdpID*        assimilate,
+                            unsigned      numAction,
+                            cdpAction     create,
+                            cdpAction     destroy );
+cdpRecord* cdp_system_get_agent(cdpID id);
 
-cdpID cdp_agent_add(const char* name,
-                    size_t baseSize,
-                    cdpAssimilation assimilation,
-                    cdpAction create,
-                    cdpAction destroy);
-
-bool cdp_agent_add_action(cdpID agentID, cdpID contextID, cdpAction action);
-
-cdpRecord* cdp_agent(cdpID id);
-
+cdpID      cdp_system_set_action(cdpID agentID, const char* name, cdpAction action);
+cdpAction  cdp_system_get_action(cdpID agentID, cdpID actionID);
 
 bool       cdp_system_startup(void);
 bool       cdp_system_step(void);
