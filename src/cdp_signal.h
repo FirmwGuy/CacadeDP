@@ -61,6 +61,7 @@ enum {
     CDP_NAME_INSERT,
     CDP_NAME_FIRST,
     CDP_NAME_LAST,
+    CDP_NAME_TAKE,
     CDP_NAME_POP,
     CDP_NAME_SEARCH,
     CDP_NAME_REMOVE,
@@ -78,6 +79,9 @@ void cdp_signal_finalize(void);
 cdpSignal* cdp_signal_new(cdpID nameID, unsigned itemsArg, unsigned itemsRes);
 void cdp_signal_del(cdpSignal* signal);
 void cdp_signal_reset(cdpSignal* signal);
+
+
+bool cdp_action(cdpRecord* instance, cdpRecord* signal);
 
 
 cdpRecord* cdp_create_book(cdpRecord* instance, cdpID nameID, cdpID agentID, unsigned storage, unsigned baseLength);

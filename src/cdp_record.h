@@ -395,6 +395,7 @@ static inline size_t     cdp_record_siblings(const cdpRecord* record)   {assert(
 
 // Register properties
 static inline bool   cdp_register_is_borrowed(const cdpRecord* reg) {assert(cdp_record_is_register(reg));  return (reg->metadata.storeTech == CDP_STO_REG_BORROWED);}
+static inline void*  cdp_register_data(const cdpRecord* reg)        {assert(cdp_record_is_register(reg));  return reg->recData.reg.data;}
 static inline size_t cdp_register_size(const cdpRecord* reg)        {assert(cdp_record_is_register(reg));  return reg->recData.reg.size;}
 
 // Book properties
@@ -491,6 +492,8 @@ void* cdp_register_write(cdpRecord* reg, size_t position, const void* data, size
 #define cdp_register_update_float32(reg, v) cdp_register_update(reg, &(v), sizeof(float))
 #define cdp_register_update_float64(reg, v) cdp_register_update(reg, &(v), sizeof(double))
 
+static inline void cdp_register_reset(cdpRecord* reg)   {memset(cdp_register_data(reg), 0, cdp_register_size(reg));}
+
 
 // Accessing books
 cdpRecord* cdp_book_first(const cdpRecord* book);   // Gets the first record from book.
@@ -546,7 +549,7 @@ void cdp_record_system_shutdown(void);
     - Use "recData.reg.data.direct" in registers.
     - (Deep) copy registers.
     - Move records.
-    - Implement pop() and pop_last().
+    - Implement cdp_book_take() and cdp_book_pop().
     - Traverse book in internal (stoTech) order.
     - Add indexof for records.
     - Put move "depth" from traverse argument to inside entry structure.

@@ -25,55 +25,52 @@
 #include "cdp_record.h"
 
 
-bool cdp_action(cdpRecord* instance, cdpSignal* signal);
+bool cdp_action_error(cdpRecord* instance, cdpSignal* signal);
 
 
-cdpSignal* cdp_signal_new(cdpID nameID, unsigned itemsArg, unsigned itemsRes);
-void cdp_signal_del(cdpSignal* signal);
-void cdp_signal_reset(cdpSignal* signal);
+/*
+ *    Record actions.
+ */
+bool cdp_action_create_book(cdpRecord* instance, cdpSignal* signal);
+bool cdp_action_create_register(cdpRecord* instance, cdpSignal* signa);
+bool cdp_action_destroy(cdpRecord* instance, cdpSignal* signal);
+bool cdp_action_reset_book(cdpRecord* instance, cdpSignal* signal);
+bool cdp_action_reset_register(cdpRecord* instance, cdpSignal* signal);
+bool cdp_action_free(cdpRecord* instance, cdpSignal* signal);
+bool cdp_action_reference(cdpRecord* instance, cdpSignal* signal);
+bool cdp_action_copy(cdpRecord* instance, cdpSignal* signal);
+bool cdp_action_move(cdpRecord* instance, cdpSignal* signal);
+bool cdp_action_remove(cdpRecord* instance, cdpSignal* signal);
+bool cdp_action_link(cdpRecord* instance, cdpSignal* signal);
+bool cdp_action_next(cdpRecord* instance, cdpSignal* signal);
+bool cdp_action_previous(cdpRecord* instance, cdpSignal* signal);
+bool cdp_action_validate(cdpRecord* instance, cdpSignal* signal);
 
 
-bool cdp_action(cdpRecord* instance, cdpSignal* signal);
+/*
+ *    Register actions.
+ */
+bool cdp_action_serialize(cdpRecord* instance, cdpSignal* signal);
+bool cdp_action_unserialize(cdpRecord* instance, cdpSignal* signal);
+bool cdp_action_textualize(cdpRecord* instance, cdpSignal* signal);
+bool cdp_action_untextualize(cdpRecord* instance, cdpSignal* signal);
+bool cdp_action_read(cdpRecord* instance, cdpSignal* signal);
+bool cdp_action_update(cdpRecord* instance, cdpSignal* signal);
+bool cdp_action_patch(cdpRecord* instance, cdpSignal* signal);
+}
 
 
-cdpRecord* cdp_create_book(cdpRecord* instance, cdpID nameID, cdpID agentID, unsigned storage, unsigned baseLength);
-cdpRecord* cdp_create_register(cdpRecord* instance, cdpID nameID, cdpID agentID, void* data, size_t size);
-
-void cdp_destroy(cdpRecord* instance);
-void cdp_reset(cdpRecord* instance);
-void cdp_free(cdpRecord* instance);
-void cdp_reference(cdpRecord* instance);
-
-cdpRecord* cdp_link(cdpRecord* instance, cdpRecord* newParent, cdpID nameID);
-cdpRecord* cdp_copy(cdpRecord* instance, cdpRecord* newParent, cdpID nameID);
-cdpRecord* cdp_move(cdpRecord* instance, cdpRecord* newParent, cdpID nameID);
-
-cdpRecord* cdp_next(cdpRecord* instance);
-cdpRecord* cdp_previous(cdpRecord* instance);
-
-bool cdp_validate(cdpRecord* instance);
-
-size_t cdp_serialize(cdpRecord* instance, void* data, size_t size);
-bool cdp_unserialize(cdpRecord* instance, void* data, size_t size);
-bool cdp_textualize(cdpRecord* instance, char** data, size_t* length);
-bool cdp_untextualize(cdpRecord* instance, char* data, size_t length);
-
-void* cdp_read(cdpRecord* instance, void** data, size_t* size);
-void* cdp_update(cdpRecord* instance, void* data, size_t size);
-void* cdp_patch(cdpRecord* instance, void* data, size_t size);
-
-cdpRecord* cdp_add(cdpRecord* instance, cdpRecord* book, cdpRecord* record);
-cdpRecord* cdp_prepend(cdpRecord* instance, cdpRecord* book, cdpRecord* record);
-cdpRecord* cdp_insert(cdpRecord* instance, cdpRecord* book, cdpRecord* record);
-
-cdpRecord* cdp_first(cdpRecord* instance);
-cdpRecord* cdp_last(cdpRecord* instance);
-
-cdpRecord* cdp_pop(cdpRecord* instance, bool last);
-cdpRecord* cdp_search(cdpRecord* instance, cdpRecord* book, cdpRecord* key);
-cdpRecord* cdp_remove(cdpRecord* instance, cdpRecord* book, cdpRecord* record);
-
-//void       cdp_sort(cdpRecord* instance);
+/*
+ *    Book actions.
+ */
+bool cdp_action_add(cdpRecord* instance, cdpSignal* signal);
+bool cdp_action_prepend(cdpRecord* instance, cdpSignal* signal);
+bool cdp_action_insert(cdpRecord* instance, cdpSignal* signal);
+bool cdp_action_first(cdpRecord* instance, cdpSignal* signal);
+bool cdp_action_last(cdpRecord* instance, cdpSignal* signal);
+bool cdp_action_take(cdpRecord* instance, cdpSignal* signal);
+bool cdp_action_pop(cdpRecord* instance, cdpSignal* signal);
+bool cdp_action_search(cdpRecord* instance, cdpSignal* signal);
 
 
 #endif

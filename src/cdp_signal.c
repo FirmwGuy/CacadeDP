@@ -132,6 +132,19 @@ void cdp_signal_shutdown(void) {
 
 
 
+/* Executes the associated signal handler for the specified agent instance.
+*/
+bool cdp_action(cdpRecord* instance, cdpRecord* signal) {
+    assert(instance && signal);
+    cdpRecord* agent = cdp_system_get_agent(cdp_record_agent(instance));
+    cdpRecord* actionReg = cdp_book_find_by_name(agent, cdp_record_id(instance));
+    cdpAction* action = cdp_register_read_action(actionReg);
+    return action(instance, signal);
+}
+
+
+
+
 cdpSignal* cdp_signal_new(cdpID nameID, unsigned itemsArg, unsigned itemsRes) {
     CDP_NEW(cdpSignal, signal);
     cdp_record_initialize_dictionary(&signal->input, nameID, CDP_STO_CHD_ARRAY, itemsArg);
@@ -197,7 +210,7 @@ cdpRecord* cdp_create_register(cdpRecord* instance, cdpID nameID, cdpID agentID,
 
     cdp_book_add_id(&SIGNAL_CREATE_REGISTER->input, CDP_NAME_NAME, nameID);
     cdp_book_add_id(&SIGNAL_CREATE_REGISTER->input, CDP_NAME_AGENT, agentID);
-    cdp_book_add_id(&SIGNAL_CREATE_REGISTER->input, CDP_NAME_SIZE, size);
+    cdp_book_add_register(&SIGNAL_CREATE_REGISTER->input, CDP_NAME_SIZE, size);
     if (data)
         cdp_book_add_link(&SIGNAL_CREATE_REGISTER->input, CDP_NAME_DATA, data);
 
