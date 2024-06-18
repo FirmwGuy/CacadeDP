@@ -24,6 +24,11 @@
 
 
 
+bool cdp_action_ignore(cdpRecord* instance, cdpSignal* signal) {
+    return true;
+}
+
+
 bool cdp_action_error(cdpRecord* instance, cdpSignal* signal) {
     cdp_record_initialize_list(&signal->error, CDP_NAME_ERROR, CDP_STO_CHD_LINKED_LIST);
     cdp_book_add_text(&signal->error, "Unsupported action.");
@@ -104,6 +109,7 @@ bool cdp_action_move(cdpRecord* instance, cdpSignal* signal) {
     // Pending...
     return false;
 }
+
 
 bool cdp_action_remove(cdpRecord* instance, cdpSignal* signal) {
     cdpRecord record;

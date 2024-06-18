@@ -25,6 +25,7 @@
 #include "cdp_record.h"
 
 
+bool cdp_action_ignore(cdpRecord* instance, cdpSignal* signal);
 bool cdp_action_error(cdpRecord* instance, cdpSignal* signal);
 
 

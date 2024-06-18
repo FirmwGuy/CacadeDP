@@ -203,7 +203,12 @@ enum {
 
 // Initial agent IDs (for a description see cdp_agent.h):
 enum _cdpAgentID {
+    // Core agents
     CDP_AGENT_VOID,              // This agent does nothing.
+    CDP_AGENT_RECORD,
+    CDP_AGENT_BOOK,
+    CDP_AGENT_REGISTER,
+    CDP_AGENT_LINK,
 
     // Book agents
     CDP_AGENT_DICTIONARY,
@@ -212,7 +217,6 @@ enum _cdpAgentID {
     CDP_AGENT_STACK,
 
     // Register agents
-    CDP_AGENT_BOOLEAN,
     CDP_AGENT_BYTE,
     CDP_AGENT_UINT16,
     CDP_AGENT_UINT32,
@@ -224,11 +228,11 @@ enum _cdpAgentID {
     CDP_AGENT_FLOAT64,
     //
     CDP_AGENT_ID,
-    CDP_AGENT_NAME_ID,
     CDP_AGENT_UTF8,
     CDP_AGENT_PATCH,
     //
-    CDP_AGENT_ACTION,
+    CDP_AGENT_BOOLEAN,
+    CDP_AGENT_NAME_ID,
 
     // Structured agents
     CDP_AGENT_AGENT,

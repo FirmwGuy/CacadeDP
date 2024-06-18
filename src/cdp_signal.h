@@ -39,9 +39,11 @@ enum {
     CDP_NAME_RESET,
     CDP_NAME_FREE,
     CDP_NAME_REFERENCE,
+    //
     CDP_NAME_LINK,
     CDP_NAME_COPY,
     CDP_NAME_MOVE,
+    CDP_NAME_REMOVE,
     CDP_NAME_NEXT,
     CDP_NAME_PREVIOUS,
     CDP_NAME_VALIDATE,
@@ -64,7 +66,6 @@ enum {
     CDP_NAME_TAKE,
     CDP_NAME_POP,
     CDP_NAME_SEARCH,
-    CDP_NAME_REMOVE,
 
     CDP_NAME_SIGNAL_COUNT
 };
@@ -81,9 +82,6 @@ void cdp_signal_del(cdpSignal* signal);
 void cdp_signal_reset(cdpSignal* signal);
 
 
-bool cdp_action(cdpRecord* instance, cdpRecord* signal);
-
-
 cdpRecord* cdp_create_book(cdpRecord* instance, cdpID nameID, cdpID agentID, unsigned storage, unsigned baseLength);
 cdpRecord* cdp_create_register(cdpRecord* instance, cdpID nameID, cdpID agentID, void* data, size_t size);
 
@@ -95,6 +93,7 @@ void cdp_reference(cdpRecord* instance);
 cdpRecord* cdp_link(cdpRecord* instance, cdpRecord* newParent, cdpID nameID);
 cdpRecord* cdp_copy(cdpRecord* instance, cdpRecord* newParent, cdpID nameID);
 cdpRecord* cdp_move(cdpRecord* instance, cdpRecord* newParent, cdpID nameID);
+void cdp_remove(cdpRecord* instance, cdpRecord* record);
 
 cdpRecord* cdp_next(cdpRecord* instance);
 cdpRecord* cdp_previous(cdpRecord* instance);
@@ -117,9 +116,9 @@ cdpRecord* cdp_insert(cdpRecord* instance, cdpRecord* book, cdpRecord* record);
 cdpRecord* cdp_first(cdpRecord* instance);
 cdpRecord* cdp_last(cdpRecord* instance);
 
-cdpRecord* cdp_pop(cdpRecord* instance, bool last);
+cdpRecord* cdp_take(cdpRecord* instance);
+cdpRecord* cdp_pop(cdpRecord* instance);
 cdpRecord* cdp_search(cdpRecord* instance, cdpRecord* book, cdpRecord* key);
-cdpRecord* cdp_remove(cdpRecord* instance, cdpRecord* book, cdpRecord* record);
 
 //void       cdp_sort(cdpRecord* instance);
 
