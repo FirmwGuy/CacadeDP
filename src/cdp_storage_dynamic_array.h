@@ -241,11 +241,34 @@ static inline void array_sort(cdpArray* array, cdpCompare compare, void* context
 }
 
 
+static inline void array_take(cdpArray* array, cdpRecord* target) {
+    assert(array && array->capacity >= array->store.chdCount);
+    cdpRecord* last = &array->record[array->store.chdCount - 1];
+    *target = *last;
+    CDP_0(last);
+}
+
+
+static inline void array_pop(cdpArray* array, cdpRecord* target) {
+    assert(array && array->capacity >= array->store.chdCount);
+    cdpRecord* first = array->record;
+    cdpRecord* last = &array->record[array->store.chdCount - 1];
+    *target = *first;
+    if (first < last) {
+        memmove(first, first + 1, (size_t) cdp_ptr_dif(last, first));
+        array_update_children_parent_ptr(first, last - 1);
+    }
+    CDP_0(last);
+}
+
+
 static inline void array_remove_record(cdpArray* array, cdpRecord* record) {
     assert(array && array->capacity >= array->store.chdCount);
     cdpRecord* last = &array->record[array->store.chdCount - 1];
-    if (record < last)
+    if (record < last) {
         memmove(record, record + 1, (size_t) cdp_ptr_dif(last, record));
+        array_update_children_parent_ptr(record, last - 1);
+    }
     CDP_0(last);
 }
 

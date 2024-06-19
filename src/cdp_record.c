@@ -215,6 +215,23 @@ bool cdp_record_initialize(cdpRecord* record, unsigned type, unsigned attrib, cd
 }
 
 
+cdpRecord* cdp_record_link(cdpRecord* record, cdpRecord* newParent, cdpID nameID) {
+
+}
+
+
+cdpRecord* cdp_record_copy(cdpRecord* record, cdpRecord* newParent, cdpID nameID) {
+
+}
+
+
+cdpRecord* cdp_record_move(cdpRecord* record, cdpRecord* newParent, cdpID nameID) {
+
+}
+
+
+
+
 /*
     Adds/inserts a *copy* of the specified record to a book.
 */
@@ -960,16 +977,89 @@ void cdp_record_finalize(cdpRecord* record, unsigned maxDepth) {
 
 
 /*
+    Removes the last record from a book.
+*/
+bool cdp_book_take(cdpRecord* book, cdpRecord* target) {
+    assert(cdp_record_is_book(book) && target);
+    cdpChdStore* store = CDP_CHD_STORE(book->recData.book.children);
+    if (!store->chdCount)   return false;
+
+    // Remove this record from its parent (re-organizing siblings).
+    STORE_TECH_SELECT(book->metadata.storeTech) {
+      LINKED_LIST: {
+        list_take(book->recData.book.children, target);
+        break;
+      }
+      ARRAY: {
+        array_take(book->recData.book.children, target);
+        break;
+      }
+      PACKED_QUEUE: {
+        packed_q_take(book->recData.book.children, target);
+        break;
+      }
+      RED_BLACK_T: {
+        rb_tree_take(book->recData.book.children, target);
+        break;
+      }
+    } SELECTION_END;
+
+    store->chdCount--;
+
+    return true;
+}
+
+
+/*
+    Removes the first record from a book.
+*/
+bool cdp_book_pop(cdpRecord* book, cdpRecord* target) {
+    assert(cdp_record_is_book(book) && target);
+    cdpChdStore* store = CDP_CHD_STORE(book->recData.book.children);
+    if (!store->chdCount)   return false;
+
+    // Remove this record from its parent (re-organizing siblings).
+    STORE_TECH_SELECT(book->metadata.storeTech) {
+      LINKED_LIST: {
+        list_pop(book->recData.book.children, target);
+        break;
+      }
+      ARRAY: {
+        array_pop(book->recData.book.children, target);
+        break;
+      }
+      PACKED_QUEUE: {
+        packed_q_pop(book->recData.book.children, target);
+        break;
+      }
+      RED_BLACK_T: {
+        rb_tree_pop(book->recData.book.children, target);
+        break;
+      }
+    } SELECTION_END;
+
+    store->chdCount--;
+
+    return true;
+}
+
+
+/*
     Deletes a record and all its children re-organizing (sibling) storage
 */
-bool cdp_record_remove(cdpRecord* record, unsigned maxDepth) {
+bool cdp_record_remove(cdpRecord* record, cdpRecord* target, unsigned maxDepth) {
     assert(record && maxDepth);
     assert(!cdp_record_is_shadowed(record));
     cdpChdStore* store = cdp_record_par_store(record);
     cdpRecord* book = store->book;
 
-    // Delete storage (along children, if any).
-    cdp_record_finalize(record, maxDepth);
+    if (target) {
+        // Save record.
+        *target = *record;
+    } else {
+        // Delete record (along children, if any).
+        cdp_record_finalize(record, maxDepth);
+    }
 
     // Remove this record from its parent (re-organizing siblings).
     STORE_TECH_SELECT(book->metadata.storeTech) {

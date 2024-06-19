@@ -93,7 +93,7 @@ void cdp_reference(cdpRecord* instance);
 cdpRecord* cdp_link(cdpRecord* instance, cdpRecord* newParent, cdpID nameID);
 cdpRecord* cdp_copy(cdpRecord* instance, cdpRecord* newParent, cdpID nameID);
 cdpRecord* cdp_move(cdpRecord* instance, cdpRecord* newParent, cdpID nameID);
-void cdp_remove(cdpRecord* instance, cdpRecord* record);
+void cdp_remove(cdpRecord* instance, cdpRecord* target);
 
 cdpRecord* cdp_next(cdpRecord* instance);
 cdpRecord* cdp_previous(cdpRecord* instance);
@@ -116,8 +116,9 @@ cdpRecord* cdp_insert(cdpRecord* instance, cdpRecord* book, cdpRecord* record);
 cdpRecord* cdp_first(cdpRecord* instance);
 cdpRecord* cdp_last(cdpRecord* instance);
 
-cdpRecord* cdp_take(cdpRecord* instance);
-cdpRecord* cdp_pop(cdpRecord* instance);
+bool cdp_take(cdpRecord* instance, cdpRecord* target);
+bool cdp_pop(cdpRecord* instance, cdpRecord* target);
+
 cdpRecord* cdp_search(cdpRecord* instance, cdpRecord* book, cdpRecord* key);
 
 //void       cdp_sort(cdpRecord* instance);

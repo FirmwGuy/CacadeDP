@@ -194,35 +194,50 @@ static inline bool packed_q_traverse(cdpPackedQ* pkdq, cdpRecord* book, cdpTrave
 }
 
 
-static inline void packed_q_remove_record(cdpPackedQ* pkdq, cdpRecord* record) {
-    if (record == pkdq->pHead->first) {
-        pkdq->pHead->first++;
-        if (pkdq->pHead->first <= pkdq->pHead->last) {
-            CDP_0(record);
-        } else {
-            cdpPackedQNode* pNode = pkdq->pHead;
-            pkdq->pHead = pkdq->pHead->pNext;
-            if (pkdq->pHead)
-                pkdq->pHead->pPrev = NULL;
-            else
-                pkdq->pTail = NULL;
-            packed_q_node_del(pNode);       //ToDo: keep last node for re-use.
-        }
-    } else if (record == pkdq->pTail->last) {
-        pkdq->pTail->last--;
-        if (pkdq->pTail->last >= pkdq->pTail->first) {
-            CDP_0(record);
-        } else {
-            cdpPackedQNode* pNode = pkdq->pTail;
-            pkdq->pTail = pkdq->pTail->pPrev;
-            if (pkdq->pTail)
-                pkdq->pTail->pNext = NULL;
-            else
-                pkdq->pHead = NULL;
-            packed_q_node_del(pNode);
-        }
+static inline void packed_q_take(cdpPackedQ* pkdq, cdpRecord* target) {
+    cdpRecord* last = pkdq->pTail->last;
+    *target = *last;
+    pkdq->pTail->last--;
+    if (pkdq->pTail->last >= pkdq->pTail->first) {
+        CDP_0(last);
     } else {
-        // Only popping (first or last) is allowed for circular buffers.
+        cdpPackedQNode* pNode = pkdq->pTail;
+        pkdq->pTail = pkdq->pTail->pPrev;
+        if (pkdq->pTail)
+            pkdq->pTail->pNext = NULL;
+        else
+            pkdq->pHead = NULL;
+        packed_q_node_del(pNode);
+    }
+}
+
+
+static inline void packed_q_pop(cdpPackedQ* pkdq, cdpRecord* target) {
+    cdpRecord* first = pkdq->pHead->first;
+    *target = *first;
+    pkdq->pHead->first++;
+    if (pkdq->pHead->first <= pkdq->pHead->last) {
+        CDP_0(first);
+    } else {
+        cdpPackedQNode* pNode = pkdq->pHead;
+        pkdq->pHead = pkdq->pHead->pNext;
+        if (pkdq->pHead)
+            pkdq->pHead->pPrev = NULL;
+        else
+            pkdq->pTail = NULL;
+        packed_q_node_del(pNode);       //ToDo: keep last node for re-use.
+    }
+}
+
+
+static inline void packed_q_remove_record(cdpPackedQ* pkdq, cdpRecord* record) {
+    cdpRecord dummy;
+    if (record == pkdq->pHead->first) {
+        packed_q_pop(pkdq, &dummy);
+    } else if (record == pkdq->pTail->last) {
+        packed_q_take(pkdq, &dummy);
+    } else {
+        // Only popping (first or last) is allowed for this.
         assert(record == pkdq->pHead->first || record == pkdq->pTail->last);
     }
 }

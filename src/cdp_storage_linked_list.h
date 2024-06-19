@@ -238,6 +238,40 @@ static inline void list_sort(cdpList* list, cdpCompare compare, void* context) {
 }
 
 
+static inline void list_take(cdpList* list, cdpRecord* target) {
+    assert(list && list->tail);
+    cdpListNode* node = list->tail;
+    cdpListNode* prev = node->prev;
+
+    // Unlink node.
+    list->tail = prev;
+    if (prev)
+        prev->next = NULL;
+    else
+        list->head = NULL;
+
+    *target = node->record;
+    cdp_free(node);
+}
+
+
+static inline void list_pop(cdpList* list, cdpRecord* target) {
+    assert(list && list->head);
+    cdpListNode* node = list->head;
+    cdpListNode* next = node->next;
+
+    // Unlink node.
+    list->head = next;
+    if (next)
+        next->prev = NULL;
+    else
+        list->tail = NULL;
+
+    *target = node->record;
+    cdp_free(node);
+}
+
+
 static inline void list_remove_record(cdpList* list, cdpRecord* record) {
     assert(list && list->head);
     cdpListNode* node = list_node_from_record(record);

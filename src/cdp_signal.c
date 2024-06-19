@@ -138,7 +138,7 @@ void cdp_signal_shutdown(void) {
 cdpSignal* cdp_signal_new(cdpID nameID, unsigned itemsArg, unsigned itemsRes) {
     CDP_NEW(cdpSignal, signal);
     cdp_record_initialize_dictionary(&signal->input, nameID, CDP_STO_CHD_ARRAY, itemsArg);
-    cdp_record_initialize_dictionary(&signal->output, CDP_NAME_CREATE, CDP_STO_CHD_ARRAY, itemsRes); {
+    cdp_record_initialize_dictionary(&signal->output, CDP_NAME_CREATE, CDP_STO_CHD_ARRAY, itemsRes);
     return signal;
 }
 
@@ -296,7 +296,7 @@ cdpRecord* cdp_move(cdpRecord* instance, cdpRecord* newParent, cdpID nameID) {
 }
 
 
-void cdp_remove(cdpRecord* instance, cdpRecord* record) {
+void cdp_remove(cdpRecord* instance, cdpRecord* target) {
     return NULL;
 }
 
@@ -452,12 +452,12 @@ cdpRecord* cdp_last(cdpRecord* instance) {
 }
 
 
-cdpRecord* cdp_take(cdpRecord* instance) {
+bool cdp_take(cdpRecord* instance, cdpRecord* target) {
     return NULL;
 }
 
 
-cdpRecord* cdp_pop(cdpRecord* instance) {
+bool cdp_pop(cdpRecord* instance, cdpRecord* target) {
     return NULL;
 }
 

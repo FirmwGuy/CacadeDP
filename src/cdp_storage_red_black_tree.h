@@ -432,6 +432,20 @@ static inline void rb_tree_remove_record(cdpRbTree* tree, cdpRecord* record) {
 }
 
 
+static inline void rb_tree_take(cdpRbTree* tree, cdpRecord* target) {
+    cdpRecord* last = rb_tree_last(tree);
+    *target = last->record;
+    rb_tree_remove_record(tree, last);
+}
+
+
+static inline void rb_tree_pop(cdpRbTree* tree, cdpRecord* target) {
+    cdpRecord* first = rb_tree_first(tree);
+    *target = first->record;
+    rb_tree_remove_record(tree, first);
+}
+
+
 static inline void rb_tree_del_all_children_recursively(cdpRbTreeNode* tnode, unsigned maxDepth) {
     if (tnode->left)
         rb_tree_del_all_children_recursively(tnode->left, maxDepth);

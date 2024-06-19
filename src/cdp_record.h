@@ -389,6 +389,10 @@ static inline bool cdp_record_is_dictionary(const cdpRecord* record)  {assert(re
 #define cdp_record_id_is_auto(r)    (cdp_record_id(r) < CDP_NAME_FLAG)
 #define cdp_record_id_is_pending(r) (cdp_record_id(r) == CDP_AUTO_ID)
 
+cdpRecord* cdp_record_link(cdpRecord* record, cdpRecord* newParent, cdpID nameID);
+cdpRecord* cdp_record_copy(cdpRecord* record, cdpRecord* newParent, cdpID nameID);
+cdpRecord* cdp_record_move(cdpRecord* record, cdpRecord* newParent, cdpID nameID);
+
 
 // Parent properties
 #define CDP_CHD_STORE(children)         ({assert(children);  (cdpChdStore*)(children);})
@@ -428,7 +432,6 @@ static inline cdpRecord* cdp_book_add_text(cdpRecord* book, unsigned attrib, cdp
     static inline cdpRecord* cdp_book_add_##func(cdpRecord* book, cdpID id, ctype value)    {assert(cdp_record_is_book(book));  return cdp_book_add_register(book, 0, id, rtype, false, &value, sizeof(value));}\
     static inline cdpRecord* cdp_book_prepend_##func(cdpRecord* book, cdpID id, ctype value){assert(cdp_book_is_prependable(book));  return cdp_book_prepend_register(book, 0, id, rtype, false, &value, sizeof(value));}
 
-    CDP_FUNC_ADD_VAL_(boolean, uint8_t,  CDP_AGENT_BOOLEAN)
     CDP_FUNC_ADD_VAL_(byte,    uint8_t,  CDP_AGENT_BYTE)
     CDP_FUNC_ADD_VAL_(uint16,  uint16_t, CDP_AGENT_UINT16)
     CDP_FUNC_ADD_VAL_(uint32,  uint32_t, CDP_AGENT_UINT32)
@@ -440,6 +443,7 @@ static inline cdpRecord* cdp_book_add_text(cdpRecord* book, unsigned attrib, cdp
     CDP_FUNC_ADD_VAL_(float64, double,   CDP_AGENT_FLOAT64)
 
     CDP_FUNC_ADD_VAL_(id, cdpID, CDP_AGENT_ID)
+    CDP_FUNC_ADD_VAL_(boolean, uint8_t,  CDP_AGENT_BOOLEAN)
     CDP_FUNC_ADD_VAL_(action, cdpAction, CDP_AGENT_ACTION)
 
 
@@ -470,7 +474,6 @@ void* cdp_register_read(const cdpRecord* reg, size_t position, void* data, size_
 void* cdp_register_write(cdpRecord* reg, size_t position, const void* data, size_t size);   // Writes the data of a register record at position (atomically and it may reallocate memory).
 #define cdp_register_update(reg, data, size)   cdp_register_write(reg, 0, data, size)
 
-#define cdp_register_read_bool(reg)     (*(uint8_t*)cdp_register_read(reg, 0, NULL, NULL))  // ToDo: use recData.reg.data.direct.
 #define cdp_register_read_byte(reg)     (*(uint8_t*)cdp_register_read(reg, 0, NULL, NULL))
 #define cdp_register_read_uint16(reg)   (*(uint16_t*)cdp_register_read(reg, 0, NULL, NULL))
 #define cdp_register_read_uint32(reg)   (*(uint32_t*)cdp_register_read(reg, 0, NULL, NULL))
@@ -482,10 +485,10 @@ void* cdp_register_write(cdpRecord* reg, size_t position, const void* data, size
 #define cdp_register_read_float64(reg)  (*(double*)cdp_register_read(reg, 0, NULL, NULL))
 
 #define cdp_register_read_id(reg) (*(cdpID*)cdp_register_read(reg, 0, NULL, NULL))
+#define cdp_register_read_bool(reg)     (*(uint8_t*)cdp_register_read(reg, 0, NULL, NULL))  // ToDo: use recData.reg.data.direct.
 #define cdp_register_read_utf8(reg) ((const char*)cdp_register_read(reg, 0, NULL, NULL))
 #define cdp_register_read_executable(reg) ((cdpAction)cdp_register_read(reg, 0, NULL, NULL))
 
-#define cdp_register_update_bool(reg, v)    cdp_register_update(reg, &(v), sizeof(uint8_t))
 #define cdp_register_update_byte(reg, v)    cdp_register_update(reg, &(v), sizeof(uint8_t))
 #define cdp_register_update_uint16(reg, v)  cdp_register_update(reg, &(v), sizeof(uint16_t))
 #define cdp_register_update_uint32(reg, v)  cdp_register_update(reg, &(v), sizeof(uint32_t))
@@ -495,6 +498,8 @@ void* cdp_register_write(cdpRecord* reg, size_t position, const void* data, size
 #define cdp_register_update_int64(reg, v)   cdp_register_update(reg, &(v), sizeof(int64_t))
 #define cdp_register_update_float32(reg, v) cdp_register_update(reg, &(v), sizeof(float))
 #define cdp_register_update_float64(reg, v) cdp_register_update(reg, &(v), sizeof(double))
+
+#define cdp_register_update_bool(reg, v)    cdp_register_update(reg, &(v), sizeof(uint8_t))
 
 static inline void cdp_register_reset(cdpRecord* reg)   {memset(cdp_register_data(reg), 0, cdp_register_size(reg));}
 
@@ -517,29 +522,42 @@ cdpRecord* cdp_book_next_by_path(const cdpRecord* start, cdpPath* path, uintptr_
 bool cdp_book_traverse     (cdpRecord* book, cdpTraverse func, void* context, cdpBookEntry* entry);  // Traverses the children of a book record, applying a function to each.
 bool cdp_book_deep_traverse(cdpRecord* book, unsigned maxDepth, cdpTraverse func, cdpTraverse listEnd, void* context, cdpBookEntry* entry);  // Traverses each sub-branch of a book record.
 
+
+// Accessing dictionary
+static inline void* cdp_dict_get_data(cdpRecord* dict, cdpID nameID)    {assert(cdp_record_is_dictionary(dict));  cdpRecord* reg = cdp_book_find_by_name(dict, nameID); assert(cdp_record_is_register(reg)); return cdp_register_data(reg);}
+#define cdp_dict_get_byte(d, id)        (*(uint8_t*)cdp_dict_get_data(d, id))
+#define cdp_dict_get_uint16(d, id)      (*(uint16_t*)cdp_dict_get_data(d, id))
+#define cdp_dict_get_uint32(d, id)      (*(uint32_t*)cdp_dict_get_data(d, id))
+#define cdp_dict_get_uint64(d, id)      (*(uint64_t*)cdp_dict_get_data(d, id))
+#define cdp_dict_get_int16(d, id)       (*(int16_t*)cdp_dict_get_data(d, id))
+#define cdp_dict_get_int32(d, id)       (*(int32_t*)cdp_dict_get_data(d, id))
+#define cdp_dict_get_int64(d, id)       (*(int64_t*)cdp_dict_get_data(d, id))
+#define cdp_dict_get_float32(d, id)     (*(float*)cdp_dict_get_data(d, id))
+#define cdp_dict_get_float64(d, id)     (*(double*)cdp_dict_get_data(d, id))
+
+#define cdp_dict_get_id(d, id)      (*(cdpID*)cdp_dict_get_data(d, id))
+#define cdp_dict_get_bool(d, id)    (*(bool*)cdp_dict_get_data(d, id))
+
+
 // Converts an unsorted book into a sorted one.
 void cdp_book_to_dictionary(cdpRecord* book);
 
 
 // Removing records
-bool cdp_record_remove(cdpRecord* record, unsigned maxDepth);   // Deletes a record and all its children re-organizing sibling storage.
-#define cdp_register_remove(reg)   cdp_record_remove(reg, 1)
-#define cdp_book_remove(book)      cdp_record_remove(book, 64)  /* FixMe: compute maxDepth */
+bool cdp_book_take(cdpRecord* book, cdpRecord* target);     // Removes last record.
+bool cdp_book_pop(cdpRecord* book, cdpRecord* target);      // Removes first record.
+
+bool cdp_record_remove(cdpRecord* record, cdpRecord* target, unsigned maxDepth);   // Deletes a record and all its children re-organizing sibling storage.
+#define cdp_register_remove(reg, tgt)   cdp_record_remove(reg, tgt, 1)
+#define cdp_register_delete(reg)        cdp_register_remove(reg, NULL)
+#define cdp_book_remove(book, tgt)      cdp_record_remove(book, tgt, 64)  /* FixMe: compute maxDepth */
+#define cdp_book_delete(book)           cdp_book_remove(book, NULL)
 size_t cdp_book_reset(cdpRecord* book, unsigned maxDepth);      // Deletes all children of a book or dictionary.
 
 
 // To manage concurrent access to records safely.
 bool cdp_record_lock(cdpRecord* record);
 bool cdp_record_unlock(cdpRecord* record);
-
-// Moves a record from one book to another.
-bool cdp_record_move(cdpRecord* record, cdpRecord* newParent);
-
-// Creates a duplicate of a record and adds/inserts it (or pushes it) to a book under id, optionally including its children.
-cdpRecord* cdp_record_add_copy(const cdpRecord* book, cdpID id, cdpRecord* record, bool includeChildren, bool push);
-
-// Creates a new link to a record and adds/inserts it (or pushes it) to a book under id, updating the source record parent list as necessary.
-cdpRecord* cdp_record_add_link(cdpRecord* book, cdpID id, cdpRecord* record, bool push);
 
 
 // Initiate and shutdown record system.
