@@ -99,7 +99,19 @@ bool cdp_action_reference(cdpRecord* instance, cdpSignal* signal) {
 }
 
 
-bool cdp_action_copy(cdpRecord* instance, cdpSignal* signal) {
+bool cdp_action_link(cdpRecord* instance, cdpSignal* signal) {
+    // Pending...
+    return false;
+}
+
+
+bool cdp_action_shadow(cdpRecord* instance, cdpSignal* signal) {
+    // Pending...
+    return false;
+}
+
+
+bool cdp_action_clone(cdpRecord* instance, cdpSignal* signal) {
     // Pending...
     return false;
 }
@@ -116,12 +128,6 @@ bool cdp_action_remove(cdpRecord* instance, cdpSignal* signal) {
     cdp_book_remove(NULL, instance, &record);
     cdp_book_add_record(&signal->output, CDP_NAME_RECORD, &record);
     return true;
-}
-
-
-bool cdp_action_link(cdpRecord* instance, cdpSignal* signal) {
-    // Pending...
-    return false;
 }
 
 

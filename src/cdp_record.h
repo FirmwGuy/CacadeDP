@@ -389,9 +389,21 @@ static inline bool cdp_record_is_dictionary(const cdpRecord* record)  {assert(re
 #define cdp_record_id_is_auto(r)    (cdp_record_id(r) < CDP_NAME_FLAG)
 #define cdp_record_id_is_pending(r) (cdp_record_id(r) == CDP_AUTO_ID)
 
-cdpRecord* cdp_record_link(cdpRecord* record, cdpRecord* newParent, cdpID nameID);
-cdpRecord* cdp_record_copy(cdpRecord* record, cdpRecord* newParent, cdpID nameID);
-cdpRecord* cdp_record_move(cdpRecord* record, cdpRecord* newParent, cdpID nameID);
+
+static inline bool cdp_record_link(cdpRecord* record, cdpRecord* newLink, cdpID nameID) {
+    assert(!cdp_record_is_void(record) && newLink);
+    cdp_record_initialize(newLink, CDP_TYPE_LINK, 0, nameID, CDP_AGENT_LINK, record);
+    return true;
+}
+
+static inline bool cdp_record_shadow(cdpRecord* record, cdpRecord* newShadow, cdpID nameID) {
+    cdp_record_link(record, nameID, newShadow);
+    CDP_RECORD_SET_ATRIBUTE(record, CDP_ATTRIB_SHADOWED);
+    // ToDo: actually shadow the record.
+    return false;
+}
+
+bool cdp_record_clone(cdpRecord* record, cdpRecord* newClone, cdpID nameID);
 
 
 // Parent properties
@@ -399,6 +411,15 @@ cdpRecord* cdp_record_move(cdpRecord* record, cdpRecord* newParent, cdpID nameID
 #define cdp_record_par_store(record)    CDP_CHD_STORE((record)->store)
 static inline cdpRecord* cdp_record_parent  (const cdpRecord* record)   {assert(record);  return CDP_EXPECT_PTR(record->store)? cdp_record_par_store(record)->book: NULL;}
 static inline size_t     cdp_record_siblings(const cdpRecord* record)   {assert(record);  return CDP_EXPECT_PTR(record->store)? cdp_record_par_store(record)->chdCount: 0;}
+
+static inline void cdp_record_transfer(cdpRecord* src, cdpRecord* dst) {
+    assert(!cdp_record_is_void(src) && dst);
+    dst->metadata = src->metadata;
+    dst->recData  = src->recData;
+    dst->store    = NULL;
+    if (cdp_record_is_book(dst))
+        cdp_book_relink_storage(dst);
+}
 
 
 // Register properties
@@ -415,6 +436,8 @@ static inline void  cdp_book_set_auto_id(const cdpRecord* book, cdpID id) {asser
 
 cdpRecord* cdp_book_add_property(cdpRecord* book, cdpRecord* record);
 cdpRecord* cdp_book_get_property(const cdpRecord* book, cdpID id);
+
+void cdp_book_relink_storage(cdpRecord* book);
 
 
 // Appends, inserts or prepends a copy of record into a book.
@@ -537,6 +560,33 @@ static inline void* cdp_dict_get_data(cdpRecord* dict, cdpID nameID)    {assert(
 
 #define cdp_dict_get_id(d, id)      (*(cdpID*)cdp_dict_get_data(d, id))
 #define cdp_dict_get_bool(d, id)    (*(bool*)cdp_dict_get_data(d, id))
+
+
+static inline cdpRecord* cdp_dict_link(cdpRecord* dict, cdpID nameID, cdpRecord* record) {
+    assert(cdp_record_is_dictionary(dict) && !cdp_record_is_void(record));
+    return cdp_book_add(dict, CDP_TYPE_LINK, 0, nameID, CDP_AGENT_LINK, false, record);
+}
+
+static inline cdpRecord* cdp_dict_shadow(cdpRecord* dict, cdpID nameID, cdpRecord* record) {
+    cdpRecord shadow;
+    cdp_record_shadow(record, &shadow, nameID);
+    return cdp_book_add_record(dict, &shadow, false);
+}
+
+static inline cdpRecord* cdp_dict_clone(cdpRecord* dict, cdpID nameID, cdpRecord* record) {
+    assert(cdp_record_is_dictionary(dict) && !cdp_record_is_void(record));
+    cdpRecord clone;
+    cdp_record_clone(record, &clone, nameID);
+    return cdp_book_add_record(dict, &clone, false);
+}
+
+static inline cdpRecord* cdp_dict_move(cdpRecord* dict, cdpID nameID, cdpRecord* record) {
+    assert(cdp_record_is_dictionary(dict) && !cdp_record_is_void(record));
+    cdpRecord moved;
+    cdp_record_remove(record, &moved, 64);      // FixMe.
+    moved.metadata.id = nameID;
+    return cdp_book_add_record(dict, &moved, false);
+}
 
 
 // Converts an unsorted book into a sorted one.

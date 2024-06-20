@@ -41,7 +41,8 @@ enum {
     CDP_NAME_REFERENCE,
     //
     CDP_NAME_LINK,
-    CDP_NAME_COPY,
+    CDP_NAME_SHADOW,
+    CDP_NAME_CLONE,
     CDP_NAME_MOVE,
     CDP_NAME_REMOVE,
     CDP_NAME_NEXT,
@@ -91,7 +92,8 @@ void cdp_free(cdpRecord* instance);
 void cdp_reference(cdpRecord* instance);
 
 cdpRecord* cdp_link(cdpRecord* instance, cdpRecord* newParent, cdpID nameID);
-cdpRecord* cdp_copy(cdpRecord* instance, cdpRecord* newParent, cdpID nameID);
+cdpRecord* cdp_shadow(cdpRecord* instance, cdpRecord* newParent, cdpID nameID);
+cdpRecord* cdp_clone(cdpRecord* instance, cdpRecord* newParent, cdpID nameID);
 cdpRecord* cdp_move(cdpRecord* instance, cdpRecord* newParent, cdpID nameID);
 void cdp_remove(cdpRecord* instance, cdpRecord* target);
 

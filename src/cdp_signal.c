@@ -30,7 +30,8 @@ cdpSignal* SIGNAL_DESTROY;
 cdpSignal* SIGNAL_RESET;
 cdpSignal* SIGNAL_FREE;
 cdpSignal* SIGNAL_REFERENCE;
-cdpSignal* SIGNAL_COPY;
+cdpSignal* SIGNAL_SHADOW;
+cdpSignal* SIGNAL_CLONE;
 cdpSignal* SIGNAL_MOVE;
 cdpSignal* SIGNAL_REMOVE;
 cdpSignal* SIGNAL_LINK;
@@ -108,7 +109,7 @@ void cdp_signal_shutdown(void) {
     cdp_signal_del(SIGNAL_RESET);
     cdp_signal_del(SIGNAL_FREE);
     cdp_signal_del(SIGNAL_REFERENCE);
-    cdp_signal_del(SIGNAL_COPY);
+    cdp_signal_del(SIGNAL_SHADOW);
     cdp_signal_del(SIGNAL_MOVE);
     cdp_signal_del(SIGNAL_REMOVE);
     cdp_signal_del(SIGNAL_LINK);
@@ -250,25 +251,48 @@ void cdp_reference(cdpRecord* instance) {
 }
 
 
-cdpRecord* cdp_copy(cdpRecord* instance, cdpRecord* newParent, cdpID nameID) {
+cdpRecord* cdp_shadow(cdpRecord* instance, cdpRecord* newParent, cdpID nameID) {
     assert(instance && cdp_record_is_book(newParent) && nameID != CDP_NAME_VOID);
 
-    if (!SIGNAL_COPY)
-        SIGNAL_COPY = cdp_signal_new(CDP_NAME_COPY, 2, 1);
+    if (!SIGNAL_SHADOW)
+        SIGNAL_SHADOW = cdp_signal_new(CDP_NAME_SHADOW, 2, 1);
 
-    cdp_book_add_link(&SIGNAL_COPY->input, CDP_NAME_PARENT, newParent);
-    cdp_book_add_id(&SIGNAL_COPY->input, CDP_NAME_NAME, nameID);
+    cdp_book_add_link(&SIGNAL_SHADOW->input, CDP_NAME_PARENT, newParent);
+    cdp_book_add_id(&SIGNAL_SHADOW->input, CDP_NAME_NAME, nameID);
 
     cdpRecord* newRec;
-    if (cdp_system_does_action(instance, SIGNAL_COPY)) {
-        cdpRecord* retLink = cdp_book_find_by_name(&SIGNAL_COPY->output, CDP_NAME_OUTPUT);
+    if (cdp_system_does_action(instance, SIGNAL_SHADOW)) {
+        cdpRecord* retLink = cdp_book_find_by_name(&SIGNAL_SHADOW->output, CDP_NAME_OUTPUT);
         newRec = cdp_link_read_address(retLink);
     } else {
         // ToDo: report error.
-        assert(cdp_record_is_book(&SIGNAL_COPY->error));
+        assert(cdp_record_is_book(&SIGNAL_SHADOW->error));
         newRec = NULL;
     }
-    cdp_signal_reset(SIGNAL_COPY);
+    cdp_signal_reset(SIGNAL_SHADOW);
+    return newRec;
+}
+
+
+cdpRecord* cdp_clone(cdpRecord* instance, cdpRecord* newParent, cdpID nameID) {
+    assert(instance && cdp_record_is_book(newParent) && nameID != CDP_NAME_VOID);
+
+    if (!SIGNAL_CLONE)
+        SIGNAL_CLONE = cdp_signal_new(SIGNAL_CLONE, 2, 1);
+
+    cdp_book_add_link(&SIGNAL_CLONE->input, CDP_NAME_PARENT, newParent);
+    cdp_book_add_id(&SIGNAL_CLONE->input, CDP_NAME_NAME, nameID);
+
+    cdpRecord* newRec;
+    if (cdp_system_does_action(instance, SIGNAL_CLONE)) {
+        cdpRecord* retLink = cdp_book_find_by_name(&SIGNAL_CLONE->output, CDP_NAME_OUTPUT);
+        newRec = cdp_link_read_address(retLink);
+    } else {
+        // ToDo: report error.
+        assert(cdp_record_is_book(&SIGNAL_CLONE->error));
+        newRec = NULL;
+    }
+    cdp_signal_reset(SIGNAL_CLONE);
     return newRec;
 }
 

@@ -60,7 +60,7 @@ static inline int record_compare_by_name(const cdpRecord* restrict key, const cd
     while (0)
 
 
-static inline void book_relink_storage(cdpRecord* book);
+static inline void cdp_book_relink_storage(cdpRecord* book);
 
 
 
@@ -128,10 +128,13 @@ static inline void* book_create_storage(unsigned storage, va_list args) {
 }
 
 
-static inline void book_relink_storage(cdpRecord* book) {
+void cdp_book_relink_storage(cdpRecord* book) {
+    assert(cdp_record_is_book(book));
+
     cdpChdStore* store = book->recData.book.children;
     assert(store);
     store->book = book;         // Re-link book with its own children storage.
+
     store = book->recData.book.property;
     if (store)
         store->book = book;     // Re-link with its own property storage.
@@ -205,8 +208,13 @@ bool cdp_record_initialize(cdpRecord* record, unsigned type, unsigned attrib, cd
         break;
       }
 
-      LINK:
+      LINK: {
+        cdpRecord* target = va_arg(args, cdpRecord*);
+        assert(target);
+        record->recData.link.target = target;
+        record->recData.link.local = true;
         break;
+      }
     } SELECTION_END;
 
     va_end(args);
@@ -215,18 +223,38 @@ bool cdp_record_initialize(cdpRecord* record, unsigned type, unsigned attrib, cd
 }
 
 
-cdpRecord* cdp_record_link(cdpRecord* record, cdpRecord* newParent, cdpID nameID) {
-
-}
 
 
-cdpRecord* cdp_record_copy(cdpRecord* record, cdpRecord* newParent, cdpID nameID) {
+/* Creates a deep copy of record and all its data.
+*/
+bool cdp_record_clone(cdpRecord* record, cdpRecord* newClone, cdpID nameID) {
+    assert(!cdp_record_is_void(record) && newClone);
 
-}
+    newClone->metadata = record->metadata;
+    newClone->recData  = record->recData;
+    newClone->store    = NULL;
 
+    RECORD_PRIMAL_SELECT(cdp_record_type(newClone)) {
+      BOOK: {
+        // Clone children: Pending!
+        assert(!cdp_record_is_book(record))
+        return false;
+      }
 
-cdpRecord* cdp_record_move(cdpRecord* record, cdpRecord* newParent, cdpID nameID) {
+      REGISTER: {
+        // Clone data: Pending!
+        assert(!cdp_record_is_register(record))
+        return false;
+      }
 
+      LINK: {
+        // Clone shadowing: Pending!
+        assert(!cdp_record_is_link(record))
+        return false;
+      }
+    } SELECTION_END;
+
+    return false;
 }
 
 
@@ -263,13 +291,13 @@ cdpRecord* cdp_book_add_record(cdpRecord* book, cdpRecord* record, bool prepend)
       }
     } SELECTION_END;
 
-    CDP_0(record);
+    CDP_0(record);      // This avoids deleting children during move operations.
 
     // Update child.
     child->store = store;
 
     if (cdp_record_is_book(child))
-        book_relink_storage(child);
+        cdp_book_relink_storage(child);
 
     // Update parent.
     store->chdCount++;
@@ -314,7 +342,7 @@ cdpRecord* cdp_book_sorted_insert(cdpRecord* book, cdpRecord* record, cdpCompare
     child->store = store;
 
     if (cdp_record_is_book(child))
-        book_relink_storage(child);
+        cdp_book_relink_storage(child);
 
     // Update parent.
     store->chdCount++;
@@ -344,7 +372,7 @@ cdpRecord* cdp_book_add_property(cdpRecord* book, cdpRecord* record) {
     child->store = &propTree->store;
 
     if (cdp_record_is_book(child))
-        book_relink_storage(child);
+        cdp_book_relink_storage(child);
 
     // Update parent.
     propTree->store.chdCount++;

@@ -250,7 +250,7 @@ static inline void list_take(cdpList* list, cdpRecord* target) {
     else
         list->head = NULL;
 
-    *target = node->record;
+    cdp_record_transfer(&node->record, target);
     cdp_free(node);
 }
 
@@ -267,7 +267,7 @@ static inline void list_pop(cdpList* list, cdpRecord* target) {
     else
         list->tail = NULL;
 
-    *target = node->record;
+    cdp_record_transfer(&node->record, target);
     cdp_free(node);
 }
 

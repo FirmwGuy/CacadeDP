@@ -235,7 +235,8 @@ static void system_initiate(void) {
     cdp_system_set_action_by_id(recordID, CDP_NAME_REFERENCE, cdp_action_reference);
 
     cdp_system_set_action_by_id(recordID, CDP_NAME_LINK, cdp_action_link);
-    cdp_system_set_action_by_id(recordID, CDP_NAME_COPY, cdp_action_copy);
+    cdp_system_set_action_by_id(recordID, CDP_NAME_SHADOW, cdp_action_shadow);
+    cdp_system_set_action_by_id(recordID, CDP_NAME_CLONE, cdp_action_clone);
     cdp_system_set_action_by_id(recordID, CDP_NAME_MOVE, cdp_action_move);
     cdp_system_set_action_by_id(recordID, CDP_NAME_REMOVE, cdp_action_remove);
 

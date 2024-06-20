@@ -74,7 +74,7 @@ static inline cdpRecord* array_search(cdpArray* array, const void* key, cdpCompa
 static inline void array_update_children_parent_ptr(cdpRecord* record, cdpRecord* last) {
     for (;  record <= last;  record++) {
         if (cdp_record_is_book(record))
-            book_relink_storage(record);
+            cdp_book_relink_storage(record);
     }
 }
 
@@ -244,7 +244,7 @@ static inline void array_sort(cdpArray* array, cdpCompare compare, void* context
 static inline void array_take(cdpArray* array, cdpRecord* target) {
     assert(array && array->capacity >= array->store.chdCount);
     cdpRecord* last = &array->record[array->store.chdCount - 1];
-    *target = *last;
+    cdp_record_transfer(last, target);
     CDP_0(last);
 }
 
@@ -253,7 +253,7 @@ static inline void array_pop(cdpArray* array, cdpRecord* target) {
     assert(array && array->capacity >= array->store.chdCount);
     cdpRecord* first = array->record;
     cdpRecord* last = &array->record[array->store.chdCount - 1];
-    *target = *first;
+    cdp_record_transfer(first, target);
     if (first < last) {
         memmove(first, first + 1, (size_t) cdp_ptr_dif(last, first));
         array_update_children_parent_ptr(first, last - 1);

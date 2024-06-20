@@ -196,7 +196,7 @@ static inline bool packed_q_traverse(cdpPackedQ* pkdq, cdpRecord* book, cdpTrave
 
 static inline void packed_q_take(cdpPackedQ* pkdq, cdpRecord* target) {
     cdpRecord* last = pkdq->pTail->last;
-    *target = *last;
+    cdp_record_transfer(last, target);
     pkdq->pTail->last--;
     if (pkdq->pTail->last >= pkdq->pTail->first) {
         CDP_0(last);
@@ -214,7 +214,7 @@ static inline void packed_q_take(cdpPackedQ* pkdq, cdpRecord* target) {
 
 static inline void packed_q_pop(cdpPackedQ* pkdq, cdpRecord* target) {
     cdpRecord* first = pkdq->pHead->first;
-    *target = *first;
+    cdp_record_transfer(first, target);
     pkdq->pHead->first++;
     if (pkdq->pHead->first <= pkdq->pHead->last) {
         CDP_0(first);
