@@ -213,7 +213,7 @@ static void test_records_tech_book(unsigned storage) {
     cdpRecord* chdBook = cdp_book_add_book(book, CDP_NAME_TEMP, CDP_TYPE_BOOK, storage, 20);
     reg = cdp_book_prepend_uint32(chdBook, CDP_NAME_ENUMERATION-30, value);
     test_records_register_val(reg, value);
-    assert_true(cdp_book_deep_traverse(book, 3, print_values, NULL, NULL, NULL));
+    assert_true(cdp_book_deep_traverse(book, print_values, NULL, NULL, NULL));
 
     cdp_book_delete(book);
 }
@@ -294,7 +294,7 @@ static void test_records_tech_dictionary(unsigned storage) {
     cdpRecord* chdDict = cdp_book_add_dictionary(dict, CDP_NAME_TEMP-2000, storage, 20);
     reg = cdp_book_add_uint32(chdDict, CDP_NAME_ENUMERATION, value);
     test_records_register_val(reg, value);
-    assert_true(cdp_book_deep_traverse(dict, 3, print_values, NULL, NULL, NULL));
+    assert_true(cdp_book_deep_traverse(dict, print_values, NULL, NULL, NULL));
 
     cdp_book_delete(dict);
 }
@@ -396,7 +396,7 @@ static void test_records_tech_catalog(unsigned storage) {
     }
 
     /* Nested books */
-    assert_true(cdp_book_deep_traverse(cat, 8, print_values, NULL, NULL, NULL));
+    assert_true(cdp_book_deep_traverse(cat, print_values, NULL, NULL, NULL));
 
     cdp_book_delete(cat);
 }
@@ -575,7 +575,7 @@ static void test_records_tech_sequencing_catalog(void) {
         } while (bookL);
     }
 
-    cdp_record_finalize(&key, 4);
+    cdp_record_finalize(&key);
 
     cdp_book_delete(catT);
     cdp_book_delete(catA);

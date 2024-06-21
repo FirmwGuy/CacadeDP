@@ -174,12 +174,13 @@ static inline cdpRecord* packed_q_next_by_name(cdpPackedQ* pkdq, cdpID id, cdpPa
 
 static inline bool packed_q_traverse(cdpPackedQ* pkdq, cdpRecord* book, cdpTraverse func, void* context, cdpBookEntry* entry) {
     entry->parent = book;
+    entry->depth  = 0;
     cdpPackedQNode* pNode = pkdq->pHead;
     do {
         entry->next = pNode->first;
         do {
             if (entry->record) {
-                if (!func(entry, 0, context))
+                if (!func(entry, context))
                     return false;
                 entry->position++;
                 entry->prev = entry->record;
@@ -190,7 +191,7 @@ static inline bool packed_q_traverse(cdpPackedQ* pkdq, cdpRecord* book, cdpTrave
         pNode = pNode->pNext;
     } while (pNode);
     entry->next = NULL;
-    return func(entry, 0, context);
+    return func(entry, context);
 }
 
 
@@ -243,12 +244,12 @@ static inline void packed_q_remove_record(cdpPackedQ* pkdq, cdpRecord* record) {
 }
 
 
-static inline void packed_q_del_all_children(cdpPackedQ* pkdq, unsigned maxDepth) {
+static inline void packed_q_del_all_children(cdpPackedQ* pkdq) {
     cdpPackedQNode* pNode = pkdq->pHead, *toDel;
     if (pNode) {
         do {
             for (cdpRecord* record = pNode->first;  record <= pNode->last;  record++) {
-                cdp_record_finalize(record, maxDepth - 1);
+                cdp_record_finalize(record);
             }
             toDel = pNode;
             pNode = pNode->pNext;

@@ -212,11 +212,12 @@ static inline cdpRecord* array_next_by_name(cdpArray* array, cdpID id, uintptr_t
 static inline bool array_traverse(cdpArray* array, cdpRecord* book, cdpTraverse func, void* context, cdpBookEntry* entry) {
     assert(array && array->capacity >= array->store.chdCount);
     entry->parent = book;
+    entry->depth  = 0;
     entry->next   = array->record;
     cdpRecord* last = &array->record[array->store.chdCount - 1];
     do {
         if (entry->record) {
-            if (!func(entry, 0, context))
+            if (!func(entry, context))
                 return false;
             entry->position++;
             entry->prev = entry->record;
@@ -225,7 +226,7 @@ static inline bool array_traverse(cdpArray* array, cdpRecord* book, cdpTraverse 
         entry->next++;
     } while (entry->next <= last);
     entry->next = NULL;
-    return func(entry, 0, context);
+    return func(entry, context);
 }
 
 
@@ -273,10 +274,10 @@ static inline void array_remove_record(cdpArray* array, cdpRecord* record) {
 }
 
 
-static inline void array_del_all_children(cdpArray* array, unsigned maxDepth) {
+static inline void array_del_all_children(cdpArray* array) {
     cdpRecord* child = array->record;
     for (size_t n = 0; n < array->store.chdCount; n++, child++) {
-        cdp_record_finalize(child, maxDepth - 1);
+        cdp_record_finalize(child);
         CDP_0(child);   // ToDo: this may be skipped.
     }
 }

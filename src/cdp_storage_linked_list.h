@@ -186,12 +186,13 @@ static inline cdpRecord* list_next_by_name(cdpList* list, cdpID id, cdpListNode*
 
 static inline bool list_traverse(cdpList* list, cdpRecord* book, cdpTraverse func, void* context, cdpBookEntry* entry) {
     entry->parent = book;
+    entry->depth  = 0;
     cdpListNode* node = list->head, *next;
     do {
         next = node->next;
         entry->record = &node->record;
         entry->next = next? &next->record: NULL;
-        if (!func(entry, 0, context))
+        if (!func(entry, context))
             return false;
         entry->position++;
         entry->prev = entry->record;
@@ -288,11 +289,11 @@ static inline void list_remove_record(cdpList* list, cdpRecord* record) {
 }
 
 
-static inline void list_del_all_children(cdpList* list, unsigned maxDepth) {
+static inline void list_del_all_children(cdpList* list) {
     cdpListNode* node = list->head, *toDel;
     if (node) {
         do {
-            cdp_record_finalize(&node->record, maxDepth - 1);
+            cdp_record_finalize(&node->record);
             toDel = node;
             node = node->next;
             cdp_free(toDel);

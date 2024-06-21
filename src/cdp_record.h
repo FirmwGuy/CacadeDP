@@ -341,9 +341,10 @@ typedef struct {
     cdpRecord*  next;
     cdpRecord*  prev;
     size_t      position;
+    unsigned    depth;
 } cdpBookEntry;
 
-typedef bool (*cdpTraverse)(cdpBookEntry*, unsigned, void*);
+typedef bool (*cdpTraverse)(cdpBookEntry*, void*);
 
 typedef struct {
     cdpRecord  input;       // Dictionary.
@@ -359,14 +360,14 @@ typedef bool (*cdpAction)(cdpRecord* instance, cdpSignal* signal);
  */
 
 bool cdp_record_initialize(cdpRecord* record, unsigned type, unsigned attrib, cdpID id, cdpID agent, ...);
-void cdp_record_finalize(cdpRecord* record, unsigned maxDepth);
+void cdp_record_finalize(cdpRecord* record);
 
 #define cdp_record_initialize_list(r, id, chdStorage, ...)        cdp_record_initialize(r, CDP_TYPE_BOOK, 0, id, CDP_AGENT_LIST,       ((unsigned)(chdStorage)), ##__VA_ARGS__)
 #define cdp_record_initialize_queue(r, id, chdStorage, ...)       cdp_record_initialize(r, CDP_TYPE_BOOK, 0, id, CDP_AGENT_QUEUE,      ((unsigned)(chdStorage)), ##__VA_ARGS__)
 #define cdp_record_initialize_stack(r, id, chdStorage, ...)       cdp_record_initialize(r, CDP_TYPE_BOOK, 0, id, CDP_AGENT_STACK,      ((unsigned)(chdStorage)), ##__VA_ARGS__)
 #define cdp_record_initialize_dictionary(r, id, chdStorage, ...)  cdp_record_initialize(r, CDP_TYPE_BOOK, 0, id, CDP_AGENT_DICTIONARY, ((unsigned)(chdStorage)), ##__VA_ARGS__)
 
-#define CDP_RECORD_SET_ATRIBUTE(r, attrib)     ((r)->metadata.attrib |= (attrib))
+#define CDP_RECORD_SET_ATRIBUTE(r, a)   ((r)->metadata.attribute |= (a))
 
 // General property check
 static inline cdpID cdp_record_attributes(const cdpRecord* record)  {assert(record);  return record->metadata.attribute;}
@@ -397,7 +398,7 @@ static inline bool cdp_record_link(cdpRecord* record, cdpRecord* newLink, cdpID 
 }
 
 static inline bool cdp_record_shadow(cdpRecord* record, cdpRecord* newShadow, cdpID nameID) {
-    cdp_record_link(record, nameID, newShadow);
+    cdp_record_link(record, newShadow, nameID);
     CDP_RECORD_SET_ATRIBUTE(record, CDP_ATTRIB_SHADOWED);
     // ToDo: actually shadow the record.
     return false;
@@ -412,6 +413,8 @@ bool cdp_record_clone(cdpRecord* record, cdpRecord* newClone, cdpID nameID);
 static inline cdpRecord* cdp_record_parent  (const cdpRecord* record)   {assert(record);  return CDP_EXPECT_PTR(record->store)? cdp_record_par_store(record)->book: NULL;}
 static inline size_t     cdp_record_siblings(const cdpRecord* record)   {assert(record);  return CDP_EXPECT_PTR(record->store)? cdp_record_par_store(record)->chdCount: 0;}
 
+void cdp_book_relink_storage(cdpRecord* book);
+
 static inline void cdp_record_transfer(cdpRecord* src, cdpRecord* dst) {
     assert(!cdp_record_is_void(src) && dst);
     dst->metadata = src->metadata;
@@ -424,7 +427,7 @@ static inline void cdp_record_transfer(cdpRecord* src, cdpRecord* dst) {
 
 // Register properties
 static inline bool   cdp_register_is_borrowed(const cdpRecord* reg) {assert(cdp_record_is_register(reg));  return (reg->metadata.storeTech == CDP_STO_REG_BORROWED);}
-static inline void*  cdp_register_data(const cdpRecord* reg)        {assert(cdp_record_is_register(reg));  return reg->recData.reg.data;}
+static inline void*  cdp_register_data(const cdpRecord* reg)        {assert(cdp_record_is_register(reg));  return reg->recData.reg.data.ptr;}
 static inline size_t cdp_register_size(const cdpRecord* reg)        {assert(cdp_record_is_register(reg));  return reg->recData.reg.size;}
 
 // Book properties
@@ -467,7 +470,7 @@ static inline cdpRecord* cdp_book_add_text(cdpRecord* book, unsigned attrib, cdp
 
     CDP_FUNC_ADD_VAL_(id, cdpID, CDP_AGENT_ID)
     CDP_FUNC_ADD_VAL_(boolean, uint8_t,  CDP_AGENT_BOOLEAN)
-    CDP_FUNC_ADD_VAL_(action, cdpAction, CDP_AGENT_ACTION)
+    //CDP_FUNC_ADD_VAL_(action, cdpAction, CDP_AGENT_ACTION)
 
 
 #define cdp_book_add_book(b, id, agent, chdStorage, ...)             cdp_book_add(b, CDP_TYPE_BOOK, 0, id, agent, false, ((unsigned)(chdStorage)), ##__VA_ARGS__)
@@ -543,7 +546,19 @@ cdpRecord* cdp_book_next_by_name(const cdpRecord* book, cdpID id, uintptr_t* pre
 cdpRecord* cdp_book_next_by_path(const cdpRecord* start, cdpPath* path, uintptr_t* prev);   // Finds the first/next (unsorted) record based on a path of ids starting from the root or a given book.
 
 bool cdp_book_traverse     (cdpRecord* book, cdpTraverse func, void* context, cdpBookEntry* entry);  // Traverses the children of a book record, applying a function to each.
-bool cdp_book_deep_traverse(cdpRecord* book, unsigned maxDepth, cdpTraverse func, cdpTraverse listEnd, void* context, cdpBookEntry* entry);  // Traverses each sub-branch of a book record.
+bool cdp_book_deep_traverse(cdpRecord* book, cdpTraverse func, cdpTraverse listEnd, void* context, cdpBookEntry* entry);  // Traverses each sub-branch of a book record.
+
+
+// Removing records
+bool cdp_book_take(cdpRecord* book, cdpRecord* target);     // Removes last record.
+bool cdp_book_pop(cdpRecord* book, cdpRecord* target);      // Removes first record.
+
+bool cdp_record_remove(cdpRecord* record, cdpRecord* target);   // Deletes a record and all its children re-organizing sibling storage.
+#define cdp_register_remove(reg, tgt)   cdp_record_remove(reg, tgt)
+#define cdp_register_delete(reg)        cdp_register_remove(reg, NULL)
+#define cdp_book_remove(book, tgt)      cdp_record_remove(book, tgt)
+#define cdp_book_delete(book)           cdp_book_remove(book, NULL)
+size_t cdp_book_reset(cdpRecord* book);     // Deletes all children of a book or dictionary.
 
 
 // Accessing dictionary
@@ -583,7 +598,7 @@ static inline cdpRecord* cdp_dict_clone(cdpRecord* dict, cdpID nameID, cdpRecord
 static inline cdpRecord* cdp_dict_move(cdpRecord* dict, cdpID nameID, cdpRecord* record) {
     assert(cdp_record_is_dictionary(dict) && !cdp_record_is_void(record));
     cdpRecord moved;
-    cdp_record_remove(record, &moved, 64);      // FixMe.
+    cdp_record_remove(record, &moved);
     moved.metadata.id = nameID;
     return cdp_book_add_record(dict, &moved, false);
 }
@@ -591,18 +606,6 @@ static inline cdpRecord* cdp_dict_move(cdpRecord* dict, cdpID nameID, cdpRecord*
 
 // Converts an unsorted book into a sorted one.
 void cdp_book_to_dictionary(cdpRecord* book);
-
-
-// Removing records
-bool cdp_book_take(cdpRecord* book, cdpRecord* target);     // Removes last record.
-bool cdp_book_pop(cdpRecord* book, cdpRecord* target);      // Removes first record.
-
-bool cdp_record_remove(cdpRecord* record, cdpRecord* target, unsigned maxDepth);   // Deletes a record and all its children re-organizing sibling storage.
-#define cdp_register_remove(reg, tgt)   cdp_record_remove(reg, tgt, 1)
-#define cdp_register_delete(reg)        cdp_register_remove(reg, NULL)
-#define cdp_book_remove(book, tgt)      cdp_record_remove(book, tgt, 64)  /* FixMe: compute maxDepth */
-#define cdp_book_delete(book)           cdp_book_remove(book, NULL)
-size_t cdp_book_reset(cdpRecord* book, unsigned maxDepth);      // Deletes all children of a book or dictionary.
 
 
 // To manage concurrent access to records safely.
@@ -620,11 +623,9 @@ void cdp_record_system_shutdown(void);
     - Fully define new roles of dictionaries and *_find_by_name() family functions.
     - Use "recData.reg.data.direct" in registers.
     - (Deep) copy registers.
-    - Move records.
-    - Implement cdp_book_take() and cdp_book_pop().
     - Traverse book in internal (stoTech) order.
     - Add indexof for records.
-    - Put move "depth" from traverse argument to inside entry structure.
+    - Update MAX_DEPTH based on path/traverse operations.
     - Add cdp_book_update_nested_links(old, new).
     - CDP_NAME_VOID should never be a valid name for records.
     - If a record is added to a book with its name explicitelly above "auto_id", then it must be updated.

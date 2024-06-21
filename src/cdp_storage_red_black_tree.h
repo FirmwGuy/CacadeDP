@@ -206,6 +206,7 @@ static inline bool rb_tree_traverse(cdpRbTree* tree, cdpRecord* book, unsigned m
   int top = -1;  // Stack index initialized to empty.
 
   entry->parent = book;
+  entry->depth  = 0;
   do {
       if (tnode) {
           assert(top < ((int)maxDepth - 1));
@@ -216,7 +217,7 @@ static inline bool rb_tree_traverse(cdpRbTree* tree, cdpRecord* book, unsigned m
           if (tnodePrev) {
               entry->next = &tnode->record;
               entry->record = &tnodePrev->record;
-              if (!func(entry, 0, context))
+              if (!func(entry, context))
                   return false;
               entry->position++;
               entry->prev = entry->record;
@@ -228,11 +229,11 @@ static inline bool rb_tree_traverse(cdpRbTree* tree, cdpRecord* book, unsigned m
 
   entry->next = NULL;
   entry->record = &tnodePrev->record;
-  return func(entry, 0, context);
+  return func(entry, context);
 }
 
 
-static inline int rb_traverse_func_break_at_name(cdpBookEntry* entry, unsigned u, uintptr_t id) {
+static inline int rb_traverse_func_break_at_name(cdpBookEntry* entry, uintptr_t id) {
     return (entry->record->metadata.id != id);
 }
 
@@ -282,7 +283,7 @@ static inline cdpRecord* rb_tree_find_by_key(cdpRbTree* tree, cdpRecord* key, cd
 }
 
 
-static inline int rb_traverse_func_break_at_position(cdpBookEntry* entry, unsigned u, uintptr_t position) {
+static inline int rb_traverse_func_break_at_position(cdpBookEntry* entry, uintptr_t position) {
     return (entry->position != position);
 }
 
@@ -434,33 +435,33 @@ static inline void rb_tree_remove_record(cdpRbTree* tree, cdpRecord* record) {
 
 static inline void rb_tree_take(cdpRbTree* tree, cdpRecord* target) {
     cdpRecord* last = rb_tree_last(tree);
-    cdp_record_transfer(&last->record, target);
+    cdp_record_transfer(last, target);
     rb_tree_remove_record(tree, last);
 }
 
 
 static inline void rb_tree_pop(cdpRbTree* tree, cdpRecord* target) {
     cdpRecord* first = rb_tree_first(tree);
-    cdp_record_transfer(&first->record, target);
+    cdp_record_transfer(first, target);
     rb_tree_remove_record(tree, first);
 }
 
 
-static inline void rb_tree_del_all_children_recursively(cdpRbTreeNode* tnode, unsigned maxDepth) {
+static inline void rb_tree_del_all_children_recursively(cdpRbTreeNode* tnode) {
     if (tnode->left)
-        rb_tree_del_all_children_recursively(tnode->left, maxDepth);
+        rb_tree_del_all_children_recursively(tnode->left);
 
-    cdp_record_finalize(&tnode->record, maxDepth - 1);
+    cdp_record_finalize(&tnode->record);
 
     if (tnode->right)
-        rb_tree_del_all_children_recursively(tnode->right, maxDepth);
+        rb_tree_del_all_children_recursively(tnode->right);
 
     cdp_free(tnode);
 }
 
-static inline void rb_tree_del_all_children(cdpRbTree* tree, unsigned maxDepth) {
+static inline void rb_tree_del_all_children(cdpRbTree* tree) {
     if (tree->root) {
-        rb_tree_del_all_children_recursively(tree->root, maxDepth);
+        rb_tree_del_all_children_recursively(tree->root);
         tree->root = NULL;
     }
 }

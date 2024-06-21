@@ -25,7 +25,13 @@
 
 
 
+#define CDP_MAX_FAST_STACK_DEPTH  16
+
+unsigned MAX_DEPTH = CDP_MAX_FAST_STACK_DEPTH;     // FixMe: (used by path/traverse) better policy than a global for this.
+
 #define cdpFunc     void*
+
+
 
 
 static inline int record_compare_by_name(const cdpRecord* restrict key, const cdpRecord* restrict rec, void* unused) {
@@ -58,9 +64,6 @@ static inline int record_compare_by_name(const cdpRecord* restrict key, const cd
 
 #define SELECTION_END                                                  \
     while (0)
-
-
-static inline void cdp_book_relink_storage(cdpRecord* book);
 
 
 
@@ -99,7 +102,7 @@ void cdp_record_system_initiate(void) {
     Shutdowns the record system.
 */
 void cdp_record_system_shutdown(void) {
-    cdp_record_finalize(&CDP_ROOT, 64);   // FixMe: maxDepth.
+    cdp_record_finalize(&CDP_ROOT);
 }
 
 
@@ -211,7 +214,7 @@ bool cdp_record_initialize(cdpRecord* record, unsigned type, unsigned attrib, cd
       LINK: {
         cdpRecord* target = va_arg(args, cdpRecord*);
         assert(target);
-        record->recData.link.target = target;
+        record->recData.link.target.address = target;
         record->recData.link.local = true;
         break;
       }
@@ -237,19 +240,19 @@ bool cdp_record_clone(cdpRecord* record, cdpRecord* newClone, cdpID nameID) {
     RECORD_PRIMAL_SELECT(cdp_record_type(newClone)) {
       BOOK: {
         // Clone children: Pending!
-        assert(!cdp_record_is_book(record))
+        assert(!cdp_record_is_book(record));
         return false;
       }
 
       REGISTER: {
         // Clone data: Pending!
-        assert(!cdp_record_is_register(record))
+        assert(!cdp_record_is_register(record));
         return false;
       }
 
       LINK: {
         // Clone shadowing: Pending!
-        assert(!cdp_record_is_link(record))
+        assert(!cdp_record_is_link(record));
         return false;
       }
     } SELECTION_END;
@@ -448,8 +451,6 @@ void* cdp_register_write(cdpRecord* reg, size_t position, const void* data, size
     Constructs the full path (sequence of ids) for a given record, returning the depth.
     The cdpPath structure may be reallocated.
 */
-#define CDP_RECORD_PATH_INITIAL_LENGTH  16
-
 bool cdp_record_path(const cdpRecord* record, cdpPath** path) {
     assert(record && path);
 
@@ -458,8 +459,8 @@ bool cdp_record_path(const cdpRecord* record, cdpPath** path) {
         tempPath = *path;
         assert(tempPath->capacity);
     } else {
-        tempPath = cdp_dyn_malloc(cdpPath, cdpID, CDP_RECORD_PATH_INITIAL_LENGTH);    // FixMe: pre-compute this to be power of 2.
-        tempPath->capacity = CDP_RECORD_PATH_INITIAL_LENGTH;
+        tempPath = cdp_dyn_malloc(cdpPath, cdpID, MAX_DEPTH);
+        tempPath->capacity = MAX_DEPTH;
         *path = tempPath;
     }
     tempPath->length = 0;
@@ -794,10 +795,8 @@ bool cdp_book_traverse(cdpRecord* book, cdpTraverse func, void* context, cdpBook
 /*
     Traverses each child branch and sub-branch of a book record, applying a function to each.
 */
-#define CDP_MAX_FAST_STACK_DEPTH  16
-
-bool cdp_book_deep_traverse(cdpRecord* book, unsigned maxDepth, cdpTraverse func, cdpTraverse endFunc, void* context, cdpBookEntry* entry) {
-    assert(cdp_record_is_book(book) && maxDepth && (func || endFunc));
+bool cdp_book_deep_traverse(cdpRecord* book, cdpTraverse func, cdpTraverse endFunc, void* context, cdpBookEntry* entry) {
+    assert(cdp_record_is_book(book) && (func || endFunc));
     cdpChdStore* store = CDP_CHD_STORE(book->recData.book.children);
     CDP_GO(!store->chdCount);
 
@@ -810,7 +809,8 @@ bool cdp_book_deep_traverse(cdpRecord* book, unsigned maxDepth, cdpTraverse func
     entry->record = cdp_book_first(book);
 
     // Non-recursive version of branch descent:
-    cdpBookEntry* stack = (maxDepth > CDP_MAX_FAST_STACK_DEPTH)?  cdp_malloc(maxDepth * sizeof(cdpBookEntry)):  cdp_alloca(maxDepth * sizeof(cdpBookEntry));
+    size_t stackSize = MAX_DEPTH * sizeof(cdpBookEntry);
+    cdpBookEntry* stack = (MAX_DEPTH > CDP_MAX_FAST_STACK_DEPTH)?  cdp_malloc(stackSize):  cdp_alloca(stackSize);
     for (;;) {
         // Ascend to parent if no more siblings in branch.
         if (!entry->record) {
@@ -818,7 +818,7 @@ bool cdp_book_deep_traverse(cdpRecord* book, unsigned maxDepth, cdpTraverse func
             depth--;
 
             if (endFunc) {
-                ok = endFunc(&stack[depth], depth, context);
+                ok = endFunc(&stack[depth], context);
                 if (!ok)  break;
             }
 
@@ -828,6 +828,7 @@ bool cdp_book_deep_traverse(cdpRecord* book, unsigned maxDepth, cdpTraverse func
             entry->prev     = stack[depth].record;
             entry->next     = NULL;
             entry->position = stack[depth].position + 1;
+            entry->depth    = depth;
             continue;
         }
 
@@ -853,14 +854,14 @@ bool cdp_book_deep_traverse(cdpRecord* book, unsigned maxDepth, cdpTraverse func
         } SELECTION_END;
 
         if (func) {
-            ok = func(entry, depth, context);
+            ok = func(entry, context);
             if (!ok)  break;
         }
 
         // Descent to children if it's a book.
         if (cdp_record_is_book(entry->record)
         && ((child = cdp_book_first(entry->record)))) {
-            assert(depth < maxDepth);
+            assert(depth < MAX_DEPTH);
 
             stack[depth++]  = *entry;
 
@@ -868,6 +869,7 @@ bool cdp_book_deep_traverse(cdpRecord* book, unsigned maxDepth, cdpTraverse func
             entry->record   = child;
             entry->prev     = NULL;
             entry->position = 0;
+            entry->depth    = depth;
 
             goto NEXT_SIBLING;
         }
@@ -878,7 +880,7 @@ bool cdp_book_deep_traverse(cdpRecord* book, unsigned maxDepth, cdpTraverse func
         entry->position += 1;
     }
 
-    if (maxDepth > CDP_MAX_FAST_STACK_DEPTH)
+    if (MAX_DEPTH > CDP_MAX_FAST_STACK_DEPTH)
         cdp_free(stack);
 
     return ok;
@@ -950,9 +952,8 @@ void cdp_book_sort(cdpRecord* book, cdpCompare compare, void* context) {
 /*
     De-initiates a record.
 */
-void cdp_record_finalize(cdpRecord* record, unsigned maxDepth) {
-    assert(!cdp_record_is_void(record) && maxDepth);
-    assert(!cdp_record_is_shadowed(record));
+void cdp_record_finalize(cdpRecord* record) {
+    assert(!cdp_record_is_void(record) && !cdp_record_is_shadowed(record));
 
     // Delete storage (and children).
     RECORD_PRIMAL_SELECT(record->metadata.type) {
@@ -960,25 +961,25 @@ void cdp_record_finalize(cdpRecord* record, unsigned maxDepth) {
         STORE_TECH_SELECT(record->metadata.storeTech) {
           LINKED_LIST: {
             cdpList* list = record->recData.book.children;
-            list_del_all_children(list, maxDepth);
+            list_del_all_children(list);
             list_del(list);
             break;
           }
           ARRAY: {
             cdpArray* array = record->recData.book.children;
-            array_del_all_children(array, maxDepth);
+            array_del_all_children(array);
             array_del(array);
             break;
           }
           PACKED_QUEUE: {
             cdpPackedQ* pkdq = record->recData.book.children;
-            packed_q_del_all_children(pkdq, maxDepth);
+            packed_q_del_all_children(pkdq);
             packed_q_del(pkdq);
             break;
           }
           RED_BLACK_T: {
             cdpRbTree* tree = record->recData.book.children;
-            rb_tree_del_all_children(tree, maxDepth);
+            rb_tree_del_all_children(tree);
             rb_tree_del(tree);
             break;
           }
@@ -986,7 +987,7 @@ void cdp_record_finalize(cdpRecord* record, unsigned maxDepth) {
 
         cdpRbTree* propTree = record->recData.book.property;
         if (propTree) {
-            rb_tree_del_all_children(propTree, maxDepth);
+            rb_tree_del_all_children(propTree);
             rb_tree_del(propTree);
         }
         break;
@@ -1075,9 +1076,8 @@ bool cdp_book_pop(cdpRecord* book, cdpRecord* target) {
 /*
     Deletes a record and all its children re-organizing (sibling) storage
 */
-bool cdp_record_remove(cdpRecord* record, cdpRecord* target, unsigned maxDepth) {
-    assert(record && maxDepth);
-    assert(!cdp_record_is_shadowed(record));
+bool cdp_record_remove(cdpRecord* record, cdpRecord* target) {
+    assert(record && !cdp_record_is_shadowed(record));
     cdpChdStore* store = cdp_record_par_store(record);
     cdpRecord* book = store->book;
 
@@ -1086,7 +1086,7 @@ bool cdp_record_remove(cdpRecord* record, cdpRecord* target, unsigned maxDepth) 
         *target = *record;
     } else {
         // Delete record (along children, if any).
-        cdp_record_finalize(record, maxDepth);
+        cdp_record_finalize(record);
     }
 
     // Remove this record from its parent (re-organizing siblings).
@@ -1118,27 +1118,27 @@ bool cdp_record_remove(cdpRecord* record, cdpRecord* target, unsigned maxDepth) 
 /*
     Deletes all children of a book.
 */
-size_t cdp_book_reset(cdpRecord* book, unsigned maxDepth) {
-    assert(cdp_record_is_book(book) && maxDepth);
+size_t cdp_book_reset(cdpRecord* book) {
+    assert(cdp_record_is_book(book));
     cdpChdStore* store = CDP_CHD_STORE(book->recData.book.children);
     size_t children = store->chdCount;
     CDP_CK(children);
 
     STORE_TECH_SELECT(book->metadata.storeTech) {
       LINKED_LIST: {
-        list_del_all_children(book->recData.book.children, maxDepth);
+        list_del_all_children(book->recData.book.children);
         break;
       }
       ARRAY: {
-        array_del_all_children(book->recData.book.children, maxDepth);
+        array_del_all_children(book->recData.book.children);
         break;
       }
       PACKED_QUEUE: {
-        packed_q_del_all_children(book->recData.book.children, maxDepth);
+        packed_q_del_all_children(book->recData.book.children);
         break;
       }
       RED_BLACK_T: {
-        rb_tree_del_all_children(book->recData.book.children, maxDepth);
+        rb_tree_del_all_children(book->recData.book.children);
         break;
       }
     } SELECTION_END;
