@@ -66,7 +66,7 @@
  * Memory Initialization
  */
 
-#if  defined(CDP_MCU)  ||  (__BYTE_ORDER__ != __ORDER_LITTLE_ENDIAN__)
+#if (__BYTE_ORDER__ != __ORDER_LITTLE_ENDIAN__)
   #error    unsoported target platform!
 #else
   static inline void*   cdp_malloc(size_t z)                   {void* p = malloc(z);       if CDP_RARELY(!p)  abort();  return p;}
@@ -161,20 +161,6 @@ typedef void (*cdpDel)(void*);
 #define     cdp_insd(x, l, u)         ((x) >  (l)  &&  (x)  < (u))
 
 #define     cdp_is_set(v, f)          (((v) & (f)) != 0)
-
-#define     CDP_DEFAULT(x, d)         ({if (!(x)) (x) = (d);  (x);})
-#define     _CDP_TRUNCATE(_, x, _u)   (__builtin_constant_p(_u)?  (((x) > (_u))? ((x) = (_u)): (x))  :  ({CDP_U(_,u, _u);  if ((x) > CDP(_,u)) (x) = CDP(_,u);  (x);}))
-#define     _CDP_PROLONG(_, x, _l)    (__builtin_constant_p(_l)?  (((x) < (_l))? ((x) = (_l)): (x))  :  ({CDP_U(_,l, _l);  if ((x) < CDP(_,l)) (x) = CDP(_,l);  (x);}))
-#define     CDP_TRUNCATE(...)         _CDP_TRUNCATE(__COUNTER__, __VA_ARGS__)
-#define     CDP_PROLONG(...)          _CDP_PROLONG(__COUNTER__, __VA_ARGS__)
-
-
-#define     CDP_IF_DO(e, x, ...)      do{ if (e) {__VA_ARGS__; x;} }while (0)
-#define     CDP_AB(e, ...)            CDP_IF_DO((e), return, ##__VA_ARGS__)
-#define     CDP_CK(e, ...)            CDP_IF_DO(!(e), return 0, ##__VA_ARGS__)
-#define     CDP_GO(e, ...)            CDP_IF_DO((e), return true, ##__VA_ARGS__)
-#define     CDP_ER(e, ...)            CDP_IF_DO((e), goto CDP_ERROR, ##__VA_ARGS__)
-#define     CDP_BR(e, ...)            CDP_IF_DO((e), goto CDP_BREAK, ##__VA_ARGS__)
 
 
 #ifdef NDEBUG

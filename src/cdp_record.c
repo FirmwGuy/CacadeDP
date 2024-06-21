@@ -230,8 +230,8 @@ bool cdp_record_initialize(cdpRecord* record, unsigned type, unsigned attrib, cd
 
 /* Creates a deep copy of record and all its data.
 */
-bool cdp_record_clone(cdpRecord* record, cdpRecord* newClone, cdpID nameID) {
-    assert(!cdp_record_is_void(record) && newClone);
+void cdp_record_initialize_clone(cdpRecord* newClone, cdpID nameID, cdpRecord* record) {
+    assert(newClone && !cdp_record_is_void(record));
 
     newClone->metadata = record->metadata;
     newClone->recData  = record->recData;
@@ -241,23 +241,18 @@ bool cdp_record_clone(cdpRecord* record, cdpRecord* newClone, cdpID nameID) {
       BOOK: {
         // Clone children: Pending!
         assert(!cdp_record_is_book(record));
-        return false;
       }
 
       REGISTER: {
         // Clone data: Pending!
         assert(!cdp_record_is_register(record));
-        return false;
       }
 
       LINK: {
         // Clone shadowing: Pending!
         assert(!cdp_record_is_link(record));
-        return false;
       }
     } SELECTION_END;
-
-    return false;
 }
 
 
@@ -390,7 +385,8 @@ cdpRecord* cdp_book_add_property(cdpRecord* book, cdpRecord* record) {
 cdpRecord* cdp_book_get_property(const cdpRecord* book, cdpID id) {
     assert(cdp_record_is_book(book));
     cdpRbTree* propTree = book->recData.book.property;
-    CDP_CK(propTree && propTree->store.chdCount);
+    if (!propTree || !propTree->store.chdCount)
+        return NULL;
     return rb_tree_find_by_id(propTree, id);
 }
 
@@ -519,7 +515,7 @@ cdpRecord* cdp_book_first(const cdpRecord* book) {
 cdpRecord* cdp_book_last(const cdpRecord* book) {
     assert(cdp_record_is_book(book));
     cdpChdStore* store = CDP_CHD_STORE(book->recData.book.children);
-    CDP_CK(store->chdCount);
+    if (!store->chdCount)   return NULL;
 
     STORE_TECH_SELECT(book->metadata.storeTech) {
       LINKED_LIST: {
@@ -546,7 +542,7 @@ cdpRecord* cdp_book_last(const cdpRecord* book) {
 cdpRecord* cdp_book_find_by_name(const cdpRecord* book, cdpID id) {
     assert(cdp_record_is_book(book));
     cdpChdStore* store = CDP_CHD_STORE(book->recData.book.children);
-    CDP_CK(store->chdCount);
+    if (!store->chdCount)   return NULL;
 
     STORE_TECH_SELECT(book->metadata.storeTech) {
       LINKED_LIST: {
@@ -574,7 +570,7 @@ cdpRecord* cdp_book_find_by_name(const cdpRecord* book, cdpID id) {
 cdpRecord* cdp_book_find_by_key(const cdpRecord* book, cdpRecord* key, cdpCompare compare, void* context) {
     assert(cdp_record_is_book(book) && !cdp_record_is_void(key) && compare);
     cdpChdStore* store = CDP_CHD_STORE(book->recData.book.children);
-    CDP_CK(store->chdCount);
+    if (!store->chdCount)   return NULL;
 
     STORE_TECH_SELECT(book->metadata.storeTech) {
       LINKED_LIST: {
@@ -602,7 +598,7 @@ cdpRecord* cdp_book_find_by_key(const cdpRecord* book, cdpRecord* key, cdpCompar
 cdpRecord* cdp_book_find_by_position(const cdpRecord* book, size_t position) {
     assert(cdp_record_is_book(book));
     cdpChdStore* store = CDP_CHD_STORE(book->recData.book.children);
-    CDP_CK(store->chdCount);
+    if (!store->chdCount)   return NULL;
     assert(position < store->chdCount);
 
     STORE_TECH_SELECT(book->metadata.storeTech) {
@@ -629,7 +625,7 @@ cdpRecord* cdp_book_find_by_position(const cdpRecord* book, size_t position) {
 */
 cdpRecord* cdp_book_find_by_path(const cdpRecord* start, const cdpPath* path) {
     assert(cdp_record_is_book(start) && path && path->length);
-    CDP_CK(cdp_book_children(start));
+    if (!cdp_book_children(start))  return NULL;
     const cdpRecord* record = start;
 
     for (unsigned depth = 0;  depth < path->length;  depth++) {
@@ -657,7 +653,7 @@ cdpRecord* cdp_book_prev(const cdpRecord* book, cdpRecord* record) {
         store = cdp_record_par_store(record);
         book = store->book;
     }
-    CDP_CK(store->chdCount);
+    if (!store->chdCount)   return NULL;
 
     STORE_TECH_SELECT(book->metadata.storeTech) {
       LINKED_LIST: {
@@ -691,7 +687,7 @@ cdpRecord* cdp_book_next(const cdpRecord* book, cdpRecord* record) {
         store = cdp_record_par_store(record);
         book = store->book;
     }
-    CDP_CK(store->chdCount);
+    if (!store->chdCount)   return NULL;
 
     STORE_TECH_SELECT(book->metadata.storeTech) {
       LINKED_LIST: {
@@ -723,7 +719,7 @@ cdpRecord* cdp_book_find_next_by_name(const cdpRecord* book, cdpID id, uintptr_t
         return cdp_book_find_by_name(book, id);
     }
     cdpChdStore* store = CDP_CHD_STORE(book->recData.book.children);
-    CDP_CK(store->chdCount);
+    if (!store->chdCount)   return NULL;
 
     STORE_TECH_SELECT(book->metadata.storeTech) {
       LINKED_LIST: {
@@ -749,7 +745,7 @@ cdpRecord* cdp_book_find_next_by_name(const cdpRecord* book, cdpID id, uintptr_t
 */
 cdpRecord* cdp_book_find_next_by_path(const cdpRecord* start, cdpPath* path, uintptr_t* prev) {
     assert(cdp_record_is_book(start) && path && path->length);
-    CDP_CK(cdp_book_children(start));
+    if (!cdp_book_children(start))  return NULL;
     const cdpRecord* record = start;
 
     for (unsigned depth = 0;  depth < path->length;  depth++) {
@@ -769,7 +765,7 @@ cdpRecord* cdp_book_find_next_by_path(const cdpRecord* start, cdpPath* path, uin
 bool cdp_book_traverse(cdpRecord* book, cdpTraverse func, void* context, cdpBookEntry* entry) {
     assert(cdp_record_is_book(book) && func);
     cdpChdStore* store = CDP_CHD_STORE(book->recData.book.children);
-    CDP_GO(!store->chdCount);
+    if (!store->chdCount) return true;
     if (!entry) entry = cdp_alloca(sizeof(cdpBookEntry));
     CDP_0(entry);
 
@@ -798,7 +794,7 @@ bool cdp_book_traverse(cdpRecord* book, cdpTraverse func, void* context, cdpBook
 bool cdp_book_deep_traverse(cdpRecord* book, cdpTraverse func, cdpTraverse endFunc, void* context, cdpBookEntry* entry) {
     assert(cdp_record_is_book(book) && (func || endFunc));
     cdpChdStore* store = CDP_CHD_STORE(book->recData.book.children);
-    CDP_GO(!store->chdCount);
+    if (!store->chdCount)   return true;
 
     bool ok = true;
     cdpRecord* child;
@@ -893,11 +889,11 @@ bool cdp_book_deep_traverse(cdpRecord* book, cdpTraverse func, cdpTraverse endFu
     Converts an unsorted book into a dictionary.
 */
 void cdp_book_to_dictionary(cdpRecord* book) {
-    CDP_AB(cdp_record_is_dictionary(book));
+    if (!cdp_record_is_dictionary(book))    return;
     cdpChdStore* store = CDP_CHD_STORE(book->recData.book.children);
 
     book->metadata.agent = CDP_AGENT_DICTIONARY;
-    CDP_AB(store->chdCount <= 1);
+    if (store->chdCount <= 1)   return;
 
     STORE_TECH_SELECT(book->metadata.storeTech) {
       LINKED_LIST: {
@@ -925,7 +921,7 @@ void cdp_book_to_dictionary(cdpRecord* book) {
 void cdp_book_sort(cdpRecord* book, cdpCompare compare, void* context) {
     assert(cdp_record_is_book(book) && compare);
     cdpChdStore* store = CDP_CHD_STORE(book->recData.book.children);
-    CDP_AB(store->chdCount <= 1);
+    if (store->chdCount <= 1)   return;
 
     STORE_TECH_SELECT(book->metadata.storeTech) {
       LINKED_LIST: {
@@ -1083,7 +1079,7 @@ bool cdp_record_remove(cdpRecord* record, cdpRecord* target) {
 
     if (target) {
         // Save record.
-        *target = *record;
+        cdp_record_transfer(record, target);
     } else {
         // Delete record (along children, if any).
         cdp_record_finalize(record);
@@ -1118,11 +1114,11 @@ bool cdp_record_remove(cdpRecord* record, cdpRecord* target) {
 /*
     Deletes all children of a book.
 */
-size_t cdp_book_reset(cdpRecord* book) {
+void cdp_book_reset(cdpRecord* book) {
     assert(cdp_record_is_book(book));
     cdpChdStore* store = CDP_CHD_STORE(book->recData.book.children);
     size_t children = store->chdCount;
-    CDP_CK(children);
+    if (!children)  return;
 
     STORE_TECH_SELECT(book->metadata.storeTech) {
       LINKED_LIST: {
@@ -1144,7 +1140,8 @@ size_t cdp_book_reset(cdpRecord* book) {
     } SELECTION_END;
 
     store->chdCount = 0;
-    return children;
+
+    // ToDo: delete all children-related properties.
 }
 
 

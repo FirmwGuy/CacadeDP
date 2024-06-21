@@ -22,7 +22,7 @@
 #define CDP_ACTION_H
 
 
-#include "cdp_record.h"
+#include "cdp_signal.h"
 
 
 bool cdp_action_ignore(cdpRecord* instance, cdpSignal* signal);
@@ -73,6 +73,21 @@ bool cdp_action_last(cdpRecord* instance, cdpSignal* signal);
 bool cdp_action_take(cdpRecord* instance, cdpSignal* signal);
 bool cdp_action_pop(cdpRecord* instance, cdpSignal* signal);
 bool cdp_action_search(cdpRecord* instance, cdpSignal* signal);
+
+#define  action_reg_def_textualize(name)                               \
+    bool cdp_action_textualize(cdpRecord* instance, cdpSignal* signal);\
+    bool cdp_action_untextualize(cdpRecord* instance, cdpSignal* signal)
+
+action_reg_def_textualize(bool);
+action_reg_def_textualize(byte);
+action_reg_def_textualize(uint16);
+action_reg_def_textualize(uint32);
+action_reg_def_textualize(uint64);
+action_reg_def_textualize(int16);
+action_reg_def_textualize(int32);
+action_reg_def_textualize(int64);
+action_reg_def_textualize(float32);
+action_reg_def_textualize(float64);
 
 
 #endif

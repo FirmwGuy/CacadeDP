@@ -87,7 +87,7 @@ bool cdp_action_reset_register(cdpRecord* instance, cdpSignal* signal) {
 }
 
 
-bool cdp_action_free(cdpRecord* instance, cdpSignal* signal) {
+bool cdp_action_unreference(cdpRecord* instance, cdpSignal* signal) {
     // Pending...
     return true;
 }
@@ -264,4 +264,24 @@ bool cdp_action_search(cdpRecord* instance, cdpSignal* signal) {
     return true;
 }
 
+
+
+/*
+ *    Register textualization
+ */
+
+#define  action_reg_textualize(name)                                   \
+    bool cdp_action_textualize(cdpRecord* instance, cdpSignal* signal) {return true;}\
+    bool cdp_action_untextualize(cdpRecord* instance, cdpSignal* signal) {return true;}
+
+action_reg_textualize(bool);
+action_reg_textualize(byte);
+action_reg_textualize(uint16);
+action_reg_textualize(uint32);
+action_reg_textualize(uint64);
+action_reg_textualize(int16);
+action_reg_textualize(int32);
+action_reg_textualize(int64);
+action_reg_textualize(float32);
+action_reg_textualize(float64);
 

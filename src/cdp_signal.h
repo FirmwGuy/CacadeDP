@@ -30,15 +30,15 @@ enum {
     // System signals
     CDP_NAME_STARTUP = CDP_NAME_FLAG_COUNT,
     CDP_NAME_SHUTDOWN,
-    CDP_NAME_CASCADE,
+    //CDP_NAME_CASCADE,
     CDP_NAME_DISCASCADE,
 
     // Record signals
     CDP_NAME_CREATE,
     CDP_NAME_DESTROY,
     CDP_NAME_RESET,
-    CDP_NAME_FREE,
     CDP_NAME_REFERENCE,
+    CDP_NAME_UNREFERENCE,
     //
     CDP_NAME_LINK,
     CDP_NAME_SHADOW,
@@ -88,7 +88,7 @@ cdpRecord* cdp_create_register(cdpRecord* instance, cdpID nameID, cdpID agentID,
 
 void cdp_destroy(cdpRecord* instance);
 void cdp_reset(cdpRecord* instance);
-void cdp_free(cdpRecord* instance);
+void cdp_unreference(cdpRecord* instance);
 void cdp_reference(cdpRecord* instance);
 
 cdpRecord* cdp_link(cdpRecord* instance, cdpRecord* newParent, cdpID nameID);

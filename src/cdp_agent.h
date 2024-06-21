@@ -258,8 +258,8 @@ enum _cdpNameID {
     CDP_NAME_TEMP,
 
     // Basic fields
-    CDP_NAME_NAME,
     CDP_NAME_ASSIMILATE,
+    CDP_NAME_NAME,
     CDP_NAME_SIZE,
     CDP_NAME_ENUMERATION,
     //
@@ -280,7 +280,7 @@ enum _cdpNameID {
 
 cdpID      cdp_name_id_add(const char* name, bool borrow);
 #define    cdp_name_id_add_static(name)   cdp_name_id_add(name, true);
-cdpRecord* cdp_name_id_text(cdpID id);
+cdpRecord* cdp_name_id_text(cdpID nameID);
 
 
 cdpID cdp_system_set_agent( const char*   name,

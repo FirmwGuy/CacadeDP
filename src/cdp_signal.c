@@ -28,7 +28,7 @@ cdpSignal* SIGNAL_CREATE_BOOK;
 cdpSignal* SIGNAL_CREATE_REGISTER;
 cdpSignal* SIGNAL_DESTROY;
 cdpSignal* SIGNAL_RESET;
-cdpSignal* SIGNAL_FREE;
+cdpSignal* SIGNAL_UNREFERENCE;
 cdpSignal* SIGNAL_REFERENCE;
 cdpSignal* SIGNAL_SHADOW;
 cdpSignal* SIGNAL_CLONE;
@@ -66,14 +66,14 @@ void cdp_signal_initiate(void) {
     */
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,     "startup");
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,    "shutdown");
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID,     "cascade");
+    //cdp_book_add_static_text(NAME, CDP_AUTO_ID,     "cascade");
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,   "discascade");
 
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,      "create");
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,     "destroy");
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,       "reset");
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID,        "free");
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,   "reference");
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID, "unreference");
     //
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,        "link");
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,        "copy");
@@ -107,7 +107,7 @@ void cdp_signal_shutdown(void) {
     cdp_signal_del(SIGNAL_CREATE_REGISTER);
     cdp_signal_del(SIGNAL_DESTROY);
     cdp_signal_del(SIGNAL_RESET);
-    cdp_signal_del(SIGNAL_FREE);
+    cdp_signal_del(SIGNAL_UNREFERENCE);
     cdp_signal_del(SIGNAL_REFERENCE);
     cdp_signal_del(SIGNAL_SHADOW);
     cdp_signal_del(SIGNAL_MOVE);
@@ -137,9 +137,12 @@ void cdp_signal_shutdown(void) {
 
 
 cdpSignal* cdp_signal_new(cdpID nameID, unsigned itemsArg, unsigned itemsRes) {
+    assert(itemsArg || itemsRes);
     CDP_NEW(cdpSignal, signal);
-    cdp_record_initialize_dictionary(&signal->input, nameID, CDP_STO_CHD_ARRAY, itemsArg);
-    cdp_record_initialize_dictionary(&signal->output, CDP_NAME_CREATE, CDP_STO_CHD_ARRAY, itemsRes);
+    if (itemsArg)
+        cdp_record_initialize_dictionary(&signal->input, nameID, CDP_STO_CHD_ARRAY, itemsArg);
+    if (itemsRes)
+        cdp_record_initialize_dictionary(&signal->output, nameID, CDP_STO_CHD_ARRAY, itemsRes);
     return signal;
 }
 
@@ -235,11 +238,11 @@ void cdp_reset(cdpRecord* instance) {
 }
 
 
-void cdp_free(cdpRecord* instance) {
-    if (!SIGNAL_FREE)
-        SIGNAL_FREE = cdp_signal_new(CDP_NAME_FREE, 1, 1);
-    cdp_system_does_action(instance, SIGNAL_FREE);
-    //cdp_signal_reset(SIGNAL_FREE);
+void cdp_unreference(cdpRecord* instance) {
+    if (!SIGNAL_UNREFERENCE)
+        SIGNAL_UNREFERENCE = cdp_signal_new(CDP_NAME_UNREFERENCE, 1, 1);
+    cdp_system_does_action(instance, SIGNAL_UNREFERENCE);
+    //cdp_signal_reset(SIGNAL_UNREFERENCE);
 }
 
 
