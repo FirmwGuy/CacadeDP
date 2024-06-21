@@ -28,13 +28,13 @@ cdpSignal* SIGNAL_CREATE_BOOK;
 cdpSignal* SIGNAL_CREATE_REGISTER;
 cdpSignal* SIGNAL_DESTROY;
 cdpSignal* SIGNAL_RESET;
-cdpSignal* SIGNAL_UNREFERENCE;
 cdpSignal* SIGNAL_REFERENCE;
+cdpSignal* SIGNAL_UNREFERENCE;
+cdpSignal* SIGNAL_LINK;
 cdpSignal* SIGNAL_SHADOW;
 cdpSignal* SIGNAL_CLONE;
 cdpSignal* SIGNAL_MOVE;
 cdpSignal* SIGNAL_REMOVE;
-cdpSignal* SIGNAL_LINK;
 cdpSignal* SIGNAL_NEXT;
 cdpSignal* SIGNAL_PREVIOUS;
 cdpSignal* SIGNAL_VALIDATE;
@@ -76,7 +76,8 @@ void cdp_signal_initiate(void) {
     cdp_book_add_static_text(NAME, CDP_AUTO_ID, "unreference");
     //
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,        "link");
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID,        "copy");
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID,      "shadow");
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID,       "clone");
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,        "move");
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,      "remove");
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,        "next");
@@ -107,12 +108,13 @@ void cdp_signal_shutdown(void) {
     cdp_signal_del(SIGNAL_CREATE_REGISTER);
     cdp_signal_del(SIGNAL_DESTROY);
     cdp_signal_del(SIGNAL_RESET);
-    cdp_signal_del(SIGNAL_UNREFERENCE);
     cdp_signal_del(SIGNAL_REFERENCE);
+    cdp_signal_del(SIGNAL_UNREFERENCE);
+    cdp_signal_del(SIGNAL_LINK);
     cdp_signal_del(SIGNAL_SHADOW);
+    cdp_signal_del(SIGNAL_CLONE);
     cdp_signal_del(SIGNAL_MOVE);
     cdp_signal_del(SIGNAL_REMOVE);
-    cdp_signal_del(SIGNAL_LINK);
     cdp_signal_del(SIGNAL_NEXT);
     cdp_signal_del(SIGNAL_PREVIOUS);
     cdp_signal_del(SIGNAL_VALIDATE);
@@ -151,8 +153,8 @@ void cdp_signal_del(cdpSignal* signal) {
     assert(signal);
     cdp_record_finalize(&signal->input);
     cdp_record_finalize(&signal->output);
-    if (!cdp_record_is_void(&signal->error))
-        cdp_record_finalize(&signal->error);
+    if (!cdp_record_is_void(&signal->condition))
+        cdp_record_finalize(&signal->condition);
     cdp_free(signal);
 }
 
@@ -160,9 +162,9 @@ void cdp_signal_del(cdpSignal* signal) {
 void cdp_signal_reset(cdpSignal* signal) {
     cdp_book_reset(&signal->input);
     cdp_book_reset(&signal->output);
-    if (!cdp_record_is_void(&signal->error)) {
-        cdp_record_finalize(&signal->error);
-        CDP_0(&signal->error);
+    if (!cdp_record_is_void(&signal->condition)) {
+        cdp_record_finalize(&signal->condition);
+        CDP_0(&signal->condition);
     }
 }
 
@@ -173,7 +175,7 @@ void cdp_signal_reset(cdpSignal* signal) {
 cdpRecord* cdp_create_book(cdpRecord* instance, cdpID nameID, cdpID agentID, unsigned storage, unsigned baseLength) {
     assert(instance  &&  nameID != CDP_NAME_VOID  &&  agentID  &&  storage < CDP_STO_CHD_COUNT);
 
-    if (!SIGNAL_CREATE_BOOK)    // ToDo: store signal in a system queue and pause calling task.
+    if (!SIGNAL_CREATE_BOOK) {   // ToDo: store signal in a system queue and pause calling task.
         SIGNAL_CREATE_BOOK = cdp_signal_new(CDP_NAME_CREATE, 4, 1);
 
     cdp_book_add_id(&SIGNAL_CREATE_BOOK->input, CDP_NAME_NAME, nameID);

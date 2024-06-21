@@ -30,7 +30,7 @@ bool cdp_action_ignore(cdpRecord* instance, cdpSignal* signal) {
 
 
 bool cdp_action_error(cdpRecord* instance, cdpSignal* signal) {
-    cdp_record_initialize_list(&signal->error, CDP_NAME_ERROR, CDP_STO_CHD_LINKED_LIST);
+    cdp_record_initialize_list(&signal->condition, CDP_NAME_ERROR, CDP_STO_CHD_LINKED_LIST);
     cdp_book_add_text(&signal->error, "Unsupported action.");
     return false;
 }
@@ -56,7 +56,7 @@ bool cdp_action_create_book(cdpRecord* instance, cdpSignal* signal) {
 }
 
 
-bool cdp_action_create_register(cdpRecord* instance, cdpSignal* signa) {
+bool cdp_action_create_register(cdpRecord* instance, cdpSignal* signal) {
     cdpID    nameID     = cdp_dict_get_id    (&signal->input, CDP_NAME_NAME);
     cdpID    agentID    = cdp_dict_get_id    (&signal->input, CDP_NAME_AGENT);
     size_t      size    = cdp_register_size(&signal->input, );
@@ -64,6 +64,19 @@ bool cdp_action_create_register(cdpRecord* instance, cdpSignal* signa) {
     assert(instance  &&  nameID != CDP_NAME_VOID &&  agentID  &&  size);
 ...
     cdp_book_add_register(&signal->output, nameID, agentID, storage, baseLength);
+
+    return true;
+}
+
+
+bool cdp_action_create_link(cdpRecord* instance, cdpSignal* signal) {
+    cdpID    nameID     = cdp_dict_get_id    (&signal->input, CDP_NAME_NAME);
+    cdpID    agentID    = cdp_dict_get_id    (&signal->input, CDP_NAME_AGENT);
+    size_t      size    = cdp_register_size(&signal->input, );
+    void*   data = cdp_dict_get_id    (&signal->input, CDP_NAME_BASE);
+    assert(instance  &&  nameID != CDP_NAME_VOID &&  agentID  &&  size);
+...
+    cdp_book_add_link(&signal->output, nameID, agentID, record);
 
     return true;
 }
@@ -271,8 +284,8 @@ bool cdp_action_search(cdpRecord* instance, cdpSignal* signal) {
  */
 
 #define  action_reg_textualize(name)                                   \
-    bool cdp_action_textualize(cdpRecord* instance, cdpSignal* signal) {return true;}\
-    bool cdp_action_untextualize(cdpRecord* instance, cdpSignal* signal) {return true;}
+    bool cdp_action_textualize_##name(cdpRecord* instance, cdpSignal* signal) {return true;}\
+    bool cdp_action_untextualize_##name(cdpRecord* instance, cdpSignal* signal) {return true;}
 
 action_reg_textualize(bool);
 action_reg_textualize(byte);

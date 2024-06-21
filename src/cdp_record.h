@@ -232,7 +232,7 @@ enum _cdpAgentID {
     CDP_AGENT_PATCH,
     //
     CDP_AGENT_BOOLEAN,
-    CDP_AGENT_NAME_ID,
+    CDP_AGENT_INTERNED,
 
     // Structured agents
     CDP_AGENT_AGENT,

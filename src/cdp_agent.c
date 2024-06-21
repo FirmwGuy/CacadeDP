@@ -72,7 +72,7 @@ cdpID cdp_name_id_add(const char* name, bool borrow) {
     if (!SYSTEM)  system_initiate();
 
     size_t length = 0;
-    for (char* c=name; *c; c++, length++) {
+    for (const char* c=name; *c; c++, length++) {
         if (isupper(*c)) {
             assert(!isupper(*c));   // ToDo: make lowercase.
             return CDP_NAME_VOID;
@@ -119,7 +119,7 @@ static bool agent_traverse_find_by_text(cdpBookEntry* entry, struct NID* nid) {
 cdpID cdp_system_set_agent( const char* name,
                             size_t      baseSize,
                             unsigned    assimLength,
-                            cdpID*      assimilate
+                            cdpID*      assimilate,
                             unsigned    numAction,
                             cdpAction   create,
                             cdpAction   destroy ) {
@@ -127,7 +127,7 @@ cdpID cdp_system_set_agent( const char* name,
     if (!SYSTEM)  system_initiate();
 
     // Find previous
-    struct NID nid = {name, strlen(name);};
+    struct NID nid = {name, strlen(name)};
     bool found = !cdp_book_traverse(SYSTEM, (cdpTraverse)agent_traverse_find_by_text, &nid, NULL);
     if (found) {
         assert(!found);     // FixMe.
@@ -195,10 +195,10 @@ cdpAction cdp_system_get_action(cdpID agentID, cdpID actionID) {
 
 /* Executes the associated signal handler in the specified agent instance.
 */
-bool cdp_system_does_action(cdpRecord* instance, cdpRecord* signal) {
+bool cdp_system_does_action(cdpRecord* instance, cdpSignal* signal) {
     assert(instance && signal);
 
-    cdpID actionID = cdp_record_id(signal);
+    cdpID actionID = cdp_record_id(&signal->input);
     cdpID agentID = cdp_record_agent(instance);
     while (agentID) {
         cdpRecord* agent = cdp_system_get_agent(agentID);
@@ -218,9 +218,182 @@ bool cdp_system_does_action(cdpRecord* instance, cdpRecord* signal) {
 
 
 
+
+static void system_initiate_agents(void) {
+    /* Initiate agent (ID) system:
+       *** WARNING: this must be done in the same order as the _cdpAgentID
+                    enumeration in "cdp_record.h". ***
+    */
+
+    // Core agents
+
+    cdp_system_set_agent("void", 0, 0, NULL, 0, NULL, NULL);
+
+    cdpID recordID = cdp_system_set_agent("record", 0, 0, NULL, 12, NULL, cdp_action_destroy);
+    cdp_system_set_action_by_id(recordID, CDP_NAME_REFERENCE, cdp_action_reference);
+    cdp_system_set_action_by_id(recordID, CDP_NAME_UNREFERENCE, cdp_action_unreference);
+
+    cdp_system_set_action_by_id(recordID, CDP_NAME_LINK, cdp_action_link);
+    cdp_system_set_action_by_id(recordID, CDP_NAME_SHADOW, cdp_action_shadow);
+    cdp_system_set_action_by_id(recordID, CDP_NAME_CLONE, cdp_action_clone);
+    cdp_system_set_action_by_id(recordID, CDP_NAME_MOVE, cdp_action_move);
+    cdp_system_set_action_by_id(recordID, CDP_NAME_REMOVE, cdp_action_remove);
+
+    cdp_system_set_action_by_id(recordID, CDP_NAME_NEXT, cdp_action_next);
+    cdp_system_set_action_by_id(recordID, CDP_NAME_PREVIOUS, cdp_action_previous);
+    cdp_system_set_action_by_id(recordID, CDP_NAME_VALIDATE, cdp_action_validate);
+
+    cdpID bookID = cdp_system_set_agent("book", 0, 1, &recordID, 10, cdp_action_create_book, NULL);
+    cdp_system_set_action_by_id(bookID, CDP_NAME_RESET, cdp_action_reset_book);
+
+    cdp_system_set_action_by_id(bookID, CDP_NAME_ADD, cdp_action_add);
+    cdp_system_set_action_by_id(bookID, CDP_NAME_PREPEND, cdp_action_prepend);
+    cdp_system_set_action_by_id(bookID, CDP_NAME_INSERT, cdp_action_insert);
+
+    cdp_system_set_action_by_id(bookID, CDP_NAME_FIRST, cdp_action_first);
+    cdp_system_set_action_by_id(bookID, CDP_NAME_LAST, cdp_action_last);
+    cdp_system_set_action_by_id(bookID, CDP_NAME_TAKE, cdp_action_take);
+    cdp_system_set_action_by_id(bookID, CDP_NAME_POP, cdp_action_pop);
+
+    cdp_system_set_action_by_id(bookID, CDP_NAME_SEARCH, cdp_action_search);
+
+    cdpID registerID = cdp_system_set_agent("register", 1, 1, &recordID, 9, cdp_action_create_register, NULL);
+    cdp_system_set_action_by_id(registerID, CDP_NAME_RESET, cdp_action_reset_register);
+
+    cdp_system_set_action_by_id(registerID, CDP_NAME_SERIALIZE, cdp_action_serialize);
+    cdp_system_set_action_by_id(registerID, CDP_NAME_UNSERIALIZE, cdp_action_unserialize);
+    cdp_system_set_action_by_id(registerID, CDP_NAME_TEXTUALIZE, cdp_action_textualize);
+    cdp_system_set_action_by_id(registerID, CDP_NAME_UNTEXTUALIZE, cdp_action_untextualize);
+
+    cdp_system_set_action_by_id(registerID, CDP_NAME_READ, cdp_action_read);
+    cdp_system_set_action_by_id(registerID, CDP_NAME_UPDATE, cdp_action_update);
+    cdp_system_set_action_by_id(registerID, CDP_NAME_PATCH, cdp_action_patch);
+
+    /*cdpID linkID =*/ cdp_system_set_agent("link", 0, 1, &recordID, 1, cdp_action_create_link, NULL);
+
+
+    // Book agents
+
+    cdpID dictID = cdp_system_set_agent("dictionary", 0, 1, &bookID, 2, NULL, NULL);
+    cdp_system_set_action_by_id(dictID, CDP_NAME_PREPEND, cdp_action_ignore);
+    cdp_system_set_action_by_id(dictID, CDP_NAME_INSERT, cdp_action_ignore);
+
+    cdpID listID = cdp_system_set_agent("list", 0, 1, &bookID, 3, NULL, NULL);
+    cdp_system_set_action_by_id(listID, CDP_NAME_MOVE, cdp_action_ignore);
+    cdp_system_set_action_by_id(listID, CDP_NAME_REMOVE, cdp_action_ignore);
+    cdp_system_set_action_by_id(listID, CDP_NAME_INSERT, cdp_action_ignore);
+
+    cdpID queueID = cdp_system_set_agent("queue", 0, 1, &bookID, 5, NULL, NULL);
+    cdp_system_set_action_by_id(queueID, CDP_NAME_MOVE, cdp_action_ignore);
+    cdp_system_set_action_by_id(queueID, CDP_NAME_REMOVE, cdp_action_ignore);
+    cdp_system_set_action_by_id(queueID, CDP_NAME_PREPEND, cdp_action_ignore);
+    cdp_system_set_action_by_id(queueID, CDP_NAME_INSERT, cdp_action_ignore);
+    cdp_system_set_action_by_id(queueID, CDP_NAME_TAKE, cdp_action_ignore);
+
+    cdpID stackID = cdp_system_set_agent("stack", 0, 1, &bookID, 5, NULL, NULL);
+    cdp_system_set_action_by_id(stackID, CDP_NAME_MOVE, cdp_action_ignore);
+    cdp_system_set_action_by_id(stackID, CDP_NAME_REMOVE, cdp_action_ignore);
+    cdp_system_set_action_by_id(stackID, CDP_NAME_ADD, cdp_action_ignore);
+    cdp_system_set_action_by_id(stackID, CDP_NAME_INSERT, cdp_action_ignore);
+    cdp_system_set_action_by_id(stackID, CDP_NAME_TAKE, cdp_action_ignore);
+
+
+    // Register agents
+
+    #define set_agent_and_textualization(agent, size)                          \
+        cdpID agent##ID = cdp_system_set_agent(#agent, size, 1, &registerID, 2, NULL, NULL);\
+        cdp_system_set_action_by_id(agent##ID, CDP_NAME_TEXTUALIZE, cdp_action_textualize_##agent);\
+        cdp_system_set_action_by_id(agent##ID, CDP_NAME_UNTEXTUALIZE, cdp_action_untextualize_##agent)
+
+    set_agent_and_textualization(byte,    sizeof(uint8_t));
+    set_agent_and_textualization(uint16,  sizeof(uint16_t));
+    set_agent_and_textualization(uint32,  sizeof(uint32_t));
+    set_agent_and_textualization(uint64,  sizeof(uint64_t));
+    set_agent_and_textualization(int16,   sizeof(int16_t));
+    set_agent_and_textualization(int32,   sizeof(int32_t));
+    set_agent_and_textualization(int64,   sizeof(int64_t));
+    set_agent_and_textualization(float32, sizeof(float));
+    set_agent_and_textualization(float64, sizeof(double));
+
+    /*cdpID idID =*/ cdp_system_set_agent("id", sizeof(cdpID), 1, &registerID, 4, NULL, NULL);
+    //cdp_system_set_action_by_id(idID, CDP_NAME_SERIALIZE, cdp_action_serialize_id);
+    //cdp_system_set_action_by_id(idID, CDP_NAME_UNSERIALIZE, cdp_action_unserialize_id);
+    //cdp_system_set_action_by_id(idID, CDP_NAME_TEXTUALIZE, cdp_action_textualize_id);
+    //cdp_system_set_action_by_id(idID, CDP_NAME_UNTEXTUALIZE, cdp_action_untextualize_id);
+
+    /*cdpID utf8ID =*/ cdp_system_set_agent("utf8", 1, 1, &registerID, 1, NULL, NULL);
+
+    /*cdpID patchID =*/ cdp_system_set_agent("patch", 1, 1, &registerID, 1, NULL, NULL);
+
+
+    // Enumerations
+
+    cdpID booleanID = cdp_system_set_agent("boolean", 1, 1, &registerID, 1, NULL, NULL);
+    cdpRecord* value = cdp_book_add_dictionary(cdp_system_get_agent(booleanID), CDP_NAME_ENUMERATION, CDP_STO_CHD_ARRAY, CDP_VALUE_BOOLEAN_COUNT); {
+        cdp_book_add_static_text(value, CDP_VALUE_FALSE, "false");
+        cdp_book_add_static_text(value, CDP_VALUE_TRUE,  "true");
+
+        assert(cdp_book_children(value) == CDP_VALUE_BOOLEAN_COUNT);
+        cdp_book_set_auto_id(value, CDP_VALUE_BOOLEAN_COUNT);
+    }
+
+    cdpID internedID = cdp_system_set_agent("interned", sizeof(cdpID), 1, &registerID, 1, NULL, NULL);
+    NAME = cdp_book_add_dictionary(cdp_system_get_agent(internedID), CDP_NAME_ENUMERATION, CDP_STO_CHD_PACKED_QUEUE, cdp_next_pow_of_two(CDP_NAME_COUNT + CDP_SIGNAL_COUNT));
+
+
+    // Link types
+    // ...
+
+    // Structured types
+
+    /*cdpID agentID =*/ cdp_system_set_agent("agent", 0, 1, &bookID, 1, NULL, NULL);
+
+
+    // Finish core types.
+    assert(cdp_book_children(SYSTEM) == CDP_AGENT_COUNT);
+    cdp_book_set_auto_id(SYSTEM, CDP_AGENT_COUNT);
+}
+
+
+static void system_initiate_names(void) {
+    /* Initiate name (ID) string interning system:
+       *** WARNING: this must be done in the same order as the _cdpNameID
+                    enumeration in "cdp_record.h" and "cdp_agent.h". ***
+    */
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID,            "");     // Void text.
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID,           "/");     // The root book.
+
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID,      "system");
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID,     "cascade");
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID,        "user");
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID,     "private");
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID,      "public");
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID,        "data");
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID,     "network");
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID,        "temp");
+
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID,  "assimilate");
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID,        "name");
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID,        "size");
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID, "enumeration");
+
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID,       "agent");
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID,      "action");
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID,       "input");
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID,      "output");
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID,       "debug");
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID,     "warning");
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID,       "error");
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID,       "fatal");
+
+    cdp_signal_initiate();
+
+    assert(cdp_book_get_auto_id(NAME) == (CDP_NAME_COUNT + CDP_SIGNAL_COUNT));
+}
+
+
 static void system_initiate(void) {
     cdp_record_system_initiate();
-
 
     /* Initiate root book structure.
     */
@@ -232,176 +405,10 @@ static void system_initiate(void) {
     NETWORK = cdp_book_add_dictionary(&CDP_ROOT, CDP_NAME_NETWORK, CDP_STO_CHD_RED_BLACK_T);
     TEMP    = cdp_book_add_dictionary(&CDP_ROOT, CDP_NAME_TEMP,    CDP_STO_CHD_RED_BLACK_T);
 
-
-    /* Initiate agent (ID) system:
-       *** WARNING: this must be done in the same order as the _cdpAgentID
-                    enumeration in "cdp_record.h". ***
+    /* Initiate agents and names (in that order).
     */
-    {
-        // Core agents
-
-        cdp_system_set_agent("void", 0, NULL, 0, NULL, NULL);
-
-        cdpID recordID = cdp_system_set_agent("record", 0, 0, NULL, 12, cdp_action_create_record, cdp_action_destroy);
-        cdp_system_set_action_by_id(recordID, CDP_NAME_REFERENCE, cdp_action_reference);
-        cdp_system_set_action_by_id(recordID, CDP_NAME_UNREFERENCE, cdp_action_unreference);
-
-        cdp_system_set_action_by_id(recordID, CDP_NAME_LINK, cdp_action_link);
-        cdp_system_set_action_by_id(recordID, CDP_NAME_SHADOW, cdp_action_shadow);
-        cdp_system_set_action_by_id(recordID, CDP_NAME_CLONE, cdp_action_clone);
-        cdp_system_set_action_by_id(recordID, CDP_NAME_MOVE, cdp_action_move);
-        cdp_system_set_action_by_id(recordID, CDP_NAME_REMOVE, cdp_action_remove);
-
-        cdp_system_set_action_by_id(recordID, CDP_NAME_NEXT, cdp_action_next);
-        cdp_system_set_action_by_id(recordID, CDP_NAME_PREVIOUS, cdp_action_previous);
-        cdp_system_set_action_by_id(recordID, CDP_NAME_VALIDATE, cdp_action_validate);
-
-        cdpID bookID = cdp_system_set_agent("book", 0, 1, &recordID, 10, cdp_action_create_book, NULL);
-        cdp_system_set_action_by_id(bookID, CDP_NAME_RESET, cdp_action_reset_book);
-
-        cdp_system_set_action_by_id(bookID, CDP_NAME_ADD, cdp_action_add);
-        cdp_system_set_action_by_id(bookID, CDP_NAME_PREPEND, cdp_action_prepend);
-        cdp_system_set_action_by_id(bookID, CDP_NAME_INSERT, cdp_action_insert);
-
-        cdp_system_set_action_by_id(bookID, CDP_NAME_FIRST, cdp_action_first);
-        cdp_system_set_action_by_id(bookID, CDP_NAME_LAST, cdp_action_last);
-        cdp_system_set_action_by_id(bookID, CDP_NAME_TAKE, cdp_action_take);
-        cdp_system_set_action_by_id(bookID, CDP_NAME_POP, cdp_action_pop);
-
-        cdp_system_set_action_by_id(bookID, CDP_NAME_SEARCH, cdp_action_search);
-
-        cdpID registerID = cdp_system_set_agent("register", 1, 1, &recordID, 9, cdp_action_create_register, NULL);
-        cdp_system_set_action_by_id(registerID, CDP_NAME_RESET, cdp_action_reset_register);
-
-        cdp_system_set_action_by_id(registerID, CDP_NAME_SERIALIZE, cdp_action_serialize);
-        cdp_system_set_action_by_id(registerID, CDP_NAME_UNSERIALIZE, cdp_action_unserialize);
-        cdp_system_set_action_by_id(registerID, CDP_NAME_TEXTUALIZE, cdp_action_textualize);
-        cdp_system_set_action_by_id(registerID, CDP_NAME_UNTEXTUALIZE, cdp_action_untextualize);
-
-        cdp_system_set_action_by_id(registerID, CDP_NAME_READ, cdp_action_read);
-        cdp_system_set_action_by_id(registerID, CDP_NAME_UPDATE, cdp_action_update);
-        cdp_system_set_action_by_id(registerID, CDP_NAME_PATCH, cdp_action_patch);
-
-        cdpID linkID = cdp_system_set_agent("link", 0, 1, &recordID, 1, cdp_action_create_link, NULL);
-
-
-        // Book agents
-
-        cdpID dictID = cdp_system_set_agent("dictionary", 0, 1, &bookID, 2, NULL, NULL);
-        cdp_system_set_action_by_id(dictID, CDP_NAME_PREPEND, cdp_action_ignore);
-        cdp_system_set_action_by_id(dictID, CDP_NAME_INSERT, cdp_action_ignore);
-
-        cdpID listID = cdp_system_set_agent("list", 0, 1, &bookID, 3, NULL, NULL);
-        cdp_system_set_action_by_id(listID, CDP_NAME_MOVE, cdp_action_ignore);
-        cdp_system_set_action_by_id(listID, CDP_NAME_REMOVE, cdp_action_ignore);
-        cdp_system_set_action_by_id(listID, CDP_NAME_INSERT, cdp_action_ignore);
-
-        cdpID queueID = cdp_system_set_agent("queue", 0, 1, &bookID, 5, NULL, NULL);
-        cdp_system_set_action_by_id(queueID, CDP_NAME_MOVE, cdp_action_ignore);
-        cdp_system_set_action_by_id(queueID, CDP_NAME_REMOVE, cdp_action_ignore);
-        cdp_system_set_action_by_id(queueID, CDP_NAME_PREPEND, cdp_action_ignore);
-        cdp_system_set_action_by_id(queueID, CDP_NAME_INSERT, cdp_action_ignore);
-        cdp_system_set_action_by_id(queueID, CDP_NAME_TAKE, cdp_action_ignore);
-
-        cdpID stackID = cdp_system_set_agent("stack", 0, 1, &bookID, 5, NULL, NULL);
-        cdp_system_set_action_by_id(stackID, CDP_NAME_MOVE, cdp_action_ignore);
-        cdp_system_set_action_by_id(stackID, CDP_NAME_REMOVE, cdp_action_ignore);
-        cdp_system_set_action_by_id(stackID, CDP_NAME_ADD, cdp_action_ignore);
-        cdp_system_set_action_by_id(stackID, CDP_NAME_INSERT, cdp_action_ignore);
-        cdp_system_set_action_by_id(stackID, CDP_NAME_TAKE, cdp_action_ignore);
-
-
-        // Register agents
-
-        #define set_agent_and_textualization(agent, size)              \
-            cdpID agent##ID = cdp_system_set_agent(#agent, size, 1, &regisgerID, 2, NULL, NULL);\
-            cdp_system_set_action_by_id(agent##ID, CDP_NAME_TEXTUALIZE, cdp_action_textualize_##agent);\
-            cdp_system_set_action_by_id(agent##ID, CDP_NAME_UNTEXTUALIZE, cdp_action_untextualize_##agent)
-
-        set_agent_and_textualization(byte,    sizeof(uint8_t));
-        set_agent_and_textualization(uint16,  sizeof(uint16_t));
-        set_agent_and_textualization(uint32,  sizeof(uint32_t));
-        set_agent_and_textualization(uint64,  sizeof(uint64_t));
-        set_agent_and_textualization(int16,   sizeof(int16_t));
-        set_agent_and_textualization(int32,   sizeof(int32_t));
-        set_agent_and_textualization(int64,   sizeof(int64_t));
-        set_agent_and_textualization(float32, sizeof(float));
-        set_agent_and_textualization(float64, sizeof(double));
-
-        cdpID idID = cdp_system_set_agent("id", sizeof(cdpID), 1, &regisgerID, 4, NULL, NULL);
-        cdp_system_set_action_by_id(idID, CDP_NAME_SERIALIZE, cdp_action_serialize_id);
-        cdp_system_set_action_by_id(idID, CDP_NAME_UNSERIALIZE, cdp_action_unserialize_id);
-        cdp_system_set_action_by_id(idID, CDP_NAME_TEXTUALIZE, cdp_action_textualize_id);
-        cdp_system_set_action_by_id(idID, CDP_NAME_UNTEXTUALIZE, cdp_action_untextualize_id);
-
-        cdp_system_set_agent("utf8", 1, 1, &regisgerID, 1, NULL, NULL);
-
-        set_agent_and_textualization(patch, 1);
-
-
-        // Enumerations
-
-        cdpID booleanID = cdp_system_set_agent("boolean", 1, 1, &regisgerID, 1, NULL, NULL);
-        cdpRecord* value = cdp_book_add_dictionary(cdp_system_get_agent(booleanID), CDP_NAME_ENUMERATION, CDP_STO_CHD_ARRAY, CDP_ID_BOOL_COUNT); {
-            cdp_book_add_static_text(value, CDP_VALUE_FALSE, "false");
-            cdp_book_add_static_text(value, CDP_VALUE_TRUE,  "true");
-
-            assert(cdp_book_children(value) == CDP_VALUE_BOOLEAN_COUNT);
-            cdp_book_set_auto_id(value, CDP_VALUE_BOOLEAN_COUNT);
-        }
-
-        cdpID internedID = cdp_system_set_agent("interned", sizeof(cdpID), 1, &regisgerID, 1, NULL, NULL);
-        NAME = cdp_book_add_dictionary(cdp_system_get_agent(internedID), CDP_NAME_ENUMERATION, CDP_STO_CHD_PACKED_QUEUE, cdp_next_pow_of_two(CDP_NAME_COUNT + CDP_SIGNAL_COUNT));
-
-
-        // Link types
-
-        // Structured types
-
-        cdpID agentID = cdp_system_set_agent("agent", 0, 1, &bookID, 1, NULL, NULL);
-
-
-        // Finish core types.
-        assert(cdp_book_children(SYSTEM) == CDP_AGENT_COUNT);
-        cdp_book_set_auto_id(SYSTEM, CDP_AGENT_COUNT);
-    }
-
-    /* Initiate name (ID) string interning system:
-       *** WARNING: this must be done in the same order as the _cdpNameID
-                    enumeration in "cdp_record.h" and "cdp_agent.h". ***
-    */
-    {
-        cdp_book_add_static_text(NAME, CDP_AUTO_ID,            "");     // Void text.
-        cdp_book_add_static_text(NAME, CDP_AUTO_ID,           "/");     // The root book.
-        //
-        cdp_book_add_static_text(NAME, CDP_AUTO_ID,      "system");
-        cdp_book_add_static_text(NAME, CDP_AUTO_ID,     "cascade");
-        cdp_book_add_static_text(NAME, CDP_AUTO_ID,        "user");
-        cdp_book_add_static_text(NAME, CDP_AUTO_ID,     "private");
-        cdp_book_add_static_text(NAME, CDP_AUTO_ID,      "public");
-        cdp_book_add_static_text(NAME, CDP_AUTO_ID,        "data");
-        cdp_book_add_static_text(NAME, CDP_AUTO_ID,     "network");
-        cdp_book_add_static_text(NAME, CDP_AUTO_ID,        "temp");
-        //
-        cdp_book_add_static_text(NAME, CDP_AUTO_ID,  "assimilate");
-        cdp_book_add_static_text(NAME, CDP_AUTO_ID,        "name");
-        cdp_book_add_static_text(NAME, CDP_AUTO_ID,        "size");
-        cdp_book_add_static_text(NAME, CDP_AUTO_ID, "enumeration");
-        //
-        cdp_book_add_static_text(NAME, CDP_AUTO_ID,       "agent");
-        cdp_book_add_static_text(NAME, CDP_AUTO_ID,      "action");
-        cdp_book_add_static_text(NAME, CDP_AUTO_ID,       "input");
-        cdp_book_add_static_text(NAME, CDP_AUTO_ID,      "output");
-        cdp_book_add_static_text(NAME, CDP_AUTO_ID,       "debug");
-        cdp_book_add_static_text(NAME, CDP_AUTO_ID,     "warning");
-        cdp_book_add_static_text(NAME, CDP_AUTO_ID,       "error");
-        cdp_book_add_static_text(NAME, CDP_AUTO_ID,       "fatal");
-
-        cdp_signal_initiate();
-
-        assert(cdp_book_get_auto_id(NAME) == (CDP_NAME_COUNT + CDP_SIGNAL_COUNT));
-    }
-
+    system_initiate_agents();
+    system_initiate_names();
 
     /* Initiate global records.
     */
@@ -416,8 +423,9 @@ static void system_initiate(void) {
 
 
 
-static bool system_traverse(cdpBookEntry* entry, uintptr_t signalID) {
-    cdpAction action = cdp_system_get_action(entry->record, signalID);
+static bool system_traverse(cdpBookEntry* entry, void* p) {
+    cdpID signalID = cdp_p2v(p);
+    cdpAction action = cdp_dict_get_action(entry->record, signalID);
     if (action) {
         if (SYSTEM_SIGNAL)
             SYSTEM_SIGNAL->input.metadata.id = signalID;
@@ -431,7 +439,7 @@ static bool system_traverse(cdpBookEntry* entry, uintptr_t signalID) {
 
 bool cdp_system_startup(void) {
     assert(SYSTEM);
-    return cdp_book_traverse(SYSTEM, system_traverse, (uintptr_t)CDP_NAME_STARTUP, NULL);
+    return cdp_book_traverse(SYSTEM, (cdpTraverse)system_traverse, cdp_v2p(CDP_NAME_STARTUP), NULL);
 }
 
 
@@ -448,7 +456,7 @@ bool cdp_system_step(void) {
 
 void cdp_system_shutdown(void) {
     assert(SYSTEM);
-    cdp_book_traverse(SYSTEM, system_traverse, (uintptr_t)CDP_NAME_SHUTDOWN, NULL);
+    cdp_book_traverse(SYSTEM, system_traverse, cdp_v2p(CDP_NAME_SHUTDOWN), NULL);
     cdp_signal_del(SYSTEM_SIGNAL);
     cdp_signal_finalize();
     cdp_book_reset(&CDP_ROOT);

@@ -89,7 +89,6 @@ CDP_AUTOFREE_(cdp_free)
 
 
 static inline void  cdp_cpy_or_0(void* q, void* p, size_t z)  {assert(q);  if (p) memcpy(q, p, z); else memset(q, 0, z);}
-static inline void* cdp_clone(void* p, size_t z)              {void* c; if (!p || !z) c = NULL; else {c = cdp_malloc(z); memcpy(c, p, z);}  return c;}
 
 #define     CDP_CLONE(T, d, p)        T* (d) = cdp_clone(p, sizeof(T))
 #define     CDP_0(p)                  memset(p, 0, sizeof(*(p)))

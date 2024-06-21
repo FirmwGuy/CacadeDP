@@ -25,6 +25,13 @@
 #include "cdp_signal.h"
 
 
+enum {
+    CDP_NAME_STORAGE = CDP_NAME_SIGNAL_COUNT,
+    CDP_NAME_BASE,
+
+};
+
+
 bool cdp_action_ignore(cdpRecord* instance, cdpSignal* signal);
 bool cdp_action_error(cdpRecord* instance, cdpSignal* signal);
 
@@ -34,11 +41,12 @@ bool cdp_action_error(cdpRecord* instance, cdpSignal* signal);
  */
 bool cdp_action_create_book(cdpRecord* instance, cdpSignal* signal);
 bool cdp_action_create_register(cdpRecord* instance, cdpSignal* signa);
+bool cdp_action_create_link(cdpRecord* instance, cdpSignal* signa);
 bool cdp_action_destroy(cdpRecord* instance, cdpSignal* signal);
 bool cdp_action_reset_book(cdpRecord* instance, cdpSignal* signal);
 bool cdp_action_reset_register(cdpRecord* instance, cdpSignal* signal);
-bool cdp_action_free(cdpRecord* instance, cdpSignal* signal);
 bool cdp_action_reference(cdpRecord* instance, cdpSignal* signal);
+bool cdp_action_unreference(cdpRecord* instance, cdpSignal* signal);
 bool cdp_action_link(cdpRecord* instance, cdpSignal* signal);
 bool cdp_action_shadow(cdpRecord* instance, cdpSignal* signal);
 bool cdp_action_clone(cdpRecord* instance, cdpSignal* signal);
@@ -59,7 +67,7 @@ bool cdp_action_untextualize(cdpRecord* instance, cdpSignal* signal);
 bool cdp_action_read(cdpRecord* instance, cdpSignal* signal);
 bool cdp_action_update(cdpRecord* instance, cdpSignal* signal);
 bool cdp_action_patch(cdpRecord* instance, cdpSignal* signal);
-}
+
 
 
 /*
@@ -75,8 +83,8 @@ bool cdp_action_pop(cdpRecord* instance, cdpSignal* signal);
 bool cdp_action_search(cdpRecord* instance, cdpSignal* signal);
 
 #define  action_reg_def_textualize(name)                               \
-    bool cdp_action_textualize(cdpRecord* instance, cdpSignal* signal);\
-    bool cdp_action_untextualize(cdpRecord* instance, cdpSignal* signal)
+    bool cdp_action_textualize_##name(cdpRecord* instance, cdpSignal* signal); \
+    bool cdp_action_untextualize_##name(cdpRecord* instance, cdpSignal* signal)
 
 action_reg_def_textualize(bool);
 action_reg_def_textualize(byte);
