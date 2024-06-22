@@ -347,6 +347,7 @@ typedef struct {
 typedef bool (*cdpTraverse)(cdpBookEntry*, void*);
 
 typedef struct {
+    cdpID      nameID;
     cdpRecord  input;       // Dictionary.
     cdpRecord  output;      // Dictionary.
     cdpRecord  condition;   // Stack.
@@ -446,8 +447,6 @@ static inline void  cdp_book_set_auto_id(const cdpRecord* book, cdpID id) {asser
 
 cdpRecord* cdp_book_add_property(cdpRecord* book, cdpRecord* record);
 cdpRecord* cdp_book_get_property(const cdpRecord* book, cdpID id);
-
-void cdp_book_relink_storage(cdpRecord* book);
 
 
 // Link properties

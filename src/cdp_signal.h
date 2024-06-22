@@ -22,7 +22,7 @@
 #define CDP_SIGNAL_H
 
 
-#include "cdp_record.h"
+#include "cdp_agent.h"
 
 
 // Signal Name IDs:
@@ -40,14 +40,10 @@ enum {
     CDP_NAME_REFERENCE,
     CDP_NAME_UNREFERENCE,
     //
-    CDP_NAME_LINK,
-    CDP_NAME_SHADOW,
-    CDP_NAME_CLONE,
-    CDP_NAME_MOVE,
-    CDP_NAME_REMOVE,
     CDP_NAME_NEXT,
     CDP_NAME_PREVIOUS,
     CDP_NAME_VALIDATE,
+    CDP_NAME_REMOVE,
 
     // Register signals
     CDP_NAME_SERIALIZE,
@@ -67,6 +63,10 @@ enum {
     CDP_NAME_TAKE,
     CDP_NAME_POP,
     CDP_NAME_SEARCH,
+    CDP_NAME_LINK,
+    CDP_NAME_SHADOW,
+    CDP_NAME_CLONE,
+    CDP_NAME_MOVE,
 
     CDP_NAME_SIGNAL_COUNT
 };
@@ -90,11 +90,6 @@ void cdp_destroy(cdpRecord* instance);
 void cdp_reset(cdpRecord* instance);
 void cdp_unreference(cdpRecord* instance);
 void cdp_reference(cdpRecord* instance);
-
-cdpRecord* cdp_link(cdpRecord* instance, cdpRecord* newParent, cdpID nameID);
-cdpRecord* cdp_shadow(cdpRecord* instance, cdpRecord* newParent, cdpID nameID);
-cdpRecord* cdp_clone(cdpRecord* instance, cdpRecord* newParent, cdpID nameID);
-cdpRecord* cdp_move(cdpRecord* instance, cdpRecord* newParent, cdpID nameID);
 void cdp_remove(cdpRecord* instance, cdpRecord* target);
 
 cdpRecord* cdp_next(cdpRecord* instance);
@@ -122,6 +117,11 @@ bool cdp_take(cdpRecord* instance, cdpRecord* target);
 bool cdp_pop(cdpRecord* instance, cdpRecord* target);
 
 cdpRecord* cdp_search(cdpRecord* instance, cdpRecord* book, cdpRecord* key);
+
+cdpRecord* cdp_link(cdpRecord* instance, cdpID nameID, cdpRecord* record);
+cdpRecord* cdp_shadow(cdpRecord* instance, cdpID nameID, cdpRecord* record);
+cdpRecord* cdp_clone(cdpRecord* instance, cdpID nameID, cdpRecord* record);
+cdpRecord* cdp_move(cdpRecord* instance, cdpID nameID, cdpRecord* record);
 
 //void       cdp_sort(cdpRecord* instance);
 

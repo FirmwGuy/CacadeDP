@@ -29,6 +29,9 @@ enum {
     CDP_NAME_STORAGE = CDP_NAME_SIGNAL_COUNT,
     CDP_NAME_BASE,
 
+    CDP_NAME_RECORD,
+
+    CDP_ACTION_NAME_COUNT
 };
 
 
@@ -85,6 +88,7 @@ bool cdp_action_search(cdpRecord* instance, cdpSignal* signal);
 #define  action_reg_def_textualize(name)                               \
     bool cdp_action_textualize_##name(cdpRecord* instance, cdpSignal* signal); \
     bool cdp_action_untextualize_##name(cdpRecord* instance, cdpSignal* signal)
+
 
 action_reg_def_textualize(bool);
 action_reg_def_textualize(byte);

@@ -265,7 +265,6 @@ enum _cdpNameID {
     //
     CDP_NAME_AGENT,
     CDP_NAME_ACTION,
-    CDP_NAME_INPUT,
     CDP_NAME_OUTPUT,
     CDP_NAME_DEBUG,
     CDP_NAME_WARNING,

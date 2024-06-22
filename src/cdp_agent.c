@@ -379,7 +379,6 @@ static void system_initiate_names(void) {
 
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,       "agent");
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,      "action");
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID,       "input");
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,      "output");
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,       "debug");
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,     "warning");
