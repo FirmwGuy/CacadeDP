@@ -30,12 +30,12 @@ enum {
     // System signals
     CDP_NAME_STARTUP = CDP_NAME_FLAG_COUNT,
     CDP_NAME_SHUTDOWN,
-    //CDP_NAME_CASCADE,
-    CDP_NAME_DISCASCADE,
+    CDP_NAME_CONNECT,
+    CDP_NAME_DISCONNECT,
 
     // Record signals
-    CDP_NAME_CREATE,
-    CDP_NAME_DESTROY,
+    CDP_NAME_INITIATE,
+    CDP_NAME_FINALIZE,
     CDP_NAME_RESET,
     CDP_NAME_REFERENCE,
     CDP_NAME_UNREFERENCE,
@@ -74,7 +74,7 @@ enum {
 #define CDP_SIGNAL_COUNT  (CDP_NAME_SIGNAL_COUNT - CDP_NAME_STARTUP)
 
 
-void cdp_signal_initiate(void);
+void cdp_system_initiate_signals(void);
 void cdp_signal_finalize(void);
 
 
@@ -83,10 +83,10 @@ void cdp_signal_del(cdpSignal* signal);
 void cdp_signal_reset(cdpSignal* signal);
 
 
-cdpRecord* cdp_create_book(cdpRecord* instance, cdpID nameID, cdpID agentID, unsigned storage, unsigned baseLength);
-cdpRecord* cdp_create_register(cdpRecord* instance, cdpID nameID, cdpID agentID, void* data, size_t size);
+bool cdp_initiate_book(cdpRecord* instance, cdpID nameID, cdpID agentID, unsigned storage, unsigned baseLength);
+bool cdp_initiate_register(cdpRecord* instance, cdpID nameID, cdpID agentID, bool borrow, void* data, size_t size);
 
-void cdp_destroy(cdpRecord* instance);
+void cdp_finalize(cdpRecord* instance);
 void cdp_reset(cdpRecord* instance);
 void cdp_unreference(cdpRecord* instance);
 void cdp_reference(cdpRecord* instance);

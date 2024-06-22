@@ -121,9 +121,9 @@ cdpID cdp_system_set_agent( const char* name,
                             unsigned    assimLength,
                             cdpID*      assimilate,
                             unsigned    numAction,
-                            cdpAction   create,
-                            cdpAction   destroy ) {
-    assert(create || destroy);
+                            cdpAction   initiate,
+                            cdpAction   finalize ) {
+    assert(initiate || finalize);
     if (!SYSTEM)  system_initiate();
 
     // Find previous
@@ -154,10 +154,10 @@ cdpID cdp_system_set_agent( const char* name,
     cdp_book_add_static_text(agent, CDP_NAME_NAME, name);
     if (baseSize)
         cdp_book_add_uint32(agent, CDP_NAME_SIZE, baseSize);
-    if (create)
-        cdp_book_add_action(agent, CDP_NAME_CREATE, create);
-    if (destroy)
-        cdp_book_add_action(agent, CDP_NAME_DESTROY, destroy);
+    if (initiate)
+        cdp_book_add_action(agent, CDP_NAME_INITIATE, initiate);
+    if (finalize)
+        cdp_book_add_action(agent, CDP_NAME_FINALIZE, finalize);
 
     return cdp_record_id(agent);
 }
@@ -229,7 +229,7 @@ static void system_initiate_agents(void) {
 
     cdp_system_set_agent("void", 0, 0, NULL, 0, NULL, NULL);
 
-    cdpID recordID = cdp_system_set_agent("record", 0, 0, NULL, 12, NULL, cdp_action_destroy);
+    cdpID recordID = cdp_system_set_agent("record", 0, 0, NULL, 12, NULL, cdp_action_finalize);
     cdp_system_set_action_by_id(recordID, CDP_NAME_REFERENCE, cdp_action_reference);
     cdp_system_set_action_by_id(recordID, CDP_NAME_UNREFERENCE, cdp_action_unreference);
 
@@ -243,8 +243,8 @@ static void system_initiate_agents(void) {
     cdp_system_set_action_by_id(recordID, CDP_NAME_PREVIOUS, cdp_action_previous);
     cdp_system_set_action_by_id(recordID, CDP_NAME_VALIDATE, cdp_action_validate);
 
-    cdpID bookID = cdp_system_set_agent("book", 0, 1, &recordID, 10, cdp_action_create_book, NULL);
-    cdp_system_set_action_by_id(bookID, CDP_NAME_RESET, cdp_action_reset_book);
+    cdpID bookID = cdp_system_set_agent("book", 0, 1, &recordID, 10, cdp_action_initiate_book, NULL);
+    cdp_system_set_action_by_id(bookID, CDP_NAME_RESET, cdp_action_initiate_book);
 
     cdp_system_set_action_by_id(bookID, CDP_NAME_ADD, cdp_action_add);
     cdp_system_set_action_by_id(bookID, CDP_NAME_PREPEND, cdp_action_prepend);
@@ -257,8 +257,8 @@ static void system_initiate_agents(void) {
 
     cdp_system_set_action_by_id(bookID, CDP_NAME_SEARCH, cdp_action_search);
 
-    cdpID registerID = cdp_system_set_agent("register", 1, 1, &recordID, 9, cdp_action_create_register, NULL);
-    cdp_system_set_action_by_id(registerID, CDP_NAME_RESET, cdp_action_reset_register);
+    cdpID registerID = cdp_system_set_agent("register", 1, 1, &recordID, 9, cdp_action_initiate_register, NULL);
+    cdp_system_set_action_by_id(registerID, CDP_NAME_RESET, cdp_action_initiate_register);
 
     cdp_system_set_action_by_id(registerID, CDP_NAME_SERIALIZE, cdp_action_serialize);
     cdp_system_set_action_by_id(registerID, CDP_NAME_UNSERIALIZE, cdp_action_unserialize);
@@ -269,7 +269,7 @@ static void system_initiate_agents(void) {
     cdp_system_set_action_by_id(registerID, CDP_NAME_UPDATE, cdp_action_update);
     cdp_system_set_action_by_id(registerID, CDP_NAME_PATCH, cdp_action_patch);
 
-    /*cdpID linkID =*/ cdp_system_set_agent("link", 0, 1, &recordID, 1, cdp_action_create_link, NULL);
+    /*cdpID linkID =*/ cdp_system_set_agent("link", 0, 1, &recordID, 1, cdp_action_initiate_link, NULL);
 
 
     // Book agents
@@ -338,8 +338,10 @@ static void system_initiate_agents(void) {
     }
 
     cdpID internedID = cdp_system_set_agent("interned", sizeof(cdpID), 1, &registerID, 1, NULL, NULL);
-    NAME = cdp_book_add_dictionary(cdp_system_get_agent(internedID), CDP_NAME_ENUMERATION, CDP_STO_CHD_PACKED_QUEUE, cdp_next_pow_of_two(CDP_NAME_COUNT + CDP_SIGNAL_COUNT));
-
+    NAME = cdp_book_add_dictionary( cdp_system_get_agent(internedID),
+                                    CDP_NAME_ENUMERATION,
+                                    CDP_STO_CHD_PACKED_QUEUE,
+                                    cdp_next_pow_of_two(CDP_NAME_COUNT + CDP_SIGNAL_COUNT + CDP_ACTION_COUNT) );
 
     // Link types
     // ...
@@ -385,9 +387,10 @@ static void system_initiate_names(void) {
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,       "error");
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,       "fatal");
 
-    cdp_signal_initiate();
+    cdp_system_initiate_signals();
+    cdp_system_initiate_actions();
 
-    assert(cdp_book_get_auto_id(NAME) == (CDP_NAME_COUNT + CDP_SIGNAL_COUNT));
+    assert(cdp_book_get_auto_id(NAME) == (CDP_NAME_COUNT + CDP_SIGNAL_COUNT + CDP_ACTION_COUNT));
 }
 
 

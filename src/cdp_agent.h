@@ -287,8 +287,8 @@ cdpID cdp_system_set_agent( const char*   name,
                             unsigned      assimLenght,
                             cdpID*        assimilate,
                             unsigned      numAction,
-                            cdpAction     create,
-                            cdpAction     destroy );
+                            cdpAction     initiate,
+                            cdpAction     finalize );
 cdpRecord* cdp_system_get_agent(cdpID id);
 
 cdpID      cdp_system_set_action(cdpID agentID, const char* name, cdpAction action);

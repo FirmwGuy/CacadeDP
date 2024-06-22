@@ -479,7 +479,7 @@ static inline cdpRecord* cdp_book_add_text(cdpRecord* book, unsigned attrib, cdp
     CDP_FUNC_ADD_VAL_(float64, double,   CDP_AGENT_FLOAT64)
 
     CDP_FUNC_ADD_VAL_(id, cdpID, CDP_AGENT_ID)
-    CDP_FUNC_ADD_VAL_(boolean, uint8_t,  CDP_AGENT_BOOLEAN)
+    CDP_FUNC_ADD_VAL_(bool, uint8_t,  CDP_AGENT_BOOLEAN)
 
 
 #define cdp_book_add_book(b, id, agent, chdStorage, ...)             cdp_book_add(b, CDP_TYPE_BOOK, 0, id, agent, false, ((unsigned)(chdStorage)), ##__VA_ARGS__)
