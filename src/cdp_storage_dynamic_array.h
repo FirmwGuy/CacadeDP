@@ -105,7 +105,7 @@ static inline cdpRecord* array_sorted_insert_record(cdpArray* array, const cdpRe
 }
 
 
-static inline cdpRecord* array_sorted_insert(cdpArray* array, const cdpRecord* record, cdpCompare compare, void* context) {
+static inline cdpRecord* array_sorted_insert(cdpArray* array, cdpRecord* record, cdpCompare compare, void* context) {
     // Increase array space if necessary
     if (array->capacity == array->store.chdCount)
         array_grow(array);
@@ -118,13 +118,13 @@ static inline cdpRecord* array_sorted_insert(cdpArray* array, const cdpRecord* r
     else
         child = array->record;
 
-    *child = *record;
+    cdp_record_transfer(record, child);
 
     return child;
 }
 
 
-static inline cdpRecord* array_add(cdpArray* array, cdpRecord* parent, bool prepend, const cdpRecord* record) {
+static inline cdpRecord* array_add(cdpArray* array, cdpRecord* parent, bool prepend, cdpRecord* record) {
     // Increase array space if necessary
     if (array->capacity == array->store.chdCount)
         array_grow(array);
@@ -147,7 +147,7 @@ static inline cdpRecord* array_add(cdpArray* array, cdpRecord* parent, bool prep
     } else {
         child = array->record;
     }
-    *child = *record;
+    cdp_record_transfer(record, child);
 
     return child;
 }

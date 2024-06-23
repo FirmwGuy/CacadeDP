@@ -35,16 +35,7 @@ unsigned MAX_DEPTH = CDP_MAX_FAST_STACK_DEPTH;     // FixMe: (used by path/trave
 
 
 static inline int record_compare_by_name(const cdpRecord* restrict key, const cdpRecord* restrict rec, void* unused) {
-    bool keyNamed = cdp_record_is_named(key);
-    bool recNamed = cdp_record_is_named(rec);
-
-    if (keyNamed != recNamed)
-        return keyNamed - recNamed;   // Unnamed records should come before named records.
-
-    if (keyNamed)
-        return rec->metadata.id - key->metadata.id;   // Sorted by decreasing id if named.
-
-    return key->metadata.id - rec->metadata.id;   // Sorted by increasing id if unnamed.
+    return cdp_record_id(key) - cdp_record_id(rec);
 }
 
 
@@ -162,7 +153,7 @@ bool cdp_record_initialize(cdpRecord* record, unsigned type, unsigned attrib, cd
     //CDP_0(record);
 
     record->metadata.attribute = attrib & CDP_ATTRIB_PUB_MASK;
-    record->metadata.type    = type;
+    record->metadata.type      = type;
     record->metadata.id        = id;
     record->metadata.agent     = agent;
 
@@ -294,9 +285,6 @@ cdpRecord* cdp_book_add_record(cdpRecord* book, cdpRecord* record, bool prepend)
     // Update child.
     child->store = store;
 
-    if (cdp_record_is_book(child))
-        cdp_book_relink_storage(child);
-
     // Update parent.
     store->chdCount++;
 
@@ -338,9 +326,6 @@ cdpRecord* cdp_book_sorted_insert(cdpRecord* book, cdpRecord* record, cdpCompare
 
     // Update child.
     child->store = store;
-
-    if (cdp_record_is_book(child))
-        cdp_book_relink_storage(child);
 
     // Update parent.
     store->chdCount++;

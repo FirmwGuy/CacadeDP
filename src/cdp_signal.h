@@ -75,7 +75,7 @@ enum {
 
 
 void cdp_system_initiate_signals(void);
-void cdp_signal_finalize(void);
+void cdp_system_finalize_signals(void);
 
 
 cdpSignal* cdp_signal_new(cdpID nameID, unsigned itemsArg, unsigned itemsRes);

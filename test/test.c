@@ -28,6 +28,7 @@
 #include <stdio.h>      // sprintf()
 
 #include "cdp_record.h"
+#include "cdp_agent.h"
 
 
 
@@ -39,8 +40,6 @@ static void test_records_print(cdpRecord* record, char *sval) {
         sprintf(sval, "[%d]", record->metadata.id);
     } else if (cdp_record_is_dictionary(record)) {
         sprintf(sval, "{%d}", record->metadata.id);
-    } else if (cdp_record_is_catalog(record)) {
-        sprintf(sval, "<%d>", record->metadata.id);
     } else if (cdp_record_is_register(record)) {
         uint32_t uval;
         cdp_register_read(record, 0, &uval, NULL);
@@ -48,7 +47,7 @@ static void test_records_print(cdpRecord* record, char *sval) {
     }
 }
 
-static bool print_values(cdpBookEntry* entry, unsigned depth, void* unused) {
+static bool print_values(cdpBookEntry* entry, void* unused) {
     assert_not_null(entry->record);
     char this[16], prev[16], next[16];
     test_records_print(entry->record, this);
@@ -105,12 +104,15 @@ static void test_records_nested_one_item_ops(cdpRecord* cat, cdpID id, cdpRecord
     cdpRecord* book  = cdp_book_last(cat);
     cdpRecord* found = cdp_book_find_by_name(book, CDP_NAME_ENUMERATION);
     assert_ptr_equal(found, reg);
+
     book  = cdp_book_find_by_name(cat, id);
     found = cdp_book_find_by_name(book, CDP_NAME_ENUMERATION);
     assert_ptr_equal(found, reg);
+
     book  = cdp_book_find_by_position(cat, 0);
     found = cdp_book_find_by_name(book, CDP_NAME_ENUMERATION);
     assert_ptr_equal(found, reg);
+
     cdpPath* path = cdp_alloca(sizeof(cdpPath) + (1 * sizeof(cdpID)));
     path->length = 1;
     path->capacity = 1;
@@ -118,6 +120,7 @@ static void test_records_nested_one_item_ops(cdpRecord* cat, cdpID id, cdpRecord
     book  = cdp_book_find_by_path(cat, path);
     found = cdp_book_find_by_name(book, CDP_NAME_ENUMERATION);
     assert_ptr_equal(found, reg);
+
     assert_true(cdp_book_traverse(book, print_values, NULL, NULL));
 }
 
@@ -172,7 +175,7 @@ static void test_records_tech_book(unsigned storage) {
         if (munit_rand_uint32() & 1) {
             index = cdp_book_children(book);
 
-            reg = cdp_book_add_uint32(book, CDP_NAME_ENUMERATION-n, value);
+            reg = cdp_book_add_uint32(book, CDP_NAME_ENUMERATION+n, value);
             test_records_register_val(reg, value);
 
             found = cdp_book_first(book);
@@ -184,7 +187,7 @@ static void test_records_tech_book(unsigned storage) {
         } else {
             index = 0;
 
-            reg = cdp_book_prepend_uint32(book, CDP_NAME_ENUMERATION-n, value);
+            reg = cdp_book_prepend_uint32(book, CDP_NAME_ENUMERATION+n, value);
             test_records_register_val(reg, value);
 
             found = cdp_book_first(book);
@@ -211,7 +214,7 @@ static void test_records_tech_book(unsigned storage) {
     /* Nested books */
 
     cdpRecord* chdBook = cdp_book_add_book(book, CDP_NAME_TEMP, CDP_TYPE_BOOK, storage, 20);
-    reg = cdp_book_prepend_uint32(chdBook, CDP_NAME_ENUMERATION-30, value);
+    reg = cdp_book_prepend_uint32(chdBook, CDP_NAME_ENUMERATION+30, value);
     test_records_register_val(reg, value);
     assert_true(cdp_book_deep_traverse(book, print_values, NULL, NULL, NULL));
 
@@ -258,7 +261,7 @@ static void test_records_tech_dictionary(unsigned storage) {
 
         do {
             value = munit_rand_int_range(1, 1000);
-            name = CDP_NAME_ENUMERATION - value;
+            name = CDP_NAME_ENUMERATION + value;
             found = cdp_book_find_by_name(dict, name);
         } while (found);
         if (value < vmin)   vmin = value;
@@ -291,7 +294,7 @@ static void test_records_tech_dictionary(unsigned storage) {
 
     /* Nested books */
 
-    cdpRecord* chdDict = cdp_book_add_dictionary(dict, CDP_NAME_TEMP-2000, storage, 20);
+    cdpRecord* chdDict = cdp_book_add_dictionary(dict, CDP_NAME_TEMP+2000, storage, 20);
     reg = cdp_book_add_uint32(chdDict, CDP_NAME_ENUMERATION, value);
     test_records_register_val(reg, value);
     assert_true(cdp_book_deep_traverse(dict, print_values, NULL, NULL, NULL));
@@ -317,14 +320,14 @@ static int tech_catalog_compare(const cdpRecord* key, const cdpRecord* book, voi
 }
 
 static void test_records_tech_catalog(unsigned storage) {
-    cdpRecord* cat = cdp_book_add_catalog(cdp_root(), CDP_NAME_TEMP, storage, tech_catalog_compare, NULL, 20);
+    cdpRecord* cat = cdp_book_add_book(cdp_root(), CDP_NAME_TEMP, CDP_AGENT_BOOK, storage, 20);
 
     /* One item operations */
 
     // Isert, lookups and delete
     test_records_zero_item_ops(cat);
     int32_t value = 1;
-    cdpRecord* book = cdp_catalog_add(cat, tech_catalog_create_structure(CDP_NAME_TEMP, value));
+    cdpRecord* book = cdp_book_sorted_insert(cat, tech_catalog_create_structure(CDP_NAME_TEMP, value), tech_catalog_compare, NULL);
     cdpRecord* reg = cdp_book_find_by_name(book, CDP_NAME_ENUMERATION);
     test_records_nested_one_item_ops(cat, CDP_NAME_TEMP, reg);
     cdp_book_delete(book);
@@ -357,13 +360,13 @@ static void test_records_tech_catalog(unsigned storage) {
 
         do {
             value = munit_rand_int_range(1, 1000);
-            name = CDP_NAME_TEMP - value;
+            name = CDP_NAME_TEMP + value;
             book = cdp_book_find_by_name(cat, name);
         } while (book);
         if (value < vmin)   vmin = value;
         if (value > vmax)   vmax = value;
 
-        book = cdp_catalog_add(cat, tech_catalog_create_structure(name, value));
+        book = cdp_book_sorted_insert(cat, tech_catalog_create_structure(name, value), tech_catalog_compare, NULL);
         reg  = cdp_book_find_by_name(book, CDP_NAME_ENUMERATION);
         test_records_register_val(reg, value);
 
@@ -407,14 +410,14 @@ static void test_records_tech_catalog(unsigned storage) {
 static void test_records_tech_sequencing_book(void) {
     size_t maxItems = munit_rand_int_range(2, 100);
 
-    cdpRecord* bookL = cdp_book_add_book(cdp_root(), CDP_NAME_TEMP-1, CDP_TYPE_BOOK, CDP_STO_CHD_LINKED_LIST);
-    cdpRecord* bookA = cdp_book_add_book(cdp_root(), CDP_NAME_TEMP-2, CDP_TYPE_BOOK, CDP_STO_CHD_ARRAY, maxItems);
+    cdpRecord* bookL = cdp_book_add_book(cdp_root(), CDP_NAME_TEMP+1, CDP_TYPE_BOOK, CDP_STO_CHD_LINKED_LIST);
+    cdpRecord* bookA = cdp_book_add_book(cdp_root(), CDP_NAME_TEMP+2, CDP_TYPE_BOOK, CDP_STO_CHD_ARRAY, maxItems);
 
     cdpRecord* foundL, *foundA;
 
     for (unsigned n = 0; n < maxItems;  n++) {
         uint32_t value = 1 + (munit_rand_uint32() % (maxItems>>1));
-        cdpID name = CDP_NAME_ENUMERATION - value;
+        cdpID name = CDP_NAME_ENUMERATION + value;
 
         if ((foundL = cdp_book_find_by_name(bookL, name))) cdp_register_delete(foundL);
         if ((foundA = cdp_book_find_by_name(bookA, name))) cdp_register_delete(foundA);
@@ -458,15 +461,15 @@ static void test_records_tech_sequencing_book(void) {
 static void test_records_tech_sequencing_dictionary(void) {
     size_t maxItems = munit_rand_int_range(2, 100);
 
-    cdpRecord* dictL = cdp_book_add_dictionary(cdp_root(), CDP_NAME_TEMP-1, CDP_STO_CHD_LINKED_LIST);
-    cdpRecord* dictA = cdp_book_add_dictionary(cdp_root(), CDP_NAME_TEMP-2, CDP_STO_CHD_ARRAY, maxItems);
-    cdpRecord* dictT = cdp_book_add_dictionary(cdp_root(), CDP_NAME_TEMP-3, CDP_STO_CHD_RED_BLACK_T);
+    cdpRecord* dictL = cdp_book_add_dictionary(cdp_root(), CDP_NAME_TEMP+1, CDP_STO_CHD_LINKED_LIST);
+    cdpRecord* dictA = cdp_book_add_dictionary(cdp_root(), CDP_NAME_TEMP+2, CDP_STO_CHD_ARRAY, maxItems);
+    cdpRecord* dictT = cdp_book_add_dictionary(cdp_root(), CDP_NAME_TEMP+3, CDP_STO_CHD_RED_BLACK_T);
 
     cdpRecord* foundL, *foundA, *foundT;
 
     for (unsigned n = 0; n < maxItems;  n++) {
         uint32_t value = 1 + (munit_rand_uint32() % (maxItems>>1));
-        cdpID name = CDP_NAME_ENUMERATION - value;
+        cdpID name = CDP_NAME_ENUMERATION + value;
 
         if ((foundL = cdp_book_find_by_name(dictL, name))) cdp_register_delete(foundL);
         if ((foundA = cdp_book_find_by_name(dictA, name))) cdp_register_delete(foundA);
@@ -518,9 +521,9 @@ static void test_records_tech_sequencing_dictionary(void) {
 static void test_records_tech_sequencing_catalog(void) {
     size_t maxItems = munit_rand_int_range(2, 100);
 
-    cdpRecord* catL = cdp_book_add_catalog(cdp_root(), CDP_NAME_TEMP-1, CDP_STO_CHD_LINKED_LIST, tech_catalog_compare, NULL);
-    cdpRecord* catA = cdp_book_add_catalog(cdp_root(), CDP_NAME_TEMP-2, CDP_STO_CHD_ARRAY,       tech_catalog_compare, NULL, maxItems);
-    cdpRecord* catT = cdp_book_add_catalog(cdp_root(), CDP_NAME_TEMP-3, CDP_STO_CHD_RED_BLACK_T, tech_catalog_compare, NULL);
+    cdpRecord* catL = cdp_book_add_book(cdp_root(), CDP_NAME_TEMP+1, CDP_AGENT_BOOK, CDP_STO_CHD_LINKED_LIST);
+    cdpRecord* catA = cdp_book_add_book(cdp_root(), CDP_NAME_TEMP+2, CDP_AGENT_BOOK, CDP_STO_CHD_ARRAY, maxItems);
+    cdpRecord* catT = cdp_book_add_book(cdp_root(), CDP_NAME_TEMP+3, CDP_AGENT_BOOK, CDP_STO_CHD_RED_BLACK_T);
 
     cdpRecord* foundL, *foundA, *foundT;
     cdpRecord  key = *tech_catalog_create_structure(CDP_NAME_TEMP, 0);
@@ -528,12 +531,12 @@ static void test_records_tech_sequencing_catalog(void) {
 
     for (unsigned n = 0; n < maxItems;  n++) {
         int32_t value = 1 + (munit_rand_uint32() % (maxItems>>1));
-        cdpID name = CDP_NAME_ENUMERATION - value;
+        cdpID name = CDP_NAME_ENUMERATION + value;
         cdp_register_update_int32(reg, value);
 
-        if ((foundL = cdp_book_find_by_key(catL, &key))) cdp_book_delete(foundL);
-        if ((foundA = cdp_book_find_by_key(catA, &key))) cdp_book_delete(foundA);
-        if ((foundT = cdp_book_find_by_key(catT, &key))) cdp_book_delete(foundT);
+        if ((foundL = cdp_book_find_by_key(catL, &key, tech_catalog_compare, NULL)))    cdp_book_delete(foundL);
+        if ((foundA = cdp_book_find_by_key(catA, &key, tech_catalog_compare, NULL)))    cdp_book_delete(foundA);
+        if ((foundT = cdp_book_find_by_key(catT, &key, tech_catalog_compare, NULL)))    cdp_book_delete(foundT);
         assert((!foundL && !foundA && !foundT) || (foundL && foundA && foundT));
 
         if (cdp_book_children(catL)) {
@@ -551,9 +554,9 @@ static void test_records_tech_sequencing_catalog(void) {
             }
         }
 
-        cdp_catalog_add(catL, tech_catalog_create_structure(name, value));
-        cdp_catalog_add(catA, tech_catalog_create_structure(name, value));
-        cdp_catalog_add(catT, tech_catalog_create_structure(name, value));
+        cdp_book_sorted_insert(catL, tech_catalog_create_structure(name, value), tech_catalog_compare, NULL);
+        cdp_book_sorted_insert(catA, tech_catalog_create_structure(name, value), tech_catalog_compare, NULL);
+        cdp_book_sorted_insert(catT, tech_catalog_create_structure(name, value), tech_catalog_compare, NULL);
 
         cdpRecord* bookL = cdp_book_first(catL);
         cdpRecord* bookA = cdp_book_first(catA);

@@ -107,7 +107,7 @@ void cdp_system_initiate_signals(void) {
 }
 
 
-void cdp_signal_shutdown(void) {
+void cdp_system_finalize_signals(void) {
     cdp_signal_del(SIGNAL_INITIATE_BOOK);
     cdp_signal_del(SIGNAL_INITIATE_REGISTER);
     cdp_signal_del(SIGNAL_INITIATE_LINK);

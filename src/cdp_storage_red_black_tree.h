@@ -49,10 +49,10 @@ typedef struct {
 #define rb_tree_del       cdp_free
 
 
-static inline cdpRbTreeNode* rb_tree_node_new(const cdpRecord* record) {
+static inline cdpRbTreeNode* rb_tree_node_new(cdpRecord* record) {
     CDP_NEW(cdpRbTreeNode, tnode);
     tnode->isRed = true;
-    tnode->record = *record;
+    cdp_record_transfer(record, &tnode->record);
     return tnode;
 }
 
@@ -164,14 +164,14 @@ static inline void rb_tree_sorted_insert_tnode(cdpRbTree* tree, cdpRbTreeNode* t
 }
 
 
-static inline cdpRecord* rb_tree_sorted_insert(cdpRbTree* tree, const cdpRecord* record, cdpCompare compare, void* context) {
+static inline cdpRecord* rb_tree_sorted_insert(cdpRbTree* tree, cdpRecord* record, cdpCompare compare, void* context) {
     cdpRbTreeNode* tnode = rb_tree_node_new(record);
     rb_tree_sorted_insert_tnode(tree, tnode, compare, context);
     return &tnode->record;
 }
 
 
-static inline cdpRecord* rb_tree_add(cdpRbTree* tree, cdpRecord* parent, const cdpRecord* record) {
+static inline cdpRecord* rb_tree_add(cdpRbTree* tree, cdpRecord* parent, cdpRecord* record) {
     assert(cdp_record_is_dictionary(parent));
     cdpRbTreeNode* tnode = rb_tree_node_new(record);
     rb_tree_sorted_insert_tnode(tree, tnode, record_compare_by_name, NULL);
@@ -179,7 +179,7 @@ static inline cdpRecord* rb_tree_add(cdpRbTree* tree, cdpRecord* parent, const c
 }
 
 
-static inline cdpRecord* rb_tree_add_property(cdpRbTree* tree, const cdpRecord* record) {
+static inline cdpRecord* rb_tree_add_property(cdpRbTree* tree, cdpRecord* record) {
     cdpRbTreeNode* tnode = rb_tree_node_new(record);
     rb_tree_sorted_insert_tnode(tree, tnode, record_compare_by_name, NULL);
     return &tnode->record;

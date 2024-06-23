@@ -71,24 +71,27 @@ static inline void list_sorted_insert_node(cdpList* list, cdpListNode* node, cdp
     }
     if (!next) {
         // Make node the new list tail.
-        list->tail->next = node;
         node->prev = list->tail;
+        if (list->tail)
+            list->tail->next = node;
+        else
+            list->head = node;
         list->tail = node;
     }
 }
 
 
-static inline cdpRecord* list_sorted_insert(cdpList* list, const cdpRecord* record, cdpCompare compare, void* context) {
+static inline cdpRecord* list_sorted_insert(cdpList* list, cdpRecord* record, cdpCompare compare, void* context) {
     CDP_NEW(cdpListNode, node);
-    node->record = *record;
+    cdp_record_transfer(record, &node->record);
     list_sorted_insert_node(list, node, compare, context);
     return &node->record;
 }
 
 
-static inline cdpRecord* list_add(cdpList* list, cdpRecord* parent, bool prepend, const cdpRecord* record) {
+static inline cdpRecord* list_add(cdpList* list, cdpRecord* parent, bool prepend, cdpRecord* record) {
     CDP_NEW(cdpListNode, node);
-    node->record = *record;
+    cdp_record_transfer(record, &node->record);
 
     if (list->store.chdCount) {
         if (cdp_record_is_dictionary(parent)) {

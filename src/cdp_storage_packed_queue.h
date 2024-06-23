@@ -66,7 +66,7 @@ static inline cdpPackedQNode* packed_q_node_from_record(cdpPackedQ* pkdq, cdpRec
 }
 
 
-static inline cdpRecord* packed_q_add(cdpPackedQ* pkdq, cdpRecord* parent, bool prepend, const cdpRecord* record) {
+static inline cdpRecord* packed_q_add(cdpPackedQ* pkdq, cdpRecord* parent, bool prepend, cdpRecord* record) {
     assert(cdp_record_is_book(parent));
 
     cdpRecord* child;
@@ -103,7 +103,7 @@ static inline cdpRecord* packed_q_add(cdpPackedQ* pkdq, cdpRecord* parent, bool 
         pkdq->pTail = pkdq->pHead = pNode;
         child = pNode->last;
     }
-    *child = *record;
+    cdp_record_transfer(record, child);
 
     return child;
 }

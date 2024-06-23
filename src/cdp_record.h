@@ -483,7 +483,7 @@ static inline cdpRecord* cdp_book_add_text(cdpRecord* book, unsigned attrib, cdp
 
 
 #define cdp_book_add_book(b, id, agent, chdStorage, ...)             cdp_book_add(b, CDP_TYPE_BOOK, 0, id, agent, false, ((unsigned)(chdStorage)), ##__VA_ARGS__)
-#define cdp_book_prepend_book(b, agent, id, chdStorage, ...)         cdp_book_add(b, CDP_TYPE_BOOK, 0, id, agent,  true, ((unsigned)(chdStorage)), ##__VA_ARGS__)
+#define cdp_book_prepend_book(b, id, agent, chdStorage, ...)         cdp_book_add(b, CDP_TYPE_BOOK, 0, id, agent,  true, ((unsigned)(chdStorage)), ##__VA_ARGS__)
 
 #define cdp_book_add_list(b, id, chdStorage, ...)                   cdp_book_add_book(b, id, CDP_AGENT_LIST,       ((unsigned)(chdStorage)), ##__VA_ARGS__)
 #define cdp_book_add_queue(b, id, chdStorage, ...)                  cdp_book_add_book(b, id, CDP_AGENT_QUEUE,      ((unsigned)(chdStorage)), ##__VA_ARGS__)

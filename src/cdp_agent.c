@@ -415,7 +415,7 @@ static void system_initiate(void) {
     /* Initiate global records.
     */
     {
-        CDP_VOID = cdp_book_add_boolean(TEMP, CDP_NAME_VOID, 0);
+        CDP_VOID = cdp_book_add_bool(TEMP, CDP_NAME_VOID, 0);
         CDP_VOID->metadata.agent = CDP_VOID->metadata.type = CDP_TYPE_VOID;
         CDP_VOID->metadata.id = CDP_NAME_VOID;
         CDP_RECORD_SET_ATRIBUTE(CDP_VOID, CDP_ATTRIB_FACTUAL);
@@ -460,7 +460,7 @@ void cdp_system_shutdown(void) {
     assert(SYSTEM);
     cdp_book_traverse(SYSTEM, system_traverse, cdp_v2p(CDP_NAME_SHUTDOWN), NULL);
     cdp_signal_del(SYSTEM_SIGNAL);
-    cdp_signal_finalize();
+    cdp_system_finalize_signals();
     cdp_book_reset(&CDP_ROOT);
     cdp_record_system_shutdown();
     SYSTEM = NULL;
