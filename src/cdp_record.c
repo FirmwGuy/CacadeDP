@@ -168,8 +168,6 @@ bool cdp_record_initialize(cdpRecord* record, unsigned type, unsigned attrib, cd
         CDP_DEBUG(
             if (agent == CDP_AGENT_DICTIONARY)
                 assert(reqStore != CDP_STO_CHD_PACKED_QUEUE);
-            else
-                assert(reqStore != CDP_STO_CHD_RED_BLACK_T);    // Any other type of book storage should be prependable.
         );
         cdpChdStore* chdStore = book_create_storage(reqStore, args);
 
@@ -271,6 +269,7 @@ cdpRecord* cdp_book_add_record(cdpRecord* book, cdpRecord* record, bool prepend)
         break;
       }
       PACKED_QUEUE: {
+        assert(!cdp_record_is_dictionary(book));
         child = packed_q_add(book->recData.book.children, book, prepend, record);
         break;
       }
