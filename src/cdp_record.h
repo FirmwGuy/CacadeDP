@@ -363,6 +363,8 @@ typedef bool (*cdpAction)(cdpRecord* instance, cdpSignal* signal);
 bool cdp_record_initialize(cdpRecord* record, unsigned type, unsigned attrib, cdpID id, cdpID agent, ...);
 void cdp_record_finalize(cdpRecord* record);
 
+#define cdp_record_initialize_register(r, id, agent, borrow, data, size)  cdp_record_initialize(r, CDP_TYPE_REGISTER, 0, id, agent, borrow, data, size)
+
 #define cdp_record_initialize_list(r, id, chdStorage, ...)        cdp_record_initialize(r, CDP_TYPE_BOOK, 0, id, CDP_AGENT_LIST,       ((unsigned)(chdStorage)), ##__VA_ARGS__)
 #define cdp_record_initialize_queue(r, id, chdStorage, ...)       cdp_record_initialize(r, CDP_TYPE_BOOK, 0, id, CDP_AGENT_QUEUE,      ((unsigned)(chdStorage)), ##__VA_ARGS__)
 #define cdp_record_initialize_stack(r, id, chdStorage, ...)       cdp_record_initialize(r, CDP_TYPE_BOOK, 0, id, CDP_AGENT_STACK,      ((unsigned)(chdStorage)), ##__VA_ARGS__)
@@ -641,6 +643,7 @@ void cdp_record_system_shutdown(void);
 
 /*
     TODO:
+    - Send simultaneous book signals to nested agent books.
     - Fully define new roles of dictionaries and *_find_by_name() family functions.
     - Use "recData.reg.data.direct" in registers.
     - Imlement clone (deep copy) records.
