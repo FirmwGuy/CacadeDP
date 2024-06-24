@@ -44,7 +44,7 @@ bool cdp_action_error(cdpRecord* instance, cdpSignal* signal);
 
 
 /*
- *    Record actions.
+ *    Record actions
  */
 bool cdp_action_initiate_book(cdpRecord* instance, cdpSignal* signal);
 bool cdp_action_initiate_register(cdpRecord* instance, cdpSignal* signa);
@@ -52,8 +52,6 @@ bool cdp_action_initiate_link(cdpRecord* instance, cdpSignal* signa);
 bool cdp_action_finalize(cdpRecord* instance, cdpSignal* signal);
 bool cdp_action_reset_book(cdpRecord* instance, cdpSignal* signal);
 bool cdp_action_reset_register(cdpRecord* instance, cdpSignal* signal);
-bool cdp_action_reference(cdpRecord* instance, cdpSignal* signal);
-bool cdp_action_unreference(cdpRecord* instance, cdpSignal* signal);
 bool cdp_action_next(cdpRecord* instance, cdpSignal* signal);
 bool cdp_action_previous(cdpRecord* instance, cdpSignal* signal);
 bool cdp_action_validate(cdpRecord* instance, cdpSignal* signal);
@@ -61,20 +59,7 @@ bool cdp_action_remove(cdpRecord* instance, cdpSignal* signal);
 
 
 /*
- *    Register actions.
- */
-bool cdp_action_serialize(cdpRecord* instance, cdpSignal* signal);
-bool cdp_action_unserialize(cdpRecord* instance, cdpSignal* signal);
-bool cdp_action_textualize(cdpRecord* instance, cdpSignal* signal);
-bool cdp_action_untextualize(cdpRecord* instance, cdpSignal* signal);
-bool cdp_action_read(cdpRecord* instance, cdpSignal* signal);
-bool cdp_action_update(cdpRecord* instance, cdpSignal* signal);
-bool cdp_action_patch(cdpRecord* instance, cdpSignal* signal);
-
-
-
-/*
- *    Book actions.
+ *    Book actions
  */
 bool cdp_action_add(cdpRecord* instance, cdpSignal* signal);
 bool cdp_action_prepend(cdpRecord* instance, cdpSignal* signal);
@@ -88,6 +73,21 @@ bool cdp_action_link(cdpRecord* instance, cdpSignal* signal);
 bool cdp_action_shadow(cdpRecord* instance, cdpSignal* signal);
 bool cdp_action_clone(cdpRecord* instance, cdpSignal* signal);
 bool cdp_action_move(cdpRecord* instance, cdpSignal* signal);
+
+
+/*
+ *    Register actions.
+ */
+bool cdp_action_reference(cdpRecord* instance, cdpSignal* signal);
+bool cdp_action_unreference(cdpRecord* instance, cdpSignal* signal);
+bool cdp_action_serialize(cdpRecord* instance, cdpSignal* signal);
+bool cdp_action_unserialize(cdpRecord* instance, cdpSignal* signal);
+bool cdp_action_textualize(cdpRecord* instance, cdpSignal* signal);
+bool cdp_action_untextualize(cdpRecord* instance, cdpSignal* signal);
+bool cdp_action_read(cdpRecord* instance, cdpSignal* signal);
+bool cdp_action_update(cdpRecord* instance, cdpSignal* signal);
+bool cdp_action_patch(cdpRecord* instance, cdpSignal* signal);
+
 
 #define  action_reg_def_textualize(name)                               \
     bool cdp_action_textualize_##name(cdpRecord* instance, cdpSignal* signal); \

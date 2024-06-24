@@ -238,7 +238,7 @@ static inline void packed_q_remove_record(cdpPackedQ* pkdq, cdpRecord* record) {
     } else if (record == pkdq->pTail->last) {
         packed_q_take(pkdq, &dummy);
     } else {
-        // Only popping (first or last) is allowed for this.
+        // Only removing first/last is allowed for this.
         assert(record == pkdq->pHead->first || record == pkdq->pTail->last);
     }
 }

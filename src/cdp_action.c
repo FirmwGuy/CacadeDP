@@ -27,10 +27,9 @@
 void cdp_system_initiate_actions(void) {
     extern cdpRecord* NAME;
 
-    /* Initiate signal name IDs:
-       *** WARNING: this must be done in the same order as the
-                    enumeration in "cdp_action.h". ***
-    */
+    /**** WARNING: this must be done in the same order as the
+                enumeration in "cdp_action.h". ****/
+
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,  "storage");
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,     "base");
 
@@ -54,7 +53,7 @@ bool cdp_action_error(cdpRecord* instance, cdpSignal* signal) {
 
 
 /*
- *    Record actions.
+ *    Record actions
  */
 
 
@@ -120,18 +119,6 @@ bool cdp_action_reset_register(cdpRecord* instance, cdpSignal* signal) {
 }
 
 
-bool cdp_action_unreference(cdpRecord* instance, cdpSignal* signal) {
-    // Pending...
-    return true;
-}
-
-
-bool cdp_action_reference(cdpRecord* instance, cdpSignal* signal) {
-    // Pending...
-    return true;
-}
-
-
 bool cdp_action_next(cdpRecord* instance, cdpSignal* signal) {
     cdpRecord* nextRec = cdp_book_next(NULL, instance);
     if (nextRec)
@@ -165,55 +152,7 @@ bool cdp_action_remove(cdpRecord* instance, cdpSignal* signal) {
 
 
 /*
- *    Register actions.
- */
-
-
-bool cdp_action_serialize(cdpRecord* instance, cdpSignal* signal) {
-    return true;
-}
-
-
-bool cdp_action_unserialize(cdpRecord* instance, cdpSignal* signal) {
-    // Pending...
-    return true;
-}
-
-
-bool cdp_action_textualize(cdpRecord* instance, cdpSignal* signal) {
-    // ToDo: encode to base64.
-    return true;
-}
-
-
-bool cdp_action_untextualize(cdpRecord* instance, cdpSignal* signal) {
-    // ToDO: decode base64.
-    return true;
-}
-
-
-bool cdp_action_read(cdpRecord* instance, cdpSignal* signal) {
-    // make a copy of data and put it on output.
-    return false;
-}
-
-
-bool cdp_action_update(cdpRecord* instance, cdpSignal* signal) {
-    //cdp_register_update(instance,);
-    return false;
-}
-
-
-bool cdp_action_patch(cdpRecord* instance, cdpSignal* signal) {
-    // Pending...
-    return false;
-}
-
-
-
-
-/*
- *    Book actions.
+ *    Book actions
  */
 
 
@@ -281,6 +220,65 @@ bool cdp_action_clone(cdpRecord* instance, cdpSignal* signal) {
 
 
 bool cdp_action_move(cdpRecord* instance, cdpSignal* signal) {
+    // Pending...
+    return false;
+}
+
+
+
+
+/*
+ *    Register actions
+ */
+
+
+bool cdp_action_reference(cdpRecord* instance, cdpSignal* signal) {
+    // Pending...
+    return true;
+}
+
+
+bool cdp_action_unreference(cdpRecord* instance, cdpSignal* signal) {
+    // Pending...
+    return true;
+}
+
+bool cdp_action_serialize(cdpRecord* instance, cdpSignal* signal) {
+    return true;
+}
+
+
+bool cdp_action_unserialize(cdpRecord* instance, cdpSignal* signal) {
+    // Pending...
+    return true;
+}
+
+
+bool cdp_action_textualize(cdpRecord* instance, cdpSignal* signal) {
+    // ToDo: encode to base64.
+    return true;
+}
+
+
+bool cdp_action_untextualize(cdpRecord* instance, cdpSignal* signal) {
+    // ToDO: decode base64.
+    return true;
+}
+
+
+bool cdp_action_read(cdpRecord* instance, cdpSignal* signal) {
+    // make a copy of data and put it on output.
+    return false;
+}
+
+
+bool cdp_action_update(cdpRecord* instance, cdpSignal* signal) {
+    //cdp_register_update(instance,);
+    return false;
+}
+
+
+bool cdp_action_patch(cdpRecord* instance, cdpSignal* signal) {
     // Pending...
     return false;
 }

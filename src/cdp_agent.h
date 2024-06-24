@@ -282,13 +282,13 @@ cdpID      cdp_name_id_add(const char* name, bool borrow);
 cdpRecord* cdp_name_id_text(cdpID nameID);
 
 
-cdpID cdp_system_set_agent( const char*   name,
-                            size_t        baseSize,
-                            unsigned      assimLenght,
-                            cdpID*        assimilate,
-                            unsigned      numAction,
-                            cdpAction     initiate,
-                            cdpAction     finalize );
+cdpID cdp_system_set_agent( const char* name,
+                            size_t      baseSize,
+                            unsigned    assimLenght,
+                            cdpID*      assimilate,
+                            unsigned    numAction,
+                            cdpAction   initiate,
+                            cdpAction   finalize );
 cdpRecord* cdp_system_get_agent(cdpID id);
 
 cdpID      cdp_system_set_action(cdpID agentID, const char* name, cdpAction action);

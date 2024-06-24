@@ -19,40 +19,12 @@
  */
 
 
-#include "test.h"
+/*  This test program uses Munit, which is MIT licensed. Please see munit.h file
+ *  for a complete license information.
+ */
+#define MUNIT_ENABLE_ASSERT_ALIASES
+#include "munit.h"
 
 
-MunitTest tests[] = {
-  { "/records",
-    test_records,
-    NULL,                     // setup
-    NULL,                     // tear_down
-    MUNIT_TEST_OPTION_NONE,
-    NULL                      // parameters
-  },
-
-  { "/agents",
-    test_agents,
-    NULL,                     // setup
-    NULL,                     // tear_down
-    MUNIT_TEST_OPTION_NONE,
-    NULL                      // parameters
-  },
-
-  {NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL}  // EOL
-};
-
-
-const MunitSuite testSuite = {
-    "/CascadeDP",
-    tests,
-    NULL,                     // suites
-    1,                        // iterations
-    MUNIT_SUITE_OPTION_NONE
-};
-
-
-int main(int argC, char* argV[MUNIT_ARRAY_PARAM(argC + 1)]) {
-    return munit_suite_main(&testSuite, NULL, argC, argV);
-}
-
+MunitResult test_records(const MunitParameter params[], void* user_data_or_fixture);
+MunitResult test_agents (const MunitParameter params[], void* user_data_or_fixture);

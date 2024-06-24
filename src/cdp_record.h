@@ -643,17 +643,14 @@ void cdp_record_system_shutdown(void);
     TODO:
     - Fully define new roles of dictionaries and *_find_by_name() family functions.
     - Use "recData.reg.data.direct" in registers.
-    - (Deep) copy registers.
+    - Imlement clone (deep copy) records.
     - Traverse book in internal (stoTech) order.
     - Add indexof for records.
+    - Implement cdp_book_insert_at(position).
     - Update MAX_DEPTH based on path/traverse operations.
     - Add cdp_book_update_nested_links(old, new).
     - CDP_NAME_VOID should never be a valid name for records.
     - If a record is added to a book with its name explicitelly above "auto_id", then it must be updated.
-    - Redefine user callback based on typed book ops.
-    - Implement cdp_book_insert_at(position).
-    - Perhaps ids should be an unsorted tree (instead of a log) and use the deep-traverse index.
-    - Fully define the tree (nesting) recursion limit policy.
 */
 
 

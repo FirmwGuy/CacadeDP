@@ -49,7 +49,7 @@ static inline void array_del(cdpArray* array) {
 
 
 static inline cdpRecord* array_search(cdpArray* array, const void* key, cdpCompare compare, void* context, size_t* index) {
-    size_t imax = cdp_ptr_has_val(index)? *index - 1: array->store.chdCount - 1;
+    size_t imax = (index && *index)? *index - 1: array->store.chdCount - 1;
     size_t imin = 0, i;
     cdpRecord* record;
     do {

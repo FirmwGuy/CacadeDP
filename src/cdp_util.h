@@ -50,13 +50,6 @@
 #define     CDP_T(v, x, ...)          __auto_type (x) __VA_ARGS__ = (v)
 #define     CDP_U(_, x, v, ...)       CDP_T(v, CDP(_,x), ##__VA_ARGS__)
 #define     CDP_I(T, p, a, ...)       T* (p) __VA_ARGS__ = (T*) (a)
-#define     CDP_Q(_, p, T, a, ...)    CDP_I(T, CDP(_,p), a, ##__VA_ARGS__)
-
-#define     CDP_AUTOFREE_NAME(n)      CDPPASTE(n, _AUTO)
-#define     CDP_AUTOFREE_(f)          static inline void CDP_AUTOFREE_NAME(f)(void* p) {f(*(void**)p);}
-#define     CDP_AT(a, p, f, ...)      CDP_T(a, p, __attribute__((cleanup(CDP_AUTOFREE_NAME(f)))), ##__VA_ARGS__)
-#define     CDP_AU(_, a, p, f, ...)   CDP_V(_, a, p, __attribute__((cleanup(CDP_AUTOFREE_NAME(f)))), ##__VA_ARGS__)
-#define     CDP_AP(T, p, f, a, ...)   CDP_I(T, p, a, __attribute__((cleanup(CDP_AUTOFREE_NAME(f)))), ##__VA_ARGS__)
 
 #define     CDP_TLS   __thread
 
@@ -78,14 +71,11 @@
 #define     cdp_malloc0(z, ...)         cdp_calloc(1, z __VA_ARGS__)
 
 
-CDP_AUTOFREE_(cdp_free)
-
-
 #define     cdp_new(T, ...)           cdp_malloc0(sizeof(T) __VA_ARGS__)
 #define     CDP_NEW(T, p, ...)        CDP_I(T, p, cdp_new(T, ##__VA_ARGS__))
-#define     CDP_FR(T, p, ...)         T* (p) __attribute__((cleanup(CDP_AUTOFREE_NAME(cdp_free)))) __VA_ARGS__
-#define     CDP_FREE(p)               do{ cdp_free(p); (p) = NULL; }while (0)
 #define     CDP_REALLOC(p, z)         ({(p) = cdp_realloc(p, z);})
+#define     CDP_FREE(p)               do{ cdp_free(p); (p) = NULL; }while (0)
+#define     CDP_AUTOFREE(T, p, ...)   T* (p) __attribute__((cleanup(cdp_free))) __VA_ARGS__
 
 
 static inline void  cdp_cpy_or_0(void* q, void* p, size_t z)  {assert(q);  if (p) memcpy(q, p, z); else memset(q, 0, z);}
@@ -120,7 +110,6 @@ typedef void (*cdpDel)(void*);
 #define     cdp_ptr_dif(p1, p2)       ((void*)(((uint8_t*)(p1)) - ((uint8_t*)(p2))))
 #define     cdp_ptr_idx(p, o, z)      ((size_t)cdp_ptr_dif(o, p) / (z))
 #define     cdp_ptr_adr(p, i, z)      cdp_ptr_off(p, (i)*(z))
-#define     cdp_ptr_has_val(p)        ((p) && *(p))
 #define     cdp_ptr_sec_get(p, v)     ((p)? *(p): (n))
 #define     CDP_PTR_SEC_SET(p, n)     ({if (p) *(p)=(n);})
 #define     CDP_PTR_OVERW(p, n)       ({cdp_free(p); (p)=(n);})
@@ -155,9 +144,6 @@ typedef void (*cdpDel)(void*);
 #define     _cdp_max(_, _a, _b)       ({CDP_U(_,a, _a); CDP_U(_,b, _b);  cdp_const_max(CDP(_,a), CDP(_,b));})
 #define     cdp_min(...)              _cdp_min(__COUNTER__, __VA_ARGS__)
 #define     cdp_max(...)              _cdp_max(__COUNTER__, __VA_ARGS__)
-
-#define     cdp_in_r(x, l, u)         ((x) >= (l)  &&  (x) <= (u))
-#define     cdp_insd(x, l, u)         ((x) >  (l)  &&  (x)  < (u))
 
 #define     cdp_is_set(v, f)          (((v) & (f)) != 0)
 
