@@ -23,23 +23,24 @@
 
 
 MunitTest tests[] = {
-  { "/records",
-    test_records,
-    NULL,                     // setup
-    NULL,                     // tear_down
-    MUNIT_TEST_OPTION_NONE,
-    NULL                      // parameters
-  },
+    {
+        "/records",
+        test_records,
+        NULL,                     // setup
+        NULL,                     // tear_down
+        MUNIT_TEST_OPTION_NONE,
+        NULL                      // parameters
+    },
+    {
+        "/agents",
+        test_agents,
+        test_agents_setup,
+        test_agents_tear_down,
+        MUNIT_TEST_OPTION_NONE,
+        NULL                      // parameters
+    },
 
-  { "/agents",
-    test_agents,
-    NULL,                     // setup
-    NULL,                     // tear_down
-    MUNIT_TEST_OPTION_NONE,
-    NULL                      // parameters
-  },
-
-  {NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL}  // EOL
+    {NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL}  // EOL
 };
 
 

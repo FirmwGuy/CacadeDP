@@ -265,6 +265,7 @@ enum _cdpNameID {
     //
     CDP_NAME_AGENT,
     CDP_NAME_ACTION,
+    CDP_NAME_INPUT,
     CDP_NAME_OUTPUT,
     CDP_NAME_DEBUG,
     CDP_NAME_WARNING,
@@ -294,6 +295,9 @@ cdpRecord* cdp_system_get_agent(cdpID id);
 cdpID      cdp_system_set_action(cdpID agentID, const char* name, cdpAction action);
 cdpAction  cdp_system_get_action(cdpID agentID, cdpID actionID);
 bool       cdp_system_does_action(cdpRecord* instance, cdpSignal* signal);
+
+bool       cdp_system_connect(cdpRecord* instanceSrc, cdpRecord* instanceTgt);
+bool       cdp_system_disconnect(cdpRecord* instanceSrc, cdpRecord* instanceTgt);
 
 bool       cdp_system_startup(void);
 bool       cdp_system_step(void);

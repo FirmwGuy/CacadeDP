@@ -151,9 +151,10 @@ typedef struct _cdpPath         cdpPath;
 #define CDP_ATTRIB_PUB_MASK     (CDP_ATTRIB_PRIVATE | CDP_ATTRIB_FACTUAL)
 
 #define CDP_ATTRIB_SHADOWED     0x04    // Record has shadow records (links pointing to it).
-#define CDP_ATTRIB_RESERVED     0x08    // For future use.
+#define CDP_ATTRIB_BABY         0x08    // On receiving any signal this record will first alert its parent.
+#define CDP_ATTRIB_CONNECTED    0x10    // Record is connected (it can't skip the signal API).
 
-#define CDP_ATTRIB_BIT_COUNT    4
+#define CDP_ATTRIB_BIT_COUNT    5
 
 
 enum {
@@ -257,6 +258,8 @@ enum {
     CDP_NAME_INITIAL_COUNT
 };
 
+#define cdp_id_is_named(id)   ((id) & CDP_NAME_FLAG)
+
 
 typedef struct {
     cdpID attribute: CDP_ATTRIB_BIT_COUNT,              // Flags for record attributes.
@@ -289,8 +292,9 @@ typedef struct {
       cdpRecord* address;   // Memory address of target record.
       cdpPath*   path;      // Full or relative path to target.
     } target;
-    bool local;             // True if target is also a local record.
-    bool inRam;             // Target record is in ram.
+    //cdpID targetAgent;      // Agent ID of target.
+    //bool  local;             // True if target is also a local record.
+    bool  inRam;             // Target record is in ram.
 } cdpLink;
 
 typedef union {
@@ -347,7 +351,8 @@ typedef struct {
 typedef bool (*cdpTraverse)(cdpBookEntry*, void*);
 
 typedef struct {
-    cdpID      nameID;
+    cdpID      nameID;      // Signal name ID.
+    cdpRecord* baby;        // Child alerting this signal (if any).
     cdpRecord  input;       // Dictionary.
     cdpRecord  output;      // Dictionary.
     cdpRecord  condition;   // Stack.
@@ -370,13 +375,15 @@ void cdp_record_finalize(cdpRecord* record);
 #define cdp_record_initialize_stack(r, id, chdStorage, ...)       cdp_record_initialize(r, CDP_TYPE_BOOK, 0, id, CDP_AGENT_STACK,      ((unsigned)(chdStorage)), ##__VA_ARGS__)
 #define cdp_record_initialize_dictionary(r, id, chdStorage, ...)  cdp_record_initialize(r, CDP_TYPE_BOOK, 0, id, CDP_AGENT_DICTIONARY, ((unsigned)(chdStorage)), ##__VA_ARGS__)
 
-#define CDP_RECORD_SET_ATRIBUTE(r, a)   ((r)->metadata.attribute |= (a))
+#define CDP_RECORD_SET_ATTRIB(r, a)   ((r)->metadata.attribute |= (a))
 
 // General property check
 static inline cdpID cdp_record_attributes(const cdpRecord* record)  {assert(record);  return record->metadata.attribute;}
 static inline cdpID cdp_record_type      (const cdpRecord* record)  {assert(record);  return record->metadata.type;}
-static inline cdpID cdp_record_id        (const cdpRecord* record)  {assert(record);  return record->metadata.id;}
 static inline cdpID cdp_record_agent     (const cdpRecord* record)  {assert(record);  return record->metadata.agent;}
+
+static inline cdpID cdp_record_get_id(const cdpRecord* record)      {assert(record);  return record->metadata.id;}
+static inline void  cdp_record_set_id(cdpRecord* record, cdpID id)  {assert(record);  record->metadata.id = id;}
 
 #define cdp_record_is_void(r)       (cdp_record_type(r) == CDP_TYPE_VOID)
 #define cdp_record_is_book(r)       (cdp_record_type(r) == CDP_TYPE_BOOK)
@@ -386,12 +393,14 @@ static inline cdpID cdp_record_agent     (const cdpRecord* record)  {assert(reco
 #define cdp_record_is_private(r)    cdp_is_set(cdp_record_attributes(r), CDP_ATTRIB_PRIVATE)
 #define cdp_record_is_factual(r)    cdp_is_set(cdp_record_attributes(r), CDP_ATTRIB_FACTUAL)
 #define cdp_record_is_shadowed(r)   cdp_is_set(cdp_record_attributes(r), CDP_ATTRIB_SHADOWED)
+#define cdp_record_is_baby(r)       cdp_is_set(cdp_record_attributes(r), CDP_ATTRIB_BABY)
+#define cdp_record_is_connected(r)  cdp_is_set(cdp_record_attributes(r), CDP_ATTRIB_CONNECTED)
 
-static inline bool cdp_record_is_named     (const cdpRecord* record)  {assert(record);  if (record->metadata.id & CDP_NAME_FLAG) {assert(CDP_NAMEID2POS(record->metadata.id) <= CDP_NAME_COUNT_MAX); return true;} return false;}
+static inline bool cdp_record_is_named     (const cdpRecord* record)  {assert(record);  if (cdp_id_is_named(record->metadata.id)) {assert(CDP_NAMEID2POS(record->metadata.id) <= CDP_NAME_COUNT_MAX); return true;} return false;}
 static inline bool cdp_record_is_dictionary(const cdpRecord* record)  {assert(record);  return (cdp_record_is_book(record) && record->metadata.agent == CDP_AGENT_DICTIONARY);}
 
-#define cdp_record_id_is_auto(r)    (cdp_record_id(r) < CDP_NAME_FLAG)
-#define cdp_record_id_is_pending(r) (cdp_record_id(r) == CDP_AUTO_ID)
+#define cdp_record_id_is_auto(r)    (cdp_record_get_id(r) < CDP_NAME_FLAG)
+#define cdp_record_id_is_pending(r) (cdp_record_get_id(r) == CDP_AUTO_ID)
 
 
 static inline void cdp_record_initialize_link(cdpRecord* newLink, cdpID nameID, cdpRecord* record) {
@@ -404,7 +413,7 @@ static inline void cdp_record_initialize_shadow(cdpRecord* newShadow, cdpID name
     assert(newShadow && !cdp_record_is_void(record));
     cdp_record_initialize(newShadow, CDP_TYPE_LINK, 0, nameID, CDP_AGENT_LINK, record);
     newShadow->metadata.storeTech = CDP_STO_LNK_POINTER;
-    CDP_RECORD_SET_ATRIBUTE(record, CDP_ATTRIB_SHADOWED);
+    CDP_RECORD_SET_ATTRIB(record, CDP_ATTRIB_SHADOWED);
     // ToDo: actually shadow the record.
 }
 
@@ -563,7 +572,7 @@ bool cdp_book_deep_traverse(cdpRecord* book, cdpTraverse func, cdpTraverse listE
 bool cdp_book_take(cdpRecord* book, cdpRecord* target);     // Removes last record.
 bool cdp_book_pop(cdpRecord* book, cdpRecord* target);      // Removes first record.
 
-bool cdp_record_remove(cdpRecord* record, cdpRecord* target);   // Deletes a record and all its children re-organizing sibling storage.
+void cdp_record_remove(cdpRecord* record, cdpRecord* target);   // Deletes a record and all its children re-organizing sibling storage.
 #define cdp_register_remove(reg, tgt)   cdp_record_remove(reg, tgt)
 #define cdp_register_delete(reg)        cdp_register_remove(reg, NULL)
 #define cdp_book_remove(book, tgt)      cdp_record_remove(book, tgt)
@@ -596,7 +605,7 @@ static inline cdpRecord* cdp_book_move_to(cdpRecord* book, cdpID nameID, cdpReco
     assert(cdp_record_is_book(book) && !cdp_record_is_void(record));
     cdpRecord moved;
     cdp_record_remove(record, &moved);
-    moved.metadata.id = nameID;
+    cdp_record_set_id(&moved, nameID);
     return cdp_book_add_record(book, &moved, false);
 }
 
@@ -653,6 +662,7 @@ void cdp_record_system_shutdown(void);
     - Update MAX_DEPTH based on path/traverse operations.
     - Add cdp_book_update_nested_links(old, new).
     - CDP_NAME_VOID should never be a valid name for records.
+    - Any book may be a dictionary, but only if the name matches the insertion/deletion sequence.
     - If a record is added to a book with its name explicitelly above "auto_id", then it must be updated.
 */
 

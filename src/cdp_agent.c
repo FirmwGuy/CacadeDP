@@ -41,6 +41,7 @@ cdpRecord* NAME;
 cdpRecord* CDP_VOID;
 
 cdpSignal* SYSTEM_SIGNAL;
+cdpSignal* CONNECT_SIGNAL;
 
 
 static void system_initiate(void);
@@ -60,7 +61,7 @@ static bool name_id_traverse_find_text(cdpBookEntry* entry, struct NID* nid) {
     const char* name = cdp_register_read_utf8(entry->record);
     if (cdp_register_size(entry->record) == nid->length
      && 0 == memcmp(name, nid->name, nid->length)) {
-        nid->id = cdp_record_id(entry->record);
+        nid->id = cdp_record_get_id(entry->record);
         return false;
     }
     return true;
@@ -85,7 +86,7 @@ cdpID cdp_name_id_add(const char* name, bool borrow) {
 
     // Add new
     cdpRecord* reg = cdp_book_add_text(NAME, borrow? CDP_ATTRIB_FACTUAL: 0, CDP_AUTO_ID, borrow, name);
-    return CDP_POS2NAMEID(cdp_record_id(reg));
+    return CDP_POS2NAMEID(cdp_record_get_id(reg));
 }
 
 
@@ -160,7 +161,7 @@ cdpID cdp_system_set_agent( const char* name,
     if (finalize)
         cdp_book_add_action(agent, CDP_NAME_FINALIZE, finalize);
 
-    return cdp_record_id(agent);
+    return cdp_record_get_id(agent);
 }
 
 
@@ -199,7 +200,7 @@ cdpAction cdp_system_get_action(cdpID agentID, cdpID actionID) {
 bool cdp_system_does_action(cdpRecord* instance, cdpSignal* signal) {
     assert(instance && signal);
 
-    cdpID actionID = cdp_record_id(&signal->input);
+    cdpID actionID = cdp_record_get_id(&signal->input);
     cdpID agentID = cdp_record_agent(instance);
     while (agentID) {
         cdpRecord* agent = cdp_system_get_agent(agentID);
@@ -216,6 +217,19 @@ bool cdp_system_does_action(cdpRecord* instance, cdpSignal* signal) {
     return cdp_action_ignore(instance, signal);
 }
 
+
+
+
+
+bool cdp_system_connect(cdpRecord* instanceSrc, cdpRecord* instanceTgt) {
+    assert(SYSTEM);
+
+    if (
+    // Copy value from source record to target record
+
+    // Make a link from source to target
+    ;
+}
 
 
 
@@ -390,6 +404,7 @@ static void system_initiate_names(void) {
 
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,       "agent");
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,      "action");
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID,       "input");
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,      "output");
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,       "debug");
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,     "warning");
@@ -427,7 +442,7 @@ static void system_initiate(void) {
         CDP_VOID = cdp_book_add_bool(TEMP, CDP_NAME_VOID, 0);
         CDP_VOID->metadata.agent = CDP_VOID->metadata.type = CDP_TYPE_VOID;
         CDP_VOID->metadata.id = CDP_NAME_VOID;
-        CDP_RECORD_SET_ATRIBUTE(CDP_VOID, CDP_ATTRIB_FACTUAL);
+        CDP_RECORD_SET_ATTRIB(CDP_VOID, CDP_ATTRIB_FACTUAL);
     }
 }
 
@@ -439,7 +454,7 @@ static bool system_traverse(cdpBookEntry* entry, void* p) {
     cdpAction action = cdp_dict_get_action(entry->record, signalID);
     if (action) {
         if (SYSTEM_SIGNAL)
-            SYSTEM_SIGNAL->input.metadata.id = signalID;
+            SYSTEM_SIGNAL->nameID = signalID;
         else
             SYSTEM_SIGNAL = cdp_signal_new(signalID, 1, 0);
         return action(NULL, SYSTEM_SIGNAL);     // ToDo: report errors during startup.
@@ -467,11 +482,16 @@ bool cdp_system_step(void) {
 
 void cdp_system_shutdown(void) {
     assert(SYSTEM);
+
     cdp_book_traverse(SYSTEM, system_traverse, cdp_v2p(CDP_NAME_SHUTDOWN), NULL);
+
+    cdp_signal_del(CONNECT_SIGNAL_SIGNAL);
     cdp_signal_del(SYSTEM_SIGNAL);
     cdp_system_finalize_signals();
+
     cdp_book_reset(&CDP_ROOT);
     cdp_record_system_shutdown();
+
     SYSTEM = NULL;
 }
 

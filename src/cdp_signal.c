@@ -152,26 +152,36 @@ void cdp_system_finalize_signals(void) {
  */
 
 
-cdpSignal* cdp_signal_new(cdpID nameID, unsigned itemsArg, unsigned itemsRes) {
-    assert(itemsArg || itemsRes);
-
-    CDP_NEW(cdpSignal, signal);
+void cdp_signal_initiate(cdpSignal* signal, cdpID nameID, unsigned itemsArg, unsigned itemsRes) {
+    assert(signal && cdp_id_is_named(nameID));
     signal->nameID = nameID;
     if (itemsArg)
-        cdp_record_initialize_dictionary(&signal->input, nameID, CDP_STO_CHD_ARRAY, itemsArg);
+        cdp_record_initialize_dictionary(&signal->input, CDP_NAME_INPUT, CDP_STO_CHD_ARRAY, itemsArg);
     if (itemsRes)
-        cdp_record_initialize_dictionary(&signal->output, nameID, CDP_STO_CHD_ARRAY, itemsRes);
+        cdp_record_initialize_dictionary(&signal->output, CDP_NAME_OUTPUT, CDP_STO_CHD_ARRAY, itemsRes);
+}
 
+
+void cdp_signal_finalize(cdpSignal* signal) {
+    assert(signal);
+    if (!cdp_record_is_void(&signal->input))
+        cdp_record_finalize(&signal->input);
+    if (!cdp_record_is_void(&signal->output))
+        cdp_record_finalize(&signal->output);
+    if (!cdp_record_is_void(&signal->condition))
+        cdp_record_finalize(&signal->condition);
+}
+
+
+cdpSignal* cdp_signal_new(cdpID nameID, unsigned itemsArg, unsigned itemsRes) {
+    CDP_NEW(cdpSignal, signal);
+    cdp_signal_initiate(signal, nameID, itemsArg, itemsRes);
     return signal;
 }
 
 
 void cdp_signal_del(cdpSignal* signal) {
-    assert(signal);
-    cdp_record_finalize(&signal->input);
-    cdp_record_finalize(&signal->output);
-    if (!cdp_record_is_void(&signal->condition))
-        cdp_record_finalize(&signal->condition);
+    cdp_signal_finalize(signal);
     cdp_free(signal);
 }
 
@@ -191,8 +201,8 @@ void cdp_signal_reset(cdpSignal* signal) {
 
 
 #define signaler_start(name, signal, inArgs, outArgs)                  \
-    assert(instance);                                                          \
-    if (!signal)                                                               \
+    assert(instance);                                                  \
+    if (!signal)                                                       \
         signal = cdp_signal_new(name, inArgs, outArgs)
 
 #define signaler_action(signal, result, get_res, ...)                          \
@@ -281,12 +291,18 @@ SIMPLE_SIGNAL(cdp_reset,       CDP_NAME_RESET,       SIGNAL_RESET)
 
 
 cdpRecord* cdp_next(cdpRecord* instance) {
+    if (!cdp_record_is_connected(instance))
+        return cdp_book_next(NULL, instance);
+
     signaler_start(CDP_NAME_NEXT, SIGNAL_NEXT, 0, 1);
     signaler_return(cdpRecord*, SIGNAL_NEXT, cdp_link_data);
 }
 
 
 cdpRecord* cdp_previous(cdpRecord* instance) {
+    if (!cdp_record_is_connected(instance))
+        return cdp_book_prev(NULL, instance);
+
     signaler_start(CDP_NAME_PREVIOUS, SIGNAL_PREVIOUS, 0, 1);
     signaler_return(cdpRecord*, SIGNAL_PREVIOUS, cdp_link_data);
 }
@@ -299,6 +315,10 @@ bool cdp_validate(cdpRecord* instance) {
 
 
 void cdp_remove(cdpRecord* instance, cdpRecord* target) {
+    if (!cdp_record_is_connected(instance)) {
+        cdp_record_remove(instance, target);
+        return;
+    }
     signaler_start(CDP_NAME_REMOVE, SIGNAL_REMOVE, 0, 1);
 
     cdp_system_does_action(instance, SIGNAL_REMOVE);

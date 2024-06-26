@@ -35,7 +35,7 @@ unsigned MAX_DEPTH = CDP_MAX_FAST_STACK_DEPTH;     // FixMe: (used by path/trave
 
 
 static inline int record_compare_by_name(const cdpRecord* restrict key, const cdpRecord* restrict rec, void* unused) {
-    return cdp_record_id(key) - cdp_record_id(rec);
+    return cdp_record_get_id(key) - cdp_record_get_id(rec);
 }
 
 
@@ -1056,7 +1056,7 @@ bool cdp_book_pop(cdpRecord* book, cdpRecord* target) {
 /*
     Deletes a record and all its children re-organizing (sibling) storage
 */
-bool cdp_record_remove(cdpRecord* record, cdpRecord* target) {
+void cdp_record_remove(cdpRecord* record, cdpRecord* target) {
     assert(record && !cdp_record_is_shadowed(record));
     cdpChdStore* store = cdp_record_par_store(record);
     cdpRecord* book = store->book;
@@ -1090,8 +1090,6 @@ bool cdp_record_remove(cdpRecord* record, cdpRecord* target) {
     } SELECTION_END;
 
     store->chdCount--;
-
-    return true;
 }
 
 

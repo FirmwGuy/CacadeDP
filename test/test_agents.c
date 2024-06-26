@@ -26,6 +26,11 @@
 
 
 
+bool DONE;
+
+
+
+
 cdpID AGENT_STDOUT;
 
 
@@ -63,10 +68,14 @@ bool stdin_agent_initiate(cdpRecord* instance, cdpSignal* signal) {
 
 bool stdin_agent_step(cdpRecord* instance, cdpSignal* signal) {
     int c = getc_unlocked(stdin);
-    if (EOF != c  &&  isdigit(c)) {
-        uint32_t value = (unsigned)atoi(c);
-        cdpRecord* target = cdp_link_data(instance);
-        cdp_update(target, &value, sizeof(value));
+    if (EOF != c) {
+        if (isdigit(c)) {
+            uint32_t value = (unsigned)atoi(c);
+            cdpRecord* target = cdp_link_data(instance);
+            cdp_update(target, &value, sizeof(value));
+        } else if ("q" == tolower(c)) {
+            DONE = true;
+        }
     }
     return true;
 }
@@ -90,7 +99,7 @@ bool adder_agent_initiate(cdpRecord* instance, cdpSignal* signal) {
     ADDER_OP2 = cdp_name_id_add_static("op2");
     ADDER_ANS = cdp_name_id_add_static("ans");
 
-    cdp_book_add_uint32(instance, ADDER_OP1, 0);
+    cdp_book_add_uint32(instance, ADDER_OP1, 5);
     cdp_book_add_uint32(instance, ADDER_OP2, 0);
 
     //cdp_book_add_link(instance, ADDER_OP2, 0);
@@ -116,7 +125,7 @@ bool adder_agent_update(cdpRecord* instance, cdpSignal* signal) {
 
 
 
-void input_agent_initiate() {
+void test_agents_initiate() {
     cdpID uint32ID = cdp_system_get_agent(CDP_AGENT_UINT32);
     AGENT_STDOUT = cdp_system_set_agent("stdout", sizeof(uint32_t), 1, &uint32ID, 1, stdout_agent_initiate, NULL);
     cdp_system_set_action(AGENT_STDOUT, "update", stdout_agent_update);
@@ -133,7 +142,58 @@ void input_agent_initiate() {
 }
 
 
+
+
+
+void* test_agents_setup(const MunitParameter params[], void* user_data) {
+    test_agents_initiate();
+    cdp_system_startup();
+    return NULL;
+}
+
+
+void test_agents_tear_down(void* fixture) {
+    cdp_system_shutdown();
+}
+
+
 MunitResult test_agents(const MunitParameter params[], void* user_data_or_fixture) {
+    extern cdpRecord* TEMP;
+
+    cdpRecord* cascade = cdp_book_add_dictionary(TEMP, CDP_NAME_BOOK, CDP_STO_CHD_ARRAY, 4);
+
+    // This will be done by the agent system:
+    {
+        // Signal initiation
+        cdpRecord stdinR = {0}, adderR = {0}, stdoutR = {0};
+
+        cdpSignal* signal = cdp_signal_new(CDP_NAME_INITIATE, 0, 0);
+
+        cdp_initiate_link(&stdinR, );
+        cdp_initiate_book(&adderR, );
+        cdp_initiate_register(&stdoutR, );
+
+        // Add to pipeline
+        cdpRecord* stdin  = cdp_book_add_record(cascade, , &stdinR);
+        cdpRecord* adder  = cdp_book_add_record(cascade, , &adderR);
+        cdpRecord* stdout = cdp_book_add_record(cascade, , &stdoutR);
+
+        // Signal connection
+        cdpRecord* adderOp2 = cdp_book_find_by_name(adder, ADDER_OP2);
+        cdpRecord* adderAns = cdp_book_find_by_name(adder, ADDER_ANS);
+
+        cdp_connect(stdin, adderOp2);
+        cdp_connect(adderAns, stdout);
+
+        cdp_signal_del(signal);
+    }
+
+    // Execute pipeline
+    while (!DONE) {
+        cdp_system_step();
+    }
+
+    cdp_book_delete(cascade);
 
     return MUNIT_OK;
 }
