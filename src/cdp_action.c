@@ -89,19 +89,16 @@ bool cdp_action_initiate_register(cdpRecord* instance, cdpSignal* signal) {
 
 bool cdp_action_initiate_link(cdpRecord* instance, cdpSignal* signal) {
     cdpID  nameID = cdp_dict_get_id(&signal->input, CDP_NAME_NAME);
-    cdpID agentID = cdp_dict_get_id(&signal->input, CDP_NAME_AGENT);
-
     cdpRecord* link = cdp_book_find_by_name(&signal->input, CDP_NAME_LINK);
 
     cdp_record_transfer(link, instance);
-    instance->metadata.id    = nameID;
-    instance->metadata.agent = agentID;
+    instance->metadata.id = nameID;
 
     return true;
 }
 
 
-bool cdp_action_finalize(cdpRecord* instance, cdpSignal* signal) {
+bool cdp_action_terminate(cdpRecord* instance, cdpSignal* signal) {
     cdp_record_finalize(instance);
     return true;
 }

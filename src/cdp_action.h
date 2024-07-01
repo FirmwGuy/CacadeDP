@@ -49,7 +49,7 @@ bool cdp_action_error(cdpRecord* instance, cdpSignal* signal);
 bool cdp_action_initiate_book(cdpRecord* instance, cdpSignal* signal);
 bool cdp_action_initiate_register(cdpRecord* instance, cdpSignal* signa);
 bool cdp_action_initiate_link(cdpRecord* instance, cdpSignal* signa);
-bool cdp_action_finalize(cdpRecord* instance, cdpSignal* signal);
+bool cdp_action_terminate(cdpRecord* instance, cdpSignal* signal);
 bool cdp_action_reset_book(cdpRecord* instance, cdpSignal* signal);
 bool cdp_action_reset_register(cdpRecord* instance, cdpSignal* signal);
 bool cdp_action_next(cdpRecord* instance, cdpSignal* signal);

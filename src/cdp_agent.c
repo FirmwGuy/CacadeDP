@@ -159,7 +159,7 @@ cdpID cdp_system_set_agent( const char* name,
     if (initiate)
         cdp_book_add_action(agent, CDP_NAME_INITIATE, initiate);
     if (finalize)
-        cdp_book_add_action(agent, CDP_NAME_FINALIZE, finalize);
+        cdp_book_add_action(agent, CDP_NAME_TERMINATE, finalize);
 
     return cdp_record_get_id(agent);
 }
@@ -220,15 +220,29 @@ bool cdp_system_does_action(cdpRecord* instance, cdpSignal* signal) {
 
 
 
-
 bool cdp_system_connect(cdpRecord* instanceSrc, cdpRecord* instanceTgt) {
     assert(SYSTEM);
 
-    if (
-    // Copy value from source record to target record
+    // Check compatibility
+    if (cdp_record_agent(instanceSrc) != cdp_record_agent(instanceTgt))
+        return false;
 
     // Make a link from source to target
-    ;
+    cdpRecord link = {0};
+    cdp_record_initialize_link(&link, cdp_record_id(instanceSrc), instanceTgt);
+
+    // Copy value from source record to target record
+    cdp_record_replace(instanceTgt, instanceSrc);
+
+    // Replace source with link
+    cdp_record_replace(instanceSrc, &link);
+
+    return true;
+}
+
+
+bool cdp_system_disconnect(cdpRecord* link) {
+    return true;
 }
 
 
@@ -243,7 +257,7 @@ static void system_initiate_agents(void) {
 
     cdp_system_set_agent("void", 0, 0, NULL, 0, NULL, NULL);
 
-    cdpID recordID = cdp_system_set_agent("record", 0, 0, NULL, 4, NULL, cdp_action_finalize);
+    cdpID recordID = cdp_system_set_agent("record", 0, 0, NULL, 4, NULL, cdp_action_terminate);
 
     cdp_system_set_action_by_id(recordID, CDP_NAME_REMOVE, cdp_action_remove);
     cdp_system_set_action_by_id(recordID, CDP_NAME_NEXT, cdp_action_next);

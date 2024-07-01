@@ -403,14 +403,21 @@ static inline bool cdp_record_is_dictionary(const cdpRecord* record)  {assert(re
 #define cdp_record_id_is_pending(r) (cdp_record_get_id(r) == CDP_AUTO_ID)
 
 
+// Link properties
+static inline void* cdp_link_data(const cdpRecord* link)   {assert(cdp_record_is_link(link));  return link->recData.link.target.address;}
+
+#define CDP_LINK_RESOLVE(r)  do{ if (cdp_record_is_link(r)) (r) = cdp_link_data(r); }while(0)
+
 static inline void cdp_record_initialize_link(cdpRecord* newLink, cdpID nameID, cdpRecord* record) {
     assert(newLink && !cdp_record_is_void(record));
-    cdp_record_initialize(newLink, CDP_TYPE_LINK, 0, nameID, CDP_AGENT_LINK, record);
+    CDP_LINK_RESOLVE(record);
+    cdp_record_initialize(newLink, CDP_TYPE_LINK, 0, nameID, cdp_record_agent(record), record);
     newLink->metadata.storeTech = CDP_STO_LNK_POINTER;
 }
 
 static inline void cdp_record_initialize_shadow(cdpRecord* newShadow, cdpID nameID, cdpRecord* record) {
     assert(newShadow && !cdp_record_is_void(record));
+    CDP_LINK_RESOLVE(record);
     cdp_record_initialize(newShadow, CDP_TYPE_LINK, 0, nameID, CDP_AGENT_LINK, record);
     newShadow->metadata.storeTech = CDP_STO_LNK_POINTER;
     CDP_RECORD_SET_ATTRIB(record, CDP_ATTRIB_SHADOWED);
@@ -443,6 +450,15 @@ static inline void cdp_record_transfer(cdpRecord* src, cdpRecord* dst) {
         cdp_book_relink_storage(dst);
 }
 
+static inline void cdp_record_replace(cdpRecord* original, cdpRecord* newRecord) {
+    assert(original && !cdp_record_is_void(newRecord));
+    cdp_record_finalize(original);
+    original->metadata = newRecord->metadata;
+    original->recData  = newRecord->recData;
+    if (cdp_record_is_book(original))
+        cdp_book_relink_storage(original);
+}
+
 
 // Register properties
 static inline bool   cdp_register_is_borrowed(const cdpRecord* reg) {assert(cdp_record_is_register(reg));  return (reg->metadata.storeTech == CDP_STO_REG_BORROWED);}
@@ -458,10 +474,6 @@ static inline void  cdp_book_set_auto_id(const cdpRecord* book, cdpID id) {asser
 
 cdpRecord* cdp_book_add_property(cdpRecord* book, cdpRecord* record);
 cdpRecord* cdp_book_get_property(const cdpRecord* book, cdpID id);
-
-
-// Link properties
-static inline void*  cdp_link_data(const cdpRecord* link)   {assert(cdp_record_is_link(link));  return link->recData.link.target.address;}
 
 
 // Appends, inserts or prepends a copy of record into a book.
@@ -582,6 +594,7 @@ void cdp_book_reset(cdpRecord* book);     // Deletes all children of a book or d
 
 static inline cdpRecord* cdp_book_add_link(cdpRecord* book, cdpID nameID, cdpRecord* record) {
     assert(cdp_record_is_book(book) && !cdp_record_is_void(record));
+    CDP_LINK_RESOLVE(record);
     cdpRecord link = {0};
     cdp_record_initialize_link(&link, nameID, record);
     return cdp_book_add_record(book, &link, false);
@@ -589,6 +602,7 @@ static inline cdpRecord* cdp_book_add_link(cdpRecord* book, cdpID nameID, cdpRec
 
 static inline cdpRecord* cdp_book_add_shadow(cdpRecord* book, cdpID nameID, cdpRecord* record) {
     assert(cdp_record_is_book(book) && !cdp_record_is_void(record));
+    CDP_LINK_RESOLVE(record);
     cdpRecord shadow = {0};
     cdp_record_initialize_shadow(&shadow, nameID, record);
     return cdp_book_add_record(book, &shadow, false);

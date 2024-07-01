@@ -28,7 +28,7 @@
 cdpSignal* SIGNAL_INITIATE_BOOK;
 cdpSignal* SIGNAL_INITIATE_REGISTER;
 cdpSignal* SIGNAL_INITIATE_LINK;
-cdpSignal* SIGNAL_FINALIZE;
+cdpSignal* SIGNAL_TERMINATE;
 cdpSignal* SIGNAL_RESET;
 cdpSignal* SIGNAL_NEXT;
 cdpSignal* SIGNAL_PREVIOUS;
@@ -75,7 +75,7 @@ void cdp_system_initiate_signals(void) {
 
     // Record signals
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,    "initiate");
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID,    "finalize");
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID,   "terminate");
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,       "reset");
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,        "next");
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,    "previous");
@@ -113,7 +113,7 @@ void cdp_system_finalize_signals(void) {
     cdp_signal_del(SIGNAL_INITIATE_BOOK);
     cdp_signal_del(SIGNAL_INITIATE_REGISTER);
     cdp_signal_del(SIGNAL_INITIATE_LINK);
-    cdp_signal_del(SIGNAL_FINALIZE);
+    cdp_signal_del(SIGNAL_TERMINATE);
     cdp_signal_del(SIGNAL_RESET);
     cdp_signal_del(SIGNAL_NEXT);
     cdp_signal_del(SIGNAL_PREVIOUS);
@@ -152,7 +152,7 @@ void cdp_system_finalize_signals(void) {
  */
 
 
-void cdp_signal_initiate(cdpSignal* signal, cdpID nameID, unsigned itemsArg, unsigned itemsRes) {
+void cdp_signal_initialize(cdpSignal* signal, cdpID nameID, unsigned itemsArg, unsigned itemsRes) {
     assert(signal && cdp_id_is_named(nameID));
     signal->nameID = nameID;
     if (itemsArg)
@@ -175,7 +175,7 @@ void cdp_signal_finalize(cdpSignal* signal) {
 
 cdpSignal* cdp_signal_new(cdpID nameID, unsigned itemsArg, unsigned itemsRes) {
     CDP_NEW(cdpSignal, signal);
-    cdp_signal_initiate(signal, nameID, itemsArg, itemsRes);
+    cdp_signal_initialize(signal, nameID, itemsArg, itemsRes);
     return signal;
 }
 
@@ -225,12 +225,6 @@ void cdp_signal_reset(cdpSignal* signal) {
                                                             CDP_NAME_OUTPUT ));\
     return result
 
-#define SIMPLE_SIGNAL(func, name, signal)                              \
-    void func(cdpRecord* instance) {                                   \
-        signaler_start(name, signal, 0, 0);                            \
-        cdp_system_does_action(instance, signal);                      \
-    }
-
 
 
 
@@ -271,12 +265,12 @@ bool cdp_initiate_register(cdpRecord* instance, cdpID nameID, cdpID agentID, boo
 }
 
 
-bool cdp_initiate_link(cdpRecord* instance, cdpID nameID, cdpID agentID, cdpRecord* record) {
-    assert(nameID != CDP_NAME_VOID  &&  agentID  &&  !cdp_record_is_void(record));
+bool cdp_initiate_link(cdpRecord* instance, cdpID nameID, cdpRecord* record) {
+    assert(nameID != CDP_NAME_VOID  &&  !cdp_record_is_void(record));
+    CDP_LINK_RESOLVE(record);
     signaler_start(CDP_NAME_INITIATE, SIGNAL_INITIATE_LINK, 3, 0);
 
     cdp_book_add_id(&SIGNAL_INITIATE_LINK->input, CDP_NAME_NAME, nameID);
-    cdp_book_add_id(&SIGNAL_INITIATE_LINK->input, CDP_NAME_AGENT, agentID);
     cdp_book_add_link(&SIGNAL_INITIATE_LINK->input, CDP_NAME_LINK, record);
 
     bool result;
@@ -286,7 +280,16 @@ bool cdp_initiate_link(cdpRecord* instance, cdpID nameID, cdpID agentID, cdpReco
 }
 
 
-SIMPLE_SIGNAL(cdp_finalize,    CDP_NAME_FINALIZE,    SIGNAL_FINALIZE)
+void cdp_terminate(cdpRecord* instance) {
+    signaler_start(CDP_NAME_TERMINATE, SIGNAL_TERMINATE, 0, 0);
+
+    if (!cdp_record_is_connected(instance))
+        ...;
+
+    cdp_system_does_action(instance, SIGNAL_TERMINATE);
+}
+
+
 SIMPLE_SIGNAL(cdp_reset,       CDP_NAME_RESET,       SIGNAL_RESET)
 
 
@@ -309,6 +312,7 @@ cdpRecord* cdp_previous(cdpRecord* instance) {
 
 
 bool cdp_validate(cdpRecord* instance) {
+    CDP_LINK_RESOLVE(instance);
     signaler_start(CDP_NAME_VALIDATE, SIGNAL_VALIDATE, 0, 1);
     signaler_return(bool, SIGNAL_PREVIOUS, cdp_register_read_bool);
 }
@@ -379,6 +383,7 @@ cdpRecord* cdp_search(cdpRecord* instance, cdpRecord* book, cdpRecord* key) {
 
 cdpRecord* cdp_link(cdpRecord* instance, cdpID nameID, cdpRecord* record) {
     assert(cdp_record_is_book(instance) && nameID != CDP_NAME_VOID && !cdp_record_is_void(record));
+    CDP_LINK_RESOLVE(record);
     signaler_start(CDP_NAME_LINK, SIGNAL_LINK, 2, 1);
 
     cdp_book_add_id(&SIGNAL_LINK->input, CDP_NAME_NAME, nameID);

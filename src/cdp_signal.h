@@ -35,7 +35,7 @@ enum {
 
     // Record signals
     CDP_NAME_INITIATE,
-    CDP_NAME_FINALIZE,
+    CDP_NAME_TERMINATE,
     CDP_NAME_RESET,
     CDP_NAME_NEXT,
     CDP_NAME_PREVIOUS,
@@ -88,8 +88,8 @@ void cdp_signal_reset(cdpSignal* signal);
 // Record signals
 bool cdp_initiate_book(cdpRecord* instance, cdpID nameID, cdpID agentID, unsigned storage, unsigned baseLength);
 bool cdp_initiate_register(cdpRecord* instance, cdpID nameID, cdpID agentID, bool borrow, void* data, size_t size);
-bool cdp_initiate_link(cdpRecord* instance, cdpID nameID, cdpID agentID, cdpRecord* record);
-void cdp_finalize(cdpRecord* instance);
+bool cdp_initiate_link(cdpRecord* instance, cdpID nameID, cdpRecord* record);
+void cdp_terminate(cdpRecord* instance);
 void cdp_reset(cdpRecord* instance);
 void cdp_remove(cdpRecord* instance, cdpRecord* target);
 cdpRecord* cdp_next(cdpRecord* instance);

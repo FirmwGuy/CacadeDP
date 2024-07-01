@@ -202,7 +202,7 @@ bool cdp_record_initialize(cdpRecord* record, unsigned type, unsigned attrib, cd
 
       LINK: {
         cdpRecord* target = va_arg(args, cdpRecord*);
-        assert(target);
+        assert(target && !cdp_record_is_link(target));
         record->recData.link.target.address = target;
         record->recData.link.local = true;
         break;
