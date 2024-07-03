@@ -97,28 +97,28 @@ cdpRecord* cdp_previous(cdpRecord* instance);
 bool cdp_validate(cdpRecord* instance);
 
 // Book signals
-cdpRecord* cdp_add(cdpRecord* instance, cdpRecord* book, cdpRecord* record);
-cdpRecord* cdp_prepend(cdpRecord* instance, cdpRecord* book, cdpRecord* record);
-cdpRecord* cdp_insert(cdpRecord* instance, cdpRecord* book, cdpRecord* record);
+cdpRecord* cdp_add(cdpRecord* instance, cdpRecord* record);
+cdpRecord* cdp_prepend(cdpRecord* instance, cdpRecord* record);
+cdpRecord* cdp_insert(cdpRecord* instance, size_t position, cdpRecord* record);
 cdpRecord* cdp_first(cdpRecord* instance);
 cdpRecord* cdp_last(cdpRecord* instance);
 bool cdp_take(cdpRecord* instance, cdpRecord* target);
 bool cdp_pop(cdpRecord* instance, cdpRecord* target);
-cdpRecord* cdp_search(cdpRecord* instance, cdpRecord* book, cdpRecord* key);
+cdpRecord* cdp_search(cdpRecord* instance, cdpRecord* key);
 cdpRecord* cdp_link(cdpRecord* instance, cdpID nameID, cdpRecord* record);
 cdpRecord* cdp_shadow(cdpRecord* instance, cdpID nameID, cdpRecord* record);
 cdpRecord* cdp_clone(cdpRecord* instance, cdpID nameID, cdpRecord* record);
 cdpRecord* cdp_move(cdpRecord* instance, cdpID nameID, cdpRecord* record);
 
 // Register signals
-void cdp_unreference(cdpRecord* instance);
 void cdp_reference(cdpRecord* instance);
+void cdp_unreference(cdpRecord* instance);
 size_t cdp_serialize(cdpRecord* instance, void* data, size_t size);
 bool cdp_unserialize(cdpRecord* instance, void* data, size_t size);
 bool cdp_textualize(cdpRecord* instance, char** data, size_t* length);
 bool cdp_untextualize(cdpRecord* instance, char* data, size_t length);
-void* cdp_read(cdpRecord* instance, void** data, size_t* size);
-void* cdp_update(cdpRecord* instance, void* data, size_t size);
+void* cdp_read(cdpRecord* instance, void* data, size_t* size);
+void cdp_update(cdpRecord* instance, void* data, size_t size);
 void* cdp_patch(cdpRecord* instance, void* data, size_t size);
 
 

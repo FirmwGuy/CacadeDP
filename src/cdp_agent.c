@@ -197,14 +197,11 @@ cdpAction cdp_system_get_action(cdpID agentID, cdpID actionID) {
 
 /* Executes the associated signal handler in the specified agent instance.
 */
-bool cdp_system_does_action(cdpRecord* instance, cdpSignal* signal) {
-    assert(instance && signal);
-
-    cdpID actionID = cdp_record_get_id(&signal->input);
+static bool cdp_system_does_action_internal(cdpRecord* instance, cdpSignal* signal) {
     cdpID agentID = cdp_record_agent(instance);
     while (agentID) {
         cdpRecord* agent = cdp_system_get_agent(agentID);
-        cdpAction action = cdp_dict_get_action(agent, actionID);
+        cdpAction action = cdp_dict_get_action(agent, signal->nameID);
         if (action)
             return action(instance, signal);
 
@@ -218,20 +215,39 @@ bool cdp_system_does_action(cdpRecord* instance, cdpSignal* signal) {
 }
 
 
+bool cdp_system_does_action(cdpRecord* instance, cdpSignal* signal) {
+    assert(signal);
+    for (   cdpRecord* book = instance;
+            book && cdp_record_is_baby(book);
+            book = cdp_record_parent(book)  ) {
+        // FixMe: traverse parents in backward order.
+        if (!cdp_system_does_action_internal(book, signal))
+            return false;
+    }
+    return true;
+}
+
+
+
+
+bool cdp_system_agent_is_compatible(cdpID agentIdSrc, cdpID agentIdTgt) {
+    // FixMe: check assimilations.
+    return (agentIdSrc != agentIdTgt);
+}
 
 
 bool cdp_system_connect(cdpRecord* instanceSrc, cdpRecord* instanceTgt) {
     assert(SYSTEM);
 
     // Check compatibility
-    if (cdp_record_agent(instanceSrc) != cdp_record_agent(instanceTgt))
+    if (!cdp_system_agent_is_compatible(cdp_record_agent(instanceSrc), cdp_record_agent(instanceTgt)))
         return false;
 
-    // Make a link from source to target
+    // Make a link to target record
     cdpRecord link = {0};
-    cdp_record_initialize_link(&link, cdp_record_id(instanceSrc), instanceTgt);
+    cdp_record_initialize_link(&link, cdp_record_get_id(instanceSrc), instanceTgt);
 
-    // Copy value from source record to target record
+    // Copy/overwrite value from source record to target record
     cdp_record_replace(instanceTgt, instanceSrc);
 
     // Replace source with link
@@ -499,7 +515,7 @@ void cdp_system_shutdown(void) {
 
     cdp_book_traverse(SYSTEM, system_traverse, cdp_v2p(CDP_NAME_SHUTDOWN), NULL);
 
-    cdp_signal_del(CONNECT_SIGNAL_SIGNAL);
+    cdp_signal_del(CONNECT_SIGNAL);
     cdp_signal_del(SYSTEM_SIGNAL);
     cdp_system_finalize_signals();
 
