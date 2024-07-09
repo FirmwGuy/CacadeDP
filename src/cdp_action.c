@@ -57,6 +57,23 @@ bool cdp_action_error(cdpRecord* instance, cdpSignal* signal) {
  */
 
 
+bool cdp_action_connect(cdpRecord* instance, cdpSignal* signal) {
+    cdpRecord* link = cdp_book_first(&signal->input);
+    cdpID nameID = cdp_dict_get_id(link);
+
+    if (cdp_record_is_book(instance)) {
+        cdpRecord* found = cdp_book_find_by_name(instance, nameID);
+        assert(!found);
+        cdp_book_add_link(instance, nameID, cdp_link_data(link));
+    } else {
+        cdp_record_finalize(instance);
+        cdp_record_initialize_link(instance, nameID, cdp_link_data(link));
+    }
+
+    return true;
+}
+
+
 bool cdp_action_initiate_book(cdpRecord* instance, cdpSignal* signal) {
     // ToDo: use cdp_book_get_by_position() to speedup things.
     cdpID    nameID  = cdp_dict_get_id(&signal->input, CDP_NAME_NAME);

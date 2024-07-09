@@ -236,37 +236,32 @@ bool cdp_system_agent_is_compatible(cdpID agentIdSrc, cdpID agentIdTgt) {
 }
 
 
-bool cdp_system_connect(cdpRecord* instanceSrc, cdpRecord* instanceTgt) {
+bool cdp_system_connect(cdpRecord* instanceSrc, cdpID output, cdpRecord* recordTgt) {
     assert(SYSTEM);
 
-    // Check compatibility
-    if (!cdp_system_agent_is_compatible(cdp_record_agent(instanceSrc), cdp_record_agent(instanceTgt)))
-        return false;
+    if (!CONNECT_SIGNAL)
+        CONNECT_SIGNAL = cdp_signal_new(CDP_NAME_CONNECT, 1, 0);
 
-    // Make a link to target record
-    cdpRecord link = {0};
-    cdp_record_initialize_link(&link, cdp_record_get_id(instanceSrc), instanceTgt);
+    cdp_book_add_link(&CONNECT_SIGNAL->input, output, recordTgt);
 
-    // Copy/overwrite value from source record to target record
-    cdp_record_replace(instanceTgt, instanceSrc);
+    bool done = cdp_system_does_action(instanceSrc, CONNECT_SIGNAL);
 
-    // Replace source with link
-    cdp_record_replace(instanceSrc, &link);
+    cdp_signal_reset(CONNECT_SIGNAL);
 
-    return true;
+    return done;
 }
 
 
 bool cdp_system_disconnect(cdpRecord* link) {
-    return true;
+    return false;
 }
 
 
 
 
 static void system_initiate_agents(void) {
-    /**** WARNING: this must be done in the same order as the _cdpAgentID
-                   enumeration in "cdp_record.h". ****/
+    /**** WARNING: cdp_system_set_agent() must be done in the same order
+                   as the _cdpAgentID enumeration in "cdp_record.h". ****/
 
 
     // Core agents
@@ -275,6 +270,7 @@ static void system_initiate_agents(void) {
 
     cdpID recordID = cdp_system_set_agent("record", 0, 0, NULL, 4, NULL, cdp_action_terminate);
 
+    cdp_system_set_action_by_id(recordID, CDP_NAME_CONNECT, cdp_action_connect);
     cdp_system_set_action_by_id(recordID, CDP_NAME_REMOVE, cdp_action_remove);
     cdp_system_set_action_by_id(recordID, CDP_NAME_NEXT, cdp_action_next);
     cdp_system_set_action_by_id(recordID, CDP_NAME_PREVIOUS, cdp_action_previous);
@@ -515,8 +511,10 @@ void cdp_system_shutdown(void) {
 
     cdp_book_traverse(SYSTEM, system_traverse, cdp_v2p(CDP_NAME_SHUTDOWN), NULL);
 
-    cdp_signal_del(CONNECT_SIGNAL);
-    cdp_signal_del(SYSTEM_SIGNAL);
+    if (CONNECT_SIGNAL)
+        cdp_signal_del(CONNECT_SIGNAL);
+    if (SYSTEM_SIGNAL)
+        cdp_signal_del(SYSTEM_SIGNAL);
     cdp_system_finalize_signals();
 
     cdp_book_reset(&CDP_ROOT);

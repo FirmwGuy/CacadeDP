@@ -296,7 +296,7 @@ cdpID      cdp_system_set_action(cdpID agentID, const char* name, cdpAction acti
 cdpAction  cdp_system_get_action(cdpID agentID, cdpID actionID);
 bool       cdp_system_does_action(cdpRecord* instance, cdpSignal* signal);
 
-bool       cdp_system_connect(cdpRecord* instanceSrc, cdpRecord* instanceTgt);
+bool       cdp_system_connect(cdpRecord* instanceSrc, cdpID output, cdpRecord* recordTgt);
 bool       cdp_system_disconnect(cdpRecord* link);
 
 bool       cdp_system_startup(void);

@@ -46,6 +46,7 @@ bool cdp_action_error(cdpRecord* instance, cdpSignal* signal);
 /*
  *    Record actions
  */
+bool cdp_action_connect(cdpRecord* instance, cdpSignal* signal);
 bool cdp_action_initiate_book(cdpRecord* instance, cdpSignal* signal);
 bool cdp_action_initiate_register(cdpRecord* instance, cdpSignal* signa);
 bool cdp_action_initiate_link(cdpRecord* instance, cdpSignal* signa);
