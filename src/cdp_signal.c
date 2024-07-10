@@ -21,6 +21,7 @@
 
 #include "cdp_signal.h"
 #include "cdp_action.h"
+#include <stdarg.h>
 
 
 
@@ -28,6 +29,7 @@
 cdpSignal* SIGNAL_INITIATE_BOOK;
 cdpSignal* SIGNAL_INITIATE_REGISTER;
 cdpSignal* SIGNAL_INITIATE_LINK;
+cdpSignal* SIGNAL_INITIATE;
 cdpSignal* SIGNAL_TERMINATE;
 cdpSignal* SIGNAL_RESET;
 cdpSignal* SIGNAL_NEXT;
@@ -113,6 +115,7 @@ void cdp_system_finalize_signals(void) {
     cdp_signal_del(SIGNAL_INITIATE_BOOK);
     cdp_signal_del(SIGNAL_INITIATE_REGISTER);
     cdp_signal_del(SIGNAL_INITIATE_LINK);
+    cdp_signal_del(SIGNAL_INITIATE);
     cdp_signal_del(SIGNAL_TERMINATE);
     cdp_signal_del(SIGNAL_RESET);
     cdp_signal_del(SIGNAL_NEXT);
@@ -276,6 +279,33 @@ bool cdp_initiate_link(cdpRecord* instance, cdpID nameID, cdpRecord* record) {
     bool result;
     signaler_action(SIGNAL_INITIATE_LINK, result, true);
 
+    return result;
+}
+
+
+bool cdp_initiate(cdpRecord* instance, cdpID nameID, const char* field, ...) {
+    assert(instance  &&  nameID != CDP_NAME_VOID);
+    if (!SIGNAL_INITIATE) {
+        SIGNAL_INITIATE = cdp_new(cdpSignal);
+        SIGNAL_INITIATE->nameID = nameID;
+        cdp_record_initialize_dictionary(&SIGNAL_INITIATE->input, CDP_NAME_INPUT, CDP_STO_CHD_RED_BLACK_T);
+    }
+
+    cdp_book_add_id(&SIGNAL_INITIATE->input, CDP_NAME_NAME, nameID);
+
+    if (field) {
+        va_list args;
+        va_start(args, field);
+        do {
+            void* data = va_arg(args, void*);
+            //cdp_book_add(&SIGNAL_INITIATE->input, cdp_name_id_add_static(field), data);
+            field = va_arg(args, const char*);
+        } while (field);
+        va_end(args);
+    }
+
+    bool result;
+    signaler_action(SIGNAL_INITIATE, result, true);
     return result;
 }
 

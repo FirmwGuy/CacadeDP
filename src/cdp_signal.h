@@ -86,6 +86,7 @@ void cdp_signal_reset(cdpSignal* signal);
 
 
 // Record signals
+bool cdp_initiate(cdpRecord* instance, cdpID nameID, const char* field, ...);
 bool cdp_initiate_book(cdpRecord* instance, cdpID nameID, cdpID agentID, unsigned storage, unsigned baseLength);
 bool cdp_initiate_register(cdpRecord* instance, cdpID nameID, cdpID agentID, bool borrow, void* data, size_t size);
 bool cdp_initiate_link(cdpRecord* instance, cdpID nameID, cdpRecord* record);

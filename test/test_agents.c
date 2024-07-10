@@ -31,42 +31,19 @@ bool DONE;
 
 
 
-cdpID AGENT_STDOUT;
-
-
-bool stdout_agent_initiate(cdpRecord* instance, cdpSignal* signal) {
-    cdpID nameID = cdp_dict_get_id(&signal->input, CDP_NAME_NAME);
-
-    cdp_record_initialize_register(instance, nameID, AGENT_STDOUT, false, NULL, sizeof(uint32_t));
-
-    return true;
-}
-
-
-bool stdout_agent_update(cdpRecord* instance, cdpSignal* signal) {
-    uint32_t value = cdp_dict_get_uint32(&signal->input, CDP_NAME_VALUE);
-    cdp_register_update_uint32(instance, value);
-    printf("%u\n", value);
-    return true;
-}
-
-
-
-
-
 cdpID AGENT_STDIN;
 
 
-bool stdin_agent_initiate(cdpRecord* instance, cdpSignal* signal) {
+static bool stdin_agent_initiate(cdpRecord* instance, cdpSignal* signal) {
     cdpID nameID = cdp_dict_get_id(&signal->input, CDP_NAME_NAME);
 
-    cdp_record_initialize_register(instance, nameID, AGENT_STDOUT, false, NULL, sizeof(uint32_t));
+    cdp_record_initialize_register(instance, nameID, AGENT_STDIN, false, NULL, sizeof(uint32_t));
 
     return true;
 }
 
 
-bool stdin_agent_step(cdpRecord* instance, cdpSignal* signal) {
+static bool stdin_agent_step(cdpRecord* instance, cdpSignal* signal) {
     int c = getc_unlocked(stdin);
     if (EOF != c) {
         if (isdigit(c)) {
@@ -91,32 +68,35 @@ cdpID ADDER_ANS;
 
 
 bool adder_agent_initiate(cdpRecord* instance, cdpSignal* signal) {
-    cdpID nameID = cdp_dict_get_id(&signal->input, CDP_NAME_NAME);
-
-    cdp_record_initialize_dictionary(instance, nameID, CDP_STO_CHD_ARRAY, 3);
-
     ADDER_OP1 = cdp_name_id_add_static("op1");
     ADDER_OP2 = cdp_name_id_add_static("op2");
     ADDER_ANS = cdp_name_id_add_static("ans");
 
-    cdp_book_add_uint32(instance, ADDER_OP1, 5);
-    cdp_book_add_uint32(instance, ADDER_OP2, 0);
+    cdpID nameID = cdp_dict_get_id(&signal->input, CDP_NAME_NAME);
 
-    //cdp_book_add_link(instance, ADDER_OP2, 0);
+    // FixMe: define dictionary types by flag instead of agent.
+    cdp_record_initialize(instance, CDP_TYPE_BOOK, 0, nameID, AGENT_ADDER, CDP_STO_CHD_ARRAY, 3);
+
+    cdp_book_add_uint32(instance, ADDER_OP1, 5);
+
+    cdpRecord* regOp2 = cdp_book_add_uint32(instance, ADDER_OP2, 0);
+    CDP_RECORD_SET_ATTRIB(regOp2, CDP_ATTRIB_BABY);
 
     return true;
 }
 
 
 bool adder_agent_update(cdpRecord* instance, cdpSignal* signal) {
-    uint32_t op1 = cdp_dict_get_uint32(instance, ADDER_OP1);
-    uint32_t op2 = cdp_dict_get_uint32(&signal->input, ADDER_OP2);
-    uint32_t ans = op1 + op2;
+    cdpRecord* ansLink = cdp_book_find_by_name(instance, ADDER_ANS);
+    assert(ansLink);
 
+    uint32_t op2 = cdp_dict_get_uint32(&signal->input, ADDER_OP2);
     cdpRecord regOp2 = cdp_book_find_by_name(instance, ADDER_OP2);
     cdp_register_update_uint32(regOp2, op2);
 
-    cdp_update(cdp_book_find_by_name(instance, ADDER_ANS), ans);
+    uint32_t op1 = cdp_dict_get_uint32(instance, ADDER_OP1);
+    uint32_t ans = op1 + op2;
+    cdp_update(ansLink, &ans, sizeof(ans));
 
     return true;
 }
@@ -124,29 +104,41 @@ bool adder_agent_update(cdpRecord* instance, cdpSignal* signal) {
 
 
 
-
-void test_agents_initiate() {
-    cdpID uint32ID = cdp_system_get_agent(CDP_AGENT_UINT32);
-    AGENT_STDOUT = cdp_system_set_agent("stdout", sizeof(uint32_t), 1, &uint32ID, 1, stdout_agent_initiate, NULL);
-    cdp_system_set_action(AGENT_STDOUT, "update", stdout_agent_update);
+cdpID AGENT_STDOUT;
 
 
-    cdpID linkID = cdp_system_get_agent(CDP_AGENT_LINK);
-    AGENT_STDIN = cdp_system_set_agent("stdin", 0, 1, &linkID, 1, stdin_agent_initiate, NULL);
-    cdp_system_set_action(AGENT_STDIN, "step", stdin_agent_step);
+bool stdout_agent_initiate(cdpRecord* instance, cdpSignal* signal) {
+    cdpID nameID = cdp_dict_get_id(&signal->input, CDP_NAME_NAME);
+
+    cdp_record_initialize_register(instance, nameID, AGENT_STDOUT, false, NULL, sizeof(uint32_t));
+
+    return true;
+}
 
 
-    cdpID bookID = cdp_system_get_agent(CDP_AGENT_BOOK);
-    AGENT_ADDER = cdp_system_set_agent("adder", 0, 1, &bookID, 1, adder_agent_initiate, NULL);
-    cdp_system_set_action(AGENT_STDIN, "update", stdin_agent_step);
+bool stdout_agent_update(cdpRecord* instance, cdpSignal* signal) {
+    uint32_t value = cdp_dict_get_uint32(&signal->input, CDP_NAME_VALUE);
+    cdp_register_update_uint32(instance, value);
+    printf("%u\n", value);
+    return true;
 }
 
 
 
 
-
 void* test_agents_setup(const MunitParameter params[], void* user_data) {
-    test_agents_initiate();
+    cdpID linkID = cdp_system_get_agent(CDP_AGENT_LINK);
+    AGENT_STDIN = cdp_system_set_agent("stdin", 0, 1, &linkID, 1, stdin_agent_initiate, NULL);
+    cdp_system_set_action(AGENT_STDIN, "step", stdin_agent_step);
+
+    cdpID bookID = cdp_system_get_agent(CDP_AGENT_BOOK);
+    AGENT_ADDER = cdp_system_set_agent("adder", 0, 1, &bookID, 1, adder_agent_initiate, NULL);
+    cdp_system_set_action(AGENT_ADDER, "update", stdin_agent_step);
+
+    cdpID uint32ID = cdp_system_get_agent(CDP_AGENT_UINT32);
+    AGENT_STDOUT = cdp_system_set_agent("stdout", sizeof(uint32_t), 1, &uint32ID, 1, stdout_agent_initiate, NULL);
+    cdp_system_set_action(AGENT_STDOUT, "update", stdout_agent_update);
+
     cdp_system_startup();
     return NULL;
 }
@@ -160,33 +152,24 @@ void test_agents_tear_down(void* fixture) {
 MunitResult test_agents(const MunitParameter params[], void* user_data_or_fixture) {
     extern cdpRecord* TEMP;
 
-    cdpRecord* cascade = cdp_book_add_dictionary(TEMP, CDP_NAME_BOOK, CDP_STO_CHD_ARRAY, 4);
+    // Instance initiation
+    cdpRecord stdinR = {0}, adderR = {0}, stdoutR = {0};
 
-    // This will be done by the agent system:
-    {
-        // Signal initiation
-        cdpRecord stdinR = {0}, adderR = {0}, stdoutR = {0};
+    cdp_initiate(&stdinR, cdp_name_id_add_static("stdin"), NULL);
+    cdp_initiate(&adderR, cdp_name_id_add_static("adder"), NULL);
+    cdp_initiate(&stdoutR, cdp_name_id_add_static("stdout"), NULL);
 
-        cdpSignal* signal = cdp_signal_new(CDP_NAME_INITIATE, 0, 0);
+    cdpRecord* cascade = cdp_book_add_dictionary(TEMP, CDP_NAME_BOOK, CDP_STO_CHD_ARRAY, 3);
+    cdpRecord* stdinI = cdp_book_add_record(cascade, &stdinR, false);
+    cdpRecord* adderI = cdp_book_add_record(cascade, &adderR, false);
+    cdpRecord* stdoutI = cdp_book_add_record(cascade, &stdoutR, false);
 
-        cdp_initiate_link(&stdinR, );
-        cdp_initiate_book(&adderR, );
-        cdp_initiate_register(&stdoutR, );
+    // Connect pipeline
+    cdp_system_connect(adderI, cdp_name_id_add_static("ans"), stdoutI);
 
-        // Add to pipeline
-        cdpRecord* stdin  = cdp_book_add_record(cascade, , &stdinR);
-        cdpRecord* adder  = cdp_book_add_record(cascade, , &adderR);
-        cdpRecord* stdout = cdp_book_add_record(cascade, , &stdoutR);
-
-        // Signal connection
-        cdpRecord* adderOp2 = cdp_book_find_by_name(adder, ADDER_OP2);
-        cdpRecord* adderAns = cdp_book_find_by_name(adder, ADDER_ANS);
-
-        cdp_connect(stdin, adderOp2);
-        cdp_connect(adderAns, stdout);
-
-        cdp_signal_del(signal);
-    }
+    cdpRecord* op2 = cdp_book_find_by_name(adderI, cdp_name_id_add_static("op2"));
+    assert(op2);
+    cdp_system_connect(stdinI, cdp_record_get_id(stdinI), op2);
 
     // Execute pipeline
     while (!DONE) {

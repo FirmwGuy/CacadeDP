@@ -59,7 +59,7 @@ bool cdp_action_error(cdpRecord* instance, cdpSignal* signal) {
 
 bool cdp_action_connect(cdpRecord* instance, cdpSignal* signal) {
     cdpRecord* link = cdp_book_first(&signal->input);
-    cdpID nameID = cdp_dict_get_id(link);
+    cdpID nameID = cdp_record_get_id(link);
 
     if (cdp_record_is_book(instance)) {
         cdpRecord* found = cdp_book_find_by_name(instance, nameID);
