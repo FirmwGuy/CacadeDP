@@ -288,7 +288,7 @@ bool cdp_initiate(cdpRecord* instance, cdpID nameID, const char* field, ...) {
     if (!SIGNAL_INITIATE) {
         SIGNAL_INITIATE = cdp_new(cdpSignal);
         SIGNAL_INITIATE->nameID = nameID;
-        cdp_record_initialize_dictionary(&SIGNAL_INITIATE->input, CDP_NAME_INPUT, CDP_STO_CHD_RED_BLACK_T);
+        cdp_record_initialize_dictionary(&SIGNAL_INITIATE->input, CDP_NAME_INPUT, 0, CDP_STO_CHD_RED_BLACK_T);
     }
 
     cdp_book_add_id(&SIGNAL_INITIATE->input, CDP_NAME_NAME, nameID);

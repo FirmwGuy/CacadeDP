@@ -449,13 +449,13 @@ static void system_initiate(void) {
 
     /* Initiate root book structure.
     */
-    SYSTEM  = cdp_book_add_dictionary(&CDP_ROOT, CDP_NAME_SYSTEM,  CDP_STO_CHD_ARRAY, CDP_AGENT_COUNT);
-    CASCADE = cdp_book_add_dictionary(&CDP_ROOT, CDP_NAME_CASCADE, CDP_STO_CHD_RED_BLACK_T);
-    USER    = cdp_book_add_dictionary(&CDP_ROOT, CDP_NAME_USER,    CDP_STO_CHD_RED_BLACK_T);
-    PUBLIC  = cdp_book_add_dictionary(&CDP_ROOT, CDP_NAME_PUBLIC,  CDP_STO_CHD_RED_BLACK_T);
-    DATA    = cdp_book_add_dictionary(&CDP_ROOT, CDP_NAME_DATA,    CDP_STO_CHD_RED_BLACK_T);
-    NETWORK = cdp_book_add_dictionary(&CDP_ROOT, CDP_NAME_NETWORK, CDP_STO_CHD_RED_BLACK_T);
-    TEMP    = cdp_book_add_dictionary(&CDP_ROOT, CDP_NAME_TEMP,    CDP_STO_CHD_RED_BLACK_T);
+    SYSTEM  = cdp_book_add_dictionary(&CDP_ROOT, CDP_NAME_SYSTEM,  0, CDP_STO_CHD_ARRAY, CDP_AGENT_COUNT);
+    CASCADE = cdp_book_add_dictionary(&CDP_ROOT, CDP_NAME_CASCADE, 0, CDP_STO_CHD_RED_BLACK_T);
+    USER    = cdp_book_add_dictionary(&CDP_ROOT, CDP_NAME_USER,    0, CDP_STO_CHD_RED_BLACK_T);
+    PUBLIC  = cdp_book_add_dictionary(&CDP_ROOT, CDP_NAME_PUBLIC,  0, CDP_STO_CHD_RED_BLACK_T);
+    DATA    = cdp_book_add_dictionary(&CDP_ROOT, CDP_NAME_DATA,    0, CDP_STO_CHD_RED_BLACK_T);
+    NETWORK = cdp_book_add_dictionary(&CDP_ROOT, CDP_NAME_NETWORK, 0, CDP_STO_CHD_RED_BLACK_T);
+    TEMP    = cdp_book_add_dictionary(&CDP_ROOT, CDP_NAME_TEMP,    0, CDP_STO_CHD_RED_BLACK_T);
 
     /* Initiate agents and names (in that order).
     */

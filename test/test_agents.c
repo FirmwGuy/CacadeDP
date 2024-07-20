@@ -21,7 +21,8 @@
 
 #include "test.h"
 #include "cdp_agent.h"
-//#include <stdio.h>      // sprintf()
+#include <stdio.h>      // getc()
+#include <ctype.h>      // isdigit()
 
 
 
@@ -44,19 +45,23 @@ static bool stdin_agent_initiate(cdpRecord* instance, cdpSignal* signal) {
 
 
 static bool stdin_agent_step(cdpRecord* instance, cdpSignal* signal) {
+  #ifdef _WIN32
+    int c = getchar();
+  #elif __linux__
     int c = getc_unlocked(stdin);
+  #endif
     if (EOF != c) {
         if (isdigit(c)) {
-            uint32_t value = (unsigned)atoi(c);
+            char s[] = {(char) c, 0};
+            uint32_t value = (unsigned)atoi(s);
             cdpRecord* target = cdp_link_data(instance);
-            cdp_update(target, &value, sizeof(value));
+            //cdp_update(target, &value, sizeof(value));
         } else if ("q" == tolower(c)) {
             DONE = true;
         }
     }
     return true;
 }
-
 
 
 

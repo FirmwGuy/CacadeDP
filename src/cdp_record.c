@@ -85,7 +85,7 @@ cdpRecord CDP_ROOT;
 */
 void cdp_record_system_initiate(void) {
     // The root dictionary is the same as "/" in text paths.
-    cdp_record_initialize_dictionary(&CDP_ROOT, CDP_NAME_ROOT, CDP_STO_CHD_RED_BLACK_T);
+    cdp_record_initialize_dictionary(&CDP_ROOT, CDP_NAME_ROOT, 0, CDP_STO_CHD_RED_BLACK_T);
 }
 
 
@@ -166,7 +166,7 @@ bool cdp_record_initialize(cdpRecord* record, unsigned type, unsigned attrib, cd
       BOOK: {
         unsigned reqStore = va_arg(args, unsigned);
         CDP_DEBUG(
-            if (agent == CDP_AGENT_DICTIONARY)
+            if (attrib & CDP_ATTRIB_DICTIONARY)
                 assert(reqStore != CDP_STO_CHD_PACKED_QUEUE);
         );
         cdpChdStore* chdStore = book_create_storage(reqStore, args);
@@ -876,7 +876,7 @@ void cdp_book_to_dictionary(cdpRecord* book) {
     if (!cdp_record_is_dictionary(book))    return;
     cdpChdStore* store = CDP_CHD_STORE(book->recData.book.children);
 
-    book->metadata.agent = CDP_AGENT_DICTIONARY;
+    CDP_RECORD_SET_ATTRIB(book, CDP_ATTRIB_DICTIONARY);
     if (store->chdCount <= 1)   return;
 
     STORE_TECH_SELECT(book->metadata.storeTech) {

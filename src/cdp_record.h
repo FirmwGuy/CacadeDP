@@ -153,8 +153,9 @@ typedef struct _cdpPath         cdpPath;
 #define CDP_ATTRIB_SHADOWED     0x04    // Record has shadow records (links pointing to it).
 #define CDP_ATTRIB_BABY         0x08    // On receiving any signal this record will first alert its parent.
 #define CDP_ATTRIB_CONNECTED    0x10    // Record is connected (it can't skip the signal API).
+#define CDP_ATTRIB_DICTIONARY   0x20    // Record is a dictionary book.
 
-#define CDP_ATTRIB_BIT_COUNT    5
+#define CDP_ATTRIB_BIT_COUNT    6
 
 
 enum {
@@ -373,7 +374,8 @@ void cdp_record_finalize(cdpRecord* record);
 #define cdp_record_initialize_list(r, id, chdStorage, ...)        cdp_record_initialize(r, CDP_TYPE_BOOK, 0, id, CDP_AGENT_LIST,       ((unsigned)(chdStorage)), ##__VA_ARGS__)
 #define cdp_record_initialize_queue(r, id, chdStorage, ...)       cdp_record_initialize(r, CDP_TYPE_BOOK, 0, id, CDP_AGENT_QUEUE,      ((unsigned)(chdStorage)), ##__VA_ARGS__)
 #define cdp_record_initialize_stack(r, id, chdStorage, ...)       cdp_record_initialize(r, CDP_TYPE_BOOK, 0, id, CDP_AGENT_STACK,      ((unsigned)(chdStorage)), ##__VA_ARGS__)
-#define cdp_record_initialize_dictionary(r, id, chdStorage, ...)  cdp_record_initialize(r, CDP_TYPE_BOOK, 0, id, CDP_AGENT_DICTIONARY, ((unsigned)(chdStorage)), ##__VA_ARGS__)
+
+#define cdp_record_initialize_dictionary(r, id, agent, chdStorage, ...)  cdp_record_initialize(r, CDP_TYPE_BOOK, CDP_ATTRIB_DICTIONARY, id, agent? agent: CDP_AGENT_DICTIONARY, ((unsigned)(chdStorage)), ##__VA_ARGS__)
 
 #define CDP_RECORD_SET_ATTRIB(r, a)   ((r)->metadata.attribute |= (a))
 
@@ -395,9 +397,9 @@ static inline void  cdp_record_set_id(cdpRecord* record, cdpID id)  {assert(reco
 #define cdp_record_is_shadowed(r)   cdp_is_set(cdp_record_attributes(r), CDP_ATTRIB_SHADOWED)
 #define cdp_record_is_baby(r)       cdp_is_set(cdp_record_attributes(r), CDP_ATTRIB_BABY)
 #define cdp_record_is_connected(r)  cdp_is_set(cdp_record_attributes(r), CDP_ATTRIB_CONNECTED)
+#define cdp_record_is_dictionary(r) cdp_is_set(cdp_record_attributes(r), CDP_ATTRIB_DICTIONARY)
 
-static inline bool cdp_record_is_named     (const cdpRecord* record)  {assert(record);  if (cdp_id_is_named(record->metadata.id)) {assert(CDP_NAMEID2POS(record->metadata.id) <= CDP_NAME_COUNT_MAX); return true;} return false;}
-static inline bool cdp_record_is_dictionary(const cdpRecord* record)  {assert(record);  return (cdp_record_is_book(record) && record->metadata.agent == CDP_AGENT_DICTIONARY);}
+static inline bool cdp_record_is_named(const cdpRecord* record)  {assert(record);  if (cdp_id_is_named(record->metadata.id)) {assert(CDP_NAMEID2POS(record->metadata.id) <= CDP_NAME_COUNT_MAX); return true;} return false;}
 
 #define cdp_record_id_is_auto(r)    (cdp_record_get_id(r) < CDP_NAME_FLAG)
 #define cdp_record_id_is_pending(r) (cdp_record_get_id(r) == CDP_AUTO_ID)
@@ -505,18 +507,20 @@ static inline cdpRecord* cdp_book_add_text(cdpRecord* book, unsigned attrib, cdp
     CDP_FUNC_ADD_VAL_(bool, uint8_t,  CDP_AGENT_BOOLEAN)
 
 
-#define cdp_book_add_book(b, id, agent, chdStorage, ...)             cdp_book_add(b, CDP_TYPE_BOOK, 0, id, agent, false, ((unsigned)(chdStorage)), ##__VA_ARGS__)
-#define cdp_book_prepend_book(b, id, agent, chdStorage, ...)         cdp_book_add(b, CDP_TYPE_BOOK, 0, id, agent,  true, ((unsigned)(chdStorage)), ##__VA_ARGS__)
+#define cdp_book_add_book(b, id, agent, chdStorage, ...)            cdp_book_add(b, CDP_TYPE_BOOK, 0, id, agent, false, ((unsigned)(chdStorage)), ##__VA_ARGS__)
+#define cdp_book_prepend_book(b, id, agent, chdStorage, ...)        cdp_book_add(b, CDP_TYPE_BOOK, 0, id, agent,  true, ((unsigned)(chdStorage)), ##__VA_ARGS__)
 
 #define cdp_book_add_list(b, id, chdStorage, ...)                   cdp_book_add_book(b, id, CDP_AGENT_LIST,       ((unsigned)(chdStorage)), ##__VA_ARGS__)
 #define cdp_book_add_queue(b, id, chdStorage, ...)                  cdp_book_add_book(b, id, CDP_AGENT_QUEUE,      ((unsigned)(chdStorage)), ##__VA_ARGS__)
 #define cdp_book_add_stack(b, id, chdStorage, ...)                  cdp_book_add_book(b, id, CDP_AGENT_STACK,      ((unsigned)(chdStorage)), ##__VA_ARGS__)
-#define cdp_book_add_dictionary(b, id, chdStorage, ...)             cdp_book_add_book(b, id, CDP_AGENT_DICTIONARY, ((unsigned)(chdStorage)), ##__VA_ARGS__)
+
+#define cdp_book_add_dictionary(b, id, agent, chdStorage, ...)      cdp_book_add(b, CDP_TYPE_BOOK, CDP_ATTRIB_DICTIONARY, id, agent? agent: CDP_AGENT_DICTIONARY, false, ((unsigned)(chdStorage)), ##__VA_ARGS__)
 
 #define cdp_book_prepend_list(b, id, chdStorage, ...)               cdp_book_prepend_book(b, id, CDP_AGENT_LIST,       ((unsigned)(chdStorage)), ##__VA_ARGS__)
 #define cdp_book_prepend_queue(b, id, chdStorage, ...)              cdp_book_prepend_book(b, id, CDP_AGENT_QUEUE,      ((unsigned)(chdStorage)), ##__VA_ARGS__)
 #define cdp_book_prepend_stack(b, id, chdStorage, ...)              cdp_book_prepend_book(b, id, CDP_AGENT_STACK,      ((unsigned)(chdStorage)), ##__VA_ARGS__)
-#define cdp_book_prepend_dictionary(b, id, chdStorage, ...)         cdp_book_prepend_book(b, id, CDP_AGENT_DICTIONARY, ((unsigned)(chdStorage)), ##__VA_ARGS__)
+
+#define cdp_book_prepend_dictionary(b, id, agent, chdStorage, ...)  cdp_book_add(b, CDP_TYPE_BOOK, CDP_ATTRIB_DICTIONARY, id, agent? agent: CDP_AGENT_DICTIONARY, true, ((unsigned)(chdStorage)), ##__VA_ARGS__)
 
 
 // Root dictionary.

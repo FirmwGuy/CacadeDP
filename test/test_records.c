@@ -455,9 +455,9 @@ static void test_records_tech_sequencing_book(void) {
 static void test_records_tech_sequencing_dictionary(void) {
     size_t maxItems = munit_rand_int_range(2, 100);
 
-    cdpRecord* dictL = cdp_book_add_dictionary(cdp_root(), CDP_NAME_TEMP+1, CDP_STO_CHD_LINKED_LIST);
-    cdpRecord* dictA = cdp_book_add_dictionary(cdp_root(), CDP_NAME_TEMP+2, CDP_STO_CHD_ARRAY, maxItems);
-    cdpRecord* dictT = cdp_book_add_dictionary(cdp_root(), CDP_NAME_TEMP+3, CDP_STO_CHD_RED_BLACK_T);
+    cdpRecord* dictL = cdp_book_add_dictionary(cdp_root(), CDP_NAME_TEMP+1, 0, CDP_STO_CHD_LINKED_LIST);
+    cdpRecord* dictA = cdp_book_add_dictionary(cdp_root(), CDP_NAME_TEMP+2, 0, CDP_STO_CHD_ARRAY, maxItems);
+    cdpRecord* dictT = cdp_book_add_dictionary(cdp_root(), CDP_NAME_TEMP+3, 0, CDP_STO_CHD_RED_BLACK_T);
 
     cdpRecord* foundL, *foundA, *foundT;
 
