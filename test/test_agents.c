@@ -21,6 +21,7 @@
 
 #include "test.h"
 #include "cdp_agent.h"
+#include "cdp_signal.h"
 #include <stdio.h>      // getc()
 #include <ctype.h>      // isdigit()
 
@@ -56,7 +57,7 @@ static bool stdin_agent_step(cdpRecord* instance, cdpSignal* signal) {
             uint32_t value = (unsigned)atoi(s);
             cdpRecord* target = cdp_link_data(instance);
             //cdp_update(target, &value, sizeof(value));
-        } else if ("q" == tolower(c)) {
+        } else if ('q' == tolower(c)) {
             DONE = true;
         }
     }
@@ -96,7 +97,7 @@ bool adder_agent_update(cdpRecord* instance, cdpSignal* signal) {
     assert(ansLink);
 
     uint32_t op2 = cdp_dict_get_uint32(&signal->input, ADDER_OP2);
-    cdpRecord regOp2 = cdp_book_find_by_name(instance, ADDER_OP2);
+    cdpRecord* regOp2 = cdp_book_find_by_name(instance, ADDER_OP2);
     cdp_register_update_uint32(regOp2, op2);
 
     uint32_t op1 = cdp_dict_get_uint32(instance, ADDER_OP1);
@@ -122,7 +123,7 @@ bool stdout_agent_initiate(cdpRecord* instance, cdpSignal* signal) {
 
 
 bool stdout_agent_update(cdpRecord* instance, cdpSignal* signal) {
-    uint32_t value = cdp_dict_get_uint32(&signal->input, CDP_NAME_VALUE);
+    uint32_t value = cdp_dict_get_uint32(&signal->input, CDP_AGENT_REGISTER);
     cdp_register_update_uint32(instance, value);
     printf("%u\n", value);
     return true;
@@ -132,15 +133,15 @@ bool stdout_agent_update(cdpRecord* instance, cdpSignal* signal) {
 
 
 void* test_agents_setup(const MunitParameter params[], void* user_data) {
-    cdpID linkID = cdp_system_get_agent(CDP_AGENT_LINK);
+    cdpID linkID = CDP_AGENT_LINK;
     AGENT_STDIN = cdp_system_set_agent("stdin", 0, 1, &linkID, 1, stdin_agent_initiate, NULL);
     cdp_system_set_action(AGENT_STDIN, "step", stdin_agent_step);
 
-    cdpID bookID = cdp_system_get_agent(CDP_AGENT_BOOK);
+    cdpID bookID = CDP_AGENT_BOOK;
     AGENT_ADDER = cdp_system_set_agent("adder", 0, 1, &bookID, 1, adder_agent_initiate, NULL);
     cdp_system_set_action(AGENT_ADDER, "update", stdin_agent_step);
 
-    cdpID uint32ID = cdp_system_get_agent(CDP_AGENT_UINT32);
+    cdpID uint32ID = CDP_AGENT_UINT32;
     AGENT_STDOUT = cdp_system_set_agent("stdout", sizeof(uint32_t), 1, &uint32ID, 1, stdout_agent_initiate, NULL);
     cdp_system_set_action(AGENT_STDOUT, "update", stdout_agent_update);
 
@@ -158,17 +159,17 @@ MunitResult test_agents(const MunitParameter params[], void* user_data_or_fixtur
     extern cdpRecord* TEMP;
 
     // Instance initiation
-    cdpRecord* cascade = cdp_book_add_dictionary(TEMP, CDP_NAME_BOOK, CDP_STO_CHD_ARRAY, 3);
+    cdpRecord* cascade = cdp_book_add_dictionary(TEMP, CDP_AUTO_ID, CDP_STO_CHD_ARRAY, 3);
     cdpRecord* stdinI  = cdp_book_add_instance(cascade, CDP_ID("stdin"), NULL);
     cdpRecord* adderI  = cdp_book_add_instance(cascade, CDP_ID("adder"), NULL);
     cdpRecord* stdoutI = cdp_book_add_instance(cascade, CDP_ID("stdout"), NULL);
 
-    // Connect pipeline
+    // Connect pipeline (from downstreaam to upstream)
     cdp_system_connect(adderI, CDP_ID("ans"), stdoutI);
 
-    cdpRecord* op2 = cdp_book_find_by_name(adderI, CDP_ID("op2"));
-    assert(op2);
-    cdp_system_connect(stdinI, cdp_record_get_id(stdinI), op2);
+    cdpRecord* adder_op2 = cdp_book_find_by_name(adderI, CDP_ID("op2"));
+    assert(adder_op2);
+    cdp_system_connect(stdinI, cdp_record_get_id(stdinI), adder_op2);
 
     // Execute pipeline
     while (!DONE) {

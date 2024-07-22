@@ -279,7 +279,7 @@ enum _cdpNameID {
 
 
 cdpID      cdp_name_id_add(const char* name, bool borrow);
-#define    cdp_name_id_add_static(name)   cdp_name_id_add(name, true);
+#define    cdp_name_id_add_static(name)   cdp_name_id_add(name, true)
 cdpRecord* cdp_name_id_text(cdpID nameID);
 #define    CDP_ID(s)    cdp_name_id_add_static(s)
 
