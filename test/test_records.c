@@ -217,7 +217,7 @@ static void test_records_tech_book(unsigned storage) {
 
 
 static void test_records_tech_dictionary(unsigned storage) {
-    cdpRecord* dict = cdp_book_add_dictionary(cdp_root(), CDP_NAME_TEMP, storage, 20);
+    cdpRecord* dict = cdp_book_add_dictionary(cdp_root(), CDP_NAME_TEMP, 0, storage, 20);
 
     /* One item operations */
 
@@ -288,7 +288,7 @@ static void test_records_tech_dictionary(unsigned storage) {
 
     /* Nested books */
 
-    cdpRecord* chdDict = cdp_book_add_dictionary(dict, CDP_NAME_TEMP+2000, storage, 20);
+    cdpRecord* chdDict = cdp_book_add_dictionary(dict, CDP_NAME_TEMP+2000, 0, storage, 20);
     reg = cdp_book_add_uint32(chdDict, CDP_NAME_ENUMERATION, value);
     test_records_register_val(reg, value);
     assert_true(cdp_book_deep_traverse(dict, print_values, NULL, NULL, NULL));

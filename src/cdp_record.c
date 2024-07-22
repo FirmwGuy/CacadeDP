@@ -152,7 +152,7 @@ bool cdp_record_initialize(cdpRecord* record, unsigned type, unsigned attrib, cd
     assert(record && type && agent);
     //CDP_0(record);
 
-    record->metadata.attribute = attrib & CDP_ATTRIB_PUB_MASK;
+    record->metadata.attribute = attrib;// & CDP_ATTRIB_PUB_MASK;
     record->metadata.type      = type;
     record->metadata.id        = id;
     record->metadata.agent     = agent;

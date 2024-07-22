@@ -86,7 +86,7 @@ void cdp_signal_reset(cdpSignal* signal);
 
 
 // Record signals
-bool cdp_initiate(cdpRecord* instance, cdpID nameID, const char* field, ...);
+bool cdp_initiate(cdpRecord* instance, cdpID nameID, cdpRecord* bookArgs);
 bool cdp_initiate_book(cdpRecord* instance, cdpID nameID, cdpID agentID, unsigned storage, unsigned baseLength);
 bool cdp_initiate_register(cdpRecord* instance, cdpID nameID, cdpID agentID, bool borrow, void* data, size_t size);
 bool cdp_initiate_link(cdpRecord* instance, cdpID nameID, cdpRecord* record);
@@ -121,6 +121,19 @@ bool cdp_untextualize(cdpRecord* instance, char* data, size_t length);
 void* cdp_read(cdpRecord* instance, void* data, size_t* size);
 void cdp_update(cdpRecord* instance, void* data, size_t size);
 void* cdp_patch(cdpRecord* instance, void* data, size_t size);
+
+
+static inline cdpRecord* cdp_book_add_instance(cdpRecord* book, cdpID name, cdpRecord* bookArgs) {
+    cdpRecord instance = {0};
+    cdp_initiate(&instance, name, bookArgs);
+    return cdp_book_add_record(book, &instance, false);
+}
+
+static inline cdpRecord* cdp_book_prepend_instance(cdpRecord* book, cdpID name, cdpRecord* bookArgs) {
+    cdpRecord instance = {0};
+    cdp_initiate(&instance, name, bookArgs);
+    return cdp_book_add_record(book, &instance, true);
+}
 
 
 #endif

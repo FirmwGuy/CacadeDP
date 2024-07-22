@@ -21,17 +21,6 @@
 
 #include "test.h"
 
-void* test_agents_setup0(const MunitParameter params[], void* user_data) {
-    return NULL;
-}
-
-void test_agents_tear_down0(void* fixture) {
-}
-
-
-MunitResult test_agents0(const MunitParameter params[], void* user_data_or_fixture) {
-    return MUNIT_OK;
-}
 
 
 
@@ -46,9 +35,9 @@ MunitTest tests[] = {
     },
     {
         "/agents",
-        test_agents0,
-        test_agents_setup0,
-        test_agents_tear_down0,
+        test_agents,
+        test_agents_setup,
+        test_agents_tear_down,
         MUNIT_TEST_OPTION_NONE,
         NULL                      // parameters
     },

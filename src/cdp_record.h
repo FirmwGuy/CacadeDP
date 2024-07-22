@@ -260,6 +260,7 @@ enum {
 };
 
 #define cdp_id_is_named(id)   ((id) & CDP_NAME_FLAG)
+#define cdp_id_is_void(id)    ((id) == CDP_NAME_VOID)
 
 
 typedef struct {

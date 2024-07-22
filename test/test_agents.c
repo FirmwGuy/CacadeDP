@@ -158,21 +158,15 @@ MunitResult test_agents(const MunitParameter params[], void* user_data_or_fixtur
     extern cdpRecord* TEMP;
 
     // Instance initiation
-    cdpRecord stdinR = {0}, adderR = {0}, stdoutR = {0};
-
-    cdp_initiate(&stdinR, cdp_name_id_add_static("stdin"), NULL);
-    cdp_initiate(&adderR, cdp_name_id_add_static("adder"), NULL);
-    cdp_initiate(&stdoutR, cdp_name_id_add_static("stdout"), NULL);
-
     cdpRecord* cascade = cdp_book_add_dictionary(TEMP, CDP_NAME_BOOK, CDP_STO_CHD_ARRAY, 3);
-    cdpRecord* stdinI = cdp_book_add_record(cascade, &stdinR, false);
-    cdpRecord* adderI = cdp_book_add_record(cascade, &adderR, false);
-    cdpRecord* stdoutI = cdp_book_add_record(cascade, &stdoutR, false);
+    cdpRecord* stdinI  = cdp_book_add_instance(cascade, CDP_ID("stdin"), NULL);
+    cdpRecord* adderI  = cdp_book_add_instance(cascade, CDP_ID("adder"), NULL);
+    cdpRecord* stdoutI = cdp_book_add_instance(cascade, CDP_ID("stdout"), NULL);
 
     // Connect pipeline
-    cdp_system_connect(adderI, cdp_name_id_add_static("ans"), stdoutI);
+    cdp_system_connect(adderI, CDP_ID("ans"), stdoutI);
 
-    cdpRecord* op2 = cdp_book_find_by_name(adderI, cdp_name_id_add_static("op2"));
+    cdpRecord* op2 = cdp_book_find_by_name(adderI, CDP_ID("op2"));
     assert(op2);
     cdp_system_connect(stdinI, cdp_record_get_id(stdinI), op2);
 
