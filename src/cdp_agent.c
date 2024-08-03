@@ -246,6 +246,8 @@ bool cdp_system_connect(cdpRecord* instanceSrc, cdpID output, cdpRecord* recordT
 
     bool done = cdp_system_does_action(instanceSrc, CONNECT_SIGNAL);
 
+    CDP_RECORD_SET_ATTRIB(recordTgt, CDP_ATTRIB_CONNECTED);     // FixMe: Only outputs need to be marked as "connected".
+
     cdp_signal_reset(CONNECT_SIGNAL);
 
     return done;

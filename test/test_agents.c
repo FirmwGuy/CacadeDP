@@ -55,8 +55,7 @@ static bool stdin_agent_step(cdpRecord* instance, cdpSignal* signal) {
         if (isdigit(c)) {
             char s[] = {(char) c, 0};
             uint32_t value = (unsigned)atoi(s);
-            cdpRecord* target = cdp_link_data(instance);
-            //cdp_update(target, &value, sizeof(value));
+            cdp_update(instance, &value, sizeof(value));
         } else if ('q' == tolower(c)) {
             DONE = true;
         }
@@ -160,16 +159,15 @@ MunitResult test_agents(const MunitParameter params[], void* user_data_or_fixtur
 
     // Instance initiation
     cdpRecord* cascade = cdp_book_add_dictionary(TEMP, CDP_AUTO_ID, CDP_STO_CHD_ARRAY, 3);
-    cdpRecord* stdinI  = cdp_book_add_instance(cascade, CDP_ID("stdin"), NULL);
-    cdpRecord* adderI  = cdp_book_add_instance(cascade, CDP_ID("adder"), NULL);
-    cdpRecord* stdoutI = cdp_book_add_instance(cascade, CDP_ID("stdout"), NULL);
+    cdpRecord* stdInp = cdp_book_add_instance(cascade, CDP_ID("stdin"), NULL);
+    cdpRecord* adderI = cdp_book_add_instance(cascade, CDP_ID("adder"), NULL);
+    cdpRecord* stdOut = cdp_book_add_instance(cascade, CDP_ID("stdout"), NULL);
 
     // Connect pipeline (from downstreaam to upstream)
-    cdp_system_connect(adderI, CDP_ID("ans"), stdoutI);
+    cdp_system_connect(adderI, CDP_ID("ans"), stdOut);
 
     cdpRecord* adder_op2 = cdp_book_find_by_name(adderI, CDP_ID("op2"));
-    assert(adder_op2);
-    cdp_system_connect(stdinI, cdp_record_get_id(stdinI), adder_op2);
+    cdp_system_connect(stdInp, cdp_record_get_id(stdInp), adder_op2);
 
     // Execute pipeline
     while (!DONE) {
