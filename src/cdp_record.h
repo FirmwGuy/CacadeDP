@@ -155,7 +155,7 @@ typedef struct _cdpPath         cdpPath;
 #define CDP_ATTRIB_CONNECTED    0x10    // Record is connected (it can't skip the signal API).
 #define CDP_ATTRIB_DICTIONARY   0x20    // Record is a dictionary book.
 
-#define CDP_ATTRIB_BIT_COUNT    6
+#define CDP_ATTRIB_BITS         6
 
 
 enum {
@@ -184,13 +184,14 @@ enum {
 };
 
 
-typedef uint32_t cdpID;
+typedef uint64_t  cdpID;
 
-#define CDP_ID_MAXVAL         ((cdpID)(-1))
 
-#define CDP_META_BITS         (CDP_ATTRIB_BIT_COUNT + 4)
-#define CDP_AGENT_MAXVAL       (CDP_ID_MAXVAL >> CDP_META_BITS)
-#define CDP_AGENT_COUNT_MAX    (CDP_AGENT_MAXVAL >> 1)
+#define CDP_META_BITS         (CDP_ATTRIB_BITS + 4)
+#define CDP_AGENT_BITS        14
+#define CDP_AGENT_MAXVAL      (((uint16_t)(-1)) >> (cdp_bitsof(uint16_t) - CDP_AGENT_BITS))
+#define CDP_ID_BITS           (cdp_bitsof(cdpID) - (CDP_META_BITS + CDP_AGENT_BITS))
+#define CDP_ID_MAXVAL         (((cdpID)(-1)) >> (CDP_META_BITS + CDP_AGENT_BITS))
 
 // Record types:
 enum {
@@ -264,11 +265,11 @@ enum {
 
 
 typedef struct {
-    cdpID attribute: CDP_ATTRIB_BIT_COUNT,              // Flags for record attributes.
-          type:      2,                                 // Record type (book, register, link).
-          storeTech: 2,                                 // Record storage technique (it depends on the record type).
-          agent:     cdp_bitsof(cdpID) - CDP_META_BITS; // Agent tag for this record (it includes _cdpAgentID + user defined types).
-    cdpID id;                                           // Name/field identifier of this record with respect to the parent record.
+    cdpID     attribute:  CDP_ATTRIB_BITS,  // Flags for record attributes.
+              type:       2,                // Record type (book, register, link).
+              storeTech:  2,                // Record storage technique (it depends on the record type).
+              agent:      CDP_AGENT_BITS,   // Agent tag for this register (includes _cdpAgentID + user defined types).
+              id:         CDP_ID_BITS;      // Name/field identifier of this record with respect to the parent record.
 } cdpMetadata;
 
 
@@ -473,7 +474,7 @@ static inline size_t cdp_book_children(const cdpRecord* book)       {assert(cdp_
 static inline bool   cdp_book_is_prependable(const cdpRecord* book) {assert(cdp_record_is_book(book));  return (book->metadata.storeTech != CDP_STO_CHD_RED_BLACK_T);}
 
 static inline cdpID cdp_book_get_auto_id(const cdpRecord* book)           {assert(cdp_record_is_book(book));  return CDP_CHD_STORE(book->recData.book.children)->autoID;}
-static inline void  cdp_book_set_auto_id(const cdpRecord* book, cdpID id) {assert(cdp_record_is_book(book));  cdpChdStore* store = CDP_CHD_STORE(book->recData.book.children); assert(store->autoID < id); store->autoID = id;}
+static inline void  cdp_book_set_auto_id(const cdpRecord* book, cdpID id) {assert(cdp_record_is_book(book));  cdpChdStore* store = CDP_CHD_STORE(book->recData.book.children); assert(store->autoID < id  &&  id <= CDP_AUTO_ID_MAX); store->autoID = id;}
 
 cdpRecord* cdp_book_add_property(cdpRecord* book, cdpRecord* record);
 cdpRecord* cdp_book_get_property(const cdpRecord* book, cdpID id);
@@ -682,7 +683,8 @@ void cdp_record_system_shutdown(void);
     - Add cdp_book_update_nested_links(old, new).
     - CDP_NAME_VOID should never be a valid name for records.
     - Any book may be a dictionary, but only if the name matches the insertion/deletion sequence.
-    - If a record is added to a book with its name explicitelly above "auto_id", then it must be updated.
+    - If a record is added to a book with its name explicitly above "auto_id", then that must be updated.
+    - Since metadata.agent is not going to hold anything when record is book, it should contain CDP_ATTRIB_DICTIONARY and other book flags.
 */
 
 
