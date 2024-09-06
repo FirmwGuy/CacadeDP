@@ -121,8 +121,8 @@ cdpID cdp_system_set_agent( const char* name,
                             unsigned    assimLength,
                             cdpID*      assimilate,
                             unsigned    numAction,
-                            cdpAction   initiate,
-                            cdpAction   finalize ) {
+                            cdpAgent   initiate,
+                            cdpAgent   finalize ) {
     assert(name && *name);
     if (!SYSTEM)  system_initiate();
 
@@ -172,14 +172,14 @@ cdpRecord* cdp_system_get_agent(cdpID agentID) {
 }
 
 
-void cdp_system_set_action_by_id(cdpID agentID, cdpID nameID, cdpAction action) {
+void cdp_system_set_action_by_id(cdpID agentID, cdpID nameID, cdpAgent action) {
     assert(SYSTEM && action);
     cdpRecord* agent = cdp_system_get_agent(agentID);
     cdp_book_add_action(agent, nameID, action);
 }
 
 
-cdpID cdp_system_set_action(cdpID agentID, const char* name, cdpAction action) {
+cdpID cdp_system_set_action(cdpID agentID, const char* name, cdpAgent action) {
     assert(SYSTEM && action);
     cdpID nameID = cdp_name_id_add_static(name);
     assert(nameID != CDP_NAME_ASSIMILATE);
@@ -188,10 +188,10 @@ cdpID cdp_system_set_action(cdpID agentID, const char* name, cdpAction action) {
 }
 
 
-cdpAction cdp_system_get_action(cdpID agentID, cdpID actionID) {
+cdpAgent cdp_system_get_action(cdpID agentID, cdpID actionID) {
     assert(agentID < cdp_book_get_auto_id(SYSTEM));
     cdpRecord* agent = cdp_system_get_agent(agentID);
-    return cdp_dict_get_action(agent, actionID);
+    return cdp_dict_get_agent(agent, actionID);
 }
 
 
@@ -201,7 +201,7 @@ static bool cdp_system_does_action_internal(cdpRecord* instance, cdpSignal* sign
     cdpID agentID = cdp_record_agent(instance);
     while (agentID) {
         cdpRecord* agent = cdp_system_get_agent(agentID);
-        cdpAction action = cdp_dict_get_action(agent, signal->nameID);
+        cdpAgent action = cdp_dict_get_agent(agent, signal->nameID);
         if (action)
             return action(instance, signal);
 
@@ -263,7 +263,7 @@ bool cdp_system_disconnect(cdpRecord* link) {
 
 static void system_initiate_agents(void) {
     /**** WARNING: cdp_system_set_agent() must be done in the same order
-                   as the _cdpAgentID enumeration in "cdp_record.h". ****/
+                   as the _cdpTagID enumeration in "cdp_record.h". ****/
 
 
     // Core agents
@@ -389,7 +389,7 @@ static void system_initiate_agents(void) {
 
     NAME = cdp_book_add_book(   cdp_system_get_agent(internedID),
                                 CDP_NAME_ENUMERATION,
-                                CDP_AGENT_BOOK,
+                                CDP_TAG_BOOK,
                                 CDP_STO_CHD_PACKED_QUEUE,
                                 cdp_next_pow_of_two(CDP_NAME_COUNT + CDP_SIGNAL_COUNT + CDP_ACTION_COUNT) );
 
@@ -404,8 +404,8 @@ static void system_initiate_agents(void) {
 
 
     // Finish agents
-    assert(cdp_book_children(SYSTEM) == CDP_AGENT_COUNT);
-    cdp_book_set_auto_id(SYSTEM, CDP_AGENT_COUNT);
+    assert(cdp_book_children(SYSTEM) == CDP_TAG_COUNT);
+    cdp_book_set_auto_id(SYSTEM, CDP_TAG_COUNT);
 }
 
 
@@ -451,7 +451,7 @@ static void system_initiate(void) {
 
     /* Initiate root book structure.
     */
-    SYSTEM  = cdp_book_add_dictionary(&CDP_ROOT, CDP_NAME_SYSTEM,  0, CDP_STO_CHD_ARRAY, CDP_AGENT_COUNT);
+    SYSTEM  = cdp_book_add_dictionary(&CDP_ROOT, CDP_NAME_SYSTEM,  0, CDP_STO_CHD_ARRAY, CDP_TAG_COUNT);
     CASCADE = cdp_book_add_dictionary(&CDP_ROOT, CDP_NAME_CASCADE, 0, CDP_STO_CHD_RED_BLACK_T);
     USER    = cdp_book_add_dictionary(&CDP_ROOT, CDP_NAME_USER,    0, CDP_STO_CHD_RED_BLACK_T);
     PUBLIC  = cdp_book_add_dictionary(&CDP_ROOT, CDP_NAME_PUBLIC,  0, CDP_STO_CHD_RED_BLACK_T);
@@ -479,7 +479,7 @@ static void system_initiate(void) {
 
 static bool system_traverse(cdpBookEntry* entry, void* p) {
     cdpID signalID = cdp_p2v(p);
-    cdpAction action = cdp_dict_get_action(entry->record, signalID);
+    cdpAgent action = cdp_dict_get_agent(entry->record, signalID);
     if (action) {
         if (SYSTEM_SIGNAL)
             SYSTEM_SIGNAL->nameID = signalID;

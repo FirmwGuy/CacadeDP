@@ -148,19 +148,19 @@ static inline void store_check_auto_id(cdpChdStore* store, cdpRecord* record) {
 /*
     Initiates a record struct with the requested parameters.
 */
-bool cdp_record_initialize(cdpRecord* record, unsigned type, unsigned attrib, cdpID id, uint32_t agent, ...) {
-    assert(record && type && agent);
+bool cdp_record_initialize(cdpRecord* record, unsigned type, unsigned attrib, cdpID id, uint32_t tag, ...) {
+    assert(record && type && tag);
     //CDP_0(record);
 
     record->metadata.attribute = attrib;// & CDP_ATTRIB_PUB_MASK;
-    record->metadata.type      = type;
-    record->metadata.id        = id;
-    record->metadata.agent     = agent;
+    record->metadata.type = type;
+    record->metadata.tag  = tag;
+    record->metadata.id   = id;
 
     // Create child record storage.
     //
     va_list args;
-    va_start(args, agent);
+    va_start(args, tag);
 
     RECORD_PRIMAL_SELECT(type) {
       BOOK: {

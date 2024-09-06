@@ -258,7 +258,7 @@ bool cdp_initiate_register(cdpRecord* instance, cdpID nameID, cdpID agentID, boo
 
     cdp_book_add_id(&SIGNAL_INITIATE_REGISTER->input, CDP_NAME_NAME, nameID);
     cdp_book_add_id(&SIGNAL_INITIATE_REGISTER->input, CDP_NAME_AGENT, agentID);
-    cdp_book_add_register(&SIGNAL_INITIATE_REGISTER->input, 0, CDP_NAME_DATA, CDP_AGENT_REGISTER, borrow, data, size);
+    cdp_book_add_register(&SIGNAL_INITIATE_REGISTER->input, 0, CDP_NAME_DATA, CDP_TAG_REGISTER, borrow, data, size);
 
     bool result;
     signaler_action(SIGNAL_INITIATE_REGISTER, result, true);
@@ -590,7 +590,7 @@ void* cdp_read(cdpRecord* instance, void* data, size_t* size) {
         return cdp_register_read(instance, 0, data, size);
 
     signaler_start(CDP_NAME_READ, SIGNAL_READ, 1, 1);
-    cdp_book_add_register(&SIGNAL_READ->input, 0, CDP_NAME_DATA, CDP_AGENT_REGISTER, true, data, *size);
+    cdp_book_add_register(&SIGNAL_READ->input, 0, CDP_NAME_DATA, CDP_TAG_REGISTER, true, data, *size);
 
     cdp_system_does_action(instance, SIGNAL_READ);
 
@@ -614,7 +614,7 @@ void cdp_update(cdpRecord* instance, void* data, size_t size) {
     }
 
     signaler_start(CDP_NAME_UPDATE, SIGNAL_UPDATE, 1, 0);
-    cdp_book_add_register(&SIGNAL_UPDATE->input, 0, CDP_NAME_DATA, CDP_AGENT_REGISTER, true, data, size);
+    cdp_book_add_register(&SIGNAL_UPDATE->input, 0, CDP_NAME_DATA, CDP_TAG_REGISTER, true, data, size);
 
     cdp_system_does_action(instance, SIGNAL_UPDATE);
 

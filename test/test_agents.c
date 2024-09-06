@@ -122,7 +122,7 @@ bool stdout_agent_initiate(cdpRecord* instance, cdpSignal* signal) {
 
 
 bool stdout_agent_update(cdpRecord* instance, cdpSignal* signal) {
-    uint32_t value = cdp_dict_get_uint32(&signal->input, CDP_AGENT_REGISTER);
+    uint32_t value = cdp_dict_get_uint32(&signal->input, CDP_TAG_REGISTER);
     cdp_register_update_uint32(instance, value);
     printf("%u\n", value);
     return true;
@@ -132,15 +132,15 @@ bool stdout_agent_update(cdpRecord* instance, cdpSignal* signal) {
 
 
 void* test_agents_setup(const MunitParameter params[], void* user_data) {
-    cdpID linkID = CDP_AGENT_LINK;
+    cdpID linkID = CDP_TAG_LINK;
     AGENT_STDIN = cdp_system_set_agent("stdin", 0, 1, &linkID, 1, stdin_agent_initiate, NULL);
     cdp_system_set_action(AGENT_STDIN, "step", stdin_agent_step);
 
-    cdpID bookID = CDP_AGENT_BOOK;
+    cdpID bookID = CDP_TAG_BOOK;
     AGENT_ADDER = cdp_system_set_agent("adder", 0, 1, &bookID, 1, adder_agent_initiate, NULL);
     cdp_system_set_action(AGENT_ADDER, "update", stdin_agent_step);
 
-    cdpID uint32ID = CDP_AGENT_UINT32;
+    cdpID uint32ID = CDP_TAG_UINT32;
     AGENT_STDOUT = cdp_system_set_agent("stdout", sizeof(uint32_t), 1, &uint32ID, 1, stdout_agent_initiate, NULL);
     cdp_system_set_action(AGENT_STDOUT, "update", stdout_agent_update);
 

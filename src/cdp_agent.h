@@ -18,8 +18,8 @@
  *
  */
 
-#ifndef CDP_AGENT_H
-#define CDP_AGENT_H
+#ifndef CDP_TAG_H
+#define CDP_TAG_H
 
 
 /*
@@ -289,12 +289,12 @@ cdpID cdp_system_set_agent( const char* name,
                             unsigned    assimLenght,
                             cdpID*      assimilate,
                             unsigned    numAction,
-                            cdpAction   initiate,
-                            cdpAction   finalize );
+                            cdpAgent   initiate,
+                            cdpAgent   finalize );
 cdpRecord* cdp_system_get_agent(cdpID id);
 
-cdpID      cdp_system_set_action(cdpID agentID, const char* name, cdpAction action);
-cdpAction  cdp_system_get_action(cdpID agentID, cdpID actionID);
+cdpID      cdp_system_set_action(cdpID agentID, const char* name, cdpAgent action);
+cdpAgent  cdp_system_get_action(cdpID agentID, cdpID actionID);
 bool       cdp_system_does_action(cdpRecord* instance, cdpSignal* signal);
 
 bool       cdp_system_connect(cdpRecord* instanceSrc, cdpID output, cdpRecord* recordTgt);
