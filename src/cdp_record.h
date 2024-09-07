@@ -192,7 +192,7 @@ enum {
     CDP_STO_LNK_POINTER,        // Link points to an in-memory record.
     CDP_STO_LNK_SHADOW,         // Link shadows another in-memory record.
     CDP_STO_LNK_PATH,           // Link holds the path of an off-memory record.
-    CDP_STO_LNK_ACTION,         // Link holds the address of an cdpAgent function.
+    CDP_STO_LNK_AGENT,          // Link holds the address of an cdpAgent function.
     //
     CDP_STO_LNK_COUNT
 };
@@ -209,10 +209,20 @@ typedef uint64_t  cdpID;
 #define CDP_ID_BITS           (cdp_bitsof(cdpID) - (CDP_META_BITS + CDP_TAG_BITS))
 #define CDP_ID_MAXVAL         (((cdpID)(-1)) >> (CDP_META_BITS + CDP_TAG_BITS))
 
+#define CDP_AUTO_ID           CDP_ID_MAXVAL
+#define CDP_AUTO_ID_MAXVAL    (CDP_ID_MAXVAL >> 1)
+
+#define CDP_NAME_FLAG         (((cdpID)1) << (CDP_ID_BITS - 1))
+#define CDP_NAME_MAXVAL       (CDP_AUTO_ID - 1)
+#define CDP_POS2NAMEID(npos)  (CDP_NAME_FLAG | (npos))
+#define CDP_NAMEID2POS(id)    ((id) & CDP_AUTO_ID_MAXVAL)
+#define CDP_NPOS_MINVAL       (CDP_TAG_MAXVAL + 1)
+#define CDP_NPOS_MAXVAL       CDP_AUTO_ID_MAXVAL
+
 // Initial tag IDs (for a description see cdp_agent.h):
 enum _cdpTagID {
     // Core tags
-    CDP_TAG_VOID,
+    CDP_TAG_VOID = CDP_POS2NAMEID(0),
     CDP_TAG_RECORD,
     CDP_TAG_BOOK,
     CDP_TAG_REGISTER,
@@ -235,38 +245,32 @@ enum _cdpTagID {
     CDP_TAG_FLOAT32,
     CDP_TAG_FLOAT64,
     //
+    CDP_TAG_TAG,
     CDP_TAG_ID,
     CDP_TAG_UTF8,
     CDP_TAG_PATCH,
     //
     CDP_TAG_BOOLEAN,
     CDP_TAG_INTERNED,
-
-    // Structured agents
     CDP_TAG_AGENT,
 
-    CDP_TAG_COUNT
+    CDP_TAG_ID_COUNT
 };
 
-#define CDP_AUTO_ID           CDP_ID_MAXVAL
-#define CDP_AUTO_ID_MAX       (CDP_ID_MAXVAL >> 1)
-
-#define CDP_NAME_FLAG         (~(CDP_ID_MAXVAL >> 1))
-#define CDP_POS2NAMEID(text)  (CDP_NAME_FLAG | (text))
-#define CDP_NAMEID2POS(id)    ((id) & (~CDP_NAME_FLAG))
-#define CDP_NAME_COUNT_MAX    (CDP_AUTO_ID - 1)
+#define CDP_TAG_COUNT   (CDP_TAG_ID_COUNT - CDP_TAG_VOID)
 
 // Initial name IDs:
 enum {
-    CDP_NAME_VOID = CDP_NAME_FLAG,
-    //
-    CDP_NAME_ROOT,
+    CDP_NAME_ROOT = CDP_POS2NAMEID(CDP_NPOS_MINVAL),
 
-    CDP_NAME_INITIAL_COUNT
+    CDP_NAME_ID_INITIAL_COUNT
 };
 
+#define CDP_NAME_INITIAL_COUNT  (CDP_NAME_ID_INITIAL_COUNT - CDP_NAME_ROOT)
+
+
 #define cdp_id_is_named(id)   ((id) & CDP_NAME_FLAG)
-#define cdp_id_is_void(id)    ((id) == CDP_NAME_VOID)
+#define cdp_id_is_void(id)    ((id) == CDP_TAG_VOID)
 
 
 typedef struct {
@@ -343,8 +347,8 @@ typedef struct {
 
 struct _cdpPath {
     unsigned    length;
-    unsigned    capacity;
-    cdpID       id[];
+    unsigned    max;
+    cdpID*      id;
 };
 
 typedef struct {
@@ -358,18 +362,7 @@ typedef struct {
 
 typedef bool (*cdpTraverse)(cdpBookEntry*, void*);
 
-typedef struct {
-    cdpRecord   input;      // Dictionary.
-    cdpRecord   output;     // Dictionary.
-    cdpRecord   status;     // Stack.
-    cdpRecord*  baby;       // Child alerting this signal (if any).
-    cdpRecord*  instance;   // Record instance.
-    cdpPath     trigger;    // Signal context.
-    cdpPath     selector;   // Active selectors.
-    cdpPath     inhibitor;  // Active inhibitors.
-} cdpSignal;
-
-typedef bool (*cdpAgent)(cdpSignal* signal);
+typedef bool (*cdpAgent)(cdpRecord* task);
 
 
 /*
@@ -409,7 +402,7 @@ static inline void  cdp_record_set_id(cdpRecord* record, cdpID id)  {assert(reco
 #define cdp_record_is_connected(r)  cdp_is_set(cdp_record_attributes(r), CDP_ATTRIB_CONNECTED)
 #define cdp_record_is_dictionary(r) cdp_is_set(cdp_record_attributes(r), CDP_ATTRIB_DICTIONARY)
 
-static inline bool cdp_record_is_named(const cdpRecord* record)  {assert(record);  if (cdp_id_is_named(record->metadata.id)) {assert(CDP_NAMEID2POS(record->metadata.id) <= CDP_NAME_COUNT_MAX); return true;} return false;}
+static inline bool cdp_record_is_named(const cdpRecord* record)  {assert(record);  if (cdp_id_is_named(record->metadata.id)) {assert(record->metadata.id <= CDP_NAME_MAXVAL); return true;} return false;}
 
 #define cdp_record_id_is_auto(r)    (cdp_record_get_id(r) < CDP_NAME_FLAG)
 #define cdp_record_id_is_pending(r) (cdp_record_get_id(r) == CDP_AUTO_ID)
@@ -438,10 +431,10 @@ static inline void cdp_record_initialize_shadow(cdpRecord* newShadow, cdpID name
 
 void cdp_record_initialize_clone(cdpRecord* newClone, cdpID nameID, cdpRecord* record);
 
-static inline void cdp_record_initialize_action(cdpRecord* newAction, cdpID nameID, cdpAgent action) {
-    assert(newAction && action);
-    cdp_record_initialize(newAction, CDP_TYPE_LINK, 0, nameID, CDP_TAG_LINK, action);
-    newAction->metadata.storeTech = CDP_STO_LNK_ACTION;
+static inline void cdp_record_initialize_agent(cdpRecord* newAgent, cdpTag tag, cdpAgent agent) {
+    assert(newAgent && agent);
+    cdp_record_initialize(newAgent, CDP_TYPE_LINK, 0, tag, CDP_TAG_LINK, agent);
+    newAgent->metadata.storeTech = CDP_STO_LNK_AGENT;
 }
 
 
@@ -482,7 +475,7 @@ static inline size_t cdp_book_children(const cdpRecord* book)       {assert(cdp_
 static inline bool   cdp_book_is_prependable(const cdpRecord* book) {assert(cdp_record_is_book(book));  return (book->metadata.storeTech != CDP_STO_CHD_RED_BLACK_T);}
 
 static inline cdpID cdp_book_get_auto_id(const cdpRecord* book)           {assert(cdp_record_is_book(book));  return CDP_CHD_STORE(book->recData.book.children)->autoID;}
-static inline void  cdp_book_set_auto_id(const cdpRecord* book, cdpID id) {assert(cdp_record_is_book(book));  cdpChdStore* store = CDP_CHD_STORE(book->recData.book.children); assert(store->autoID < id  &&  id <= CDP_AUTO_ID_MAX); store->autoID = id;}
+static inline void  cdp_book_set_auto_id(const cdpRecord* book, cdpID id) {assert(cdp_record_is_book(book));  cdpChdStore* store = CDP_CHD_STORE(book->recData.book.children); assert(store->autoID < id  &&  id <= CDP_AUTO_ID_MAXVAL); store->autoID = id;}
 
 cdpRecord* cdp_book_add_property(cdpRecord* book, cdpRecord* record);
 cdpRecord* cdp_book_get_property(const cdpRecord* book, cdpID id);
@@ -637,10 +630,10 @@ static inline cdpRecord* cdp_book_move_to(cdpRecord* book, cdpID nameID, cdpReco
     return cdp_book_add_record(book, &moved, false);
 }
 
-static inline cdpRecord* cdp_book_add_action(cdpRecord* book, cdpID nameID, cdpAgent action) {
-    assert(cdp_record_is_book(book) && action);
-    cdpRecord newAction = {0};
-    cdp_record_initialize_action(&newAction, nameID, action);
+static inline cdpRecord* cdp_book_add_agent(cdpRecord* book, cdpTag tag, cdpAgent agent) {
+    assert(cdp_record_is_book(book) && agent);
+    cdpRecord newAgent = {0};
+    cdp_record_initialize_agent(&newAction, tag, action);
     return cdp_book_add_record(book, &newAction, false);
 }
 
@@ -689,7 +682,7 @@ void cdp_record_system_shutdown(void);
     - Implement cdp_book_insert_at(position).
     - Update MAX_DEPTH based on path/traverse operations.
     - Add cdp_book_update_nested_links(old, new).
-    - CDP_NAME_VOID should never be a valid name for records.
+    - CDP_TAG_VOID should never be a valid name for records.
     - Any book may be a dictionary, but only if the name matches the insertion/deletion sequence.
     - If a record is added to a book with its name explicitly above "auto_id", then that must be updated.
     - Change cdp_book_is_prependable() and related routines to cdp_book_is_insertable().

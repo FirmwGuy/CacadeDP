@@ -85,7 +85,7 @@ cdpRecord CDP_ROOT;
 */
 void cdp_record_system_initiate(void) {
     // The root dictionary is the same as "/" in text paths.
-    cdp_record_initialize_dictionary(&CDP_ROOT, CDP_NAME_ROOT, 0, CDP_STO_CHD_RED_BLACK_T);
+    cdp_record_initialize_dictionary(&CDP_ROOT, CDP_NAME_ROOT, CDP_TAG_DICTIONARY, CDP_STO_CHD_RED_BLACK_T);
 }
 
 
@@ -138,7 +138,7 @@ void cdp_book_relink_storage(cdpRecord* book) {
 static inline void store_check_auto_id(cdpChdStore* store, cdpRecord* record) {
     if (!cdp_record_id_is_pending(record))
         return;
-    assert(store->autoID < CDP_AUTO_ID_MAX);
+    assert(store->autoID < CDP_AUTO_ID_MAXVAL);
     record->metadata.id = store->autoID++;
 }
 

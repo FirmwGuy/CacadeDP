@@ -36,7 +36,7 @@ bool DONE;
 cdpID AGENT_STDIN;
 
 
-static bool stdin_agent_initiate(cdpRecord* instance, cdpSignal* signal) {
+static bool stdin_agent_initiate(cdpRecord* instance, cdpTask* signal) {
     cdpID nameID = cdp_dict_get_id(&signal->input, CDP_NAME_NAME);
 
     cdp_record_initialize_register(instance, nameID, AGENT_STDIN, false, NULL, sizeof(uint32_t));
@@ -45,7 +45,7 @@ static bool stdin_agent_initiate(cdpRecord* instance, cdpSignal* signal) {
 }
 
 
-static bool stdin_agent_step(cdpRecord* instance, cdpSignal* signal) {
+static bool stdin_agent_step(cdpRecord* instance, cdpTask* signal) {
   #ifdef _WIN32
     int c = getchar();
   #elif __linux__
@@ -72,7 +72,7 @@ cdpID ADDER_OP2;
 cdpID ADDER_ANS;
 
 
-bool adder_agent_initiate(cdpRecord* instance, cdpSignal* signal) {
+bool adder_agent_initiate(cdpRecord* instance, cdpTask* signal) {
     ADDER_OP1 = cdp_name_id_add_static("op1");
     ADDER_OP2 = cdp_name_id_add_static("op2");
     ADDER_ANS = cdp_name_id_add_static("ans");
@@ -91,7 +91,7 @@ bool adder_agent_initiate(cdpRecord* instance, cdpSignal* signal) {
 }
 
 
-bool adder_agent_update(cdpRecord* instance, cdpSignal* signal) {
+bool adder_agent_update(cdpRecord* instance, cdpTask* signal) {
     cdpRecord* ansLink = cdp_book_find_by_name(instance, ADDER_ANS);
     assert(ansLink);
 
@@ -112,7 +112,7 @@ bool adder_agent_update(cdpRecord* instance, cdpSignal* signal) {
 cdpID AGENT_STDOUT;
 
 
-bool stdout_agent_initiate(cdpRecord* instance, cdpSignal* signal) {
+bool stdout_agent_initiate(cdpRecord* instance, cdpTask* signal) {
     cdpID nameID = cdp_dict_get_id(&signal->input, CDP_NAME_NAME);
 
     cdp_record_initialize_register(instance, nameID, AGENT_STDOUT, false, NULL, sizeof(uint32_t));
@@ -121,7 +121,7 @@ bool stdout_agent_initiate(cdpRecord* instance, cdpSignal* signal) {
 }
 
 
-bool stdout_agent_update(cdpRecord* instance, cdpSignal* signal) {
+bool stdout_agent_update(cdpRecord* instance, cdpTask* signal) {
     uint32_t value = cdp_dict_get_uint32(&signal->input, CDP_TAG_REGISTER);
     cdp_register_update_uint32(instance, value);
     printf("%u\n", value);

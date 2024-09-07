@@ -18,8 +18,8 @@
  *
  */
 
-#ifndef CDP_SIGNAL_H
-#define CDP_SIGNAL_H
+#ifndef CDP_TASK_H
+#define CDP_TASK_H
 
 
 #include "cdp_agent.h"
@@ -28,7 +28,7 @@
 // Signal Name IDs:
 enum {
     // System signals
-    CDP_NAME_STARTUP = CDP_NAME_FLAG_COUNT,
+    CDP_NAME_STARTUP = CDP_NAME_ID_SYSTEM_COUNT,
     CDP_NAME_SHUTDOWN,
     CDP_NAME_CONNECT,
     CDP_NAME_DISCONNECT,
@@ -67,10 +67,10 @@ enum {
     CDP_NAME_UPDATE,
     CDP_NAME_PATCH,
 
-    CDP_NAME_SIGNAL_COUNT
+    CDP_NAME_ID_SIGNAL_COUNT
 };
 
-#define CDP_SIGNAL_COUNT  (CDP_NAME_SIGNAL_COUNT - CDP_NAME_STARTUP)
+#define CDP_SIGNAL_COUNT  (CDP_NAME_ID_SIGNAL_COUNT - CDP_NAME_STARTUP)
 
 
 void cdp_system_initiate_signals(void);
@@ -78,11 +78,11 @@ void cdp_system_finalize_signals(void);
 
 
 // Signal handlers
-void cdp_signal_initiate(cdpSignal* signal, cdpID nameID, unsigned itemsArg, unsigned itemsRes);
-void cdp_signal_finalize(cdpSignal* signal);
-cdpSignal* cdp_signal_new(cdpID nameID, unsigned itemsArg, unsigned itemsRes);
-void cdp_signal_del(cdpSignal* signal);
-void cdp_signal_reset(cdpSignal* signal);
+void cdp_signal_initiate(cdpTask* signal, cdpID nameID, unsigned itemsArg, unsigned itemsRes);
+void cdp_signal_finalize(cdpTask* signal);
+cdpTask* cdp_signal_new(cdpID nameID, unsigned itemsArg, unsigned itemsRes);
+void cdp_signal_del(cdpTask* signal);
+void cdp_signal_reset(cdpTask* signal);
 
 
 // Record signals

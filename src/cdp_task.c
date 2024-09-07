@@ -19,45 +19,45 @@
  */
 
 
-#include "cdp_signal.h"
-#include "cdp_action.h"
+#include "cdp_task.h"
+#include "cdp_agent.h"
 
 
 
 
-cdpSignal* SIGNAL_INITIATE_BOOK;
-cdpSignal* SIGNAL_INITIATE_REGISTER;
-cdpSignal* SIGNAL_INITIATE_LINK;
-cdpSignal* SIGNAL_INITIATE;
-cdpSignal* SIGNAL_TERMINATE;
-cdpSignal* SIGNAL_RESET;
-cdpSignal* SIGNAL_NEXT;
-cdpSignal* SIGNAL_PREVIOUS;
-cdpSignal* SIGNAL_VALIDATE;
-cdpSignal* SIGNAL_REMOVE;
+cdpTask* SIGNAL_INITIATE_BOOK;
+cdpTask* SIGNAL_INITIATE_REGISTER;
+cdpTask* SIGNAL_INITIATE_LINK;
+cdpTask* SIGNAL_INITIATE;
+cdpTask* SIGNAL_TERMINATE;
+cdpTask* SIGNAL_RESET;
+cdpTask* SIGNAL_NEXT;
+cdpTask* SIGNAL_PREVIOUS;
+cdpTask* SIGNAL_VALIDATE;
+cdpTask* SIGNAL_REMOVE;
 
-cdpSignal* SIGNAL_ADD;
-cdpSignal* SIGNAL_PREPEND;
-cdpSignal* SIGNAL_INSERT;
-cdpSignal* SIGNAL_FIRST;
-cdpSignal* SIGNAL_LAST;
-cdpSignal* SIGNAL_TAKE;
-cdpSignal* SIGNAL_POP;
-cdpSignal* SIGNAL_SEARCH;
-cdpSignal* SIGNAL_LINK;
-cdpSignal* SIGNAL_SHADOW;
-cdpSignal* SIGNAL_CLONE;
-cdpSignal* SIGNAL_MOVE;
+cdpTask* SIGNAL_ADD;
+cdpTask* SIGNAL_PREPEND;
+cdpTask* SIGNAL_INSERT;
+cdpTask* SIGNAL_FIRST;
+cdpTask* SIGNAL_LAST;
+cdpTask* SIGNAL_TAKE;
+cdpTask* SIGNAL_POP;
+cdpTask* SIGNAL_SEARCH;
+cdpTask* SIGNAL_LINK;
+cdpTask* SIGNAL_SHADOW;
+cdpTask* SIGNAL_CLONE;
+cdpTask* SIGNAL_MOVE;
 
-cdpSignal* SIGNAL_REFERENCE;
-cdpSignal* SIGNAL_UNREFERENCE;
-cdpSignal* SIGNAL_SERIALIZE;
-cdpSignal* SIGNAL_UNSERIALIZE;
-cdpSignal* SIGNAL_TEXTUALIZE;
-cdpSignal* SIGNAL_UNTEXTUALIZE;
-cdpSignal* SIGNAL_READ;
-cdpSignal* SIGNAL_UPDATE;
-cdpSignal* SIGNAL_PATCH;
+cdpTask* SIGNAL_REFERENCE;
+cdpTask* SIGNAL_UNREFERENCE;
+cdpTask* SIGNAL_SERIALIZE;
+cdpTask* SIGNAL_UNSERIALIZE;
+cdpTask* SIGNAL_TEXTUALIZE;
+cdpTask* SIGNAL_UNTEXTUALIZE;
+cdpTask* SIGNAL_READ;
+cdpTask* SIGNAL_UPDATE;
+cdpTask* SIGNAL_PATCH;
 
 
 
@@ -154,7 +154,7 @@ void cdp_system_finalize_signals(void) {
  */
 
 
-void cdp_signal_initialize(cdpSignal* signal, cdpID nameID, unsigned itemsArg, unsigned itemsRes) {
+void cdp_signal_initialize(cdpTask* signal, cdpID nameID, unsigned itemsArg, unsigned itemsRes) {
     assert(signal && cdp_id_is_named(nameID));
     signal->nameID = nameID;
     if (itemsArg)
@@ -164,7 +164,7 @@ void cdp_signal_initialize(cdpSignal* signal, cdpID nameID, unsigned itemsArg, u
 }
 
 
-void cdp_signal_finalize(cdpSignal* signal) {
+void cdp_signal_finalize(cdpTask* signal) {
     assert(signal);
     if (!cdp_record_is_void(&signal->input))
         cdp_record_finalize(&signal->input);
@@ -175,20 +175,20 @@ void cdp_signal_finalize(cdpSignal* signal) {
 }
 
 
-cdpSignal* cdp_signal_new(cdpID nameID, unsigned itemsArg, unsigned itemsRes) {
-    CDP_NEW(cdpSignal, signal);
+cdpTask* cdp_signal_new(cdpID nameID, unsigned itemsArg, unsigned itemsRes) {
+    CDP_NEW(cdpTask, signal);
     cdp_signal_initialize(signal, nameID, itemsArg, itemsRes);
     return signal;
 }
 
 
-void cdp_signal_del(cdpSignal* signal) {
+void cdp_signal_del(cdpTask* signal) {
     cdp_signal_finalize(signal);
     cdp_free(signal);
 }
 
 
-void cdp_signal_reset(cdpSignal* signal) {
+void cdp_signal_reset(cdpTask* signal) {
     if (cdp_record_is_book(&signal->input))
         cdp_book_reset(&signal->input);
     if (cdp_record_is_book(&signal->output))
@@ -285,7 +285,7 @@ bool cdp_initiate_link(cdpRecord* instance, cdpID nameID, cdpRecord* record) {
 bool cdp_initiate(cdpRecord* instance, cdpID nameID, cdpRecord* bookArgs) {
     assert(instance && !cdp_id_is_void(nameID));
     if (!SIGNAL_INITIATE) {
-        SIGNAL_INITIATE = cdp_new(cdpSignal);
+        SIGNAL_INITIATE = cdp_new(cdpTask);
         SIGNAL_INITIATE->nameID = nameID;
         cdp_record_initialize_dictionary(&SIGNAL_INITIATE->input, CDP_NAME_INPUT, 0, CDP_STO_CHD_RED_BLACK_T);
     }
