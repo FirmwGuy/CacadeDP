@@ -148,8 +148,8 @@ static inline void store_check_auto_id(cdpChdStore* store, cdpRecord* record) {
 /*
     Initiates a record struct with the requested parameters.
 */
-bool cdp_record_initialize(cdpRecord* record, unsigned type, unsigned attrib, cdpID id, uint32_t tag, ...) {
-    assert(record && type && tag);
+bool cdp_record_initialize(cdpRecord* record, unsigned type, unsigned attrib, cdpID id, cdpTag tag, ...) {
+    assert(record && type && id <= CDP_ID_MAXVAL && tag <= CDP_TAG_MAXVAL);
     //CDP_0(record);
 
     record->metadata.attribute = attrib;// & CDP_ATTRIB_PUB_MASK;

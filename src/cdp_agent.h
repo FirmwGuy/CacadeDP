@@ -237,14 +237,6 @@
 static inline cdpRecord* cdp_void(void)  {extern cdpRecord* CDP_VOID; assert(CDP_VOID);  return CDP_VOID;}
 
 
-enum {
-    CDP_VALUE_FALSE,
-    CDP_VALUE_TRUE,
-
-    CDP_VALUE_BOOLEAN_COUNT
-};
-
-
 // Name IDs:
 enum _cdpNameID {
     // Core directories
@@ -272,10 +264,10 @@ enum _cdpNameID {
     CDP_NAME_ERROR,
     CDP_NAME_FATAL,
 
-    CDP_NAME_FLAG_COUNT
+    CDP_NAME_SYSTEM_COUNT
 };
 
-#define CDP_NAME_COUNT  (CDP_NAME_FLAG_COUNT - CDP_NAME_VOID)
+//#define CDP_NAME_COUNT  (CDP_NAME_SYSTEM_COUNT - CDP_NAME_VOID)
 
 
 cdpID      cdp_name_id_add(const char* name, bool borrow);

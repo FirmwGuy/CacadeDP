@@ -109,7 +109,7 @@ static bool agent_traverse_find_by_text(cdpBookEntry* entry, struct NID* nid) {
     const char* name = cdp_register_read_utf8(nameReg);
     if (cdp_register_size(nameReg) == nid->length
      && 0 == memcmp(name, nid->name, nid->length)) {
-        nid->id = cdp_record_agent(entry->record);
+        nid->id = cdp_record_tag(entry->record);
         return false;
     }
     return true;
@@ -198,7 +198,7 @@ cdpAgent cdp_system_get_action(cdpID agentID, cdpID actionID) {
 /* Executes the associated signal handler in the specified agent instance.
 */
 static bool cdp_system_does_action_internal(cdpRecord* instance, cdpSignal* signal) {
-    cdpID agentID = cdp_record_agent(instance);
+    cdpID agentID = cdp_record_tag(instance);
     while (agentID) {
         cdpRecord* agent = cdp_system_get_agent(agentID);
         cdpAgent action = cdp_dict_get_agent(agent, signal->nameID);
