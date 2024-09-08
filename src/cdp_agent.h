@@ -25,7 +25,7 @@
 #include "cdp_signal.h"
 
 
-enum {
+enum _cdpAgentID {
     CDP_NAME_STORAGE = CDP_NAME_SIGNAL_COUNT,
     CDP_NAME_BASE,
 

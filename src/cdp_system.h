@@ -34,7 +34,7 @@
 
     ### Agent:
     An agent is a smart record that can receive, handle and send
-    signals to other agents, processing events and information in
+    tasks to other agents, processing events and information in
     behalf of the contained data (and may even propagate record
     instances all across the network). In a way, agents are executable
     functions that "travel" along the data they are bound to.
@@ -52,7 +52,7 @@
     parent relationships and specific requirements.
 
     ### Action:
-    Agents perform the action contained in the signals they receive.
+    Agents perform the action contained in the tasks they receive.
     Actions differ depending of the context they are called (or
     signaled). The context is specified by the role agents had in
     assembled systems.
@@ -88,43 +88,52 @@
               10: "urgent"
               11: "slow"
           inhibitor/
-              1: "heat"
-              2: "dangerous"
+              1: "heated"
+              2: "loaded"
       ```
 
     #### 2. ** /system/agency/ **
-    The `agency/` dictionary (inside /system/) stores internal information
-    needed for signaling (calling) agents. It classifies them by task and then
-    by tag.
+    The `agency/` dictionary (inside /system/) stores internal
+    information needed for tasking (calling) agents. It classifies
+    them by tag and task.
     - **Example Structure**:
       ```
       /system/
           agency/
               add/
-                  int/
+                  int/ (tag)
                       agent: add_int()
-                      task/  (queue)
+                      call/ (queue)
+                          101/ (task)
+                              parent -> /system/agency/sum/int/task/10/
+                              instance -> /system/cascade/pipeline01/agent001/adder
+                      task/ (queue)
                           100/ (task)
                               parent -> /system/agency/sum/int/task/10/
                               instance -> /system/cascade/pipeline01/agent001/adder01
                               baby -> /system/cascade/pipeline01/agent001/adder01/op02
                               input/
                                   op1: 5
-                              output/
-                                  ans: 10
-                              status: done
-                          101/ (task)
+                              status/
+                                  completion: 99
+                      done/ (queue)
+                          99/ (task)
                               parent -> /system/agency/sum/int/task/10/
-                              instance -> /system/cascade/pipeline01/agent001/adder
+                              instance -> /system/cascade/pipeline01/agent001/adder01
+                              baby -> /system/cascade/pipeline01/agent001/adder01/op02
                               input/
-                                  op1: 10
+                                  op1: 1
                               output/
-                              status: pending
-
-                  float: add_float()
+                                  ans: 5
+                              status/
+                                  completion: 100
+                  float/ (tag)
+                      agent: add_float()
               multiply/
-                  int: mul_int()
-                  float: mul_float()
+                  int/ (tag)
+                      agent: mul_int()
+                  float/ (tag)
+                      agent: mul_float()
       ```
 
     #### 3. ** /system/cascade/ **
@@ -266,8 +275,12 @@ enum _cdpNameID {
     CDP_NAME_NAME,
     CDP_NAME_AGENCY,
     CDP_NAME_CASCADE,
-    CDP_NAME_SIZE,
     CDP_NAME_PRIVATE,
+    //
+    CDP_NAME_CALL,
+    CDP_NAME_TASK,
+    CDP_NAME_DONE,
+    CDP_NAME_SIZE,
     //
     CDP_NAME_ACTION,
     CDP_NAME_INPUT,
@@ -292,9 +305,10 @@ cdpRecord* cdp_name_id_text(cdpID nameID);
 
 
 cdpRecord* cdp_agency(cdpID name);
-cdpRecord* cdp_agency_add_agent(cdpRecord* agency, cdpTag tag, cdpAgent agent);
-cdpAgent   cdp_agency_get_agent(cdpRecord* agency, cdpTag tag);
-bool       cdp_agency_task_agent(cdpRecord* agency, cdpTask* current, cdpRecord* instance, cdpTask* task);
+bool       cdp_agency_add_agent(cdpRecord* agency, cdpTag tag, cdpAgent agent);
+cdpRecord* cdp_agency_begin_task(   cdpRecord* agency, cdpTag tag,
+                                    cdpRecord* parentTask, cdpRecord* instance, cdpRecord* baby );
+cdpRecord* cdp_agency_commit_task(cdpRecord* agency, cdpRecord* task);
 
 cdpRecord* cdp_system_agency_add(cdpID name, cdpTag tag, cdpAgent agent);
 bool       cdp_system_connect(cdpRecord* instanceSrc, cdpID output, cdpRecord* recordTgt);

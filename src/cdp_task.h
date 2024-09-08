@@ -26,14 +26,14 @@
 
 
 // Signal Name IDs:
-enum {
-    // System signals
+enum _cdpTaskID {
+    // System tasks
     CDP_NAME_STARTUP = CDP_NAME_ID_SYSTEM_COUNT,
     CDP_NAME_SHUTDOWN,
     CDP_NAME_CONNECT,
     CDP_NAME_DISCONNECT,
 
-    // Record signals
+    // Record tasks
     CDP_NAME_INITIATE,
     CDP_NAME_TERMINATE,
     CDP_NAME_RESET,
@@ -42,7 +42,7 @@ enum {
     CDP_NAME_VALIDATE,
     CDP_NAME_REMOVE,
 
-    // Book signals
+    // Book tasks
     CDP_NAME_ADD,
     CDP_NAME_PREPEND,
     CDP_NAME_INSERT,
@@ -56,7 +56,7 @@ enum {
     CDP_NAME_CLONE,
     CDP_NAME_MOVE,
 
-    // Register signals
+    // Register tasks
     CDP_NAME_REFERENCE,
     CDP_NAME_UNREFERENCE,
     CDP_NAME_SERIALIZE,
@@ -67,25 +67,25 @@ enum {
     CDP_NAME_UPDATE,
     CDP_NAME_PATCH,
 
-    CDP_NAME_ID_SIGNAL_COUNT
+    CDP_NAME_ID_TASK_COUNT
 };
 
-#define CDP_SIGNAL_COUNT  (CDP_NAME_ID_SIGNAL_COUNT - CDP_NAME_STARTUP)
+#define CDP_TASK_COUNT  (CDP_NAME_ID_TASK_COUNT - CDP_NAME_STARTUP)
 
 
-void cdp_system_initiate_signals(void);
-void cdp_system_finalize_signals(void);
+void cdp_system_initiate_tasks(void);
+void cdp_system_finalize_tasks(void);
 
 
 // Signal handlers
-void cdp_signal_initiate(cdpTask* signal, cdpID nameID, unsigned itemsArg, unsigned itemsRes);
-void cdp_signal_finalize(cdpTask* signal);
-cdpTask* cdp_signal_new(cdpID nameID, unsigned itemsArg, unsigned itemsRes);
-void cdp_signal_del(cdpTask* signal);
-void cdp_signal_reset(cdpTask* signal);
+void cdp_task_initiate(cdpTask* signal, cdpID nameID, unsigned itemsArg, unsigned itemsRes);
+void cdp_task_finalize(cdpTask* signal);
+cdpTask* cdp_task_new(cdpID nameID, unsigned itemsArg, unsigned itemsRes);
+void cdp_task_del(cdpTask* signal);
+void cdp_task_reset(cdpTask* signal);
 
 
-// Record signals
+// Record tasks
 bool cdp_initiate(cdpRecord* instance, cdpID nameID, cdpRecord* bookArgs);
 bool cdp_initiate_book(cdpRecord* instance, cdpID nameID, cdpID agentID, unsigned storage, unsigned baseLength);
 bool cdp_initiate_register(cdpRecord* instance, cdpID nameID, cdpID agentID, bool borrow, void* data, size_t size);
@@ -97,7 +97,7 @@ cdpRecord* cdp_next(cdpRecord* instance);
 cdpRecord* cdp_previous(cdpRecord* instance);
 bool cdp_validate(cdpRecord* instance);
 
-// Book signals
+// Book tasks
 cdpRecord* cdp_add(cdpRecord* instance, cdpRecord* record);
 cdpRecord* cdp_prepend(cdpRecord* instance, cdpRecord* record);
 cdpRecord* cdp_insert(cdpRecord* instance, size_t position, cdpRecord* record);
@@ -111,7 +111,7 @@ cdpRecord* cdp_shadow(cdpRecord* instance, cdpID nameID, cdpRecord* record);
 cdpRecord* cdp_clone(cdpRecord* instance, cdpID nameID, cdpRecord* record);
 cdpRecord* cdp_move(cdpRecord* instance, cdpID nameID, cdpRecord* record);
 
-// Register signals
+// Register tasks
 void cdp_reference(cdpRecord* instance);
 void cdp_unreference(cdpRecord* instance);
 size_t cdp_serialize(cdpRecord* instance, void* data, size_t size);

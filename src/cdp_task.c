@@ -25,56 +25,18 @@
 
 
 
-cdpTask* SIGNAL_INITIATE_BOOK;
-cdpTask* SIGNAL_INITIATE_REGISTER;
-cdpTask* SIGNAL_INITIATE_LINK;
-cdpTask* SIGNAL_INITIATE;
-cdpTask* SIGNAL_TERMINATE;
-cdpTask* SIGNAL_RESET;
-cdpTask* SIGNAL_NEXT;
-cdpTask* SIGNAL_PREVIOUS;
-cdpTask* SIGNAL_VALIDATE;
-cdpTask* SIGNAL_REMOVE;
-
-cdpTask* SIGNAL_ADD;
-cdpTask* SIGNAL_PREPEND;
-cdpTask* SIGNAL_INSERT;
-cdpTask* SIGNAL_FIRST;
-cdpTask* SIGNAL_LAST;
-cdpTask* SIGNAL_TAKE;
-cdpTask* SIGNAL_POP;
-cdpTask* SIGNAL_SEARCH;
-cdpTask* SIGNAL_LINK;
-cdpTask* SIGNAL_SHADOW;
-cdpTask* SIGNAL_CLONE;
-cdpTask* SIGNAL_MOVE;
-
-cdpTask* SIGNAL_REFERENCE;
-cdpTask* SIGNAL_UNREFERENCE;
-cdpTask* SIGNAL_SERIALIZE;
-cdpTask* SIGNAL_UNSERIALIZE;
-cdpTask* SIGNAL_TEXTUALIZE;
-cdpTask* SIGNAL_UNTEXTUALIZE;
-cdpTask* SIGNAL_READ;
-cdpTask* SIGNAL_UPDATE;
-cdpTask* SIGNAL_PATCH;
-
-
-
-
-void cdp_system_initiate_signals(void) {
+void cdp_system_initiate_tasks(void) {
     extern cdpRecord* NAME;
 
-    /**** WARNING: this must be done in the same order as the
-                   enumeration in "cdp_signal.h". ****/
+    /**** WARNING: this must be done in the same order as the _cdpTaskID enumeration in "cdp_task.h". ****/
 
-    // System signals
+    // System tasks
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,     "startup");
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,    "shutdown");
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,     "connect");
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,  "disconnect");
 
-    // Record signals
+    // Record tasks
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,    "initiate");
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,   "terminate");
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,       "reset");
@@ -83,7 +45,7 @@ void cdp_system_initiate_signals(void) {
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,    "validate");
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,      "remove");
 
-    // Book signals
+    // Book tasks
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,         "add");
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,     "prepend");
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,      "insert");
@@ -97,7 +59,7 @@ void cdp_system_initiate_signals(void) {
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,       "clone");
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,        "move");
 
-    // Register signals
+    // Register tasks
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,   "reference");
     cdp_book_add_static_text(NAME, CDP_AUTO_ID, "unreference");
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,   "serialize");
@@ -110,51 +72,51 @@ void cdp_system_initiate_signals(void) {
 }
 
 
-void cdp_system_finalize_signals(void) {
-    cdp_signal_del(SIGNAL_INITIATE_BOOK);
-    cdp_signal_del(SIGNAL_INITIATE_REGISTER);
-    cdp_signal_del(SIGNAL_INITIATE_LINK);
-    cdp_signal_del(SIGNAL_INITIATE);
-    cdp_signal_del(SIGNAL_TERMINATE);
-    cdp_signal_del(SIGNAL_RESET);
-    cdp_signal_del(SIGNAL_NEXT);
-    cdp_signal_del(SIGNAL_PREVIOUS);
-    cdp_signal_del(SIGNAL_VALIDATE);
-    cdp_signal_del(SIGNAL_REMOVE);
+void cdp_system_finalize_tasks(void) {
+    cdp_task_del(SIGNAL_INITIATE_BOOK);
+    cdp_task_del(SIGNAL_INITIATE_REGISTER);
+    cdp_task_del(SIGNAL_INITIATE_LINK);
+    cdp_task_del(SIGNAL_INITIATE);
+    cdp_task_del(SIGNAL_TERMINATE);
+    cdp_task_del(SIGNAL_RESET);
+    cdp_task_del(SIGNAL_NEXT);
+    cdp_task_del(SIGNAL_PREVIOUS);
+    cdp_task_del(SIGNAL_VALIDATE);
+    cdp_task_del(SIGNAL_REMOVE);
 
-    cdp_signal_del(SIGNAL_ADD);
-    cdp_signal_del(SIGNAL_PREPEND);
-    cdp_signal_del(SIGNAL_INSERT);
-    cdp_signal_del(SIGNAL_FIRST);
-    cdp_signal_del(SIGNAL_LAST);
-    cdp_signal_del(SIGNAL_TAKE);
-    cdp_signal_del(SIGNAL_POP);
-    cdp_signal_del(SIGNAL_SEARCH);
-    cdp_signal_del(SIGNAL_LINK);
-    cdp_signal_del(SIGNAL_SHADOW);
-    cdp_signal_del(SIGNAL_CLONE);
-    cdp_signal_del(SIGNAL_MOVE);
+    cdp_task_del(SIGNAL_ADD);
+    cdp_task_del(SIGNAL_PREPEND);
+    cdp_task_del(SIGNAL_INSERT);
+    cdp_task_del(SIGNAL_FIRST);
+    cdp_task_del(SIGNAL_LAST);
+    cdp_task_del(SIGNAL_TAKE);
+    cdp_task_del(SIGNAL_POP);
+    cdp_task_del(SIGNAL_SEARCH);
+    cdp_task_del(SIGNAL_LINK);
+    cdp_task_del(SIGNAL_SHADOW);
+    cdp_task_del(SIGNAL_CLONE);
+    cdp_task_del(SIGNAL_MOVE);
 
-    cdp_signal_del(SIGNAL_REFERENCE);
-    cdp_signal_del(SIGNAL_UNREFERENCE);
-    cdp_signal_del(SIGNAL_SERIALIZE);
-    cdp_signal_del(SIGNAL_UNSERIALIZE);
-    cdp_signal_del(SIGNAL_TEXTUALIZE);
-    cdp_signal_del(SIGNAL_UNTEXTUALIZE);
-    cdp_signal_del(SIGNAL_READ);
-    cdp_signal_del(SIGNAL_UPDATE);
-    cdp_signal_del(SIGNAL_PATCH);
+    cdp_task_del(SIGNAL_REFERENCE);
+    cdp_task_del(SIGNAL_UNREFERENCE);
+    cdp_task_del(SIGNAL_SERIALIZE);
+    cdp_task_del(SIGNAL_UNSERIALIZE);
+    cdp_task_del(SIGNAL_TEXTUALIZE);
+    cdp_task_del(SIGNAL_UNTEXTUALIZE);
+    cdp_task_del(SIGNAL_READ);
+    cdp_task_del(SIGNAL_UPDATE);
+    cdp_task_del(SIGNAL_PATCH);
 }
 
 
 
 
 /*
- *    Signal handlers
+ *    Task handlers
  */
 
 
-void cdp_signal_initialize(cdpTask* signal, cdpID nameID, unsigned itemsArg, unsigned itemsRes) {
+void cdp_task_initialize(cdpTask* signal, cdpID nameID, unsigned itemsArg, unsigned itemsRes) {
     assert(signal && cdp_id_is_named(nameID));
     signal->nameID = nameID;
     if (itemsArg)
@@ -164,7 +126,7 @@ void cdp_signal_initialize(cdpTask* signal, cdpID nameID, unsigned itemsArg, uns
 }
 
 
-void cdp_signal_finalize(cdpTask* signal) {
+void cdp_task_finalize(cdpTask* signal) {
     assert(signal);
     if (!cdp_record_is_void(&signal->input))
         cdp_record_finalize(&signal->input);
@@ -175,20 +137,20 @@ void cdp_signal_finalize(cdpTask* signal) {
 }
 
 
-cdpTask* cdp_signal_new(cdpID nameID, unsigned itemsArg, unsigned itemsRes) {
+cdpTask* cdp_task_new(cdpID nameID, unsigned itemsArg, unsigned itemsRes) {
     CDP_NEW(cdpTask, signal);
-    cdp_signal_initialize(signal, nameID, itemsArg, itemsRes);
+    cdp_task_initialize(signal, nameID, itemsArg, itemsRes);
     return signal;
 }
 
 
-void cdp_signal_del(cdpTask* signal) {
-    cdp_signal_finalize(signal);
+void cdp_task_del(cdpTask* signal) {
+    cdp_task_finalize(signal);
     cdp_free(signal);
 }
 
 
-void cdp_signal_reset(cdpTask* signal) {
+void cdp_task_reset(cdpTask* signal) {
     if (cdp_record_is_book(&signal->input))
         cdp_book_reset(&signal->input);
     if (cdp_record_is_book(&signal->output))
@@ -205,7 +167,7 @@ void cdp_signal_reset(cdpTask* signal) {
 #define signaler_start(name, signal, inArgs, outArgs)                  \
     assert(instance);                                                  \
     if (!signal)                                                       \
-        signal = cdp_signal_new(name, inArgs, outArgs)
+        signal = cdp_task_new(name, inArgs, outArgs)
 
 #define signaler_action(signal, result, get_res, ...)                          \
     if (cdp_system_does_action(instance, signal)) {                            \
@@ -216,7 +178,7 @@ void cdp_signal_reset(cdpTask* signal) {
         assert(cdp_record_is_book(&signal->condition));                        \
         result = 0;                                                            \
     }                                                                          \
-    cdp_signal_reset(signal)
+    cdp_task_reset(signal)
 
 #define signaler_return(type, signal, read_op)                                 \
     type result;                                                               \
@@ -366,7 +328,7 @@ void cdp_remove(cdpRecord* instance, cdpRecord* target) {
     cdpRecord* moved = cdp_book_find_by_name(&SIGNAL_REMOVE->output, CDP_NAME_OUTPUT);
     cdp_record_remove(moved, target);
 
-    cdp_signal_reset(SIGNAL_REMOVE);
+    cdp_task_reset(SIGNAL_REMOVE);
 }
 
 
@@ -450,7 +412,7 @@ bool cdp_take(cdpRecord* instance, cdpRecord* target) {
         cdp_record_remove(moved, target);
     }
 
-    cdp_signal_reset(SIGNAL_TAKE);
+    cdp_task_reset(SIGNAL_TAKE);
     return true;
 }
 
@@ -471,7 +433,7 @@ bool cdp_pop(cdpRecord* instance, cdpRecord* target) {
         cdp_record_remove(moved, target);
     }
 
-    cdp_signal_reset(SIGNAL_POP);
+    cdp_task_reset(SIGNAL_POP);
     return true;
 }
 
@@ -600,7 +562,7 @@ void* cdp_read(cdpRecord* instance, void* data, size_t* size) {
         *size = cdp_register_size(reg);
     void* d = cdp_register_data(reg);
 
-    cdp_signal_reset(SIGNAL_READ);
+    cdp_task_reset(SIGNAL_READ);
     return d;
 }
 
@@ -618,7 +580,7 @@ void cdp_update(cdpRecord* instance, void* data, size_t size) {
 
     cdp_system_does_action(instance, SIGNAL_UPDATE);
 
-    cdp_signal_reset(SIGNAL_UPDATE);
+    cdp_task_reset(SIGNAL_UPDATE);
 }
 
 

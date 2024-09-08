@@ -260,7 +260,7 @@ enum _cdpTagID {
 #define CDP_TAG_COUNT   (CDP_TAG_ID_COUNT - CDP_TAG_VOID)
 
 // Initial name IDs:
-enum {
+enum _cdpInitialNameID {
     CDP_NAME_ROOT = CDP_POS2NAMEID(CDP_NPOS_MINVAL),
 
     CDP_NAME_ID_INITIAL_COUNT
@@ -348,7 +348,7 @@ typedef struct {
 struct _cdpPath {
     unsigned    length;
     unsigned    max;
-    cdpID*      id;
+    cdpID       id[];
 };
 
 typedef struct {
@@ -673,7 +673,7 @@ void cdp_record_system_shutdown(void);
 
 /*
     TODO:
-    - Send simultaneous book signals to nested agent books.
+    - Send simultaneous book tasks to nested agent books.
     - Fully define new roles of dictionaries and *_find_by_name() family functions.
     - Use "recData.reg.data.direct" in registers.
     - Imlement clone (deep copy) records.

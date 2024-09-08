@@ -128,9 +128,19 @@ cdpRecord* cdp_agency(cdpID name) {
 }
 
 
-cdpRecord* cdp_agency_add_agent(cdpRecord* agency, cdpTag tag, cdpAgent agent) {
-    assert(cdp_tag_id_valid(tag) && agent);
-    return cdp_book_add_agent(agency, tag, agent);
+bool cdp_agency_add_agent(cdpRecord* agency, cdpTag tag, cdpAgent agent) {
+    assert(cdp_record_is_book(agency) && cdp_tag_id_valid(tag) && agent);
+
+    if (cdp_book_find_by_name(agency, tag))
+        return false
+
+    cdpRecord* atag = cdp_book_add_dictionary(agency, tag, CDP_TAG_DICTIONARY, CDP_STO_CHD_ARRAY, 4);
+    cdp_book_add_agent(atag, CDP_NAME_AGENT, agent);
+    cdp_book_add_book(atag, CDP_NAME_CALL, CDP_TAG_BOOK, CDP_STO_CHD_LINKED_LIST);
+    cdp_book_add_book(atag, CDP_NAME_TASK, CDP_TAG_BOOK, CDP_STO_CHD_LINKED_LIST);
+    cdp_book_add_book(atag, CDP_NAME_DONE, CDP_TAG_BOOK, CDP_STO_CHD_LINKED_LIST);
+
+    return true;
 }
 
 
@@ -138,9 +148,6 @@ cdpAgent cdp_agency_get_agent(cdpRecord* agency, cdpTag tag) {
     return cdp_book_find_by_name(agency, tag);
 }
 
-
-/* Executes the associated signal handler in the specified agent instance.
-*/
 
 static bool cdp_agency_task_agent_internal(cdpRecord* instance, cdpTask* signal) {
     cdpID agentID = cdp_record_tag(instance);
@@ -195,7 +202,7 @@ bool cdp_system_connect(cdpRecord* instanceSrc, cdpID output, cdpRecord* recordT
     assert(SYSTEM);
 
     if (!CONNECT_SIGNAL)
-        CONNECT_SIGNAL = cdp_signal_new(CDP_NAME_CONNECT, 1, 0);
+        CONNECT_SIGNAL = cdp_task_new(CDP_NAME_CONNECT, 1, 0);
 
     cdp_book_add_link(&CONNECT_SIGNAL->input, output, recordTgt);
 
@@ -203,7 +210,7 @@ bool cdp_system_connect(cdpRecord* instanceSrc, cdpID output, cdpRecord* recordT
 
     CDP_RECORD_SET_ATTRIB(recordTgt, CDP_ATTRIB_CONNECTED);   // FixMe: Only outputs need to be marked as "connected".
 
-    cdp_signal_reset(CONNECT_SIGNAL);
+    cdp_task_reset(CONNECT_SIGNAL);
 
     return done;
 }
@@ -288,7 +295,7 @@ static void system_initiate_names(void) {
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,   "error");
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,   "fatal");
 
-    cdp_system_initiate_signals();
+    cdp_system_initiate_tasks();
     cdp_system_initiate_actions();
 
     assert(cdp_book_children(NAME) == ...  &&  cdp_book_get_auto_id(NAME) == (CDP_NPOS_MINVAL + ...));
@@ -421,7 +428,7 @@ static void system_initiate_agents(void) {
                                 CDP_NAME_ENUMERATION,
                                 CDP_TAG_BOOK,
                                 CDP_STO_CHD_PACKED_QUEUE,
-                                cdp_next_pow_of_two(CDP_NAME_COUNT + CDP_SIGNAL_COUNT + CDP_ACTION_COUNT) );
+                                cdp_next_pow_of_two(CDP_NAME_COUNT + CDP_TASK_COUNT + CDP_ACTION_COUNT) );
 
 
     // Link types
@@ -480,7 +487,7 @@ static bool system_traverse(cdpBookEntry* entry, void* p) {
         if (SYSTEM_SIGNAL)
             SYSTEM_SIGNAL->nameID = signalID;
         else
-            SYSTEM_SIGNAL = cdp_signal_new(signalID, 1, 0);
+            SYSTEM_SIGNAL = cdp_task_new(signalID, 1, 0);
         return action(NULL, SYSTEM_SIGNAL);     // ToDo: report errors during startup.
     }
     return true;
@@ -510,10 +517,10 @@ void cdp_system_shutdown(void) {
     cdp_book_traverse(SYSTEM, system_traverse, cdp_v2p(CDP_NAME_SHUTDOWN), NULL);
 
     if (CONNECT_SIGNAL)
-        cdp_signal_del(CONNECT_SIGNAL);
+        cdp_task_del(CONNECT_SIGNAL);
     if (SYSTEM_SIGNAL)
-        cdp_signal_del(SYSTEM_SIGNAL);
-    cdp_system_finalize_signals();
+        cdp_task_del(SYSTEM_SIGNAL);
+    cdp_system_finalize_tasks();
 
     cdp_book_reset(&CDP_ROOT);
     cdp_record_system_shutdown();

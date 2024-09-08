@@ -47,7 +47,7 @@ static inline int record_compare_by_name(const cdpRecord* restrict key, const cd
     do
 
 
-#define RECORD_PRIMAL_SELECT(type)                                     \
+#define RECORD_TYPE_SELECT(type)                                       \
     assert((type) && (type) < CDP_TYPE_COUNT);                         \
     static void* const recordStyle[] = {&&BOOK, &&REGISTER, &&LINK};   \
     goto *recordStyle[(type)-1];                                       \
@@ -162,7 +162,7 @@ bool cdp_record_initialize(cdpRecord* record, unsigned type, unsigned attrib, cd
     va_list args;
     va_start(args, tag);
 
-    RECORD_PRIMAL_SELECT(type) {
+    RECORD_TYPE_SELECT(type) {
       BOOK: {
         unsigned reqStore = va_arg(args, unsigned);
         CDP_DEBUG(
@@ -226,7 +226,7 @@ void cdp_record_initialize_clone(cdpRecord* newClone, cdpID nameID, cdpRecord* r
     newClone->recData  = record->recData;
     newClone->store    = NULL;
 
-    RECORD_PRIMAL_SELECT(cdp_record_type(newClone)) {
+    RECORD_TYPE_SELECT(cdp_record_type(newClone)) {
       BOOK: {
         // Clone children: Pending!
         assert(!cdp_record_is_book(record));
@@ -936,7 +936,7 @@ void cdp_record_finalize(cdpRecord* record) {
     assert(!cdp_record_is_void(record) && !cdp_record_is_shadowed(record));
 
     // Delete storage (and children).
-    RECORD_PRIMAL_SELECT(record->metadata.type) {
+    RECORD_TYPE_SELECT(record->metadata.type) {
       BOOK: {
         STORE_TECH_SELECT(record->metadata.storeTech) {
           LINKED_LIST: {
