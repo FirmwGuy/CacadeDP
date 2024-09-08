@@ -33,8 +33,6 @@ void cdp_system_initiate_tasks(void) {
     // System tasks
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,     "startup");
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,    "shutdown");
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID,     "connect");
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID,  "disconnect");
 
     // Record tasks
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,    "initiate");

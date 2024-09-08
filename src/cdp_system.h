@@ -107,7 +107,7 @@
                           101/ (task)
                               parent -> /system/agency/sum/int/task/10/
                               instance -> /system/cascade/pipeline01/agent001/adder
-                      task/ (queue)
+                      work/ (queue)
                           100/ (task)
                               parent -> /system/agency/sum/int/task/10/
                               instance -> /system/cascade/pipeline01/agent001/adder01
@@ -258,6 +258,13 @@
 #include "cdp_record.h"
 
 
+typedef struct {
+    cdpRecord*  agTag;
+    cdpRecord*  task;
+    cdpRecord*  input;
+} cdpTask;
+
+
 static inline cdpRecord* cdp_void(void)  {extern cdpRecord* CDP_VOID; assert(CDP_VOID);  return CDP_VOID;}
 
 
@@ -271,20 +278,27 @@ enum _cdpNameID {
     CDP_NAME_NETWORK,
     CDP_NAME_TEMP,
 
-    // Basic fields
+    // Core sub-dirs
     CDP_NAME_NAME,
     CDP_NAME_AGENCY,
     CDP_NAME_CASCADE,
     CDP_NAME_PRIVATE,
-    //
+
+    // Basic fields
     CDP_NAME_CALL,
-    CDP_NAME_TASK,
     CDP_NAME_DONE,
+    CDP_NAME_WORK,
+
+    CDP_NAME_PARENT,
+    CDP_NAME_BABY,
+    CDP_NAME_INSTANCE,
     CDP_NAME_SIZE,
-    //
-    CDP_NAME_ACTION,
+
+    // Task I/O fields
     CDP_NAME_INPUT,
     CDP_NAME_OUTPUT,
+    CDP_NAME_STATUS,
+
     CDP_NAME_DEBUG,
     CDP_NAME_WARNING,
     CDP_NAME_ERROR,
@@ -294,6 +308,12 @@ enum _cdpNameID {
 };
 
 #define CDP_NAME_SYSTEM_COUNT   (CDP_NAME_ID_SYSTEM_COUNT - CDP_NAME_SYSTEM)
+
+
+bool       cdp_system_startup(void);
+cdpRecord* cdp_system_agency_add(cdpID name, cdpTag tag, cdpAgent agent);
+bool       cdp_system_step(void);
+void       cdp_system_shutdown(void);
 
 
 cdpID      cdp_name_id_add(const char* name, bool tag, bool borrow);
@@ -306,17 +326,12 @@ cdpRecord* cdp_name_id_text(cdpID nameID);
 
 cdpRecord* cdp_agency(cdpID name);
 bool       cdp_agency_add_agent(cdpRecord* agency, cdpTag tag, cdpAgent agent);
-cdpRecord* cdp_agency_begin_task(   cdpRecord* agency, cdpTag tag,
-                                    cdpRecord* parentTask, cdpRecord* instance, cdpRecord* baby );
-cdpRecord* cdp_agency_commit_task(cdpRecord* agency, cdpRecord* task);
 
-cdpRecord* cdp_system_agency_add(cdpID name, cdpTag tag, cdpAgent agent);
-bool       cdp_system_connect(cdpRecord* instanceSrc, cdpID output, cdpRecord* recordTgt);
-bool       cdp_system_disconnect(cdpRecord* link);
 
-bool       cdp_system_startup(void);
-bool       cdp_system_step(void);
-void       cdp_system_shutdown(void);
+cdpRecord* cdp_task_begin(  cdpTask* task, cdpRecord* agency, cdpRecord* instance,
+                            cdpRecord* parentTask, cdpRecord* baby,
+                            int numInput, int numOutput );
+cdpRecord* cdp_task_commit(cdpTask* task);
 
 
 #endif

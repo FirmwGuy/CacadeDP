@@ -30,8 +30,6 @@ enum _cdpTaskID {
     // System tasks
     CDP_NAME_STARTUP = CDP_NAME_ID_SYSTEM_COUNT,
     CDP_NAME_SHUTDOWN,
-    CDP_NAME_CONNECT,
-    CDP_NAME_DISCONNECT,
 
     // Record tasks
     CDP_NAME_INITIATE,

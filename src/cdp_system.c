@@ -29,7 +29,6 @@
 extern cdpRecord CDP_ROOT;
 
 cdpRecord* SYSTEM;
-cdpRecord* CASCADE;
 cdpRecord* USER;
 cdpRecord* PUBLIC;
 cdpRecord* DATA;
@@ -39,11 +38,9 @@ cdpRecord* TEMP;
 cdpRecord* TAG;
 cdpRecord* NAME;
 cdpRecord* AGENCY;
+cdpRecord* CASCADE;
 
 cdpRecord* CDP_VOID;
-
-cdpTask* SYSTEM_SIGNAL;
-cdpTask* CONNECT_SIGNAL;
 
 
 static void system_initiate(void);
@@ -129,58 +126,77 @@ cdpRecord* cdp_agency(cdpID name) {
 
 
 bool cdp_agency_add_agent(cdpRecord* agency, cdpTag tag, cdpAgent agent) {
-    assert(cdp_record_is_book(agency) && cdp_tag_id_valid(tag) && agent);
+    assert(cdp_record_is_dictionary(agency) && cdp_tag_id_valid(tag) && agent);
 
-    if (cdp_book_find_by_name(agency, tag))
-        return false
+    if (cdp_book_find_by_name(agency, tag)) {
+        assert(!tag);   // Tag shouldn't exist!
+        return false;
+    }
 
-    cdpRecord* atag = cdp_book_add_dictionary(agency, tag, CDP_TAG_DICTIONARY, CDP_STO_CHD_ARRAY, 4);
-    cdp_book_add_agent(atag, CDP_NAME_AGENT, agent);
-    cdp_book_add_book(atag, CDP_NAME_CALL, CDP_TAG_BOOK, CDP_STO_CHD_LINKED_LIST);
-    cdp_book_add_book(atag, CDP_NAME_TASK, CDP_TAG_BOOK, CDP_STO_CHD_LINKED_LIST);
-    cdp_book_add_book(atag, CDP_NAME_DONE, CDP_TAG_BOOK, CDP_STO_CHD_LINKED_LIST);
+    cdpRecord* agTag = cdp_book_add_dictionary(agency, tag, CDP_TAG_DICTIONARY, CDP_STO_CHD_ARRAY, 4);
+    cdp_book_add_agent(agTag, CDP_NAME_AGENT, agent);
+    cdp_book_add_book(agTag, CDP_NAME_CALL, CDP_TAG_BOOK, CDP_STO_CHD_LINKED_LIST);
+    cdp_book_add_book(agTag, CDP_NAME_DONE, CDP_TAG_BOOK, CDP_STO_CHD_LINKED_LIST);
+    cdp_book_add_book(agTag, CDP_NAME_WORK, CDP_TAG_BOOK, CDP_STO_CHD_LINKED_LIST);
 
     return true;
 }
 
 
-cdpAgent cdp_agency_get_agent(cdpRecord* agency, cdpTag tag) {
-    return cdp_book_find_by_name(agency, tag);
-}
+cdpRecord* cdp_task_begin(  cdpTask* cTask, cdpRecord* agency, cdpRecord* instance,
+                            cdpRecord* parentTask, cdpRecord* baby,
+                            int numInput, int numOutput ) {
+    assert(cTask && cdp_record_is_dictionary(agency) && !cdp_record_is_void(instance));
 
+    cdpTag tag = cdp_record_tag(instance);    // ToDo: traverse all multiple tags on books.
+    cTask->agTag = cdp_book_find_by_name(agency, tag);
+    if (!cTask->agTag) {
+        assert(cTask->agTag);
+        return NULL;
+    }
+    cdpRecord* call = cdp_book_find_by_name(cTask->agTag, CDP_NAME_CALL);
 
-static bool cdp_agency_task_agent_internal(cdpRecord* instance, cdpTask* signal) {
-    cdpID agentID = cdp_record_tag(instance);
-    while (agentID) {
-        cdpRecord* agent = cdp_system_get_agent(agentID);
-        cdpAgent action = cdp_dict_get_agent(agent, signal->nameID);
-        if (action)
-            return action(instance, signal);
+    // ToDo: check in the "done" book to find recyclable entries.
 
-        //agentID = cdp_dict_get_id(agent, CDP_NAME_ASSIMILATE);
-        cdpRecord* assimilate = cdp_book_first(agent);  // FixMe: multiple parents.
-        if (!assimilate)    break;
-        agentID = cdp_register_read_id(assimilate);
+    cTask->task = cdp_book_add_dictionary(call, CDP_AUTO_ID, CDP_TAG_DICTIONARY, CDP_STO_CHD_ARRAY, 6);
+    cdp_book_add_link(cTask->task, CDP_NAME_PARENT, parentTask);
+    cdp_book_add_link(cTask->task, CDP_NAME_INSTANCE, instance);
+
+    if (baby)
+        cdp_book_add_link(task, CDP_NAME_BABY, baby);
+
+    if (0 <= numInput) {
+        if (0 == numInput)
+            cTask->input = cdp_book_add_dictionary(cTask->task, CDP_NAME_INPUT, CDP_TAG_DICTIONARY, CDP_STO_CHD_RED_BLACK_T);
+        else
+            cTask->input = cdp_book_add_dictionary(cTask->task, CDP_NAME_INPUT, CDP_TAG_DICTIONARY, CDP_STO_CHD_ARRAY, numInput);
+    }
+    else
+        cTask->input = NULL;
+
+    if (0 <= numOutput) {
+        if (0 == numOutput)
+            cdp_book_add_dictionary(cTask->task, CDP_NAME_OUTPUT, CDP_TAG_DICTIONARY, CDP_STO_CHD_RED_BLACK_T);
+        else
+            cdp_book_add_dictionary(cTask->task, CDP_NAME_OUTPUT, CDP_TAG_DICTIONARY, CDP_STO_CHD_ARRAY, numOutput);
     }
 
-    return cdp_agent_ignore(instance, signal);
+    cdp_book_add_dictionary(cTask->task, CDP_NAME_STATUS, CDP_TAG_DICTIONARY, CDP_STO_CHD_RED_BLACK_T);
+
+    return cTask->task;
 }
 
 
-bool cdp_agency_task_agent(cdpRecord* agency, cdpTask* parent, cdpRecord* instance, cdpTask* task) {
-    assert(signal);
-    for (   cdpRecord* book = instance;
-            book && cdp_record_is_baby(book);
-            book = cdp_record_parent(book)  ) {
-        // FixMe: traverse parents in backward order.
-        if (!cdp_system_does_action_internal(book, signal))
-            return false;
-    }
-    return true;
+cdpRecord* cdp_task_commit(cdpTask* cTask) {
+    assert(cTask && cdp_record_is_dictionary(cTask->task));
+    cdpRecord* work = cdp_book_find_by_name(cTask->agTag, CDP_NAME_WORK);
+    return cdp_book_move_to(work, CDP_AUTO_ID, cTask->task);
 }
 
 
 
+
+/* System related routines */
 
 cdpRecord* cdp_system_agency_add(cdpID name, cdpTag tag, cdpAgent agent) {
     if (!SYSTEM)  system_initiate();
@@ -192,35 +208,10 @@ cdpRecord* cdp_system_agency_add(cdpID name, cdpTag tag, cdpAgent agent) {
     if (!agency)
         agency = cdp_book_add_dictionary(AGENCY, name, CDP_TAG_DICTIONARY, CDP_STO_CHD_RED_BLACK_T);
 
-    cdp_book_add_agent(agency, tag, agent);
+    cdp_agency_add_agent(agency, tag, agent);
 
-    return cdp_agency_add_agent(agency, tag, agent);
+    return agency;
 }
-
-
-bool cdp_system_connect(cdpRecord* instanceSrc, cdpID output, cdpRecord* recordTgt) {
-    assert(SYSTEM);
-
-    if (!CONNECT_SIGNAL)
-        CONNECT_SIGNAL = cdp_task_new(CDP_NAME_CONNECT, 1, 0);
-
-    cdp_book_add_link(&CONNECT_SIGNAL->input, output, recordTgt);
-
-    bool done = cdp_system_does_action(instanceSrc, CONNECT_SIGNAL);
-
-    CDP_RECORD_SET_ATTRIB(recordTgt, CDP_ATTRIB_CONNECTED);   // FixMe: Only outputs need to be marked as "connected".
-
-    cdp_task_reset(CONNECT_SIGNAL);
-
-    return done;
-}
-
-
-bool cdp_system_disconnect(cdpRecord* link) {
-    return false;
-}
-
-
 
 
 static void system_initiate_tags(void) {
@@ -284,12 +275,21 @@ static void system_initiate_names(void) {
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,    "name");
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,  "agency");
     cdp_book_add_static_text(NAME, CDP_AUTO_ID, "cascade");
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID,    "size");
     cdp_book_add_static_text(NAME, CDP_AUTO_ID, "private");
 
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID,  "action");
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID,    "call");
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID,    "done");
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID,    "work");
+
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID,  "parent");
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID,    "baby");
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID,"instance");
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID,    "size");
+
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,   "input");
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,  "output");
+    cdp_book_add_static_text(NAME, CDP_AUTO_ID,  "status");
+
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,   "debug");
     cdp_book_add_static_text(NAME, CDP_AUTO_ID, "warning");
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,   "error");
@@ -446,7 +446,6 @@ static void system_initiate_agents(void) {
 }
 
 
-
 static void system_initiate(void) {
     cdp_record_system_initiate();
 
@@ -478,8 +477,6 @@ static void system_initiate(void) {
 }
 
 
-
-
 static bool system_traverse(cdpBookEntry* entry, void* p) {
     cdpID signalID = cdp_p2v(p);
     cdpAgent action = cdp_dict_get_agent(entry->record, signalID);
@@ -500,15 +497,11 @@ bool cdp_system_startup(void) {
 }
 
 
-
-
 bool cdp_system_step(void) {
     assert(SYSTEM);
     // Pending...
     return true;
 }
-
-
 
 
 void cdp_system_shutdown(void) {
