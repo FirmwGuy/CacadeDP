@@ -22,7 +22,7 @@
 #define CDP_TASK_H
 
 
-#include "cdp_agent.h"
+#include "cdp_system.h"
 
 
 // Signal Name IDs:
@@ -73,14 +73,6 @@ enum _cdpTaskID {
 
 void cdp_system_initiate_tasks(void);
 void cdp_system_finalize_tasks(void);
-
-
-// Signal handlers
-void cdp_task_initiate(cdpTask* signal, cdpID nameID, unsigned itemsArg, unsigned itemsRes);
-void cdp_task_finalize(cdpTask* signal);
-cdpTask* cdp_task_new(cdpID nameID, unsigned itemsArg, unsigned itemsRes);
-void cdp_task_del(cdpTask* signal);
-void cdp_task_reset(cdpTask* signal);
 
 
 // Record tasks

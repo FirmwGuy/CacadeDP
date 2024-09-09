@@ -25,7 +25,7 @@
 
 
 
-void cdp_system_initiate_tasks(void) {
+static void system_initiate_task_names(void) {
     extern cdpRecord* NAME;
 
     /**** WARNING: this must be done in the same order as the _cdpTaskID enumeration in "cdp_task.h". ****/
@@ -70,94 +70,104 @@ void cdp_system_initiate_tasks(void) {
 }
 
 
+
+void cdp_system_initiate_tasks(void) {
+    system_initiate_task_names();
+
+
+    // Record tasks
+
+    cdpRecord* agency = cdp_system_agency_add(CDP_NAME_INITIATE, CDP_TAG_BOOK, cdp_agent_initiate_book);
+    cdp_agency_set_agent(agency, CDP_TAG_REGISTER, cdp_agent_initiate_register);
+    cdp_agency_set_agent(agency, CDP_TAG_LINK,     cdp_agent_initiate_link);
+
+    cdp_system_agency_add(CDP_NAME_TERMINATE, CDP_TAG_RECORD, cdp_agent_terminate);
+
+    agency = cdp_system_agency_add(CDP_NAME_RESET, CDP_TAG_BOOK, cdp_agent_reset_book);
+    cdp_agency_set_agent(agency, CDP_TAG_REGISTER, cdp_agent_reset_register);
+
+    cdp_system_agency_add(CDP_NAME_NEXT,     CDP_TAG_RECORD, cdp_agent_next);
+    cdp_system_agency_add(CDP_NAME_PREVIOUS, CDP_TAG_RECORD, cdp_agent_previous);
+    cdp_system_agency_add(CDP_NAME_VALIDATE, CDP_TAG_RECORD, cdp_agent_validate);
+
+    agency = cdp_system_agency_add(CDP_NAME_REMOVE, CDP_TAG_RECORD, cdp_agent_remove);
+    cdp_agency_set_agent(agency, CDP_TAG_LIST,  cdp_agent_ignore);
+    cdp_agency_set_agent(agency, CDP_TAG_QUEUE, cdp_agent_ignore);
+    cdp_agency_set_agent(agency, CDP_TAG_STACK, cdp_agent_ignore);
+
+
+    // Book tasks
+
+    agency = cdp_system_agency_add(CDP_NAME_ADD, CDP_TAG_BOOK, cdp_agent_add);
+    cdp_agency_set_agent(agency, CDP_TAG_STACK, cdp_agent_ignore);
+
+    agency = cdp_system_agency_add(CDP_NAME_PREPEND, CDP_TAG_BOOK, cdp_agent_prepend);
+    cdp_agency_set_agent(agency, CDP_TAG_DICTIONARY, cdp_agent_ignore);
+    cdp_agency_set_agent(agency, CDP_TAG_QUEUE,      cdp_agent_ignore);
+
+    agency = cdp_system_agency_add(CDP_NAME_INSERT, CDP_TAG_BOOK, cdp_agent_insert);
+    cdp_agency_set_agent(agency, CDP_TAG_DICTIONARY, cdp_agent_ignore);
+    cdp_agency_set_agent(agency, CDP_TAG_LIST,       cdp_agent_ignore);
+    cdp_agency_set_agent(agency, CDP_TAG_QUEUE,      cdp_agent_ignore);
+    cdp_agency_set_agent(agency, CDP_TAG_STACK,      cdp_agent_ignore);
+
+    cdp_system_agency_add(CDP_NAME_FIRST, CDP_TAG_BOOK, cdp_agent_first);
+    cdp_system_agency_add(CDP_NAME_LAST,  CDP_TAG_BOOK, cdp_agent_last);
+
+    agency = cdp_system_agency_add(CDP_NAME_TAKE, CDP_TAG_BOOK, cdp_agent_take);
+    cdp_agency_set_agent(agency, CDP_TAG_QUEUE, cdp_agent_ignore);
+    cdp_agency_set_agent(agency, CDP_TAG_STACK, cdp_agent_ignore);
+
+    cdp_system_agency_add(CDP_NAME_POP,    CDP_TAG_BOOK, cdp_agent_pop);
+    cdp_system_agency_add(CDP_NAME_SEARCH, CDP_TAG_BOOK, cdp_agent_search);
+    cdp_system_agency_add(CDP_NAME_LINK,   CDP_TAG_BOOK, cdp_agent_link);
+    cdp_system_agency_add(CDP_NAME_SHADOW, CDP_TAG_BOOK, cdp_agent_shadow);
+    cdp_system_agency_add(CDP_NAME_CLONE,  CDP_TAG_BOOK, cdp_agent_clone);
+
+    agency = cdp_system_agency_add(CDP_NAME_MOVE, CDP_TAG_BOOK, cdp_agent_move);
+    cdp_agency_set_agent(agency, CDP_TAG_LIST,  cdp_agent_ignore);
+    cdp_agency_set_agent(agency, CDP_TAG_QUEUE, cdp_agent_ignore);
+    cdp_agency_set_agent(agency, CDP_TAG_STACK, cdp_agent_ignore);
+
+
+    // Register taks
+
+    cdp_system_agency_add(CDP_NAME_REFERENCE,   CDP_TAG_REGISTER, cdp_agent_reference);
+    cdp_system_agency_add(CDP_NAME_UNREFERENCE, CDP_TAG_REGISTER, cdp_agent_unreference);
+    cdp_system_agency_add(CDP_NAME_SERIALIZE,   CDP_TAG_REGISTER, cdp_agent_serialize);
+    cdp_system_agency_add(CDP_NAME_UNSERIALIZE, CDP_TAG_REGISTER, cdp_agent_unserialize);
+
+    cdpRecord* agency2 = cdp_system_agency_add(CDP_NAME_TEXTUALIZE,   CDP_TAG_REGISTER, cdp_agent_textualize);
+    agency             = cdp_system_agency_add(CDP_NAME_UNTEXTUALIZE, CDP_TAG_REGISTER, cdp_agent_untextualize);
+
+    #define set_agent_and_textualization(agent, tag)                   \
+        cdp_agency_set_agent(agency2, CDP_TAG_##tag, cdp_agent_textualize_##agent);\
+        cdp_agency_set_agent(agency,  CDP_TAG_##tag, cdp_agent_untextualize_##agent)
+
+    set_agent_and_textualization(byte,    BYTE);
+    set_agent_and_textualization(uint16,  UINT16);
+    set_agent_and_textualization(uint32,  UINT32);
+    set_agent_and_textualization(uint64,  UINT64);
+    set_agent_and_textualization(int16,   INT16);
+    set_agent_and_textualization(int32,   INT32);
+    set_agent_and_textualization(int64,   INT64);
+    set_agent_and_textualization(float32, FLOAT32);
+    set_agent_and_textualization(float64, FLOAT64);
+
+    cdp_system_agency_add(CDP_NAME_READ,   CDP_TAG_REGISTER, cdp_agent_read);
+    cdp_system_agency_add(CDP_NAME_UPDATE, CDP_TAG_REGISTER, cdp_agent_update);
+    cdp_system_agency_add(CDP_NAME_PATCH,  CDP_TAG_REGISTER, cdp_agent_patch);
+
+
+    // Finish agents
+    assert(cdp_book_children(AGENCY) == CDP_TASK_COUNT);
+}
+
 void cdp_system_finalize_tasks(void) {
-    cdp_task_del(SIGNAL_INITIATE_BOOK);
-    cdp_task_del(SIGNAL_INITIATE_REGISTER);
-    cdp_task_del(SIGNAL_INITIATE_LINK);
-    cdp_task_del(SIGNAL_INITIATE);
-    cdp_task_del(SIGNAL_TERMINATE);
-    cdp_task_del(SIGNAL_RESET);
-    cdp_task_del(SIGNAL_NEXT);
-    cdp_task_del(SIGNAL_PREVIOUS);
-    cdp_task_del(SIGNAL_VALIDATE);
-    cdp_task_del(SIGNAL_REMOVE);
-
-    cdp_task_del(SIGNAL_ADD);
-    cdp_task_del(SIGNAL_PREPEND);
-    cdp_task_del(SIGNAL_INSERT);
-    cdp_task_del(SIGNAL_FIRST);
-    cdp_task_del(SIGNAL_LAST);
-    cdp_task_del(SIGNAL_TAKE);
-    cdp_task_del(SIGNAL_POP);
-    cdp_task_del(SIGNAL_SEARCH);
-    cdp_task_del(SIGNAL_LINK);
-    cdp_task_del(SIGNAL_SHADOW);
-    cdp_task_del(SIGNAL_CLONE);
-    cdp_task_del(SIGNAL_MOVE);
-
-    cdp_task_del(SIGNAL_REFERENCE);
-    cdp_task_del(SIGNAL_UNREFERENCE);
-    cdp_task_del(SIGNAL_SERIALIZE);
-    cdp_task_del(SIGNAL_UNSERIALIZE);
-    cdp_task_del(SIGNAL_TEXTUALIZE);
-    cdp_task_del(SIGNAL_UNTEXTUALIZE);
-    cdp_task_del(SIGNAL_READ);
-    cdp_task_del(SIGNAL_UPDATE);
-    cdp_task_del(SIGNAL_PATCH);
+    ;
 }
 
 
-
-
-/*
- *    Task handlers
- */
-
-
-void cdp_task_initialize(cdpTask* signal, cdpID nameID, unsigned itemsArg, unsigned itemsRes) {
-    assert(signal && cdp_id_is_named(nameID));
-    signal->nameID = nameID;
-    if (itemsArg)
-        cdp_record_initialize_dictionary(&signal->input, CDP_NAME_INPUT, CDP_STO_CHD_ARRAY, itemsArg);
-    if (itemsRes)
-        cdp_record_initialize_dictionary(&signal->output, CDP_NAME_OUTPUT, CDP_STO_CHD_ARRAY, itemsRes);
-}
-
-
-void cdp_task_finalize(cdpTask* signal) {
-    assert(signal);
-    if (!cdp_record_is_void(&signal->input))
-        cdp_record_finalize(&signal->input);
-    if (!cdp_record_is_void(&signal->output))
-        cdp_record_finalize(&signal->output);
-    if (!cdp_record_is_void(&signal->condition))
-        cdp_record_finalize(&signal->condition);
-}
-
-
-cdpTask* cdp_task_new(cdpID nameID, unsigned itemsArg, unsigned itemsRes) {
-    CDP_NEW(cdpTask, signal);
-    cdp_task_initialize(signal, nameID, itemsArg, itemsRes);
-    return signal;
-}
-
-
-void cdp_task_del(cdpTask* signal) {
-    cdp_task_finalize(signal);
-    cdp_free(signal);
-}
-
-
-void cdp_task_reset(cdpTask* signal) {
-    if (cdp_record_is_book(&signal->input))
-        cdp_book_reset(&signal->input);
-    if (cdp_record_is_book(&signal->output))
-        cdp_book_reset(&signal->output);
-    if (!cdp_record_is_void(&signal->condition)) {
-        cdp_record_finalize(&signal->condition);
-        CDP_0(&signal->condition);
-    }
-}
 
 
 

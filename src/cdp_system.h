@@ -310,8 +310,8 @@ enum _cdpNameID {
 #define CDP_NAME_SYSTEM_COUNT   (CDP_NAME_ID_SYSTEM_COUNT - CDP_NAME_SYSTEM)
 
 
-bool       cdp_system_startup(void);
 cdpRecord* cdp_system_agency_add(cdpID name, cdpTag tag, cdpAgent agent);
+bool       cdp_system_startup(void);
 bool       cdp_system_step(void);
 void       cdp_system_shutdown(void);
 
@@ -325,10 +325,10 @@ cdpRecord* cdp_name_id_text(cdpID nameID);
 
 
 cdpRecord* cdp_agency(cdpID name);
-bool       cdp_agency_add_agent(cdpRecord* agency, cdpTag tag, cdpAgent agent);
+bool       cdp_agency_set_agent(cdpRecord* agency, cdpTag tag, cdpAgent agent);
 
 
-cdpRecord* cdp_task_begin(  cdpTask* task, cdpRecord* agency, cdpRecord* instance,
+cdpRecord* cdp_task_begin(  cdpTask* task, cdpRecord* agency, cdpTag cast, cdpRecord* instance,
                             cdpRecord* parentTask, cdpRecord* baby,
                             int numInput, int numOutput );
 cdpRecord* cdp_task_commit(cdpTask* task);
