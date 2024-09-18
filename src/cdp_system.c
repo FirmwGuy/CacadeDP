@@ -101,7 +101,7 @@ cdpRecord* cdp_name_id_text(cdpID nameID) {
     cdpID id = CDP_NAMEID2POS(nameID);
     if (id > CDP_TAG_MAXVAL) {
         assert(id < cdp_book_get_auto_id(NAME));
-        return cdp_book_find_by_position(NAME, id - CDP_TAG_MAXVAL);  // Find by position index instead of its own id.
+        return cdp_book_find_by_position(NAME, id - CDP_TAG_MAXVAL);  // Find by position index (instead of by its own id).
     }
     assert(id < cdp_book_get_auto_id(TAG);
     return cdp_book_find_by_position(TAG, id);     // FixMe: check if entry is disabled.
@@ -148,14 +148,15 @@ cdpRecord* cdp_task_begin(  cdpTask* cTask, cdpRecord* agency, cdpTag cast, cdpR
                             int numInput, int numOutput ) {
     assert(cTask && cdp_record_is_dictionary(agency) && !cdp_record_is_void(instance));
 
-    // Find instance tag to define agent. If not found, use tag being cast.
+    // Find instance tag to define agent
     cdpTag tag = cdp_record_tag(instance);    // ToDo: traverse all multiple tags on books.
     cTask->agTag = cdp_book_find_by_name(agency, tag);
     if (!cTask->agTag) {
+        // If tag is not found, use tag being cast.
         if (cast != CDP_TAG_VOID)
             cTask->agTag = cdp_book_find_by_name(agency, cast);
         if (!cTask->agTag) {
-            assert(cTask->agTag);
+            assert(cTask->agTag);       // No suitable agent was ever found.
             return NULL;
         }
     }
@@ -170,21 +171,13 @@ cdpRecord* cdp_task_begin(  cdpTask* cTask, cdpRecord* agency, cdpTag cast, cdpR
     if (baby)
         cdp_book_add_link(task, CDP_NAME_BABY, baby);
 
-    if (0 <= numInput) {
-        if (0 == numInput)
-            cTask->input = cdp_book_add_dictionary(cTask->task, CDP_NAME_INPUT, CDP_TAG_DICTIONARY, CDP_STO_CHD_RED_BLACK_T);
-        else
-            cTask->input = cdp_book_add_dictionary(cTask->task, CDP_NAME_INPUT, CDP_TAG_DICTIONARY, CDP_STO_CHD_ARRAY, numInput);
-    }
+    if (0 <= numInput)
+        cTask->input = cdp_book_add_dictionary(cTask->task, CDP_NAME_INPUT, CDP_TAG_DICTIONARY, ((0 == numInput)? CDP_STO_CHD_RED_BLACK_T: CDP_STO_CHD_ARRAY), numInput);
     else
         cTask->input = NULL;
 
-    if (0 <= numOutput) {
-        if (0 == numOutput)
-            cdp_book_add_dictionary(cTask->task, CDP_NAME_OUTPUT, CDP_TAG_DICTIONARY, CDP_STO_CHD_RED_BLACK_T);
-        else
-            cdp_book_add_dictionary(cTask->task, CDP_NAME_OUTPUT, CDP_TAG_DICTIONARY, CDP_STO_CHD_ARRAY, numOutput);
-    }
+    if (0 <= numOutput)
+        cdp_book_add_dictionary(cTask->task, CDP_NAME_OUTPUT, CDP_TAG_DICTIONARY, ((0 == numOutput)? CDP_STO_CHD_RED_BLACK_T: CDP_STO_CHD_ARRAY), numOutput);
 
     cdp_book_add_dictionary(cTask->task, CDP_NAME_STATUS, CDP_TAG_DICTIONARY, CDP_STO_CHD_RED_BLACK_T);
 
@@ -205,7 +198,6 @@ cdpRecord* cdp_task_commit(cdpTask* cTask) {
 
 cdpRecord* cdp_system_agency_add(cdpID name, cdpTag tag, cdpAgent agent) {
     if (!SYSTEM)  system_initiate();
-
     assert(cdp_name_id_valid(name));
 
     // Find previous
@@ -298,12 +290,11 @@ static void system_initiate_names(void) {
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,   "error");
     cdp_book_add_static_text(NAME, CDP_AUTO_ID,   "fatal");
 
-    cdp_system_initiate_tasks();
-    cdp_agency_initiate_agent_fields();
-
-    assert(cdp_book_children(NAME) == ...  &&  cdp_book_get_auto_id(NAME) == (CDP_NPOS_MINVAL + ...));
+    assert(cdp_book_get_auto_id(NAME) == CDP_NAME_ID_SYSTEM_COUNT);
 }
 
+
+_Static_assert( (CDP_NAME_ID_ACTION_COUNT - CDP_NAME_ID_INITIAL_COUNT) == (CDP_NAME_SYSTEM_COUNT + CDP_TASK_COUNT + CDP_ACTION_COUNT));
 
 
 static void system_initiate(void) {
@@ -319,22 +310,26 @@ static void system_initiate(void) {
     TEMP    = cdp_book_add_book(&CDP_ROOT, CDP_NAME_TEMP, CDP_TAG_BOOK, CDP_STO_CHD_RED_BLACK_T);
 
     TAG     = cdp_book_add_book(&SYSTEM, CDP_NAME_TAG, CDP_TAG_STACK, CDP_STO_CHD_PACKED_QUEUE, CDP_TAG_COUNT);
-    NAME    = cdp_book_add_book(&SYSTEM, CDP_NAME_NAME, CDP_TAG_STACK, CDP_STO_CHD_PACKED_QUEUE, ...);
+    NAME    = cdp_book_add_book(&SYSTEM, CDP_NAME_NAME, CDP_TAG_STACK, CDP_STO_CHD_PACKED_QUEUE, CDP_TAG_COUNT + CDP_NAME_SYSTEM_COUNT + CDP_TASK_COUNT + CDP_ACTION_COUNT);
     AGENCY  = cdp_book_add_dictionary(&SYSTEM, CDP_NAME_AGENCY, CDP_TAG_DICTIONARY, CDP_STO_CHD_RED_BLACK_T);
     CASCADE = cdp_book_add_dictionary(&SYSTEM, CDP_NAME_CASCADE, CDP_TAG_DICTIONARY, CDP_STO_CHD_RED_BLACK_T);
 
-    /* Initiate agents and names (in that order).
+    /* Initiate tags, names, task names and agent fields (in that order).
     */
     system_initiate_tags();
     system_initiate_names();
+    cdp_system_initiate_task_names();
+    cdp_system_initiate_agent_fields();
 
+    /* Initiage tasks
+    */
     cdp_system_initiate_tasks();
 
     /* Initiate global records.
     */
     {
         CDP_VOID = cdp_book_add_bool(TEMP, CDP_TAG_VOID, 0);
-        CDP_VOID->metadata.agent = CDP_VOID->metadata.type = CDP_TYPE_VOID;
+        CDP_VOID->metadata.tag = CDP_TAG_VOID;
         CDP_VOID->metadata.id = CDP_TAG_VOID;
         CDP_RECORD_SET_ATTRIB(CDP_VOID, CDP_ATTRIB_FACTUAL);
     }

@@ -24,7 +24,7 @@
 
 
 
-void cdp_agency_initiate_agent_fields(void) {
+void cdp_system_initiate_agent_fields(void) {
     extern cdpRecord* NAME;
 
     /**** WARNING: this must be done in the same order as the

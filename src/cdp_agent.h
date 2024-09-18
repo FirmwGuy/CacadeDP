@@ -37,7 +37,7 @@ enum _cdpAgentID {
 #define CDP_ACTION_COUNT  (CDP_NAME_ID_ACTION_COUNT - CDP_NAME_STORAGE)
 
 
-void cdp_agency_initiate_agent_fields(void);
+void cdp_system_initiate_agent_fields(void);
 
 bool cdp_agent_ignore(cdpRecord* instance, cdpTask* signal);
 bool cdp_agent_error(cdpRecord* instance, cdpTask* signal);

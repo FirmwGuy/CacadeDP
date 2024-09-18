@@ -25,7 +25,7 @@
 
 
 
-static void system_initiate_task_names(void) {
+void cdp_system_initiate_task_names(void) {
     extern cdpRecord* NAME;
 
     /**** WARNING: this must be done in the same order as the _cdpTaskID enumeration in "cdp_task.h". ****/
@@ -72,7 +72,7 @@ static void system_initiate_task_names(void) {
 
 
 void cdp_system_initiate_tasks(void) {
-    system_initiate_task_names();
+    cdp_system_initiate_task_names();
 
 
     // Record tasks
