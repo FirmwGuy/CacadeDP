@@ -146,7 +146,9 @@ bool cdp_agency_set_agent(cdpRecord* agency, cdpTag tag, cdpAgent agent) {
 cdpRecord* cdp_task_begin(  cdpTask* cTask, cdpRecord* agency, cdpTag cast, cdpRecord* instance,
                             cdpRecord* parentTask, cdpRecord* baby,
                             int numInput, int numOutput ) {
-    assert(cTask && cdp_record_is_dictionary(agency) && !cdp_record_is_void(instance));
+    assert(cTask && cdp_record_is_dictionary(agency) && !cdp_record_is_void(instance
+
+    //CDP_0(cTask);
 
     // Find instance tag to define agent
     cdpTag tag = cdp_record_tag(instance);    // ToDo: traverse all multiple tags on books.
@@ -336,29 +338,16 @@ static void system_initiate(void) {
 }
 
 
-static bool system_traverse(cdpBookEntry* entry, void* p) {
-    cdpID signalID = cdp_p2v(p);
-    cdpAgent action = cdp_dict_get_agent(entry->record, signalID);
-    if (action) {
-        if (SYSTEM_SIGNAL)
-            SYSTEM_SIGNAL->nameID = signalID;
-        else
-            SYSTEM_SIGNAL = cdp_task_new(signalID, 1, 0);
-        return action(NULL, SYSTEM_SIGNAL);     // ToDo: report errors during startup.
-    }
-    return true;
-}
-
-
 bool cdp_system_startup(void) {
     assert(SYSTEM);
-    return cdp_book_traverse(SYSTEM, (cdpTraverse)system_traverse, cdp_v2p(CDP_NAME_STARTUP), NULL);
+    // ToDo: Traverse all records. On each record, call the "startup" agency.
+    return true;
 }
 
 
 bool cdp_system_step(void) {
     assert(SYSTEM);
-    // Pending...
+    // ToDo: traverse all agents. On each agent, do jobs listed on "work", then move them to "done".
     return true;
 }
 
@@ -366,7 +355,7 @@ bool cdp_system_step(void) {
 void cdp_system_shutdown(void) {
     assert(SYSTEM);
 
-    cdp_book_traverse(SYSTEM, system_traverse, cdp_v2p(CDP_NAME_SHUTDOWN), NULL);
+    // ToDo: Traverse all records. On each record, call the "shutdown" agency.
 
     cdp_system_finalize_tasks();
     cdp_book_reset(&CDP_ROOT);

@@ -71,7 +71,7 @@ enum _cdpTaskID {
 #define CDP_TASK_COUNT  (CDP_NAME_ID_TASK_COUNT - CDP_NAME_STARTUP)
 
 
-void cdp_agency_initiate_agent_fields(void);
+void cdp_system_initiate_agent_fields(void);
 void cdp_system_initiate_tasks(void);
 void cdp_system_finalize_tasks(void);
 
