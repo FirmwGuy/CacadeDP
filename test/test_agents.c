@@ -80,7 +80,7 @@ bool adder_agent_initiate(cdpRecord* instance, cdpTask* signal) {
     cdpID nameID = cdp_dict_get_id(&signal->input, CDP_NAME_NAME);
 
     // FixMe: define dictionary types by flag instead of agent.
-    cdp_record_initialize(instance, CDP_TYPE_BOOK, 0, nameID, AGENT_ADDER, CDP_STO_CHD_ARRAY, 3);
+    cdp_record_initialize(instance, CDP_ROLE_BOOK, 0, nameID, AGENT_ADDER, CDP_STRUCTURE_ARRAY, 3);
 
     cdp_book_add_uint32(instance, ADDER_OP1, 5);
 
@@ -158,7 +158,7 @@ MunitResult test_agents(const MunitParameter params[], void* user_data_or_fixtur
     extern cdpRecord* TEMP;
 
     // Instance initiation
-    cdpRecord* cascade = cdp_book_add_dictionary(TEMP, CDP_AUTO_ID, CDP_STO_CHD_ARRAY, 3);
+    cdpRecord* cascade = cdp_book_add_dictionary(TEMP, CDP_AUTO_ID, CDP_STRUCTURE_ARRAY, 3);
     cdpRecord* stdInp = cdp_book_add_instance(cascade, CDP_ID("stdin"), NULL);
     cdpRecord* adderI = cdp_book_add_instance(cascade, CDP_ID("adder"), NULL);
     cdpRecord* stdOut = cdp_book_add_instance(cascade, CDP_ID("stdout"), NULL);

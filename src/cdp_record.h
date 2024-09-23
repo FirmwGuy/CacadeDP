@@ -87,7 +87,7 @@
     * cdpVariantBook: Serves as a versatile container within the
     system, holding child records through diverse storage strategies.
     Each cdpVariantBook can adopt one of several child storage
-    mechanisms, determined by the storeTech indicator in its metadata.
+    mechanisms, determined by the structure indicator in its metadata.
     This design enables tailored optimization based on specific needs,
     such as operation frequency, data volume, and access patterns.
 
@@ -142,108 +142,151 @@ typedef struct _cdpPath         cdpPath;
 
 
 /*
+ * Metadata
+ */
+
+typedef uint64_t  cdpID;
+typedef uint32_t  cdpAttribute;
+typedef uint16_t  cdpTag;
+
+#define CDP_DOMAIN_BITS     7
+#define CDP_ROLE_BITS       3
+#define CDP_TAG_BITS        cdp_bitsof(cdpTag)
+#define CDP_TAG_MAXVAL      ((cdpTag)-1)
+#define CDP_ATTRIB_BITS     cdp_bitsof(cdpAttribute)
+
+typedef enum {
+    CDP_DOMAIN_RECORD,
+    CDP_DOMAIN_BINARY,
+    CDP_DOMAIN_MULTIMEDIA,
+
+    CDP_DOMAIN_COUNT
+} cdpDomain;
+
+typedef union {
+  cdpID             id;
+  struct {
+    union {
+      cdpAttribute  name;
+      struct {
+        uint8_t     domain:     CDP_DOMAIN_BITS,  // Domain language selector.
+
+                    abstract:   1;                // Is a concrete or abstract concept.
+        uint8_t     physical:   1,                // Is a physical, virtual or conceptual idea (depends of abstract flag).
+                    alive:      1,                // Is it alive/operational or is it a static/inactive thing.
+                    interactive:1,                // Can it be interacted with.
+                    immutable:  1,                // Is mutable or immutable.
+                    relational: 1,                // Is it related to (or part of) another thing or is it independent?
+
+                    role:       CDP_ROLE_BITS;    // Grammatical role of name tag.
+
+        cdpTag      tag;                          // Tag assigned to this record. The lexicon is the same per domain (not per role).
+      };
+    };
+    cdpAttribute    attribute;                    // Flags/bitfields for domain specific attributes.
+  };
+} cdpMetadata;
+
+
+/*
  * Record Metadata
  */
 
-#define CDP_ATTRIB_PRIVATE      0x01    // Record (with all its children) is private (unlockable).
-#define CDP_ATTRIB_FACTUAL      0x02    // Record can't be modified anymore (but it still can be deleted).
-
-#define CDP_ATTRIB_PUB_MASK     (CDP_ATTRIB_PRIVATE | CDP_ATTRIB_FACTUAL)
-
-#define CDP_ATTRIB_SHADOWED     0x04    // Record has shadow records (links pointing to it).
-#define CDP_ATTRIB_BABY         0x08    // On receiving any signal this record will first alert its parent.
-#define CDP_ATTRIB_CONNECTED    0x10    // Record is connected (it can't skip the signal API).
-#define CDP_ATTRIB_DICTIONARY   0x20    // Record is a dictionary book.
-
-#define CDP_ATTRIB_BITS         6
-
-
-// Record types:
-enum {
-    CDP_TYPE_VOID,              // This is the "nothing" type.
-
-    CDP_TYPE_BOOK,
-    CDP_TYPE_REGISTER,
-    CDP_TYPE_LINK,
-
-    CDP_TYPE_COUNT
-};
-
-
-// Storage techiniques:
-
-enum {
-    CDP_STO_CHD_LINKED_LIST,    // Children stored in a doubly linked list.
-    CDP_STO_CHD_ARRAY,          // Children stored in an array.
-    CDP_STO_CHD_PACKED_QUEUE,   // Children stored in a packed queue (record can't be a dictionary).
-    CDP_STO_CHD_RED_BLACK_T,    // Children stored in a red-black tree (record must be a dictionary).
-    //
-    CDP_STO_CHD_COUNT
-};
-
-enum {
-    CDP_STO_REG_OWNED,          // Register owns its own data.
-    CDP_STO_REG_BORROWED,       // Register has borrowed data (only for private records).
-    //
-    CDP_STO_REG_COUNT
-};
-
-enum {
-    CDP_STO_LNK_POINTER,        // Link points to an in-memory record.
-    CDP_STO_LNK_SHADOW,         // Link shadows another in-memory record.
-    CDP_STO_LNK_PATH,           // Link holds the path of an off-memory record.
-    CDP_STO_LNK_AGENT,          // Link holds the address of an cdpAgent function.
-    //
-    CDP_STO_LNK_COUNT
-};
-
-
-// Record names:
-
-typedef uint16_t  cdpTag;
-typedef uint64_t  cdpID;
-
-#define CDP_META_BITS         (CDP_ATTRIB_BITS + 4)
-#define CDP_TAG_BITS          14
-#define CDP_TAG_MAXVAL        (((cdpTag)(-1)) >> CDP_TAG_BITS)
-#define CDP_ID_BITS           (cdp_bitsof(cdpID) - (CDP_META_BITS + CDP_TAG_BITS))
-#define CDP_ID_MAXVAL         (((cdpID)(-1)) >> (CDP_META_BITS + CDP_TAG_BITS))
-
-#define CDP_AUTO_ID           CDP_ID_MAXVAL
-#define CDP_AUTO_ID_MAXVAL    (CDP_ID_MAXVAL >> 1)
-
-#define CDP_NAME_FLAG         (((cdpID)1) << (CDP_ID_BITS - 1))
-#define CDP_NAME_MAXVAL       (CDP_AUTO_ID - 1)
-#define CDP_POS2NAMEID(npos)  (CDP_NAME_FLAG | (npos))
-#define CDP_NAMEID2POS(id)    ((id) & CDP_AUTO_ID_MAXVAL)
-#define CDP_NPOS_MINVAL       (CDP_TAG_MAXVAL + 1)
-#define CDP_NPOS_MAXVAL       CDP_AUTO_ID_MAXVAL
-
 // Initial tag IDs (for a description see cdp_agent.h):
-enum _cdpTagID {
+enum _cdpRecordTagID {
     // Core tags
-    CDP_TAG_VOID = CDP_POS2NAMEID(0),
+    CDP_TAG_VOID,
     CDP_TAG_RECORD,
-    CDP_TAG_BOOK,
-    CDP_TAG_REGISTER,
-    CDP_TAG_LINK,
 
     // Book tags
-    CDP_TAG_DICTIONARY,
     CDP_TAG_LIST,
     CDP_TAG_QUEUE,
     CDP_TAG_STACK,
 
-    // Register tags
-    CDP_TAG_BYTE,
-    CDP_TAG_UINT16,
-    CDP_TAG_UINT32,
-    CDP_TAG_UINT64,
-    CDP_TAG_INT16,
-    CDP_TAG_INT32,
-    CDP_TAG_INT64,
-    CDP_TAG_FLOAT32,
-    CDP_TAG_FLOAT64,
+    CDP_TAG_RECORD_COUNT
+};
+
+#define CDP_ROLE_VOID       0x00    // This is the "nothing" type.
+#define CDP_ROLE_REGISTER   0x01
+
+#define CDP_ROLE_BOOK       0x02    // Second bit acts as a book-or-dict flag.
+#define CDP_ROLE_DICTIONARY 0x03
+
+#define CDP_ROLE_LINK       0x04    // Third bit acts as a link/agent flag.
+#define CDP_ROLE_AGENT      0x05
+
+#define CDP_ROLE_RECORD_COUNT   6
+
+
+enum _cdpStructureBook {
+    CDP_STRUCTURE_LINKED_LIST,      // Children stored in a doubly linked list.
+    CDP_STRUCTURE_ARRAY,            // Children stored in an array.
+    CDP_STRUCTURE_PACKED_QUEUE,     // Children stored in a packed queue (record can't be a dictionary).
+    CDP_STRUCTURE_RED_BLACK_T,      // Children stored in a red-black tree (record must be a dictionary).
+    //
+    CDP_STRUCTURE_COUNT
+};
+
+enum _cdpNaming {
+    CDP_NAMING_TAG,         // Unique per domain name id.
+    CDP_NAMING_UTF8,        // Unique per book text id.
+    CDP_NAMING_AUTO_ID,     // Unique per book numerical id.
+    //CDP_NAMING_REGISTER,    // Use the index of a register with the unique per book id key.
+
+    CDP_NAMING_COUNT
+}
+
+#define CDP_REC_ATTRIB_BITS     11
+#define CDP_AUTO_ID_BITS        (CDP_TAG_BITS + CDP_ATTRIB_BITS - CDP_REC_ATTRIB_BITS)
+#define CDP_AUTO_ID_MAXVAL      (((cdpID)(-1)) >> (cdp_bitsof(cdpID) - CDP_AUTO_ID_BITS))
+#define CDP_AUTO_ID             (CDP_AUTO_ID_MAXVAL + 1)
+
+typedef struct {
+    cdpAttribute
+        // Core properties
+        structure:  2,                  // Data structure for children storage (it depends on the record type).
+        naming:     2,                  // Naming convention for this record.
+
+        // Record entry properties
+        factual:    1,                  // Record can't be modified anymore (but it still can be deleted).
+        hidden:     1,                  // Data structure for children storage (it depends on the record type).
+        priv:       1,                  // Record (with all its children) is private (unlockable).
+        system:     1,                  // Record is part of the system and can't be modified or deleted.
+
+        // Agency properties
+        baby:       1,                  // On receiving any signal this record will first alert its parent.
+        connected:  1,                  // Record is connected (it can't skip the signal API).
+
+        // Record system properties
+        shadowed:   1,                  // Record has shadow records (links pointing to it).
+        idbits:     CDP_AUTO_ID_BITS;   // Reserved for unique name (id) assigned to this instance.
+} cdpRecordAttribute;
+
+
+//#define CDP_NAMEID_FLAG         (((cdpID)1) << (cdp_bitsof(cdpID) - 1))
+//#define CDP_NAMEID2TAG(name)    ((cdpTag)((name) & CDP_TAG_MAXVAL))
+//#define CDP_TAG2NAMEID(tag)     (CDP_NAMEID_FLAG | (cdpID)(tag))
+#define CDP_NAME_MINVAL         (CDP_TAG_MAXVAL + 1)
+
+// Initial name IDs:
+enum _cdpInitialNameID {
+    CDP_NAME_ROOT = CDP_NAME_MINVAL,
+
+    CDP_NAME_ID_INITIAL_COUNT
+};
+
+#define CDP_NAME_INITIAL_COUNT  (CDP_NAME_ID_INITIAL_COUNT - CDP_NAME_ROOT)
+
+
+/*
+ * Binary Metadata
+ */
+
+// Initial tag IDs (for a description see cdp_agent.h):
+enum _cdpBinaryTagID {
+    CDP_TAG_NUMBER,
+    CDP_TAG_FLOAT,
+    CDP_TAG_DECIMAL,
     //
     CDP_TAG_TAG,
     CDP_TAG_ID,
@@ -254,77 +297,48 @@ enum _cdpTagID {
     CDP_TAG_INTERNED,
     CDP_TAG_AGENT,
 
-    CDP_TAG_ID_COUNT
+    CDP_TAG_COUNT
 };
 
-#define CDP_TAG_COUNT   (CDP_TAG_ID_COUNT - CDP_TAG_VOID)
+enum _cdpRecordRole{
+    CDP_ROLE_BOOLEAN,      // Integer, float, etc.
+    CDP_ROLE_ENUMERATION,      // Integer, float, etc.
+    CDP_ROLE_ENUMERATION,      // Integer, float, etc.
+    CDP_ROLE_DATATYPE,      // Integer, float, etc.
+    //CDP_ROLE_ADDRESS,       // Memory address or offset.
+    CDP_ROLE_LOGICAL,       // Logical operation (AND, OR, etc).
+    CDP_ROLE_BITWISE,       // Bitwise operation (SHIFT, ROTATE, etc).
+    CDP_ROLE_ARITHMETIC,    // Arithmetic operation (ADD, MULTIPLY, etc).
 
-// Initial name IDs:
-enum _cdpInitialNameID {
-    CDP_NAME_ROOT = CDP_POS2NAMEID(CDP_NPOS_MINVAL),
-
-    CDP_NAME_ID_INITIAL_COUNT
+    CDP_ROLE_BINARY_COUNT
 };
 
-#define CDP_NAME_INITIAL_COUNT  (CDP_NAME_ID_INITIAL_COUNT - CDP_NAME_ROOT)
 
+typedef union {
+  cdpAttribute  attribute;
+  struct {
+    uint16_t
+      oversize:     1,      // True if content won't fit in 16 bits.
+      sign:         1,          // Is signed or unsigned.
+      endian:       1,        // Little endian (0) is the norm.
+      borrow:       1,  // Register has borrowed data (can't be freed).
 
-#define cdp_id_is_named(id)   ((id) & CDP_NAME_FLAG)
-#define cdp_id_is_void(id)    ((id) == CDP_TAG_VOID)
-
-
-typedef struct {
-    cdpID     attribute:  CDP_ATTRIB_BITS,  // Flags for record attributes.
-              type:       2,                // Record type (book, register, link).
-              storeTech:  2,                // Record storage technique (it depends on the record type).
-              tag:        CDP_TAG_BITS,     // Record tag identifier.
-              id:         CDP_ID_BITS;      // Name/field identifier of this record with respect to the parent record.
-} cdpMetadata;
+    uint16_t  value;   // Actual value for 16 bit and smaller types.
+  };
+} cdpBinaryAttribute;
 
 
 /*
  * Record Data
  */
 
-typedef struct {
-    void*     children;     // Pointer to either cdpArray, cdpList, cdpPackedQ, or cdpRbTree.
-    void*     property;     // Book property dictionary (as cdpRbTree).
-} cdpVariantBook;
-
-typedef struct {
-    union {
-        void*     ptr;      // Pointer to large data sets
-        uintptr_t direct;   // Direct storage for small data sets
-    } data;
-    size_t        size;     // Data buffer size in bytes
-} cdpRegisterData;
-
-typedef struct {
-    union {
-      cdpRecord*  address;   // Memory address of target record.
-      cdpPath*    path;      // Full or relative path to target.
-    } target;
-    //cdpID targetTag;        // Agent tag of target.
-    //bool  local;            // True if target is also a local record.
-    bool          inRam;     // Target record is in ram.
-} cdpLink;
-
-typedef union {
-    cdpVariantBook  book;   // Book structure for hierarchical data organization
-    cdpRegisterData reg;    // Register structure for actual data storage
-    cdpLink         link;   // Link structure for de-referencing.
-} cdpRecData;
-
 struct _cdpRecord {
-    cdpMetadata metadata;   // Metadata including attributes, type and id.
-    cdpRecData  recData;    // Data, either a book, a register or a link.
-    void*       store;      // Pointer to the parent's storage structure (List, Array, Queue, RB-Tree).
+    cdpMetadata metaRecord;   // Metadata about this record entry (including id, etc).
+    cdpMetadata metadata;     // Metadata about the information contained in this record (including tag, etc).
+    void*       data;         // Data, either for a book, a register or a link.
+    void*       store;        // Pointer to the parent's storage structure (List, Array, Queue, RB-Tree).
 };
 
-
-/*
- * Children Storage Structs
- */
 
 typedef struct {
     size_t      count;      // Number of record pointers
@@ -340,10 +354,6 @@ typedef struct {
     size_t      chdCount;   // Number of child records.
 } cdpChdStore;
 
-
-/*
- * Other C Data Types
- */
 
 struct _cdpPath {
     unsigned    length;
@@ -372,13 +382,13 @@ typedef bool (*cdpAgent)(cdpRecord* task);
 bool cdp_record_initialize(cdpRecord* record, unsigned type, unsigned attrib, cdpID id, cdpTag tag, ...);
 void cdp_record_finalize(cdpRecord* record);
 
-#define cdp_record_initialize_register(r, id, tag, borrow, data, size)  cdp_record_initialize(r, CDP_TYPE_REGISTER, 0, id, tag, borrow, data, size)
+#define cdp_record_initialize_register(r, id, tag, borrow, data, size)  cdp_record_initialize(r, CDP_ROLE_REGISTER, 0, id, tag, borrow, data, size)
 
-#define cdp_record_initialize_list(r, id, chdStorage, ...)        cdp_record_initialize(r, CDP_TYPE_BOOK, 0, id, CDP_TAG_LIST,  ((unsigned)(chdStorage)), ##__VA_ARGS__)
-#define cdp_record_initialize_queue(r, id, chdStorage, ...)       cdp_record_initialize(r, CDP_TYPE_BOOK, 0, id, CDP_TAG_QUEUE, ((unsigned)(chdStorage)), ##__VA_ARGS__)
-#define cdp_record_initialize_stack(r, id, chdStorage, ...)       cdp_record_initialize(r, CDP_TYPE_BOOK, 0, id, CDP_TAG_STACK, ((unsigned)(chdStorage)), ##__VA_ARGS__)
+#define cdp_record_initialize_list(r, id, chdStorage, ...)        cdp_record_initialize(r, CDP_ROLE_BOOK, 0, id, CDP_TAG_LIST,  ((unsigned)(chdStorage)), ##__VA_ARGS__)
+#define cdp_record_initialize_queue(r, id, chdStorage, ...)       cdp_record_initialize(r, CDP_ROLE_BOOK, 0, id, CDP_TAG_QUEUE, ((unsigned)(chdStorage)), ##__VA_ARGS__)
+#define cdp_record_initialize_stack(r, id, chdStorage, ...)       cdp_record_initialize(r, CDP_ROLE_BOOK, 0, id, CDP_TAG_STACK, ((unsigned)(chdStorage)), ##__VA_ARGS__)
 
-#define cdp_record_initialize_dictionary(r, id, tag, chdStorage, ...)  cdp_record_initialize(r, CDP_TYPE_BOOK, CDP_ATTRIB_DICTIONARY, id, tag? tag: CDP_TAG_DICTIONARY, ((unsigned)(chdStorage)), ##__VA_ARGS__)
+#define cdp_record_initialize_dictionary(r, id, tag, chdStorage, ...)  cdp_record_initialize(r, CDP_ROLE_BOOK, CDP_ATTRIB_DICTIONARY, id, tag? tag: CDP_TAG_DICTIONARY, ((unsigned)(chdStorage)), ##__VA_ARGS__)
 
 #define CDP_RECORD_SET_ATTRIB(r, a)   ((r)->metadata.attribute |= (a))
 
@@ -390,10 +400,10 @@ static inline cdpID cdp_record_tag       (const cdpRecord* record)  {assert(reco
 static inline cdpID cdp_record_get_id(const cdpRecord* record)      {assert(record);  return record->metadata.id;}
 static inline void  cdp_record_set_id(cdpRecord* record, cdpID id)  {assert(record && id <= CDP_ID_MAXVAL);  record->metadata.id = id;}
 
-#define cdp_record_is_void(r)       (cdp_record_type(r) == CDP_TYPE_VOID)
-#define cdp_record_is_book(r)       (cdp_record_type(r) == CDP_TYPE_BOOK)
-#define cdp_record_is_register(r)   (cdp_record_type(r) == CDP_TYPE_REGISTER)
-#define cdp_record_is_link(r)       (cdp_record_type(r) == CDP_TYPE_LINK)
+#define cdp_record_is_void(r)       (cdp_record_type(r) == CDP_ROLE_VOID)
+#define cdp_record_is_book(r)       (cdp_record_type(r) == CDP_ROLE_BOOK)
+#define cdp_record_is_register(r)   (cdp_record_type(r) == CDP_ROLE_REGISTER)
+#define cdp_record_is_link(r)       (cdp_record_type(r) == CDP_ROLE_LINK)
 
 #define cdp_record_is_private(r)    cdp_is_set(cdp_record_attributes(r), CDP_ATTRIB_PRIVATE)
 #define cdp_record_is_factual(r)    cdp_is_set(cdp_record_attributes(r), CDP_ATTRIB_FACTUAL)
@@ -404,7 +414,7 @@ static inline void  cdp_record_set_id(cdpRecord* record, cdpID id)  {assert(reco
 
 static inline bool cdp_record_is_named(const cdpRecord* record)  {assert(record);  if (cdp_id_is_named(record->metadata.id)) {assert(record->metadata.id <= CDP_NAME_MAXVAL); return true;} return false;}
 
-#define cdp_record_id_is_auto(r)    (cdp_record_get_id(r) < CDP_NAME_FLAG)
+#define cdp_record_id_is_auto(r)    (cdp_record_get_id(r) < CDP_NAMEID_FLAG)
 #define cdp_record_id_is_pending(r) (cdp_record_get_id(r) == CDP_AUTO_ID)
 
 
@@ -416,15 +426,15 @@ static inline void* cdp_link_data(const cdpRecord* link)   {assert(cdp_record_is
 static inline void cdp_record_initialize_link(cdpRecord* newLink, cdpID nameID, cdpRecord* record) {
     assert(newLink && !cdp_record_is_void(record));
     CDP_LINK_RESOLVE(record);
-    cdp_record_initialize(newLink, CDP_TYPE_LINK, 0, nameID, cdp_record_tag(record), record);
-    newLink->metadata.storeTech = CDP_STO_LNK_POINTER;
+    cdp_record_initialize(newLink, CDP_ROLE_LINK, 0, nameID, cdp_record_tag(record), record);
+    newLink->metadata.structure = CDP_STO_LNK_POINTER;
 }
 
 static inline void cdp_record_initialize_shadow(cdpRecord* newShadow, cdpID nameID, cdpRecord* record) {
     assert(newShadow && !cdp_record_is_void(record));
     CDP_LINK_RESOLVE(record);
-    cdp_record_initialize(newShadow, CDP_TYPE_LINK, 0, nameID, CDP_TAG_LINK, record);
-    newShadow->metadata.storeTech = CDP_STO_LNK_POINTER;
+    cdp_record_initialize(newShadow, CDP_ROLE_LINK, 0, nameID, CDP_TAG_LINK, record);
+    newShadow->metadata.structure = CDP_STO_LNK_POINTER;
     CDP_RECORD_SET_ATTRIB(record, CDP_ATTRIB_SHADOWED);
     // ToDo: actually shadow the record.
 }
@@ -433,8 +443,8 @@ void cdp_record_initialize_clone(cdpRecord* newClone, cdpID nameID, cdpRecord* r
 
 static inline void cdp_record_initialize_agent(cdpRecord* newAgent, cdpTag tag, cdpAgent agent) {
     assert(newAgent && agent);
-    cdp_record_initialize(newAgent, CDP_TYPE_LINK, 0, tag, CDP_TAG_LINK, agent);
-    newAgent->metadata.storeTech = CDP_STO_LNK_AGENT;
+    cdp_record_initialize(newAgent, CDP_ROLE_LINK, 0, tag, CDP_TAG_LINK, agent);
+    newAgent->metadata.structure = CDP_STO_LNK_AGENT;
 }
 
 
@@ -466,13 +476,13 @@ static inline void cdp_record_replace(cdpRecord* original, cdpRecord* newRecord)
 
 
 // Register properties
-static inline bool   cdp_register_is_borrowed(const cdpRecord* reg) {assert(cdp_record_is_register(reg));  return (reg->metadata.storeTech == CDP_STO_REG_BORROWED);}
+static inline bool   cdp_register_is_borrowed(const cdpRecord* reg) {assert(cdp_record_is_register(reg));  return (reg->metadata.structure == CDP_STO_REG_BORROWED);}
 static inline void*  cdp_register_data(const cdpRecord* reg)        {assert(cdp_record_is_register(reg));  return reg->recData.reg.data.ptr;}
 static inline size_t cdp_register_size(const cdpRecord* reg)        {assert(cdp_record_is_register(reg));  return reg->recData.reg.size;}
 
 // Book properties
 static inline size_t cdp_book_children(const cdpRecord* book)       {assert(cdp_record_is_book(book));  return CDP_CHD_STORE(book->recData.book.children)->chdCount;}
-static inline bool   cdp_book_is_prependable(const cdpRecord* book) {assert(cdp_record_is_book(book));  return (book->metadata.storeTech != CDP_STO_CHD_RED_BLACK_T);}
+static inline bool   cdp_book_is_prependable(const cdpRecord* book) {assert(cdp_record_is_book(book));  return (book->metadata.structure != CDP_STRUCTURE_RED_BLACK_T);}
 
 static inline cdpID cdp_book_get_auto_id(const cdpRecord* book)           {assert(cdp_record_is_book(book));  return CDP_CHD_STORE(book->recData.book.children)->autoID;}
 static inline void  cdp_book_set_auto_id(const cdpRecord* book, cdpID id) {assert(cdp_record_is_book(book));  cdpChdStore* store = CDP_CHD_STORE(book->recData.book.children); assert(store->autoID < id  &&  id <= CDP_AUTO_ID_MAXVAL); store->autoID = id;}
@@ -486,8 +496,8 @@ cdpRecord* cdp_book_add_record(cdpRecord* book, cdpRecord* record, bool prepend)
 cdpRecord* cdp_book_sorted_insert(cdpRecord* book, cdpRecord* record, cdpCompare compare, void* context);
 
 #define cdp_book_add(b, type, attribute, id, tag, prepend, ...)  ({cdpRecord r={0}; cdp_record_initialize(&r, type, attribute, id, tag, ##__VA_ARGS__)? cdp_book_add_record(b, &r, prepend): NULL;})
-#define cdp_book_add_register(b, attrib, id, tag, borrow, data, size)          cdp_book_add(b, CDP_TYPE_REGISTER, attrib, id, tag, false, ((unsigned)(borrow)), data, ((size_t)(size)))
-#define cdp_book_prepend_register(b, attrib, id, tag, borrow, data, size)      cdp_book_add(b, CDP_TYPE_REGISTER, attrib, id, tag,  true, ((unsigned)(borrow)), data, ((size_t)(size)))
+#define cdp_book_add_register(b, attrib, id, tag, borrow, data, size)          cdp_book_add(b, CDP_ROLE_REGISTER, attrib, id, tag, false, ((unsigned)(borrow)), data, ((size_t)(size)))
+#define cdp_book_prepend_register(b, attrib, id, tag, borrow, data, size)      cdp_book_add(b, CDP_ROLE_REGISTER, attrib, id, tag,  true, ((unsigned)(borrow)), data, ((size_t)(size)))
 
 static inline cdpRecord* cdp_book_add_text(cdpRecord* book, unsigned attrib, cdpID id, bool borrow, const char* text)    {assert(cdp_record_is_book(book) && text && *text);  cdpRecord* reg = cdp_book_add_register(book, attrib, id, CDP_TAG_UTF8, borrow, text, strlen(text) + 1); reg->recData.reg.size--; return reg;}
 #define cdp_book_add_static_text(b, id, text)   cdp_book_add_text(b, CDP_ATTRIB_FACTUAL, id, true, text)
@@ -510,20 +520,20 @@ static inline cdpRecord* cdp_book_add_text(cdpRecord* book, unsigned attrib, cdp
     CDP_FUNC_ADD_VAL_(bool, uint8_t,  CDP_TAG_BOOLEAN)
 
 
-#define cdp_book_add_book(b, id, tag, chdStorage, ...)            cdp_book_add(b, CDP_TYPE_BOOK, 0, id, tag, false, ((unsigned)(chdStorage)), ##__VA_ARGS__)
-#define cdp_book_prepend_book(b, id, tag, chdStorage, ...)        cdp_book_add(b, CDP_TYPE_BOOK, 0, id, tag,  true, ((unsigned)(chdStorage)), ##__VA_ARGS__)
+#define cdp_book_add_book(b, id, tag, chdStorage, ...)            cdp_book_add(b, CDP_ROLE_BOOK, 0, id, tag, false, ((unsigned)(chdStorage)), ##__VA_ARGS__)
+#define cdp_book_prepend_book(b, id, tag, chdStorage, ...)        cdp_book_add(b, CDP_ROLE_BOOK, 0, id, tag,  true, ((unsigned)(chdStorage)), ##__VA_ARGS__)
 
 #define cdp_book_add_list(b, id, chdStorage, ...)                 cdp_book_add_book(b, id, CDP_TAG_LIST,  ((unsigned)(chdStorage)), ##__VA_ARGS__)
 #define cdp_book_add_queue(b, id, chdStorage, ...)                cdp_book_add_book(b, id, CDP_TAG_QUEUE, ((unsigned)(chdStorage)), ##__VA_ARGS__)
 #define cdp_book_add_stack(b, id, chdStorage, ...)                cdp_book_add_book(b, id, CDP_TAG_STACK, ((unsigned)(chdStorage)), ##__VA_ARGS__)
 
-#define cdp_book_add_dictionary(b, id, tag, chdStorage, ...)      cdp_book_add(b, CDP_TYPE_BOOK, CDP_ATTRIB_DICTIONARY, id, tag? tag: CDP_TAG_DICTIONARY, false, ((unsigned)(chdStorage)), ##__VA_ARGS__)
+#define cdp_book_add_dictionary(b, id, tag, chdStorage, ...)      cdp_book_add(b, CDP_ROLE_BOOK, CDP_ATTRIB_DICTIONARY, id, tag? tag: CDP_TAG_DICTIONARY, false, ((unsigned)(chdStorage)), ##__VA_ARGS__)
 
 #define cdp_book_prepend_list(b, id, chdStorage, ...)             cdp_book_prepend_book(b, id, CDP_TAG_LIST,  ((unsigned)(chdStorage)), ##__VA_ARGS__)
 #define cdp_book_prepend_queue(b, id, chdStorage, ...)            cdp_book_prepend_book(b, id, CDP_TAG_QUEUE, ((unsigned)(chdStorage)), ##__VA_ARGS__)
 #define cdp_book_prepend_stack(b, id, chdStorage, ...)            cdp_book_prepend_book(b, id, CDP_TAG_STACK, ((unsigned)(chdStorage)), ##__VA_ARGS__)
 
-#define cdp_book_prepend_dictionary(b, id, tag, chdStorage, ...)  cdp_book_add(b, CDP_TYPE_BOOK, CDP_ATTRIB_DICTIONARY, id, tag? tag: CDP_TAG_DICTIONARY, true, ((unsigned)(chdStorage)), ##__VA_ARGS__)
+#define cdp_book_prepend_dictionary(b, id, tag, chdStorage, ...)  cdp_book_add(b, CDP_ROLE_BOOK, CDP_ATTRIB_DICTIONARY, id, tag? tag: CDP_TAG_DICTIONARY, true, ((unsigned)(chdStorage)), ##__VA_ARGS__)
 
 
 // Root dictionary.

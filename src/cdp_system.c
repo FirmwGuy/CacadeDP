@@ -133,11 +133,11 @@ bool cdp_agency_set_agent(cdpRecord* agency, cdpTag tag, cdpAgent agent) {
         return false;
     }
 
-    cdpRecord* agTag = cdp_book_add_dictionary(agency, tag, CDP_TAG_DICTIONARY, CDP_STO_CHD_ARRAY, 4);
+    cdpRecord* agTag = cdp_book_add_dictionary(agency, tag, CDP_TAG_DICTIONARY, CDP_STRUCTURE_ARRAY, 4);
     cdp_book_add_agent(agTag, CDP_NAME_AGENT, agent);
-    cdp_book_add_book(agTag, CDP_NAME_CALL, CDP_TAG_BOOK, CDP_STO_CHD_LINKED_LIST);
-    cdp_book_add_book(agTag, CDP_NAME_DONE, CDP_TAG_BOOK, CDP_STO_CHD_LINKED_LIST);
-    cdp_book_add_book(agTag, CDP_NAME_WORK, CDP_TAG_BOOK, CDP_STO_CHD_LINKED_LIST);
+    cdp_book_add_book(agTag, CDP_NAME_CALL, CDP_TAG_BOOK, CDP_STRUCTURE_LINKED_LIST);
+    cdp_book_add_book(agTag, CDP_NAME_DONE, CDP_TAG_BOOK, CDP_STRUCTURE_LINKED_LIST);
+    cdp_book_add_book(agTag, CDP_NAME_WORK, CDP_TAG_BOOK, CDP_STRUCTURE_LINKED_LIST);
 
     return true;
 }
@@ -166,7 +166,7 @@ cdpRecord* cdp_task_begin(  cdpTask* cTask, cdpRecord* agency, cdpTag cast, cdpR
 
     // ToDo: check in the "done" book to find recyclable entries.
 
-    cTask->task = cdp_book_add_dictionary(call, CDP_AUTO_ID, CDP_TAG_DICTIONARY, CDP_STO_CHD_ARRAY, 6);
+    cTask->task = cdp_book_add_dictionary(call, CDP_AUTO_ID, CDP_TAG_DICTIONARY, CDP_STRUCTURE_ARRAY, 6);
     cdp_book_add_link(cTask->task, CDP_NAME_PARENT, parentTask);
     cdp_book_add_link(cTask->task, CDP_NAME_INSTANCE, instance);
 
@@ -174,14 +174,14 @@ cdpRecord* cdp_task_begin(  cdpTask* cTask, cdpRecord* agency, cdpTag cast, cdpR
         cdp_book_add_link(task, CDP_NAME_BABY, baby);
 
     if (0 <= numInput)
-        cTask->input = cdp_book_add_dictionary(cTask->task, CDP_NAME_INPUT, CDP_TAG_DICTIONARY, ((0 == numInput)? CDP_STO_CHD_RED_BLACK_T: CDP_STO_CHD_ARRAY), numInput);
+        cTask->input = cdp_book_add_dictionary(cTask->task, CDP_NAME_INPUT, CDP_TAG_DICTIONARY, ((0 == numInput)? CDP_STRUCTURE_RED_BLACK_T: CDP_STRUCTURE_ARRAY), numInput);
     else
         cTask->input = NULL;
 
     if (0 <= numOutput)
-        cdp_book_add_dictionary(cTask->task, CDP_NAME_OUTPUT, CDP_TAG_DICTIONARY, ((0 == numOutput)? CDP_STO_CHD_RED_BLACK_T: CDP_STO_CHD_ARRAY), numOutput);
+        cdp_book_add_dictionary(cTask->task, CDP_NAME_OUTPUT, CDP_TAG_DICTIONARY, ((0 == numOutput)? CDP_STRUCTURE_RED_BLACK_T: CDP_STRUCTURE_ARRAY), numOutput);
 
-    cdp_book_add_dictionary(cTask->task, CDP_NAME_STATUS, CDP_TAG_DICTIONARY, CDP_STO_CHD_RED_BLACK_T);
+    cdp_book_add_dictionary(cTask->task, CDP_NAME_STATUS, CDP_TAG_DICTIONARY, CDP_STRUCTURE_RED_BLACK_T);
 
     return cTask->task;
 }
@@ -205,7 +205,7 @@ cdpRecord* cdp_system_agency_add(cdpID name, cdpTag tag, cdpAgent agent) {
     // Find previous
     cdpRecord* agency = cdp_book_find_by_name(AGENCY, name);
     if (!agency)
-        agency = cdp_book_add_dictionary(AGENCY, name, CDP_TAG_DICTIONARY, CDP_STO_CHD_RED_BLACK_T);
+        agency = cdp_book_add_dictionary(AGENCY, name, CDP_TAG_DICTIONARY, CDP_STRUCTURE_RED_BLACK_T);
 
     cdp_agency_set_agent(agency, tag, agent);
 
@@ -304,17 +304,17 @@ static void system_initiate(void) {
 
     /* Initiate root book structure.
     */
-    SYSTEM  = cdp_book_add_dictionary(&CDP_ROOT, CDP_NAME_SYSTEM,  CDP_TAG_DICTIONARY, CDP_STO_CHD_ARRAY, 4);
-    USER    = cdp_book_add_dictionary(&CDP_ROOT, CDP_NAME_USER,    CDP_TAG_DICTIONARY, CDP_STO_CHD_RED_BLACK_T);
-    PUBLIC  = cdp_book_add_dictionary(&CDP_ROOT, CDP_NAME_PUBLIC,  CDP_TAG_DICTIONARY, CDP_STO_CHD_RED_BLACK_T);
-    DATA    = cdp_book_add_dictionary(&CDP_ROOT, CDP_NAME_DATA,    CDP_TAG_DICTIONARY, CDP_STO_CHD_RED_BLACK_T);
-    NETWORK = cdp_book_add_dictionary(&CDP_ROOT, CDP_NAME_NETWORK, CDP_TAG_DICTIONARY, CDP_STO_CHD_RED_BLACK_T);
-    TEMP    = cdp_book_add_book(&CDP_ROOT, CDP_NAME_TEMP, CDP_TAG_BOOK, CDP_STO_CHD_RED_BLACK_T);
+    SYSTEM  = cdp_book_add_dictionary(&CDP_ROOT, CDP_NAME_SYSTEM,  CDP_TAG_DICTIONARY, CDP_STRUCTURE_ARRAY, 4);
+    USER    = cdp_book_add_dictionary(&CDP_ROOT, CDP_NAME_USER,    CDP_TAG_DICTIONARY, CDP_STRUCTURE_RED_BLACK_T);
+    PUBLIC  = cdp_book_add_dictionary(&CDP_ROOT, CDP_NAME_PUBLIC,  CDP_TAG_DICTIONARY, CDP_STRUCTURE_RED_BLACK_T);
+    DATA    = cdp_book_add_dictionary(&CDP_ROOT, CDP_NAME_DATA,    CDP_TAG_DICTIONARY, CDP_STRUCTURE_RED_BLACK_T);
+    NETWORK = cdp_book_add_dictionary(&CDP_ROOT, CDP_NAME_NETWORK, CDP_TAG_DICTIONARY, CDP_STRUCTURE_RED_BLACK_T);
+    TEMP    = cdp_book_add_book(&CDP_ROOT, CDP_NAME_TEMP, CDP_TAG_BOOK, CDP_STRUCTURE_RED_BLACK_T);
 
-    TAG     = cdp_book_add_book(&SYSTEM, CDP_NAME_TAG, CDP_TAG_STACK, CDP_STO_CHD_PACKED_QUEUE, CDP_TAG_COUNT);
-    NAME    = cdp_book_add_book(&SYSTEM, CDP_NAME_NAME, CDP_TAG_STACK, CDP_STO_CHD_PACKED_QUEUE, CDP_TAG_COUNT + CDP_NAME_SYSTEM_COUNT + CDP_TASK_COUNT + CDP_ACTION_COUNT);
-    AGENCY  = cdp_book_add_dictionary(&SYSTEM, CDP_NAME_AGENCY, CDP_TAG_DICTIONARY, CDP_STO_CHD_RED_BLACK_T);
-    CASCADE = cdp_book_add_dictionary(&SYSTEM, CDP_NAME_CASCADE, CDP_TAG_DICTIONARY, CDP_STO_CHD_RED_BLACK_T);
+    TAG     = cdp_book_add_book(&SYSTEM, CDP_NAME_TAG, CDP_TAG_STACK, CDP_STRUCTURE_PACKED_QUEUE, CDP_TAG_COUNT);
+    NAME    = cdp_book_add_book(&SYSTEM, CDP_NAME_NAME, CDP_TAG_STACK, CDP_STRUCTURE_PACKED_QUEUE, CDP_TAG_COUNT + CDP_NAME_SYSTEM_COUNT + CDP_TASK_COUNT + CDP_ACTION_COUNT);
+    AGENCY  = cdp_book_add_dictionary(&SYSTEM, CDP_NAME_AGENCY, CDP_TAG_DICTIONARY, CDP_STRUCTURE_RED_BLACK_T);
+    CASCADE = cdp_book_add_dictionary(&SYSTEM, CDP_NAME_CASCADE, CDP_TAG_DICTIONARY, CDP_STRUCTURE_RED_BLACK_T);
 
     /* Initiate tags, names, task names and agent fields (in that order).
     */

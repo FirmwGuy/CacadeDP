@@ -206,7 +206,7 @@ void cdp_system_finalize_tasks(void) {
 
 
 bool cdp_initiate_book(cdpRecord* instance, cdpID nameID, cdpID agentID, unsigned storage, unsigned baseLength) {
-    assert(!cdp_id_is_void(nameID)  &&  agentID  &&  storage < CDP_STO_CHD_COUNT);
+    assert(!cdp_id_is_void(nameID)  &&  agentID  &&  storage < CDP_STRUCTURE_COUNT);
     signaler_start(CDP_NAME_INITIATE, SIGNAL_INITIATE_BOOK, 4, 0);
 
     cdp_book_add_id(&SIGNAL_INITIATE_BOOK->input, CDP_NAME_NAME, nameID);
@@ -257,7 +257,7 @@ bool cdp_initiate(cdpRecord* instance, cdpID nameID, cdpRecord* bookArgs) {
     if (!SIGNAL_INITIATE) {
         SIGNAL_INITIATE = cdp_new(cdpTask);
         SIGNAL_INITIATE->nameID = nameID;
-        cdp_record_initialize_dictionary(&SIGNAL_INITIATE->input, CDP_NAME_INPUT, 0, CDP_STO_CHD_RED_BLACK_T);
+        cdp_record_initialize_dictionary(&SIGNAL_INITIATE->input, CDP_NAME_INPUT, 0, CDP_STRUCTURE_RED_BLACK_T);
     }
 
     cdp_book_add_id(&SIGNAL_INITIATE->input, CDP_NAME_NAME, nameID);

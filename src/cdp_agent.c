@@ -44,7 +44,7 @@ bool cdp_agent_ignore(cdpRecord* instance, cdpTask* signal) {
 
 
 bool cdp_agent_error(cdpRecord* instance, cdpTask* signal) {
-    cdp_record_initialize_list(&signal->condition, CDP_NAME_ERROR, CDP_STO_CHD_LINKED_LIST);
+    cdp_record_initialize_list(&signal->condition, CDP_NAME_ERROR, CDP_STRUCTURE_LINKED_LIST);
     cdp_book_add_static_text(&signal->condition, CDP_AUTO_ID, "Unsupported action.");
     return false;
 }
@@ -82,9 +82,9 @@ bool cdp_agent_initiate_book(cdpRecord* instance, cdpTask* signal) {
 
     cdpRecord* regBase  = cdp_book_find_by_name(&signal->input, CDP_NAME_BASE);
     if (regBase)
-        cdp_record_initialize(instance, CDP_TYPE_BOOK, 0, nameID, agentID, storage, cdp_register_read_uint32(regBase));
+        cdp_record_initialize(instance, CDP_ROLE_BOOK, 0, nameID, agentID, storage, cdp_register_read_uint32(regBase));
     else
-        cdp_record_initialize(instance, CDP_TYPE_BOOK, 0, nameID, agentID, storage);
+        cdp_record_initialize(instance, CDP_ROLE_BOOK, 0, nameID, agentID, storage);
 
     return true;
 }
