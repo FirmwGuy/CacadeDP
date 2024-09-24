@@ -250,14 +250,16 @@ typedef struct {
         // Record entry properties
         factual:    1,                  // Record can't be modified anymore (but it still can be deleted).
         hidden:     1,                  // Data structure for children storage (it depends on the record type).
-        priv:       1,                  // Record (with all its children) is private (unlockable).
+        //priv:       1,                  // Record (with all its children) is private (unlockable).
         system:     1,                  // Record is part of the system and can't be modified or deleted.
+        // --------
 
         // Agency properties
         baby:       1,                  // On receiving any signal this record will first alert its parent.
         connected:  1,                  // Record is connected (it can't skip the signal API).
 
         // Record system properties
+        metapack:   1,                  // Record has 3 or more metadata.
         shadowed:   1,                  // Record has shadow records (links pointing to it).
         idbits:     CDP_AUTO_ID_BITS;   // Reserved for unique name (id) assigned to this instance.
 } cdpRecordAttribute;
@@ -300,43 +302,82 @@ enum _cdpBinaryTagID {
     CDP_TAG_COUNT
 };
 
-enum _cdpRecordRole{
-    CDP_ROLE_BOOLEAN,      // Integer, float, etc.
-    CDP_ROLE_ENUMERATION,      // Integer, float, etc.
-    CDP_ROLE_ENUMERATION,      // Integer, float, etc.
-    CDP_ROLE_DATATYPE,      // Integer, float, etc.
-    //CDP_ROLE_ADDRESS,       // Memory address or offset.
-    CDP_ROLE_LOGICAL,       // Logical operation (AND, OR, etc).
-    CDP_ROLE_BITWISE,       // Bitwise operation (SHIFT, ROTATE, etc).
-    CDP_ROLE_ARITHMETIC,    // Arithmetic operation (ADD, MULTIPLY, etc).
+enum _cdpBinaryRole {
+    CDP_ROLE_OPERATION,     // Binary operation (AND, ADD, MULTIPLY, etc).
+    CDP_ROLE_NATIVE_TYPE,   // Integer, float, etc.
+    CDP_ROLE_ENUMERATION,   // Indexed enumeration where values translate to meaning.
+    CDP_ROLE_ADDRESS,       // Local memory pointer, address, size or offset.
+    CDP_ROLE_CONTAINER,     // A memory block, buffer or binary stream.
+    CDP_ROLE_DEVICE,        // A hardware device (port, adapter, etc).
+    CDP_ROLE_FILE,          // A binary (raw format) file.
 
     CDP_ROLE_BINARY_COUNT
 };
 
+enum _cdpBinaryType {
+    CDP_TYPE_BOOLEAN,       // Truo or false.
+    CDP_TYPE_INTEGER,       // Integer value.
+    CDP_TYPE_FLOAT,         // Binary floating point value.
+    CDP_TYPE_DECIMAL        // Decimal floating point value.
+};
+
+enum _cdpBinaryCompression {
+    CDP_COMPRESS_NONE,      // Uncompressed content.
+    CDP_COMPRESS_ZIP,       // Zip (deflate) method.
+    CDP_COMPRESS_RLE,       // Run lenght encoding.
+    CDP_COMPRESS_LZW        // 7z kind compression.
+};
+
+enum _cdpBinaryEncryption {
+    CDP_CRYPT_NONE,         // Unencrypted content.
+    CDP_CRYPT_AES,          // Advanced encryption standard.
+    CDP_CRYPT_RSA,          // Rivest-Shamir-Adleman.
+    CDP_CRYPT_SHA           // Secure hash algorithm.
+};
 
 typedef union {
   cdpAttribute  attribute;
   struct {
-    uint16_t
-      oversize:     1,      // True if content won't fit in 16 bits.
-      sign:         1,          // Is signed or unsigned.
-      endian:       1,        // Little endian (0) is the norm.
-      borrow:       1,  // Register has borrowed data (can't be freed).
+    uint16_t    type:       2,      // Native microprocessor type.
+                size:       4,      // Power of 2 exponent describing the native size.
+                sign:       1,      // Is signed or unsigned.
+                endianess:  1,      // Little endian (0) is the norm.
+                dimension:  2,      // Number of dimensions (0: scalar, 1: vector, 2: matrix, 3: quaternion).
+                compression:2,      // Type of compression used to pack content.
+                encryption: 2,      // Encryption method.
+                reserved:   2;
+                // --------
 
-    uint16_t  value;   // Actual value for 16 bit and smaller types.
+    uint16_t    value;              // Actual value for 16 bit and smaller types.
   };
 } cdpBinaryAttribute;
+
+typedef struct {
+    size_t      size;
+    size_t      capacity;
+    void*       data;
+    cdpDel      destructor;
+} cdpData;
 
 
 /*
  * Record Data
  */
 
+typedef struct {
+    unsigned        length;
+    unsigned        capacity;
+    cdpMetadata     metadata[];
+} cdpMetapack;
+
 struct _cdpRecord {
-    cdpMetadata metaRecord;   // Metadata about this record entry (including id, etc).
-    cdpMetadata metadata;     // Metadata about the information contained in this record (including tag, etc).
-    void*       data;         // Data, either for a book, a register or a link.
-    void*       store;        // Pointer to the parent's storage structure (List, Array, Queue, RB-Tree).
+    cdpMetadata     metaRecord;     // Metadata about this record entry (including id, etc).
+    union {
+      cdpMetadata   metadata;       // Metadata about the information contained in this record (including tag, etc).
+      cdpMetapack*  metapack;       // Metadata pack for contained data.
+    };
+    void*           data;           // Data, either for a book, a register or a link.
+    void*           store;          // Pointer to the parent's storage structure (List, Array, Queue, RB-Tree).
 };
 
 
