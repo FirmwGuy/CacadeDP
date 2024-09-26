@@ -44,7 +44,7 @@ bool cdp_agent_ignore(cdpRecord* instance, cdpTask* signal) {
 
 
 bool cdp_agent_error(cdpRecord* instance, cdpTask* signal) {
-    cdp_record_initialize_list(&signal->condition, CDP_NAME_ERROR, CDP_STRUCTURE_LINKED_LIST);
+    cdp_record_initialize_list(&signal->condition, CDP_NAME_ERROR, CDP_STORAGE_LINKED_LIST);
     cdp_book_add_static_text(&signal->condition, CDP_AUTO_ID, "Unsupported action.");
     return false;
 }
