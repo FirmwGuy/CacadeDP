@@ -376,7 +376,7 @@ enum _cdpDomain {
 CDP_ATTRIBUTE_STRUCT(cdpRecordAttribute,
     cdpAttribute
         // Core properties
-        storage:    2,                  // Data structure for children storage (it depends on the record type).
+        storage:    2,                  // Data structure for children storage (it depends on the record role).
         naming:     2,                  // Naming convention for this record.
 
         // Record entry properties
@@ -422,7 +422,7 @@ enum _cdpRecordTagID {
     CDP_TAG_RECORD_COUNT
 };
 
-enum _cdpStorage {
+enum _cdpRecordStorage {
     CDP_STORAGE_LINKED_LIST,      // Children stored in a doubly linked list.
     CDP_STORAGE_ARRAY,            // Children stored in an array.
     CDP_STORAGE_PACKED_QUEUE,     // Children stored in a packed queue (record can't be a dictionary).
@@ -431,7 +431,7 @@ enum _cdpStorage {
     CDP_STORAGE_COUNT
 };
 
-enum _cdpNaming {
+enum _cdpRecordNaming {
     CDP_NAMING_LOCAL,       // Unique per-book numerical id.
     CDP_NAMING_DOMAIN,      // Unique per-domain tag id.
     CDP_NAMING_GLOBAL,      // Unique global numerical id.
@@ -472,11 +472,11 @@ struct _cdpRecord {
       cdpMetadata   metadata;       // Metadata about the information contained in this record (including tag, etc).
       cdpMetapack*  metapack;       // Metadata pack for contained data.
     };
-    void*           store;          // Pointer to the parent's storage structure (List, Array, Queue, RB-Tree).
     union {
         void*       data;           // Data, either for a book, a register or a link.
         uintptr_t   immediate;      // The register value if it fits.
     };
+    void*           store;          // Pointer to the parent's storage structure (List, Array, Queue, RB-Tree).
 };
 
 typedef struct {
