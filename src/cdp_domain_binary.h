@@ -38,16 +38,9 @@ CDP_ATTRIBUTE_STRUCT(cdpBinaryAttribute,
                 // -----------
 
                 immediate:  1;      // Binary value is inside the register data pointer.
-    uint16_t    available;          // Available for (user) value storage.
-);
 
-typedef struct {
-    size_t  size;           // Data size in bytes.
-    size_t  capacity;       // Buffer capacity in bytes.
-    void*   data;           // Pointer to data.
-    cdpDel  destructor;     // Destructor function.
-    //size_t  refCount;
-} cdpData;
+    uint16_t    _available;         // Available for user-defined attribute/value storage.
+);
 
 
 enum _cdpBinaryRole {
@@ -69,6 +62,28 @@ enum _cdpBinaryRoleShited {
     CDP_ROLE_BIN_DEVICE,        // A hardware device (port, adapter, etc).
     CDP_ROLE_BIN_FILE,          // A binary (raw format) file.
 };
+
+enum _cdpBinaryDimension {
+    CDP_DIM_SCALAR,
+    CDP_DIM_VECTOR,
+    CDP_DIM_MATRIX,
+    CDP_DIM_TENSOR
+};
+
+enum _cdpBinaryCompression {
+    CDP_COMPRESS_NONE,      // Uncompressed content.
+    CDP_COMPRESS_ZIP,       // Zip (deflate) method.
+    CDP_COMPRESS_RLE,       // Run lenght encoding.
+    CDP_COMPRESS_LZW        // 7z kind compression.
+};
+
+enum _cdpBinaryEncryption {
+    CDP_CRYPT_NONE,         // Unencrypted content.
+    CDP_CRYPT_AES,          // Advanced encryption standard.
+    CDP_CRYPT_RSA,          // Rivest-Shamir-Adleman.
+    CDP_CRYPT_SHA           // Secure hash algorithm.
+};
+
 
 // Initial tag IDs (for a description see cdp_agent.h):
 enum _cdpBinaryTagID {
@@ -96,27 +111,6 @@ enum _cdpBinaryTagID {
     CDP_TAG_BIN_PATCH,
 
     CDP_TAG_BINARY_COUNT
-};
-
-enum _cdpBinaryDimension {
-    CDP_DIM_SCALAR,
-    CDP_DIM_VECTOR,
-    CDP_DIM_MATRIX,
-    CDP_DIM_TENSOR
-};
-
-enum _cdpBinaryCompression {
-    CDP_COMPRESS_NONE,      // Uncompressed content.
-    CDP_COMPRESS_ZIP,       // Zip (deflate) method.
-    CDP_COMPRESS_RLE,       // Run lenght encoding.
-    CDP_COMPRESS_LZW        // 7z kind compression.
-};
-
-enum _cdpBinaryEncryption {
-    CDP_CRYPT_NONE,         // Unencrypted content.
-    CDP_CRYPT_AES,          // Advanced encryption standard.
-    CDP_CRYPT_RSA,          // Rivest-Shamir-Adleman.
-    CDP_CRYPT_SHA           // Secure hash algorithm.
 };
 
 

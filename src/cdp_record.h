@@ -311,10 +311,10 @@ typedef uint64_t  cdpID;
 #define CDP_ATTRIB_BITS     cdp_bitsof(cdpAttribute)
 
 typedef union {
-  cdpID             id;                             // The whole structure as a single number.
+  cdpID             _id;                            // The whole structure as a single number.
   struct {
     union {
-      cdpAttribute  name;                           // The header attributes (tag, domain, etc) as a single value.
+      cdpAttribute  _name;                          // The header attributes (tag, domain, etc) as a single value.
       struct {
         uint8_t     domain:     CDP_DOMAIN_BITS,    // Domain language selector.
 
@@ -338,14 +338,14 @@ typedef union {
 enum _cdpDomain {
     CDP_DOMAIN_RECORD,
     CDP_DOMAIN_BINARY,
-    CDP_DOMAIN_INTERFACE,
     CDP_DOMAIN_TEXT,
+    CDP_DOMAIN_INTERFACE,
     CDP_DOMAIN_MULTIMEDIA,
-    CDP_DOMAIN_RENDERING,
     CDP_DOMAIN_SIMULATION,
+    CDP_DOMAIN_RENDERING,
     CDP_DOMAIN_PHYSICS,
     CDP_DOMAIN_AI,
-    CDP_DOMAIN_USERS,
+    //CDP_DOMAIN_USERS,
 
     CDP_DOMAIN_COUNT
 };
@@ -408,19 +408,6 @@ CDP_ATTRIBUTE_STRUCT(cdpRecordAttribute,
 
 #define CDP_ROLE_RECORD_COUNT   6
 
-// Initial tag IDs (for a description see cdp_agent.h):
-enum _cdpRecordTagID {
-    // Core tags
-    CDP_TAG_VOID,
-    CDP_TAG_RECORD,
-
-    // Book tags
-    CDP_TAG_LIST,
-    CDP_TAG_QUEUE,
-    CDP_TAG_STACK,
-
-    CDP_TAG_RECORD_COUNT
-};
 
 enum _cdpRecordStorage {
     CDP_STORAGE_LINKED_LIST,      // Children stored in a doubly linked list.
@@ -439,6 +426,21 @@ enum _cdpRecordNaming {
 
     CDP_NAMING_COUNT
 }
+
+
+// Initial tag IDs (for a description see cdp_agent.h):
+enum _cdpRecordTagID {
+    // Core tags
+    CDP_TAG_VOID,
+    CDP_TAG_RECORD,
+
+    // Book tags
+    CDP_TAG_LIST,
+    CDP_TAG_QUEUE,
+    CDP_TAG_STACK,
+
+    CDP_TAG_RECORD_COUNT
+};
 
 
 //#define CDP_NAMEID_FLAG         (((cdpID)1) << (cdp_bitsof(cdpID) - 1))
@@ -461,10 +463,18 @@ enum _cdpInitialNameID {
  */
 
 typedef struct {
-    unsigned        count;
-    unsigned        max;
-    cdpMetadata     metadata[];
+    unsigned      count;
+    unsigned      max;
+    cdpMetadata   metadata[];
 } cdpMetapack;
+
+typedef struct {
+    size_t    size;           // Data size in bytes.
+    size_t    capacity;       // Buffer capacity in bytes.
+    void*     data;           // Pointer to data.
+    cdpDel    destructor;     // Destructor function.
+    //size_t    refCount;
+} cdpData;
 
 struct _cdpRecord {
     cdpMetadata     metaRecord;     // Metadata about this record entry (including id, etc).
