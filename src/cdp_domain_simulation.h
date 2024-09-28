@@ -39,9 +39,7 @@ CDP_ATTRIBUTE_STRUCT(cdpSimulationAttribute,
 );
 
 enum _cdpSimulationRole {
-    CDP_ROLE_SIM_POSITION,      // Coordinates for entity.
     CDP_ROLE_SIM_ENTITY,        // World entity (anything that occupies space).
-    CDP_ROLE_SIM_TRANSFORM,     // Transforms from object space to world space and back (including displacement, scale/dilation, etc).
     CDP_ROLE_SIM_CONTAINER,     // Basic objects or containers that hold space and other entities.
     CDP_ROLE_SIM_ANCHOR,        // Non-rendering visual aspects, such as the layout of a scene or positional markers.
     CDP_ROLE_SIM_ACTION,        // Actions or operations that entities can perform.
@@ -63,7 +61,13 @@ enum _cdpSimulationInteraction {
 
 
 enum _cdpSimulationTagID {
-    CDP_TAG_SIM_POS_X,     //
+    // Children
+    CDP_TAG_SIM_POSITION,     // 3D position vector.
+    CDP_TAG_SIM_TRANSFORM,     //
+    CDP_TAG_SIM_INVTRANSF,     //
+    CDP_TAG_SIM_,     //
+    //
+
     CDP_TAG_SIM_,     //
     CDP_TAG_SIM_,     //
     CDP_TAG_SIM_,     //

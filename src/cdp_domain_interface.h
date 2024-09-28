@@ -132,6 +132,11 @@ enum cdpInterfaceState {
 
 
 enum _cdpInterfaceTagID {
+    // Children
+    CDP_TAG_IF_MOUSE_POS,       // Mouse screen position in pixels (as a 2D vector).
+    CDP_TAG_IF_SCREEN_SIZE,     // Current screen size (may be a combined virtual desktop size).
+    //
+
     CDP_TAG_IF_CONSOLE,         // Log of output messages.
     CDP_TAG_IF_TEXT_INPUT,
     CDP_TAG_IF_PASSWORD,

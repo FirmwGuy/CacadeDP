@@ -81,22 +81,23 @@ enum _cdpTextFormating {
 };
 
 enum _cdpTextFont {
-    CDP_FONT_SERIF,     // Decorative font (Georgia, Times New Roman).
-    CDP_FONT_SANS,      // Modern look font (Arial, Helvetica, Verdana).
-    CDP_FONT_MONO,      // Monospaced font (Console, Curier New).
-    CDP_FONT_HAND,      // Handwriting font (Brush Script, Lucida Handwriting).
-    CDP_FONT_TITLE,     // Display font for titles (Impact, Comic Sans).
+    CDP_FONT_DEFAULT,           // Use default font.
+    CDP_FONT_SERIF,             // Decorative font (Georgia, Times New Roman).
+    CDP_FONT_SANS,              // Modern look font (Arial, Helvetica, Verdana).
+    CDP_FONT_MONO,              // Monospaced font (Console, Curier New).
+    CDP_FONT_HAND,              // Handwriting font (Brush Script, Lucida Handwriting).
+    CDP_FONT_TITLE,             // Display font for titles (Impact, Comic Sans).
 };
 
 enum _cdpTextAlignment {
-    CDP_ALIGN_LEFT,
+    CDP_ALIGN_LEFT,             // The default alignment in western countries.
     CDP_ALIGN_CENTER,
     CDP_ALIGN_RIGHT,
     CDP_ALIGN_JUSTIFIED,
 };
 
 enum _cdpTextLanguage {
-    CDP_LANG_ENGLISH,
+    CDP_LANG_ENGLISH,           // The lingua franca.
     CDP_LANG_SPANISH,
     CDP_LANG_FRENCH,
     CDP_LANG_GERMAN,
@@ -121,8 +122,13 @@ enum _cdpTextMedia {
 
 
 enum _cdpTextTagID {
+    // Children
+    CDP_TAG_TXT_LENGTH,     // Non-ASCII text length in characters (NOT in bytes).
+    //
+
     CDP_TAG_TXT_CHARACTER,
     CDP_TAG_TXT_WORD,
+    CDP_TAG_TXT_LINE,
     CDP_TAG_TXT_PARAGRAPH,
     CDP_TAG_TXT_FOOTNOTE,
     CDP_TAG_TXT_FORMULA,

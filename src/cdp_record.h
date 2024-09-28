@@ -429,11 +429,12 @@ enum _cdpRecordNaming {
 }
 
 enum _cdpRecordRegData {
-    CDP_REGDATA_IMMEDIATE,  // Register data is inside "_immediate" field.
-    CDP_REGDATA_NEAR,       // Register data is inside "_near" field.
-    CDP_REGDATA_FAR,        // Register data is in "data" field.
+    CDP_REGDATA_IMMEDIATE,  // Register data is inside "_immediate" field of cdpRecord.
+    CDP_REGDATA_NEAR,       // Data is inside "_near" field of cdpData.
+    CDP_REGDATA_CONTINUE,   // Data starts at "_continue" field of cdpData.
+    CDP_REGDATA_FAR,        // Data is in address pointed by "_far" field of cdpData.
 
-    CDP_NAMING_COUNT
+    CDP_REGDATA_COUNT
 }
 
 
@@ -472,21 +473,26 @@ enum _cdpInitialNameID {
  */
 
 typedef struct {
-    unsigned      count;
-    unsigned      max;
-    cdpMetadata   metadata[];
+    unsigned        count;
+    unsigned        max;
+    cdpMetadata     metadata[];
 } cdpMetapack;
 
 typedef struct {
-    size_t        size;           // Data size in bytes.
+    size_t          size;           // Data size in bytes.
     union {
       struct {
-        size_t    capacity;       // Buffer capacity in bytes.
-        void*     data;           // Pointer to data.
-        cdpDel    destructor;     // Destructor function.
-        //size_t    refCount;
+        size_t      capacity;       // Buffer capacity in bytes.
+        union {
+          struct {
+            cdpDel  destructor;     // Destructor function.
+            //size_t  refCount;
+            void*   _far;           // Container of data.
+          };
+          uintptr_t _continue[2];
+        };
       };
-      uintptr_t   _near[3];
+      uintptr_t     _near[3];
     };
 } cdpData;
 
@@ -503,13 +509,13 @@ struct _cdpRecord {
     void*           store;          // Pointer to the parent's storage structure (List, Array, Queue, RB-Tree).
 };
 
+typedef int (*cdpCompare)(const cdpRecord* restrict, const cdpRecord* restrict, void*);
+
 typedef struct {
     unsigned    count;      // Number of record pointers.
     unsigned    max;
     cdpRecord*  record[];   // Dynamic array of (local) links shadowing this one.
 } cdpShadow;
-
-typedef int (*cdpCompare)(const cdpRecord* restrict, const cdpRecord* restrict, void*);
 
 typedef struct {
     cdpRecord*  book;       // Parent book owning this child storage.

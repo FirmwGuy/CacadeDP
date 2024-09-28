@@ -46,8 +46,6 @@ CDP_ATTRIBUTE_STRUCT(cdpMultimediaAttribute,
 );
 
 enum _cdpMultimediaRole {
-    CDP_ROLE_MEDIA_RESOLUTION,  // Image/video exact 2D resolution.
-    CDP_ROLE_MEDIA_DURATION,    // Animation/sound/video duration.
     CDP_ROLE_MEDIA_IMAGE,       // Static image.
     CDP_ROLE_MEDIA_AUDIO,       // Pure audio.
     CDP_ROLE_MEDIA_VIDEO,       // Video or animated image.
@@ -142,7 +140,8 @@ enum _cdpMultimediaProjection {
 
 
 enum _cdpMultimediaTagID {
-    CDP_TAG_MEDIA_WIDTH,        // Image/video width in pixels.
+    // Children
+    CDP_TAG_MEDIA_RESOLUTION,        // Image/video width in pixels.
     CDP_TAG_MEDIA_HEIGHT,       // Image/video height in pixels.
 
     CDP_TAG_MEDIA_DURATION,     // Duration in mili-seconds.
@@ -151,6 +150,7 @@ enum _cdpMultimediaTagID {
 
     CDP_TAG_MEDIA_ANIM_NAME,    // Name/id of animations.
     CDP_TAG_MEDIA_ANIM_INDEX,   // Index of animation.
+    //
 
     CDP_TAG_MEDIA_ICON,
     CDP_TAG_MEDIA_THUMBNAIL,
