@@ -34,7 +34,9 @@ CDP_ATTRIBUTE_STRUCT(cdpTextAttribute,
                     font:       3,      // Recommended font family to use for rendering.
                     alignment:  2,      // Recommended text alignment (left, center, etc).
                     language:   6,      // Language of content (including programming language for scripts).
-                    media:      2;      // Embedded media type (image, video, etc).
+                    media:      2,      // Embedded media type (image, video, etc).
+
+                    _reserved:  5;
 );
 
 
@@ -51,7 +53,7 @@ enum _cdpTextRole {
 
 enum _cdpTextEncoding {
     CDP_ENCOD_UTF8,             // The standard.
-    CDP_ENCOD_UNICODE,          // A 2 byte wide string.
+    CDP_ENCOD_UNICODE,          // A 2-byte wide string.
     CDP_ENCOD_ISO8859,          // European (aka Latin1).
     CDP_ENCOD_SHIFT_JIS,        // Japanse.
     CDP_ENCOD_BIG5,             // Cantonese chinese.
@@ -119,23 +121,29 @@ enum _cdpTextMedia {
 
 
 enum _cdpTextTagID {
+    CDP_TAG_TXT_CHARACTER,
+    CDP_TAG_TXT_WORD,
+    CDP_TAG_TXT_PARAGRAPH,
+    CDP_TAG_TXT_FOOTNOTE,
+    CDP_TAG_TXT_FORMULA,
+    CDP_TAG_TXT_TABLE,
+
     CDP_TAG_TXT_TITLE,
-    CDP_TAG_TXT_AUTHOR,
-    CDP_TAG_TXT_DATE,
-    CDP_TAG_TXT_VERSION,
-    CDP_TAG_TXT_COPYRIGHT,
-    CDP_TAG_TXT_LICENSE,
     CDP_TAG_TXT_ABSTRACT,
     CDP_TAG_TXT_BODY,
     CDP_TAG_TXT_TOC,
     CDP_TAG_TXT_CHAPTER,
     CDP_TAG_TXT_SECTION,
-    CDP_TAG_TXT_PARAGRAPH,
-    CDP_TAG_TXT_FOOTNOTE,
     CDP_TAG_TXT_CONCLUSION,
     CDP_TAG_TXT_AKNOWLEDGMENT,
     CDP_TAG_TXT_APPENDICE,
     CDP_TAG_TXT_GLOSSARY,
+
+    CDP_TAG_TXT_AUTHOR,
+    CDP_TAG_TXT_DATE,
+    CDP_TAG_TXT_VERSION,
+    CDP_TAG_TXT_COPYRIGHT,
+    CDP_TAG_TXT_LICENSE,
 
     CDP_TAG_TEXT_COUNT
 };

@@ -381,9 +381,9 @@ CDP_ATTRIBUTE_STRUCT(cdpRecordAttribute,
 
         // Record entry properties
         factual:    1,                  // Record can't be modified anymore (but it still can be deleted).
-        hidden:     1,                  // Data structure for children storage (it depends on the record type).
+        //hidden:     1,                  // Data structure for children storage (it depends on the record type).
         //priv:       1,                  // Record (with all its children) is private (unlockable).
-        system:     1,                  // Record is part of the system and can't be modified or deleted.
+        //system:     1,                  // Record is part of the system and can't be modified or deleted.
         // --------
 
         // Agency properties
@@ -392,6 +392,7 @@ CDP_ATTRIBUTE_STRUCT(cdpRecordAttribute,
 
         // Record system properties
         metapack:   1,                  // Record has 3 or more metadata.
+        regdata:    2,                  // Where register data is located.
         shadowed:   1,                  // Record has shadow records (links pointing to it).
         idbits:     CDP_AUTO_ID_BITS;   // Reserved for unique name (id) assigned to this instance.
 );
@@ -423,6 +424,14 @@ enum _cdpRecordNaming {
     CDP_NAMING_DOMAIN,      // Unique per-domain tag id.
     CDP_NAMING_GLOBAL,      // Unique global numerical id.
     //CDP_NAMING_CUSTOM,    // Use the index (tag) of a custom sort function.
+
+    CDP_NAMING_COUNT
+}
+
+enum _cdpRecordRegData {
+    CDP_REGDATA_IMMEDIATE,  // Register data is inside "_immediate" field.
+    CDP_REGDATA_NEAR,       // Register data is inside "_near" field.
+    CDP_REGDATA_FAR,        // Register data is in "data" field.
 
     CDP_NAMING_COUNT
 }
@@ -469,11 +478,16 @@ typedef struct {
 } cdpMetapack;
 
 typedef struct {
-    size_t    size;           // Data size in bytes.
-    size_t    capacity;       // Buffer capacity in bytes.
-    void*     data;           // Pointer to data.
-    cdpDel    destructor;     // Destructor function.
-    //size_t    refCount;
+    size_t        size;           // Data size in bytes.
+    union {
+      struct {
+        size_t    capacity;       // Buffer capacity in bytes.
+        void*     data;           // Pointer to data.
+        cdpDel    destructor;     // Destructor function.
+        //size_t    refCount;
+      };
+      uintptr_t   _near[3];
+    };
 } cdpData;
 
 struct _cdpRecord {
@@ -484,7 +498,7 @@ struct _cdpRecord {
     };
     union {
         void*       data;           // Data, either for a book, a register or a link.
-        uintptr_t   immediate;      // The register value if it fits.
+        uintptr_t   _immediate;     // The register value if it fits.
     };
     void*           store;          // Pointer to the parent's storage structure (List, Array, Queue, RB-Tree).
 };

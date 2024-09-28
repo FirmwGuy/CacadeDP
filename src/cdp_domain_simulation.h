@@ -26,9 +26,10 @@
 
 
 CDP_ATTRIBUTE_STRUCT(cdpSimulationAttribute,
-    uint16_t      terrain:   4,  // Distinguishes types of physical structures (e.g., wall, floor, ceiling).
+    uint16_t      terrain:    4,  // Distinguishes types of physical structures (e.g., wall, floor, ceiling).
                   building:
-                  interaction:   4,  // Defines interaction types (e.g., open, close, activate).
+                  transform:  4,  // Defines interaction types (e.g., open, close, activate).
+                  invert:  4,  // Defines interaction types (e.g., open, close, activate).
                   //--------
 
                   event:    4,  // Generated interface events.
@@ -38,15 +39,13 @@ CDP_ATTRIBUTE_STRUCT(cdpSimulationAttribute,
 );
 
 enum _cdpSimulationRole {
-    CDP_ROLE_SIM_CONTAINER,     // Basic objects or containers that hold other entities.
+    CDP_ROLE_SIM_POSITION,      // Coordinates for entity.
+    CDP_ROLE_SIM_ENTITY,        // World entity (anything that occupies space).
+    CDP_ROLE_SIM_TRANSFORM,     // Transforms from object space to world space and back (including displacement, scale/dilation, etc).
+    CDP_ROLE_SIM_CONTAINER,     // Basic objects or containers that hold space and other entities.
     CDP_ROLE_SIM_ANCHOR,        // Non-rendering visual aspects, such as the layout of a scene or positional markers.
     CDP_ROLE_SIM_ACTION,        // Actions or operations that entities can perform.
     CDP_ROLE_SIM_INTERACTIVE,   // Entities designed for world interaction, like doors or moving platforms.
-    CDP_ROLE_SIM_TERRAIN,       //
-    CDP_ROLE_SIM_BUILDING,       //
-    CDP_ROLE_SIM_DECORATIVE,       //
-    CDP_ROLE_SIM_CHARACTER,     // Any (human or AI-driven) agent/character that interacts within the simulation.
-    CDP_ROLE_SIM_TRIGGER,       // Elements that initiate actions or events based on conditions or interactions.
     CDP_ROLE_SIM_SETUP,         // Simulation parameters or system settings that affect the behavior of the simulation.
 };
 
@@ -61,5 +60,15 @@ enum _cdpSimulationInteraction {
     CDP_SIM_INTERACT_CLOSE,        //
     CDP_SIM_INTERACT_ACTIVATE,        //
 };
+
+
+enum _cdpSimulationTagID {
+    CDP_TAG_SIM_POS_X,     //
+    CDP_TAG_SIM_,     //
+    CDP_TAG_SIM_,     //
+    CDP_TAG_SIM_,     //
+    CDP_TAG_SIM_,     //
+};
+
 
 #endif

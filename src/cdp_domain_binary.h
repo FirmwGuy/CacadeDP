@@ -34,10 +34,10 @@ CDP_ATTRIBUTE_STRUCT(cdpBinaryAttribute,
                 dimension:  2,      // Number of dimensions (scalar, vector, etc).
                 compression:2,      // Type of compression used to pack content.
                 encryption: 2,      // Encryption method.
-                reserved:   2,
                 // -----------
 
-                immediate:  1;      // Binary value is inside the register data pointer.
+                immediate:  1,      // Binary value is inside the register data pointer.
+                _reserved:  2;
 
     uint16_t    _available;         // Available for user-defined attribute/value storage.
 );
@@ -58,7 +58,7 @@ enum _cdpBinaryRoleShited {
     CDP_ROLE_BIN_BITWISE_OP,    // Bitwise operation (SHIFT, POPCOUNT, etc).
     CDP_ROLE_BIN_MATH_OP,       // Mathematical operation (ADD, COS, etc).
 
-    CDP_ROLE_BIN_CONTAINER,     // An opaque memory block, buffer or binary stream.
+    CDP_ROLE_BIN_CONTAINER = 4, // An opaque memory block, buffer or binary stream.
     CDP_ROLE_BIN_DEVICE,        // A hardware device (port, adapter, etc).
     CDP_ROLE_BIN_FILE,          // A binary (raw format) file.
 };
@@ -73,7 +73,7 @@ enum _cdpBinaryDimension {
 enum _cdpBinaryCompression {
     CDP_COMPRESS_NONE,      // Uncompressed content.
     CDP_COMPRESS_ZIP,       // Zip (deflate) method.
-    CDP_COMPRESS_RLE,       // Run lenght encoding.
+    CDP_COMPRESS_RLE,       // Run-lenght encoding.
     CDP_COMPRESS_LZW        // 7z kind compression.
 };
 
