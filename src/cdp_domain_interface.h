@@ -93,12 +93,12 @@ enum cdpInterfaceInput {
     CDP_IF_EVENT_COPY,        // Copy user input.
     CDP_IF_EVENT_PASTE,       // Paste user input.
 
-    CDP_IF_EVENT_SELECT,      // Select a selectable object.
+    CDP_IF_EVENT_SELECT,      // Select all selectable objects.
     CDP_IF_EVENT_DESELECT,    // Deselect all selected objects.
-    CDP_IF_EVENT_SELECT_ALL   // Select all selectable objects.
 };
 
 enum cdpInterfaceOutput {
+    CDP_IF_EVENT_BUSY,         // Interface object is busy (can't be interacted with).
     CDP_IF_EVENT_UPDATE,       // Interface object content was updated by program.
     CDP_IF_EVENT_DELETE,       // Object deleted.
     CDP_IF_EVENT_DISABLE,      // Object disabled (no further user interaction allowed).
