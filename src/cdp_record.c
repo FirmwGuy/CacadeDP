@@ -148,7 +148,7 @@ static inline void store_check_auto_id(cdpChdStore* store, cdpRecord* record) {
 /*
     Initiates a record struct with the requested parameters.
 */
-bool cdp_record_initialize(cdpRecord* record, unsigned role, cdpMetadata metaRecord, cdpMetadata metadata, ...) {
+bool cdp_record_initialize(cdpRecord* record, cdpID name, unsigned storage, bool dictionary, cdpID metadata, uintptr_t data) {
     assert(record && role && id <= CDP_ID_MAXVAL && tag <= CDP_TAG_MAXVAL);
     //CDP_0(record);
 

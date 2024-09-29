@@ -291,9 +291,9 @@ typedef uint32_t  cdpAttribute;
 
 #define CDP_DOMAIN_BITS     7
 #define CDP_ROLE_BITS       3
-#define CDP_TAG_BITS        cdp_bitsof(cdpTag)
+//#define CDP_TAG_BITS        cdp_bitsof(cdpTag)
 #define CDP_TAG_MAXVAL      ((cdpTag)-1)
-#define CDP_ATTRIB_BITS     cdp_bitsof(cdpAttribute)
+//#define CDP_ATTRIB_BITS     cdp_bitsof(cdpAttribute)
 
 typedef struct {
     union {
@@ -318,7 +318,7 @@ typedef struct {
 
 
 enum _cdpDomain {
-    CDP_DOMAIN_RECORD,
+    CDP_DOMAIN_RECORD,          // A symbolic domain used to indicate a pure parent record without actual data.
     CDP_DOMAIN_BINARY,
     CDP_DOMAIN_TEXT,
     CDP_DOMAIN_INTERFACE,
@@ -352,53 +352,35 @@ enum _cdpDomain {
 typedef uint64_t  cdpID;
 
 #defome CDP_ID_BITS             cdp_bitsof(cdpID)
-#define CDP_REC_FLAG_BITS       14
-#define CDP_AUTO_ID_BITS        (CDP_ID_BITS - CDP_REC_FLAG_BITS)
-#define CDP_AUTO_ID_MAXVAL      (((cdpID)(-1)) >> CDP_REC_FLAG_BITS)
-#define CDP_AUTO_ID             (CDP_AUTO_ID_MAXVAL + 1)
+#define CDP_RECD_FLAG_BITS      12
+#define CDP_NAME_BITS           (CDP_ID_BITS - CDP_RECD_FLAG_BITS)
+#define CDP_NAMECONV_BITS       2
+#define CDP_AUTO_ID_BITS        (CDP_NAME_BITS - CDP_NAMECONV_BITS)
+#define CDP_AUTO_ID_MAXVAL      (~(((cdpID)(-1)) << CDP_AUTO_ID_BITS))
 
 typedef struct {
   union {
     cdpID     _id;
     struct {
-      cdpID   naming:     2,                  // Naming (id) convention for this record.
-              recdata:    2,                  // Where the data is located.
+      cdpID   storage:    2,    // Data structure for children storage.
+              dictionary: 1,    // Children name ids must be unique.
 
-              storage:    2,                  // Data structure for children storage.
-              dictionary: 1,                  // Children name ids must be unique.
+              factual:    1,    // Record can't be modified anymore (but it still can be deleted).
+              priv:       1,    // Record (with all its children) is private (unlockable).
+              //hidden:     1,    // Data structure for children storage (it depends on the record type).
+              //system:     1,    // Record is part of the system and can't be modified or deleted.
 
-              factual:    1,                  // Record can't be modified anymore (but it still can be deleted).
-              hidden:     1,                  // Data structure for children storage (it depends on the record type).
-              priv:       1,                  // Record (with all its children) is private (unlockable).
-              system:     1,                  // Record is part of the system and can't be modified or deleted.
+              connected:  1,    // Record is connected (it can't skip the signal API).
+              baby:       1,    // On receiving any signal this record will first alert its parent.
 
-              shadowed:   1,                  // Record has shadow records (links pointing to it).
-              baby:       1,                  // On receiving any signal this record will first alert its parent.
-              connected:  1,                  // Record is connected (it can't skip the signal API).
+              recdata:    2,    // Where the data is located.
+              children:   1,    // Record has child records.
+              shadow:     2,    // If record has shadowing records (links pointing to it).
 
-              idvalue:    CDP_AUTO_ID_BITS;   // Name id assigned to this instance.
+              name: CDP_NAME_BITS; // Name id of this record instance (the first 2 MSB bits are the naming convention).
     };
   };
 } cdpMetarecord;
-
-enum _cdpRecordNaming {
-    CDP_NAMING_ID_LOCAL,        // Per-record numerical id.
-    CDP_NAMING_ID_GLOBAL,       // Global numerical id.
-    CDP_NAMING_TEXT_PDOMAIN,    // Per-domain indexed text id (mostly used for tags).
-    CDP_NAMING_TEXT_GENERAL,    // Cross-domain indexed text id.
-
-    CDP_NAMING_COUNT
-}
-#define CDP_NAMING_IS_TEXT_BIT  0x02
-
-enum _cdpRecordData {
-    CDP_RECDATA_IMMEDIATE,      // Register data is inside "_immediate" field of cdpRecord.
-    CDP_RECDATA_NEAR,           // Data is inside "_near" field of cdpData.
-    CDP_RECDATA_CONTINUE,       // Data starts at "_continue" field of cdpData.
-    CDP_RECDATA_FAR,            // Data is in address pointed by "_far" field of cdpData.
-
-    CDP_RECDATA_COUNT
-}
 
 enum _cdpRecordStorage {
     CDP_STORAGE_LINKED_LIST,    // Children stored in a doubly linked list.
@@ -409,33 +391,49 @@ enum _cdpRecordStorage {
     CDP_STORAGE_COUNT
 };
 
+enum _cdpRecordData {
+    CDP_RECDATA_IMMEDIATE,      // Data (tiny) is inside "_immediate" field of cdpRecord.
+    CDP_RECDATA_NEAR,           // Data (small) is inside "_near" field of cdpData.
+    CDP_RECDATA_DATA,           // Data starts at "_data" field of cdpData.
+    CDP_RECDATA_FAR             // Data is in address pointed by "_far" field of cdpData.
+}
 
-// Initial tag IDs (for a description see cdp_agent.h):
-enum _cdpRecordTagID {
-    CDP_TAG_VOID,
-    CDP_TAG_RECORD,
-
-    CDP_TAG_LIST,
-    CDP_TAG_QUEUE,
-    CDP_TAG_STACK,
-
-    CDP_TAG_RECORD_COUNT
+enum _cdpRecordShadowing {
+    CDP_SHADOW_NONE,            // No shadow records.
+    CDP_SHADOW_SINGLE,          // Single shadow record.
+    CDP_SHADOW_MULTIPLE,        // Multiple shadows.
 };
 
 
-//#define CDP_NAMEID_FLAG         (((cdpID)1) << (cdp_bitsof(cdpID) - 1))
-//#define CDP_NAMEID2TAG(name)    ((cdpTag)((name) & CDP_TAG_MAXVAL))
-//#define CDP_TAG2NAMEID(tag)     (CDP_NAMEID_FLAG | (cdpID)(tag))
-#define CDP_NAME_MINVAL         (CDP_TAG_MAXVAL + 1)
+enum _cdpRecordNaming {
+    CDP_NAMING_TEXT,            // Cross-domain indexed text id.
+    CDP_NAMING_TAG,             // Per-domain indexed text id.
+    CDP_NAMING_LOCAL,           // Per-record numerical id.
+    CDP_NAMING_GLOBAL,          // Global numerical id (it may be used with a system global autoID).
 
-// Initial name IDs:
+    CDP_NAMING_COUNT
+}
+
+cdp_id_from_naming(naming)      (((cdpID)((naming) & 3)) << CDP_AUTO_ID_BITS)
+cdp_id_to_naming(id)            (((id) >> CDP_AUTO_ID_BITS) & 3)
+cdp_id_to_text(textid)          ((textid) & cdp_id_from_naming(CDP_NAMING_TEXT))
+cdp_id_to_tag(tagid)            ((tagid) & cdp_id_from_naming(CDP_NAMING_TAG))
+cdp_id(nameid)                  ((nameid) & CDP_AUTO_ID_MAXVAL)
+
+#define CDP_AUTO_ID_VAL         CDP_AUTO_ID_MAXVAL
+#define CDP_AUTO_ID_LOCAL       (CDP_AUTO_ID_VAL & cdp_id_from_naming(CDP_NAMING_LOCAL))
+#define CDP_AUTO_ID_GLOBAL      (CDP_AUTO_ID_VAL & cdp_id_from_naming(CDP_NAMING_GLOBAL))
+
+cdp_id_is_auto(nameid)          ((nameid) & CDP_AUTO_ID_MAXVAL)
+
+
+// Initial text name IDs:
 enum _cdpInitialNameID {
-    CDP_NAME_ROOT = CDP_NAME_MINVAL,
+    CDP_NAME_VOID,
+    CDP_NAME_ROOT,
 
     CDP_NAME_ID_INITIAL_COUNT
 };
-
-#define CDP_NAME_INITIAL_COUNT  (CDP_NAME_ID_INITIAL_COUNT - CDP_NAME_ROOT)
 
 
 typedef struct _cdpRecord   cdpRecord;
@@ -450,12 +448,18 @@ typedef struct {
             void*   _far;       // Points to container of data value.
             cdpDel  destructor; // Data container destructor function.
           };
-          uintptr_t _continue[2];//Data value may start from here (optional).
+          uintptr_t _data[2];   // Data value starts from here (optional).
         };
       };
       uintptr_t     _near[3];   // Data value if it fits in here.
     };
 } cdpData;
+
+typedef struct {
+    unsigned        count;      // Number of record pointers.
+    unsigned        max;
+    cdpRecord*      record[];   // Dynamic array of records shadowing this one.
+} cdpShadow;
 
 struct _cdpRecord {
     cdpMetarecord   metarecord; // Meta about this record entry (including id, etc).
@@ -466,44 +470,46 @@ struct _cdpRecord {
         uintptr_t   _immediate; // Data value if it fits in here.
     };
 
-    void*           store;      // Pointer to parent storage structure (List, Array, Queue, RB-Tree).
-    void*           child;      // Pointer to child storage structure.
+    void*           store;      // Parent storage structure (List, Array, etc) where this record is in.
+    union {
+        void*       child;      // Pointer to child storage structure.
+
+        cdpRecord*  linked;     // A linked shadow record (if no children, see in cdpChdStore otherwise).
+        cdpShadow*  shadow;     // Structure for multiple linked records (if no children).
+    };
     cdpRecord*      self;       // Next instance of self (circular list ending in this very record).
 };
 
 typedef struct {
-    unsigned        count;      // Number of record pointers.
-    unsigned        max;
-    cdpRecord*      record[];   // Dynamic array of (local) links shadowing this one.
-} cdpShadow;
-
-typedef struct {
     cdpID           autoID;     // Auto-increment ID for naming contained records.
-    cdpRecord*      book;       // Parent book owning this child storage.
-    cdpShadow*      shadow;     // Pointer to a structure for managing multiple (linked) parents.
+    cdpRecord*      owner;      // Parent record owning this child storage.
+    union {
+        cdpRecord*  linked;     // A linked shadow record (when children, see in cdpRecord otherwise).
+        cdpShadow*  shadow;     // Shadow structure (if record has children).
+    };
     size_t          chdCount;   // Number of child records.
 } cdpChdStore;
 
-typedef int (*cdpCompare)(const cdpRecord* restrict, const cdpRecord* restrict, void*);
-
 typedef struct {
-    unsigned    count;
-    unsigned    max;
-    cdpID       id[];
-} cdpPath;
-
-typedef struct {
-    cdpRecord*  record;
-    cdpRecord*  parent;
-    cdpRecord*  next;
-    cdpRecord*  prev;
-    size_t      position;
-    unsigned    depth;
+    cdpRecord*      record;
+    cdpRecord*      parent;
+    cdpRecord*      next;
+    cdpRecord*      prev;
+    size_t          position;
+    unsigned        depth;
 } cdpBookEntry;
+
+typedef int (*cdpCompare)(const cdpRecord* restrict, const cdpRecord* restrict, void*);
 
 typedef bool (*cdpTraverse)(cdpBookEntry*, void*);
 
 typedef bool (*cdpAgent)(cdpRecord* task);
+
+typedef struct {
+    unsigned        count;
+    unsigned        max;
+    cdpID           id[];
+} cdpPath;
 
 
 /*
