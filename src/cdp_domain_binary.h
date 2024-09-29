@@ -36,9 +36,8 @@ CDP_ATTRIBUTE_STRUCT(cdpBinaryAttribute,
                 encryption: 2,      // Encryption method.
                 // -----------
 
-                _reserved:  3;
-
-    uint16_t    _available;         // Available for custom user-defined attribute/value storage.
+                _reserved:  3;      // ToDo: expand to OS and HW related stuff.
+    uint16_t    _reserved2;
 );
 
 
@@ -48,11 +47,10 @@ enum _cdpBinaryRole {
     CDP_ROLE_BIN_ENUMERATION,   // Indexed enumeration where values translate to meaning.
     CDP_ROLE_BIN_BOOLEAN,       // True or false value.
     CDP_ROLE_BIN_ADDRESS,       // Local memory pointer, address, size or offset.
-    CDP_ROLE_BIN_LENGTH,        // Length of a specific dimension.
     CDP_ROLE_BIN_INTEGER,       // Integer value.
     CDP_ROLE_BIN_DECIMAL,       // Decimal floating point value.
     CDP_ROLE_BIN_FLOAT,         // Binary floating point value.
-    CDP_ROLE_BIN_COMPLEX        // Binary complex floating point value.
+    CDP_ROLE_BIN_COMPLEX,       // Binary complex floating point value.
 };
 
 enum _cdpBinaryRoleShited {
@@ -94,7 +92,16 @@ enum _cdpBinaryTagID {
     CDP_TAG_BIN_LENGTH2D,
     CDP_TAG_BIN_LENGTH3D,
     CDP_TAG_BIN_LENGTH4D,
+
+    CDP_TAG_BIN_TENSOR_ORD, // Tensor order (if over 4 dimensions).
+    CDP_TAG_BIN_TENSOR_LEN, // A vector with arbitrary dimension lengths for a tensor.
     //
+
+    CDP_TAG_BIN_LINK,           // Link to other record.
+    CDP_TAG_BIN_AGENT,          // Address of agent function.
+    CDP_TAG_BIN_TAG,
+    CDP_TAG_BIN_ID,
+    CDP_TAG_BIN_PATCH,
 
     CDP_TAG_BIN_BYTE,
     CDP_TAG_BIN_UINT16,
@@ -111,9 +118,9 @@ enum _cdpBinaryTagID {
     CDP_TAG_BIN_FLOAT32,
     CDP_TAG_BIN_FLOAT64,
     CDP_TAG_BIN_FLOAT128,
-    CDP_TAG_BIN_COMPLEX32,      // Complex number as a vector of 2 Float32.
-    CDP_TAG_BIN_COMPLEX64,      // Complex number as a vector of 2 Float64.
-    CDP_TAG_BIN_COMPLEX128,     // Complex number as a vector of 2 Float128.
+    CDP_TAG_BIN_COMPLEX32,      // Complex number as an array of 2 Float32.
+    CDP_TAG_BIN_COMPLEX64,      // Complex number as an array of 2 Float64.
+    CDP_TAG_BIN_COMPLEX128,     // Complex number as an array of 2 Float128.
     CDP_TAG_BIN_VECT2D,         // Vector of 2 Float32.
     CDP_TAG_BIN_VECT3D,         // Vector of 3 Float32.
     CDP_TAG_BIN_VECT4D,         // Vector of 4 Float32.
@@ -123,13 +130,6 @@ enum _cdpBinaryTagID {
 
     CDP_TAG_BIN_MURMUR64,
     CDP_TAG_BIN_MURMUR128,
-
-    CDP_TAG_BIN_LINK,           // Link to other record.
-    CDP_TAG_BIN_AGENT,          // Address of agent function.
-
-    CDP_TAG_BIN_TAG,
-    CDP_TAG_BIN_ID,
-    CDP_TAG_BIN_PATCH,
 
     CDP_TAG_BINARY_COUNT
 };

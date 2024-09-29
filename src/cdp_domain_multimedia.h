@@ -36,13 +36,13 @@ CDP_ATTRIBUTE_STRUCT(cdpMultimediaAttribute,
                     projection:   2,  // Projection for 360 image/video.
 
                     srt:          1,  // Subs use SRT (SubRip Text), SSA (SubStation Alpha) otherwise.
-                    english:      1,  // English sound/sub available.
-                    spanish:      1,  // Spanish sound/sub available.
-                    indi:         1,  // Indi sound/sub available.
-                    mandarin:     1,  // Chinese mandarin sound/sub available.
-                    russian:      1,  // Russian sound/sub available.
+                    //english:      1,  // English sound/sub available.
+                    //spanish:      1,  // Spanish sound/sub available.
+                    //indi:         1,  // Indi sound/sub available.
+                    //mandarin:     1,  // Chinese mandarin sound/sub available.
+                    //russian:      1,  // Russian sound/sub available.
 
-                    _reserved:    5;
+                    _reserved:    10;   // ToDo: expand to include vector/3D secenes and (stand alone) animations.
 );
 
 enum _cdpMultimediaRole {
@@ -149,6 +149,9 @@ enum _cdpMultimediaTagID {
 
     CDP_TAG_MEDIA_ANIM_NAME,    // Name/id of animations.
     CDP_TAG_MEDIA_ANIM_INDEX,   // Index of animation.
+
+    CDP_TAG_MEDIA_LANGUAGE,     // A list of per-language audio tracks.
+    CDP_TAG_MEDIA_SUBTITLE,     // A list of per-language subtitle tracks.
     //
 
     CDP_TAG_MEDIA_ICON,

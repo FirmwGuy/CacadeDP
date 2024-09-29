@@ -364,10 +364,6 @@ typedef struct {
       cdpID   naming:     2,                  // Naming (id) convention for this record.
               recdata:    2,                  // Where the data is located.
 
-              shadowed:   1,                  // Record has shadow records (links pointing to it).
-              baby:       1,                  // On receiving any signal this record will first alert its parent.
-              connected:  1,                  // Record is connected (it can't skip the signal API).
-
               storage:    2,                  // Data structure for children storage.
               dictionary: 1,                  // Children name ids must be unique.
 
@@ -376,19 +372,24 @@ typedef struct {
               priv:       1,                  // Record (with all its children) is private (unlockable).
               system:     1,                  // Record is part of the system and can't be modified or deleted.
 
-              idvalue:    CDP_AUTO_ID_BITS;   // Reserved for unique name (id) assigned to this instance.
+              shadowed:   1,                  // Record has shadow records (links pointing to it).
+              baby:       1,                  // On receiving any signal this record will first alert its parent.
+              connected:  1,                  // Record is connected (it can't skip the signal API).
+
+              idvalue:    CDP_AUTO_ID_BITS;   // Name id assigned to this instance.
     };
   };
 } cdpMetarecord;
 
 enum _cdpRecordNaming {
-    CDP_NAMING_LOCAL,           // Unique per-record numerical id.
-    CDP_NAMING_DOMAIN,          // Unique per-domain tag id.
-    CDP_NAMING_GLOBAL,          // Unique global numerical id.
-    //CDP_NAMING_CUSTOM,        // Use the index (tag) of a custom sort function.
+    CDP_NAMING_ID_LOCAL,        // Per-record numerical id.
+    CDP_NAMING_ID_GLOBAL,       // Global numerical id.
+    CDP_NAMING_TEXT_PDOMAIN,    // Per-domain indexed text id (mostly used for tags).
+    CDP_NAMING_TEXT_GENERAL,    // Cross-domain indexed text id.
 
     CDP_NAMING_COUNT
 }
+#define CDP_NAMING_IS_TEXT_BIT  0x02
 
 enum _cdpRecordData {
     CDP_RECDATA_IMMEDIATE,      // Register data is inside "_immediate" field of cdpRecord.
@@ -446,28 +447,28 @@ typedef struct {
         size_t      capacity;   // Buffer capacity in bytes.
         union {
           struct {
-            cdpDel  destructor; // Destructor function.
-            void*   _far;       // Container of data.
+            void*   _far;       // Points to container of data value.
+            cdpDel  destructor; // Data container destructor function.
           };
-          uintptr_t _continue[2];
+          uintptr_t _continue[2];//Data value may start from here (optional).
         };
       };
-      uintptr_t     _near[3];
+      uintptr_t     _near[3];   // Data value if it fits in here.
     };
 } cdpData;
 
 struct _cdpRecord {
     cdpMetarecord   metarecord; // Meta about this record entry (including id, etc).
 
-    cdpMetadata     metadata;   // Metadata about what is contained in "data".
+    cdpMetadata     metadata;   // Metadata about what is contained in 'data'.
     union {
         cdpData*    data;       // Address of data buffer.
-        uintptr_t   _immediate; // Data value if it fits.
+        uintptr_t   _immediate; // Data value if it fits in here.
     };
 
     void*           store;      // Pointer to parent storage structure (List, Array, Queue, RB-Tree).
     void*           child;      // Pointer to child storage structure.
-    cdpRecord*      self;       // Next instance of self (circular list).
+    cdpRecord*      self;       // Next instance of self (circular list ending in this very record).
 };
 
 typedef struct {

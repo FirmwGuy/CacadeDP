@@ -27,7 +27,6 @@
 
 CDP_ATTRIBUTE_STRUCT(cdpTextAttribute,
     cdpAttribute    encoding:   3,      // Text encoding (UTF8, Unicode, ISO90.., etc).
-                    type:       3,      // Text type (title, paragraph, etc).
                     heading:    3,      // Heading level value for titles (H1, H2, etc).
                     listing:    2,      // Type of listing for table/list (enumerated, definition, etc).
                     formating:  3,      // Text format (bold, italic, etc).
@@ -36,7 +35,7 @@ CDP_ATTRIBUTE_STRUCT(cdpTextAttribute,
                     language:   6,      // Language of content (including programming language for scripts).
                     media:      2,      // Embedded media type (image, video, etc).
 
-                    _reserved:  5;
+                    _reserved:  8;      // ToDO: expand to include DOM things.
 );
 
 
@@ -58,13 +57,6 @@ enum _cdpTextEncoding {
     CDP_ENCOD_SHIFT_JIS,        // Japanse.
     CDP_ENCOD_BIG5,             // Cantonese chinese.
     CDP_ENCOD_GB18030,          // Simplified chinese.
-};
-
-enum _cdpTextType {
-    CDP_TT_HEADER,
-    CDP_TT_TITLE,
-    CDP_TT_PARAGRAPH,
-    CDP_TT_NOTE,
 };
 
 enum _cdpTextListing {
@@ -130,9 +122,10 @@ enum _cdpTextTagID {
     CDP_TAG_TXT_WORD,
     CDP_TAG_TXT_LINE,
     CDP_TAG_TXT_PARAGRAPH,
-    CDP_TAG_TXT_FOOTNOTE,
-    CDP_TAG_TXT_FORMULA,
     CDP_TAG_TXT_TABLE,
+    CDP_TAG_TXT_FORMULA,
+    CDP_TAG_TXT_FOOTNOTE,
+    CDP_TAG_TXT_HEADER,
 
     CDP_TAG_TXT_TITLE,
     CDP_TAG_TXT_ABSTRACT,
