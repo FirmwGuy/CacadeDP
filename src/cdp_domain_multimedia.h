@@ -141,8 +141,7 @@ enum _cdpMultimediaProjection {
 
 enum _cdpMultimediaTagID {
     // Children
-    CDP_TAG_MEDIA_RESOLUTION,        // Image/video width in pixels.
-    CDP_TAG_MEDIA_HEIGHT,       // Image/video height in pixels.
+    CDP_TAG_MEDIA_RESOLUTION,   // Image/video width in pixels.
 
     CDP_TAG_MEDIA_DURATION,     // Duration in mili-seconds.
     CDP_TAG_MEDIA_FRAMES,       // Duration in frames.

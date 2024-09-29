@@ -124,6 +124,9 @@ enum _cdpBinaryTagID {
     CDP_TAG_BIN_MURMUR64,
     CDP_TAG_BIN_MURMUR128,
 
+    CDP_TAG_BIN_LINK,           // Link to other record.
+    CDP_TAG_BIN_AGENT,          // Address of agent function.
+
     CDP_TAG_BIN_TAG,
     CDP_TAG_BIN_ID,
     CDP_TAG_BIN_PATCH,

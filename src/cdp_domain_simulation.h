@@ -26,46 +26,51 @@
 
 
 CDP_ATTRIBUTE_STRUCT(cdpSimulationAttribute,
-    uint16_t      terrain:    4,  // Distinguishes types of physical structures (e.g., wall, floor, ceiling).
-                  building:
-                  transform:  4,  // Defines interaction types (e.g., open, close, activate).
-                  invert:  4,  // Defines interaction types (e.g., open, close, activate).
-                  //--------
-
-                  event:    4,  // Generated interface events.
-                  state:    2,  // State of event (doing, committing, etc).
-                  device:   4;  // Hardware used for I/O.
-    uint16_t      id;           // Numerical identifier (handle) of interface object.
+    cdpAttribute  element:      4,  // Distinguishes types of structures (e.g., wall, character).
+                  interaction:  2,  // Type of interaction.
 );
 
 enum _cdpSimulationRole {
     CDP_ROLE_SIM_ENTITY,        // World entity (anything that occupies space).
     CDP_ROLE_SIM_CONTAINER,     // Basic objects or containers that hold space and other entities.
-    CDP_ROLE_SIM_ANCHOR,        // Non-rendering visual aspects, such as the layout of a scene or positional markers.
     CDP_ROLE_SIM_ACTION,        // Actions or operations that entities can perform.
     CDP_ROLE_SIM_INTERACTIVE,   // Entities designed for world interaction, like doors or moving platforms.
     CDP_ROLE_SIM_SETUP,         // Simulation parameters or system settings that affect the behavior of the simulation.
 };
 
 enum _cdpSimulationElement {
-    CDP_SIM_PHYSIC_WALL,        // Distinguishes types of physical structures (e.g., wall, floor, ceiling).
-    CDP_SIM_PHYSIC_FLOOR,        //
-    CDP_SIM_PHYSIC_CEILING,        //
+    CDP_SIM_ELEMENT_CHARACTER,  //
+    CDP_SIM_ELEMENT_VEHICLE,    //
+    CDP_SIM_ELEMENT_TOOL,       //
+    CDP_SIM_ELEMENT_FURNITURE,  //
+
+    CDP_SIM_ELEMENT_WALL,       //
+    CDP_SIM_ELEMENT_GROUND,     //
+    CDP_SIM_ELEMENT_VEGETATION, //
+
+    CDP_SIM_ELEMENT_PARTICLE,   // Used for effects and overlays.
 };
 
 enum _cdpSimulationInteraction {
-    CDP_SIM_INTERACT_OPEN,        //
-    CDP_SIM_INTERACT_CLOSE,        //
-    CDP_SIM_INTERACT_ACTIVATE,        //
+    CDP_SIM_INTERACT_OPEN,      //
+    CDP_SIM_INTERACT_CLOSE,     //
+    CDP_SIM_INTERACT_ACTIVATE,  //
 };
 
 
 enum _cdpSimulationTagID {
     // Children
-    CDP_TAG_SIM_POSITION,     // 3D position vector.
-    CDP_TAG_SIM_TRANSFORM,     //
-    CDP_TAG_SIM_INVTRANSF,     //
-    CDP_TAG_SIM_,     //
+    CDP_TAG_SIM_POSITION,       // Position vector with respect to anchor.
+    CDP_TAG_SIM_ANCHOR,         // Anchor position with respect to parent.
+    CDP_TAG_SIM_LAYER,          // World layer it belongs to.
+
+    CDP_TAG_SIM_TRANSFORM,      // Transform from object space to parent space (including translation, scaling/dilatation, etc).
+    CDP_TAG_SIM_INVTRANSF,      // Inverse transform (from parent space to object space).
+
+    CDP_TAG_SIM_BOUNDING,       // Bounding box, volume, etc.
+    CDP_TAG_SIM_SHAPE,          // Shape of element.
+
+    CDP_TAG_SIM_COLLISION,      // Rule to resolve collisions and positioning.
     //
 
     CDP_TAG_SIM_,     //

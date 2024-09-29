@@ -37,29 +37,18 @@
     Key Components
     --------------
 
-    * Record: The fundamental unit within the system, capable of acting
-    as either a book, a register, a link, etc.
-
-    * Book: A type of record that contains child records. Records are
-    kept in the order they are added. Duplicated content is allowed.
-
-    * Register: A type of record designed to store actual data, either
-    directly within the record if small enough or through a pointer to
-    larger data sets.
+    * Record: The fundamental unit within the system, capable of storing data
+    and having children records at the same time.
 
     * Link: A record that points to another record.
 
     * Metadata and Flags: Each record contains metadata, including
-    flags that specify the record's characteristics, an identifier
-    indicating the record's role or ID within its parent, and a
-    "type" tag, enabling precise navigation and representation within
-    the hierarchy.
+    flags that specify the record's characteristics, and identifier
+    indicating the record's role or ID within its parent.
 
-    The system is optimized for efficient storage and access, fitting
-    within processor cache lines to enhance performance. It supports
-    navigating from any record to the root of the database,
-    reconstructing paths within the data hierarchy based on field
-    identifiers in parent records.
+    The system supports navigating from any record to the root of the database,
+    reconstructing paths within the data hierarchy based on field identifiers
+    in parent records.
 
     Goals
     -----
@@ -81,7 +70,7 @@
     focusing on cache efficiency and operation speed for insertions,
     deletions, and lookups.
 
-    Book and Storage Techniques
+    Children Storage Techniques
     ---------------------------
 
     * cdpVariantBook: Serves as a versatile container within the
@@ -114,7 +103,7 @@
       access.
 
     * Locking System: The lock mechanism is implemented by serializing
-    all IOs and keeping a list of currently locked book paths and a
+    all IOs and keeping a list of currently locked record paths and a
     list of locked register pointers. On each input/output the system
     checks on the lists depending of the specified record.
 
@@ -137,10 +126,6 @@
 #include "cdp_util.h"
 
 
-typedef struct _cdpRecord       cdpRecord;
-typedef struct _cdpPath         cdpPath;
-
-
 /* ### **cdpMetadata: A Comprehensive 64-Bit Encoding System for
 Cross-Domain Knowledge Representation**
 
@@ -160,7 +145,7 @@ each serving a critical function in the encoding process:
 
 1. **Domain Selector (7 bits)**: Identifies the knowledge domain (up to
 128 domains).
-2. **Grammar Role (3 bits)**: Defines the functional category or type
+2. **Role (3 bits)**: Defines the functional category or type
 of entity within its domain (up to 8, with potential for extension).
 3. **Entity ID (16 bits)**: Uniquely identifies specific entities or
 structures within a domain (64k).
@@ -171,7 +156,8 @@ context-specific information about entities within a particular domain
 using enumerations and flags.1111111111111111
 
 The objective of this fields is not to provide quantities (values) but
-qualities of the data being represented.
+rather qualities of the data being represented. Values are intended to be
+stored in child records.
 
 ---
 
@@ -302,7 +288,6 @@ and domain-appropriate.
 
 typedef uint16_t  cdpTag;
 typedef uint32_t  cdpAttribute;
-typedef uint64_t  cdpID;
 
 #define CDP_DOMAIN_BITS     7
 #define CDP_ROLE_BITS       3
@@ -310,9 +295,7 @@ typedef uint64_t  cdpID;
 #define CDP_TAG_MAXVAL      ((cdpTag)-1)
 #define CDP_ATTRIB_BITS     cdp_bitsof(cdpAttribute)
 
-typedef union {
-  cdpID             _id;                            // The whole structure as a single number.
-  struct {
+typedef struct {
     union {
       cdpAttribute  _name;                          // The header attributes (tag, domain, etc) as a single value.
       struct {
@@ -331,7 +314,6 @@ typedef union {
       };
     };
     cdpAttribute    _attribute;                     // Flags/bitfields for domain specific attributes as a single value.
-  };
 } cdpMetadata;
 
 
@@ -363,88 +345,75 @@ enum _cdpDomain {
     static_assert(sizeof(cdpAttribute) == sizeof(n))
 
 
-
 /*
- * Record Domain
+ * Record Structures
  */
 
-#define CDP_REC_ATTRIB_BITS     11
-#define CDP_AUTO_ID_BITS        (CDP_TAG_BITS + CDP_ATTRIB_BITS - CDP_REC_ATTRIB_BITS)
-#define CDP_AUTO_ID_MAXVAL      (((cdpID)(-1)) >> (cdp_bitsof(cdpID) - CDP_AUTO_ID_BITS))
+typedef uint64_t  cdpID;
+
+#defome CDP_ID_BITS             cdp_bitsof(cdpID)
+#define CDP_REC_FLAG_BITS       14
+#define CDP_AUTO_ID_BITS        (CDP_ID_BITS - CDP_REC_FLAG_BITS)
+#define CDP_AUTO_ID_MAXVAL      (((cdpID)(-1)) >> CDP_REC_FLAG_BITS)
 #define CDP_AUTO_ID             (CDP_AUTO_ID_MAXVAL + 1)
 
-CDP_ATTRIBUTE_STRUCT(cdpRecordAttribute,
-    cdpAttribute
-        // Core properties
-        storage:    2,                  // Data structure for children storage (it depends on the record role).
-        naming:     2,                  // Naming convention for this record.
+typedef struct {
+  union {
+    cdpID     _id;
+    struct {
+      cdpID   naming:     2,                  // Naming (id) convention for this record.
+              recdata:    2,                  // Where the data is located.
 
-        // Record entry properties
-        factual:    1,                  // Record can't be modified anymore (but it still can be deleted).
-        //hidden:     1,                  // Data structure for children storage (it depends on the record type).
-        //priv:       1,                  // Record (with all its children) is private (unlockable).
-        //system:     1,                  // Record is part of the system and can't be modified or deleted.
-        // --------
+              shadowed:   1,                  // Record has shadow records (links pointing to it).
+              baby:       1,                  // On receiving any signal this record will first alert its parent.
+              connected:  1,                  // Record is connected (it can't skip the signal API).
 
-        // Agency properties
-        baby:       1,                  // On receiving any signal this record will first alert its parent.
-        connected:  1,                  // Record is connected (it can't skip the signal API).
+              storage:    2,                  // Data structure for children storage.
+              dictionary: 1,                  // Children name ids must be unique.
 
-        // Record system properties
-        metapack:   1,                  // Record has 3 or more metadata.
-        regdata:    2,                  // Where register data is located.
-        shadowed:   1,                  // Record has shadow records (links pointing to it).
-        idbits:     CDP_AUTO_ID_BITS;   // Reserved for unique name (id) assigned to this instance.
-);
+              factual:    1,                  // Record can't be modified anymore (but it still can be deleted).
+              hidden:     1,                  // Data structure for children storage (it depends on the record type).
+              priv:       1,                  // Record (with all its children) is private (unlockable).
+              system:     1,                  // Record is part of the system and can't be modified or deleted.
 
-
-#define CDP_ROLE_VOID       0x00    // This is the "nothing" type.
-#define CDP_ROLE_REGISTER   0x01
-
-#define CDP_ROLE_BOOK       0x02    // Second bit acts as a book-or-dict flag.
-#define CDP_ROLE_DICTIONARY 0x03
-
-#define CDP_ROLE_LINK       0x04    // Third bit acts as a link/agent flag.
-#define CDP_ROLE_AGENT      0x05
-
-#define CDP_ROLE_RECORD_COUNT   6
-
-
-enum _cdpRecordStorage {
-    CDP_STORAGE_LINKED_LIST,      // Children stored in a doubly linked list.
-    CDP_STORAGE_ARRAY,            // Children stored in an array.
-    CDP_STORAGE_PACKED_QUEUE,     // Children stored in a packed queue (record can't be a dictionary).
-    CDP_STORAGE_RED_BLACK_T,      // Children stored in a red-black tree (record must be a dictionary).
-    //
-    CDP_STORAGE_COUNT
-};
+              idvalue:    CDP_AUTO_ID_BITS;   // Reserved for unique name (id) assigned to this instance.
+    };
+  };
+} cdpMetarecord;
 
 enum _cdpRecordNaming {
-    CDP_NAMING_LOCAL,       // Unique per-book numerical id.
-    CDP_NAMING_DOMAIN,      // Unique per-domain tag id.
-    CDP_NAMING_GLOBAL,      // Unique global numerical id.
-    //CDP_NAMING_CUSTOM,    // Use the index (tag) of a custom sort function.
+    CDP_NAMING_LOCAL,           // Unique per-record numerical id.
+    CDP_NAMING_DOMAIN,          // Unique per-domain tag id.
+    CDP_NAMING_GLOBAL,          // Unique global numerical id.
+    //CDP_NAMING_CUSTOM,        // Use the index (tag) of a custom sort function.
 
     CDP_NAMING_COUNT
 }
 
-enum _cdpRecordRegData {
-    CDP_REGDATA_IMMEDIATE,  // Register data is inside "_immediate" field of cdpRecord.
-    CDP_REGDATA_NEAR,       // Data is inside "_near" field of cdpData.
-    CDP_REGDATA_CONTINUE,   // Data starts at "_continue" field of cdpData.
-    CDP_REGDATA_FAR,        // Data is in address pointed by "_far" field of cdpData.
+enum _cdpRecordData {
+    CDP_RECDATA_IMMEDIATE,      // Register data is inside "_immediate" field of cdpRecord.
+    CDP_RECDATA_NEAR,           // Data is inside "_near" field of cdpData.
+    CDP_RECDATA_CONTINUE,       // Data starts at "_continue" field of cdpData.
+    CDP_RECDATA_FAR,            // Data is in address pointed by "_far" field of cdpData.
 
-    CDP_REGDATA_COUNT
+    CDP_RECDATA_COUNT
 }
+
+enum _cdpRecordStorage {
+    CDP_STORAGE_LINKED_LIST,    // Children stored in a doubly linked list.
+    CDP_STORAGE_ARRAY,          // Children stored in an array.
+    CDP_STORAGE_PACKED_QUEUE,   // Children stored in a packed queue (record can't be a dictionary).
+    CDP_STORAGE_RED_BLACK_T,    // Children stored in a red-black tree (record must be a dictionary).
+    //
+    CDP_STORAGE_COUNT
+};
 
 
 // Initial tag IDs (for a description see cdp_agent.h):
 enum _cdpRecordTagID {
-    // Core tags
     CDP_TAG_VOID,
     CDP_TAG_RECORD,
 
-    // Book tags
     CDP_TAG_LIST,
     CDP_TAG_QUEUE,
     CDP_TAG_STACK,
@@ -468,26 +437,17 @@ enum _cdpInitialNameID {
 #define CDP_NAME_INITIAL_COUNT  (CDP_NAME_ID_INITIAL_COUNT - CDP_NAME_ROOT)
 
 
-/*
- * Record Structures
- */
+typedef struct _cdpRecord   cdpRecord;
 
 typedef struct {
-    unsigned        count;
-    unsigned        max;
-    cdpMetadata     metadata[];
-} cdpMetapack;
-
-typedef struct {
-    size_t          size;           // Data size in bytes.
+    size_t          size;       // Data size in bytes.
     union {
       struct {
-        size_t      capacity;       // Buffer capacity in bytes.
+        size_t      capacity;   // Buffer capacity in bytes.
         union {
           struct {
-            cdpDel  destructor;     // Destructor function.
-            //size_t  refCount;
-            void*   _far;           // Container of data.
+            cdpDel  destructor; // Destructor function.
+            void*   _far;       // Container of data.
           };
           uintptr_t _continue[2];
         };
@@ -497,39 +457,39 @@ typedef struct {
 } cdpData;
 
 struct _cdpRecord {
-    cdpMetadata     metaRecord;     // Metadata about this record entry (including id, etc).
+    cdpMetarecord   metarecord; // Meta about this record entry (including id, etc).
+
+    cdpMetadata     metadata;   // Metadata about what is contained in "data".
     union {
-      cdpMetadata   metadata;       // Metadata about the information contained in this record (including tag, etc).
-      cdpMetapack*  metapack;       // Metadata pack for contained data.
+        cdpData*    data;       // Address of data buffer.
+        uintptr_t   _immediate; // Data value if it fits.
     };
-    union {
-        void*       data;           // Data, either for a book, a register or a link.
-        uintptr_t   _immediate;     // The register value if it fits.
-    };
-    void*           store;          // Pointer to the parent's storage structure (List, Array, Queue, RB-Tree).
+
+    void*           store;      // Pointer to parent storage structure (List, Array, Queue, RB-Tree).
+    void*           child;      // Pointer to child storage structure.
+    cdpRecord*      self;       // Next instance of self (circular list).
 };
+
+typedef struct {
+    unsigned        count;      // Number of record pointers.
+    unsigned        max;
+    cdpRecord*      record[];   // Dynamic array of (local) links shadowing this one.
+} cdpShadow;
+
+typedef struct {
+    cdpID           autoID;     // Auto-increment ID for naming contained records.
+    cdpRecord*      book;       // Parent book owning this child storage.
+    cdpShadow*      shadow;     // Pointer to a structure for managing multiple (linked) parents.
+    size_t          chdCount;   // Number of child records.
+} cdpChdStore;
 
 typedef int (*cdpCompare)(const cdpRecord* restrict, const cdpRecord* restrict, void*);
 
 typedef struct {
-    unsigned    count;      // Number of record pointers.
-    unsigned    max;
-    cdpRecord*  record[];   // Dynamic array of (local) links shadowing this one.
-} cdpShadow;
-
-typedef struct {
-    cdpRecord*  book;       // Parent book owning this child storage.
-    cdpShadow*  shadow;     // Pointer to a structure for managing multiple (linked) parents.
-    cdpID       autoID;     // Auto-increment ID for naming contained records.
-    size_t      chdCount;   // Number of child records.
-} cdpChdStore;
-
-
-struct _cdpPath {
     unsigned    count;
     unsigned    max;
     cdpID       id[];
-};
+} cdpPath;
 
 typedef struct {
     cdpRecord*  record;
