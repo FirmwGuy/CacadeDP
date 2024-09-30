@@ -357,6 +357,7 @@ typedef uint64_t  cdpID;
 #define CDP_NAMECONV_BITS       2
 #define CDP_AUTO_ID_BITS        (CDP_NAME_BITS - CDP_NAMECONV_BITS)
 #define CDP_AUTO_ID_MAXVAL      (~(((cdpID)(-1)) << CDP_AUTO_ID_BITS))
+#define CDP_AUTO_ID_MAX         (CDP_AUTO_ID_MAXVAL - 1)
 
 typedef struct {
   union {
@@ -392,10 +393,9 @@ enum _cdpRecordStorage {
 };
 
 enum _cdpRecordData {
-    CDP_RECDATA_IMMEDIATE,      // Data (tiny) is inside "_immediate" field of cdpRecord.
-    CDP_RECDATA_NEAR,           // Data (small) is inside "_near" field of cdpData.
+    CDP_RECDATA_NEAR,           // Data (small) is inside "_near" field of cdpRecord.
     CDP_RECDATA_DATA,           // Data starts at "_data" field of cdpData.
-    CDP_RECDATA_FAR             // Data is in address pointed by "_far" field of cdpData.
+    CDP_RECDATA_FAR,            // Data is in address pointed by "_far" field of cdpData.
 }
 
 enum _cdpRecordShadowing {
@@ -414,17 +414,18 @@ enum _cdpRecordNaming {
     CDP_NAMING_COUNT
 }
 
-cdp_id_from_naming(naming)      (((cdpID)((naming) & 3)) << CDP_AUTO_ID_BITS)
-cdp_id_to_naming(id)            (((id) >> CDP_AUTO_ID_BITS) & 3)
-cdp_id_to_text(textid)          ((textid) & cdp_id_from_naming(CDP_NAMING_TEXT))
-cdp_id_to_tag(tagid)            ((tagid) & cdp_id_from_naming(CDP_NAMING_TAG))
-cdp_id(nameid)                  ((nameid) & CDP_AUTO_ID_MAXVAL)
+#define cdp_id_from_naming(naming)  (((cdpID)((naming) & 3)) << CDP_AUTO_ID_BITS)
+#define cdp_id_to_naming(id)        (((id) >> CDP_AUTO_ID_BITS) & 3)
+#define cdp_id_to_text(textid)      ((textid) & cdp_id_from_naming(CDP_NAMING_TEXT))
+#define cdp_id_to_tag(tagid)        ((tagid) & cdp_id_from_naming(CDP_NAMING_TAG))
+#define cdp_id(nameid)              ((nameid) & CDP_AUTO_ID_MAXVAL)
 
-#define CDP_AUTO_ID_VAL         CDP_AUTO_ID_MAXVAL
-#define CDP_AUTO_ID_LOCAL       (CDP_AUTO_ID_VAL & cdp_id_from_naming(CDP_NAMING_LOCAL))
-#define CDP_AUTO_ID_GLOBAL      (CDP_AUTO_ID_VAL & cdp_id_from_naming(CDP_NAMING_GLOBAL))
+#define CDP_AUTO_ID_USE             CDP_AUTO_ID_MAXVAL
+#define CDP_AUTO_ID_LOCAL           (CDP_AUTO_ID_USE & cdp_id_from_naming(CDP_NAMING_LOCAL))
+#define CDP_AUTO_ID_GLOBAL          (CDP_AUTO_ID_USE & cdp_id_from_naming(CDP_NAMING_GLOBAL))
 
-cdp_id_is_auto(nameid)          ((nameid) & CDP_AUTO_ID_MAXVAL)
+#define cdp_id_valid(nameid)        (cdp_id(nameid) < CDP_AUTO_ID_MAX) /* ToDo: "name" max check, tag check.*/
+#define cdp_id_is_auto(nameid)      ((nameid) & CDP_AUTO_ID_MAXVAL)
 
 
 // Initial text name IDs:
@@ -440,18 +441,13 @@ typedef struct _cdpRecord   cdpRecord;
 
 typedef struct {
     size_t          size;       // Data size in bytes.
+    size_t          capacity;   // Buffer capacity in bytes.
     union {
-      struct {
-        size_t      capacity;   // Buffer capacity in bytes.
-        union {
-          struct {
-            void*   _far;       // Points to container of data value.
-            cdpDel  destructor; // Data container destructor function.
-          };
-          uintptr_t _data[2];   // Data value starts from here (optional).
+        struct {
+           void*    _far;       // Points to container of data value.
+           cdpDel   destructor; // Data container destructor function.
         };
-      };
-      uintptr_t     _near[3];   // Data value if it fits in here.
+        uintptr_t   _data[2];   // Data value starts from here (optional).
     };
 } cdpData;
 
@@ -467,12 +463,12 @@ struct _cdpRecord {
     cdpMetadata     metadata;   // Metadata about what is contained in 'data'.
     union {
         cdpData*    data;       // Address of data buffer.
-        uintptr_t   _immediate; // Data value if it fits in here.
+        uintptr_t   _near;      // Data value if it fits in here.
     };
 
     void*           store;      // Parent storage structure (List, Array, etc) where this record is in.
     union {
-        void*       child;      // Pointer to child storage structure.
+        void*       children;   // Pointer to child storage structure.
 
         cdpRecord*  linked;     // A linked shadow record (if no children, see in cdpChdStore otherwise).
         cdpShadow*  shadow;     // Structure for multiple linked records (if no children).
@@ -535,7 +531,7 @@ static inline cdpID cdp_record_type      (const cdpRecord* record)  {assert(reco
 static inline cdpID cdp_record_tag       (const cdpRecord* record)  {assert(record);  return record->metadata.tag;}
 
 static inline cdpID cdp_record_get_id(const cdpRecord* record)      {assert(record);  return record->metadata.id;}
-static inline void  cdp_record_set_id(cdpRecord* record, cdpID id)  {assert(record && id <= CDP_ID_MAXVAL);  record->metadata.id = id;}
+static inline void  cdp_record_set_id(cdpRecord* record, cdpID id)  {assert(record && id <= CDP_AUTO_ID_MAX);  record->metadata.name = id;}
 
 #define cdp_record_is_void(r)       (cdp_record_type(r) == CDP_ROLE_VOID)
 #define cdp_record_is_book(r)       (cdp_record_type(r) == CDP_ROLE_BOOK)
@@ -591,7 +587,7 @@ static inline void cdp_record_initialize_agent(cdpRecord* newAgent, cdpTag tag, 
 static inline cdpRecord* cdp_record_parent  (const cdpRecord* record)   {assert(record);  return CDP_EXPECT_PTR(record->store)? cdp_record_par_store(record)->book: NULL;}
 static inline size_t     cdp_record_siblings(const cdpRecord* record)   {assert(record);  return CDP_EXPECT_PTR(record->store)? cdp_record_par_store(record)->chdCount: 0;}
 
-void cdp_book_relink_storage(cdpRecord* book);
+void cdp_record_relink_storage(cdpRecord* book);
 
 static inline void cdp_record_transfer(cdpRecord* src, cdpRecord* dst) {
     assert(!cdp_record_is_void(src) && dst);
@@ -599,7 +595,7 @@ static inline void cdp_record_transfer(cdpRecord* src, cdpRecord* dst) {
     dst->recData  = src->recData;
     dst->store    = NULL;
     if (cdp_record_is_book(dst))
-        cdp_book_relink_storage(dst);
+        cdp_record_relink_storage(dst);
 }
 
 static inline void cdp_record_replace(cdpRecord* original, cdpRecord* newRecord) {
@@ -608,7 +604,7 @@ static inline void cdp_record_replace(cdpRecord* original, cdpRecord* newRecord)
     original->metadata = newRecord->metadata;
     original->recData  = newRecord->recData;
     if (cdp_record_is_book(original))
-        cdp_book_relink_storage(original);
+        cdp_record_relink_storage(original);
 }
 
 
@@ -618,11 +614,11 @@ static inline void*  cdp_register_data(const cdpRecord* reg)        {assert(cdp_
 static inline size_t cdp_register_size(const cdpRecord* reg)        {assert(cdp_record_is_register(reg));  return reg->recData.reg.size;}
 
 // Book properties
-static inline size_t cdp_book_children(const cdpRecord* book)       {assert(cdp_record_is_book(book));  return CDP_CHD_STORE(book->recData.book.children)->chdCount;}
+static inline size_t cdp_book_children(const cdpRecord* book)       {assert(cdp_record_is_book(book));  return CDP_CHD_STORE(book->children)->chdCount;}
 static inline bool   cdp_book_is_prependable(const cdpRecord* book) {assert(cdp_record_is_book(book));  return (book->metadata.storage != CDP_STORAGE_RED_BLACK_T);}
 
-static inline cdpID cdp_book_get_auto_id(const cdpRecord* book)           {assert(cdp_record_is_book(book));  return CDP_CHD_STORE(book->recData.book.children)->autoID;}
-static inline void  cdp_book_set_auto_id(const cdpRecord* book, cdpID id) {assert(cdp_record_is_book(book));  cdpChdStore* store = CDP_CHD_STORE(book->recData.book.children); assert(store->autoID < id  &&  id <= CDP_AUTO_ID_MAXVAL); store->autoID = id;}
+static inline cdpID cdp_book_get_auto_id(const cdpRecord* book)           {assert(cdp_record_is_book(book));  return CDP_CHD_STORE(book->children)->autoID;}
+static inline void  cdp_book_set_auto_id(const cdpRecord* book, cdpID id) {assert(cdp_record_is_book(book));  cdpChdStore* store = CDP_CHD_STORE(book->children); assert(store->autoID < id  &&  id <= CDP_AUTO_ID_MAXVAL); store->autoID = id;}
 
 cdpRecord* cdp_book_add_property(cdpRecord* book, cdpRecord* record);
 cdpRecord* cdp_book_get_property(const cdpRecord* book, cdpID id);
@@ -674,7 +670,7 @@ static inline cdpRecord* cdp_book_add_text(cdpRecord* book, unsigned attrib, cdp
 
 
 // Root dictionary.
-static inline cdpRecord* cdp_root(void)  {extern cdpRecord CDP_ROOT; assert(CDP_ROOT.recData.book.children);  return &CDP_ROOT;}
+static inline cdpRecord* cdp_root(void)  {extern cdpRecord CDP_ROOT; assert(CDP_ROOT.children);  return &CDP_ROOT;}
 
 
 // Constructs the full path (sequence of ids) for a given record, returning the depth.

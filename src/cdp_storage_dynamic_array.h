@@ -74,7 +74,7 @@ static inline cdpRecord* array_search(cdpArray* array, const void* key, cdpCompa
 static inline void array_update_children_parent_ptr(cdpRecord* record, cdpRecord* last) {
     for (;  record <= last;  record++) {
         if (cdp_record_is_book(record))
-            cdp_book_relink_storage(record);
+            cdp_record_relink_storage(record);
     }
 }
 
