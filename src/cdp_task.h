@@ -117,13 +117,13 @@ void* cdp_patch(cdpRecord* instance, void* data, size_t size);
 static inline cdpRecord* cdp_book_add_instance(cdpRecord* book, cdpID name, cdpRecord* bookArgs) {
     cdpRecord instance = {0};
     cdp_initiate(&instance, name, bookArgs);
-    return cdp_book_add_record(book, &instance, false);
+    return cdp_record_add(book, &instance, false);
 }
 
 static inline cdpRecord* cdp_book_prepend_instance(cdpRecord* book, cdpID name, cdpRecord* bookArgs) {
     cdpRecord instance = {0};
     cdp_initiate(&instance, name, bookArgs);
-    return cdp_book_add_record(book, &instance, true);
+    return cdp_record_add(book, &instance, true);
 }
 
 

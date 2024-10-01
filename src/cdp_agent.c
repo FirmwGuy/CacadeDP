@@ -61,7 +61,7 @@ bool cdp_agent_connect(cdpRecord* instance, cdpTask* signal) {
     cdpRecord* link = cdp_book_first(&signal->input);
     cdpID nameID = cdp_record_get_id(link);
 
-    if (cdp_record_is_book(instance)) {
+    if (cdp_record_children(instance)) {
         cdpRecord* found = cdp_book_find_by_name(instance, nameID);
         assert(!found);
         cdp_book_add_link(instance, nameID, cdp_link_data(link));

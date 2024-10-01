@@ -251,7 +251,7 @@ static void system_initiate_tags(void) {
     cdp_book_add_static_text(TAG, CDP_AUTO_ID, "agent");
 
     // Final check
-    assert(cdp_book_children(TAG) == CDP_TAG_COUNT  &&  cdp_book_get_auto_id(TAG) == CDP_TAG_COUNT);
+    assert(cdp_record_children(TAG) == CDP_TAG_COUNT  &&  cdp_book_get_auto_id(TAG) == CDP_TAG_COUNT);
 }
 
 

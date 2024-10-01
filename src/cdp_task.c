@@ -160,7 +160,7 @@ void cdp_system_initiate_tasks(void) {
 
 
     // Finish agents
-    assert(cdp_book_children(AGENCY) == CDP_TASK_COUNT);
+    assert(cdp_record_children(AGENCY) == CDP_TASK_COUNT);
 }
 
 void cdp_system_finalize_tasks(void) {
@@ -183,7 +183,7 @@ void cdp_system_finalize_tasks(void) {
         result = get_res;                                                      \
     } else {                                                                   \
         /* ToDo: report error. */                                              \
-        assert(cdp_record_is_book(&signal->condition));                        \
+        assert(cdp_record_children(&signal->condition));                        \
         result = 0;                                                            \
     }                                                                          \
     cdp_task_reset(signal)
@@ -262,8 +262,8 @@ bool cdp_initiate(cdpRecord* instance, cdpID nameID, cdpRecord* bookArgs) {
 
     cdp_book_add_id(&SIGNAL_INITIATE->input, CDP_NAME_NAME, nameID);
 
-    if (bookArgs && cdp_record_is_book(bookArgs)) {
-        cdp_book_add_record(&SIGNAL_INITIATE->input, bookArgs, false);
+    if (bookArgs && cdp_record_children(bookArgs)) {
+        cdp_record_add(&SIGNAL_INITIATE->input, bookArgs, false);
     }
 
     bool result;
@@ -287,7 +287,7 @@ void cdp_reset(cdpRecord* instance) {
         if (cdp_record_is_link(instance))
             CDP_LINK_RESOLVE(instance);
 
-        if (cdp_record_is_book(instance))
+        if (cdp_record_children(instance))
             cdp_book_reset(instance);
         else if (cdp_record_is_register(instance))
             cdp_register_reset(instance);
@@ -349,9 +349,9 @@ void cdp_remove(cdpRecord* instance, cdpRecord* target) {
 
 cdpRecord* cdp_add(cdpRecord* instance, cdpRecord* record) {
     CDP_LINK_RESOLVE(instance);
-    assert(cdp_record_is_book(instance) && record);
+    assert(cdp_record_children(instance) && record);
     if (!cdp_record_is_connected(instance))
-        return cdp_book_add_record(instance, record, false);
+        return cdp_record_add(instance, record, false);
 
     signaler_start(CDP_NAME_ADD, SIGNAL_ADD, 1, 1);
     cdp_book_add_link(&SIGNAL_ADD->input, CDP_NAME_RECORD, record);
@@ -363,9 +363,9 @@ cdpRecord* cdp_add(cdpRecord* instance, cdpRecord* record) {
 
 cdpRecord* cdp_prepend(cdpRecord* instance, cdpRecord* record) {
     CDP_LINK_RESOLVE(instance);
-    assert(cdp_record_is_book(instance) && record);
+    assert(cdp_record_children(instance) && record);
     if (!cdp_record_is_connected(instance))
-        return cdp_book_add_record(instance, record, true);
+        return cdp_record_add(instance, record, true);
 
     signaler_start(CDP_NAME_PREPEND, SIGNAL_PREPEND, 1, 1);
     cdp_book_add_link(&SIGNAL_PREPEND->input, CDP_NAME_RECORD, record);
@@ -382,7 +382,7 @@ cdpRecord* cdp_insert(cdpRecord* instance, size_t position, cdpRecord* record) {
 
 cdpRecord* cdp_first(cdpRecord* instance) {
     CDP_LINK_RESOLVE(instance);
-    assert(cdp_record_is_book(instance));
+    assert(cdp_record_children(instance));
     if (!cdp_record_is_connected(instance))
         return cdp_book_first(instance);
 
@@ -394,7 +394,7 @@ cdpRecord* cdp_first(cdpRecord* instance) {
 
 cdpRecord* cdp_last(cdpRecord* instance) {
     CDP_LINK_RESOLVE(instance);
-    assert(cdp_record_is_book(instance));
+    assert(cdp_record_children(instance));
     if (!cdp_record_is_connected(instance))
         return cdp_book_last(instance);
 
@@ -406,7 +406,7 @@ cdpRecord* cdp_last(cdpRecord* instance) {
 
 bool cdp_take(cdpRecord* instance, cdpRecord* target) {
     CDP_LINK_RESOLVE(instance);
-    assert(cdp_record_is_book(instance));
+    assert(cdp_record_children(instance));
     if (!cdp_record_is_connected(instance))
         return cdp_book_take(instance, target);
 
@@ -427,7 +427,7 @@ bool cdp_take(cdpRecord* instance, cdpRecord* target) {
 
 bool cdp_pop(cdpRecord* instance, cdpRecord* target) {
     CDP_LINK_RESOLVE(instance);
-    assert(cdp_record_is_book(instance));
+    assert(cdp_record_children(instance));
     if (!cdp_record_is_connected(instance))
         return cdp_book_pop(instance, target);
 
@@ -453,7 +453,7 @@ cdpRecord* cdp_search(cdpRecord* instance, cdpRecord* key) {
 
 cdpRecord* cdp_link(cdpRecord* instance, cdpID nameID, cdpRecord* record) {
     CDP_LINK_RESOLVE(instance);
-    assert(cdp_record_is_book(instance) && !cdp_id_is_void(nameID) && !cdp_record_is_void(record));
+    assert(cdp_record_children(instance) && !cdp_id_is_void(nameID) && !cdp_record_is_void(record));
     if (!cdp_record_is_connected(instance))
         return cdp_book_add_link(instance, nameID, record);
 
@@ -467,7 +467,7 @@ cdpRecord* cdp_link(cdpRecord* instance, cdpID nameID, cdpRecord* record) {
 
 cdpRecord* cdp_shadow(cdpRecord* instance, cdpID nameID, cdpRecord* record) {
     CDP_LINK_RESOLVE(instance);
-    assert(cdp_record_is_book(instance) && !cdp_id_is_void(nameID) && !cdp_record_is_void(record));
+    assert(cdp_record_children(instance) && !cdp_id_is_void(nameID) && !cdp_record_is_void(record));
     if (!cdp_record_is_connected(instance))
         return cdp_book_add_shadow(instance, nameID, record);
 
@@ -481,7 +481,7 @@ cdpRecord* cdp_shadow(cdpRecord* instance, cdpID nameID, cdpRecord* record) {
 
 cdpRecord* cdp_clone(cdpRecord* instance, cdpID nameID, cdpRecord* record) {
     CDP_LINK_RESOLVE(instance);
-    assert(cdp_record_is_book(instance) && !cdp_id_is_void(nameID) && !cdp_record_is_void(record));
+    assert(cdp_record_children(instance) && !cdp_id_is_void(nameID) && !cdp_record_is_void(record));
     if (!cdp_record_is_connected(instance))
         return cdp_book_add_clone(instance, nameID, record);
 
@@ -495,7 +495,7 @@ cdpRecord* cdp_clone(cdpRecord* instance, cdpID nameID, cdpRecord* record) {
 
 cdpRecord* cdp_move(cdpRecord* instance, cdpID nameID, cdpRecord* record) {
     CDP_LINK_RESOLVE(instance);
-    assert(cdp_record_is_book(instance) && !cdp_id_is_void(nameID) && !cdp_record_is_void(record));
+    assert(cdp_record_children(instance) && !cdp_id_is_void(nameID) && !cdp_record_is_void(record));
     if (!cdp_record_is_connected(instance))
         return cdp_book_move_to(instance, nameID, record);
 
