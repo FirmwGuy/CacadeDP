@@ -57,7 +57,7 @@ struct NID {const char* name; size_t length; cdpID id;};
 
 
 static bool name_id_traverse_find_text(cdpBookEntry* entry, struct NID* nid) {
-    const char* name = cdp_register_read_utf8(entry->record);
+    const char* name = cdp_record_read_utf8(entry->record);
     if (cdp_register_size(entry->record) == nid->length
      && 0 == memcmp(name, nid->name, nid->length)) {
         nid->id = cdp_record_get_id(entry->record);

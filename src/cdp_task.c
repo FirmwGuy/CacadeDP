@@ -289,7 +289,7 @@ void cdp_reset(cdpRecord* instance) {
 
         if (cdp_record_children(instance))
             cdp_book_reset(instance);
-        else if (cdp_record_is_register(instance))
+        else if (cdp_record_has_data(instance))
             cdp_register_reset(instance);
         return;
     }
@@ -319,7 +319,7 @@ cdpRecord* cdp_previous(cdpRecord* instance) {
 bool cdp_validate(cdpRecord* instance) {
     CDP_LINK_RESOLVE(instance);
     signaler_start(CDP_NAME_VALIDATE, SIGNAL_VALIDATE, 0, 1);
-    signaler_return(bool, SIGNAL_PREVIOUS, cdp_register_read_bool);
+    signaler_return(bool, SIGNAL_PREVIOUS, cdp_record_read_bool);
 }
 
 
@@ -557,7 +557,7 @@ bool cdp_untextualize(cdpRecord* instance, char* data, size_t length) {
 void* cdp_read(cdpRecord* instance, void* data, size_t* size) {
     CDP_LINK_RESOLVE(instance);
     if (!cdp_record_is_connected(instance))
-        return cdp_register_read(instance, 0, data, size);
+        return cdp_record_read(instance, 0, data, size);
 
     signaler_start(CDP_NAME_READ, SIGNAL_READ, 1, 1);
     cdp_book_add_register(&SIGNAL_READ->input, 0, CDP_NAME_DATA, CDP_TAG_REGISTER, true, data, *size);
@@ -565,7 +565,7 @@ void* cdp_read(cdpRecord* instance, void* data, size_t* size) {
     cdp_system_does_action(instance, SIGNAL_READ);
 
     cdpRecord* reg = cdp_book_find_by_name(&SIGNAL_READ->output, CDP_NAME_OUTPUT);
-    assert(cdp_record_is_register(reg));
+    assert(cdp_record_has_data(reg));
     if (size)
         *size = cdp_register_size(reg);
     void* d = cdp_register_data(reg);

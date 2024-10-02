@@ -262,6 +262,12 @@ These **32 bits** provide domain-specific information that is unique to
 the field in question and captures essential characteristics that can't
 be described through universal attributes alone.
 
+The objective of this 32 bits is to store static information that won't
+change during execution lifetime as a form of type description, in
+order to avoid type-if-then hell during coding. For example, instead of
+asking if a number representation belongs to Float32, Float64 or
+Float128 we can just ask if the role is "Float".
+
 - **In the Natural Language Domain**, domain-specific attributes could
 describe word forms (e.g., tense, number, case).
 - **In the GUI Domain**, these attributes could describe visual
@@ -354,6 +360,7 @@ typedef uint64_t  cdpID;
 #defome CDP_ID_BITS             cdp_bitsof(cdpID)
 #define CDP_RECD_FLAG_BITS      12
 #define CDP_NAME_BITS           (CDP_ID_BITS - CDP_RECD_FLAG_BITS)
+#define CDP_NAME_MAX            (~(((cdpID)(-1)) << CDP_NAME_BITS))
 #define CDP_NAMECONV_BITS       2
 #define CDP_AUTO_ID_BITS        (CDP_NAME_BITS - CDP_NAMECONV_BITS)
 #define CDP_AUTO_ID_MAXVAL      (~(((cdpID)(-1)) << CDP_AUTO_ID_BITS))
@@ -393,9 +400,10 @@ enum _cdpRecordStorage {
 };
 
 enum _cdpRecordData {
+    CDP_RECDATA_NONE,           // Record has no data.
     CDP_RECDATA_NEAR,           // Data (small) is inside "_near" field of cdpRecord.
     CDP_RECDATA_DATA,           // Data starts at "_data" field of cdpData.
-    CDP_RECDATA_FAR,            // Data is in address pointed by "_far" field of cdpData.
+    CDP_RECDATA_FAR             // Data is in address pointed by "_far" field of cdpData.
 }
 
 enum _cdpRecordShadowing {
@@ -420,10 +428,15 @@ enum _cdpRecordNaming {
 #define cdp_id_to_tag(tagid)        ((tagid) & cdp_id_from_naming(CDP_NAMING_TAG))
 #define cdp_id(nameid)              ((nameid) & CDP_AUTO_ID_MAXVAL)
 
-#define CDP_AUTO_ID_USE             CDP_AUTO_ID_MAXVAL
-#define CDP_AUTO_ID_LOCAL           (CDP_AUTO_ID_USE & cdp_id_from_naming(CDP_NAMING_LOCAL))
-#define CDP_AUTO_ID_GLOBAL          (CDP_AUTO_ID_USE & cdp_id_from_naming(CDP_NAMING_GLOBAL))
+#define cdp_id_local(id)            ((id) & cdp_id_from_naming(CDP_NAMING_LOCAL))
+#define cdp_id_global(id)           ((id) & cdp_id_from_naming(CDP_NAMING_GLOBAL))
 
+#define CDP_AUTO_ID_USE             CDP_AUTO_ID_MAXVAL
+#define CDP_AUTO_ID_LOCAL           cdp_id_local(CDP_AUTO_ID_USE)
+#define CDP_AUTO_ID_GLOBAL          cdp_id_global(CDP_AUTO_ID_USE)
+
+#define cdp_id_name_is_local(name)  ((cdp_id_from_naming(3) & (name)) == cdp_id_from_naming(CDP_NAMING_LOCAL))
+#define cdp_id_name_is_global(name) ((cdp_id_from_naming(3) & (name)) == cdp_id_from_naming(CDP_NAMING_GLOBAL))
 #define cdp_id_valid(nameid)        (cdp_id(nameid) < CDP_AUTO_ID_MAX) /* ToDo: "name" max check, tag check.*/
 #define cdp_id_is_auto(nameid)      ((nameid) & CDP_AUTO_ID_MAXVAL)
 
@@ -445,14 +458,14 @@ typedef union {
     void*       pointer;
     size_t      offset;
     uint8_t     byte[8];
-    uint64_t    uint64;
+    uint64_t    uint64[1];
     uint32_t    uint32[2];
     uint16_t    uint16[4];
-    int64_t     int64;
+    int64_t     int64[1];
     int32_t     int32[2];
     int16_t     int16[4];
     float       float32[2];
-    double      float64;
+    double      float64[1];
 } cdpValue;
 
 typedef struct {
@@ -552,8 +565,8 @@ static inline cdpID cdp_record_attributes(const cdpRecord* record)  {assert(reco
 static inline cdpID cdp_record_type      (const cdpRecord* record)  {assert(record);  return record->metadata.type;}
 static inline cdpID cdp_record_tag       (const cdpRecord* record)  {assert(record);  return record->metadata.tag;}
 
-static inline cdpID cdp_record_get_id(const cdpRecord* record)      {assert(record);  return record->metadata.id;}
-static inline void  cdp_record_set_id(cdpRecord* record, cdpID id)  {assert(record && id <= CDP_AUTO_ID_MAX);  record->metadata.name = id;}
+static inline cdpID cdp_record_get_id(const cdpRecord* record)      {assert(record);  return record->metarecord.name;}
+static inline void  cdp_record_set_id(cdpRecord* record, cdpID name)  {assert(record && name < CDP_NAME_MAX);  record->metarecord.name = name;}
 
 #define CDP_CHD_STORE(children)         ({assert(children);  (cdpChdStore*)(children);})
 #define cdp_record_par_store(record)    CDP_CHD_STORE((record)->store)
@@ -563,7 +576,7 @@ static inline size_t     cdp_record_siblings(const cdpRecord* record)   {assert(
 static inline size_t cdp_record_children(const cdpRecord* record)       {assert(record);  if (record->metarecord.withstore) return ((cdpChdStore*)record->store)->chdCount; else return 0;}
 
 #define cdp_record_is_void(r)       (cdp_record_type(r) == CDP_ROLE_VOID)
-#define cdp_record_is_register(r)   (cdp_record_type(r) == CDP_ROLE_REGISTER)
+#define cdp_record_has_data(r)      ((r)->metarecord.recdata != CDP_RECDATA_NONE)
 #define cdp_record_is_link(r)       (cdp_record_type(r) == CDP_ROLE_LINK)
 
 #define cdp_record_is_private(r)    cdp_is_set(cdp_record_attributes(r), CDP_ATTRIB_PRIVATE)
@@ -571,7 +584,7 @@ static inline size_t cdp_record_children(const cdpRecord* record)       {assert(
 #define cdp_record_is_shadowed(r)   cdp_is_set(cdp_record_attributes(r), CDP_ATTRIB_SHADOWED)
 #define cdp_record_is_baby(r)       cdp_is_set(cdp_record_attributes(r), CDP_ATTRIB_BABY)
 #define cdp_record_is_connected(r)  cdp_is_set(cdp_record_attributes(r), CDP_ATTRIB_CONNECTED)
-#define cdp_record_is_dictionary(r) cdp_is_set(cdp_record_attributes(r), CDP_ATTRIB_DICTIONARY)
+#define cdp_record_is_dictionary(r) ((r)->metarecord.dictionary)
 #define cdp_record_is_insertable(r) ((r)->metarecord.storage != CDP_STORAGE_RED_BLACK_T)
 
 static inline bool cdp_record_is_named(const cdpRecord* record)  {assert(record);  if (cdp_id_is_named(record->metadata.id)) {assert(record->metadata.id <= CDP_NAME_MAXVAL); return true;} return false;}
@@ -632,9 +645,9 @@ static inline void cdp_record_replace(cdpRecord* original, cdpRecord* newRecord)
 
 
 // Register properties
-static inline bool   cdp_register_is_borrowed(const cdpRecord* reg) {assert(cdp_record_is_register(reg));  return (reg->metarecord.storage == CDP_STO_REG_BORROWED);}
-static inline void*  cdp_register_data(const cdpRecord* reg)        {assert(cdp_record_is_register(reg));  return reg->recData.reg.data.ptr;}
-static inline size_t cdp_register_size(const cdpRecord* reg)        {assert(cdp_record_is_register(reg));  return reg->recData.reg.size;}
+static inline bool   cdp_register_is_borrowed(const cdpRecord* reg) {assert(cdp_record_has_data(reg));  return (reg->metarecord.storage == CDP_STO_REG_BORROWED);}
+static inline void*  cdp_register_data(const cdpRecord* reg)        {assert(cdp_record_has_data(reg));  return reg->recData.reg.data.ptr;}
+static inline size_t cdp_register_size(const cdpRecord* reg)        {assert(cdp_record_has_data(reg));  return reg->recData.reg.size;}
 
 
 static inline cdpID cdp_book_get_auto_id(const cdpRecord* book)           {assert(cdp_record_children(book));  return CDP_CHD_STORE(book->children)->autoID;}
@@ -646,7 +659,7 @@ cdpRecord* cdp_book_get_property(const cdpRecord* book, cdpID id);
 
 // Appends, inserts or prepends a copy of record into another record.
 cdpRecord* cdp_record_add(cdpRecord* parent, cdpRecord* record, bool prepend);
-cdpRecord* cdp_book_sorted_insert(cdpRecord* book, cdpRecord* record, cdpCompare compare, void* context);
+cdpRecord* cdp_record_sorted_insert(cdpRecord* parent, cdpRecord* record, cdpCompare compare, void* context);
 
 #define cdp_book_add(b, type, attribute, id, tag, prepend, ...)  ({cdpRecord r={0}; cdp_record_initialize(&r, type, attribute, id, tag, ##__VA_ARGS__)? cdp_record_add(b, &r, prepend): NULL;})
 #define cdp_book_add_register(b, attrib, id, tag, borrow, data, size)          cdp_book_add(b, CDP_ROLE_REGISTER, attrib, id, tag, false, ((unsigned)(borrow)), data, ((size_t)(size)))
@@ -698,23 +711,23 @@ bool cdp_record_path(const cdpRecord* record, cdpPath** path);
 
 
 // Accessing registers
-void* cdp_register_read(const cdpRecord* reg, size_t position, void* data, size_t* size);   // Reads register data from position and puts it on data buffer (atomically).
+void* cdp_record_read(const cdpRecord* reg, size_t position, void* data, size_t* size);   // Reads register data from position and puts it on data buffer (atomically).
 void* cdp_register_write(cdpRecord* reg, size_t position, const void* data, size_t size);   // Writes the data of a register record at position (atomically and it may reallocate memory).
 #define cdp_register_update(reg, data, size)   cdp_register_write(reg, 0, data, size)
 
-#define cdp_register_read_byte(reg)     (*(uint8_t*)cdp_register_read(reg, 0, NULL, NULL))
-#define cdp_register_read_uint16(reg)   (*(uint16_t*)cdp_register_read(reg, 0, NULL, NULL))
-#define cdp_register_read_uint32(reg)   (*(uint32_t*)cdp_register_read(reg, 0, NULL, NULL))
-#define cdp_register_read_uint64(reg)   (*(uint64_t*)cdp_register_read(reg, 0, NULL, NULL))
-#define cdp_register_read_int16(reg)    (*(int16_t*)cdp_register_read(reg, 0, NULL, NULL))
-#define cdp_register_read_int32(reg)    (*(int32_t*)cdp_register_read(reg, 0, NULL, NULL))
-#define cdp_register_read_int64(reg)    (*(int64_t*)cdp_register_read(reg, 0, NULL, NULL))
-#define cdp_register_read_float32(reg)  (*(float*)cdp_register_read(reg, 0, NULL, NULL))
-#define cdp_register_read_float64(reg)  (*(double*)cdp_register_read(reg, 0, NULL, NULL))
+#define cdp_record_read_byte(reg)     (*(uint8_t*)cdp_record_read(reg, 0, NULL, NULL))
+#define cdp_record_read_uint16(reg)   (*(uint16_t*)cdp_record_read(reg, 0, NULL, NULL))
+#define cdp_record_read_uint32(reg)   (*(uint32_t*)cdp_record_read(reg, 0, NULL, NULL))
+#define cdp_record_read_uint64(reg)   (*(uint64_t*)cdp_record_read(reg, 0, NULL, NULL))
+#define cdp_record_read_int16(reg)    (*(int16_t*)cdp_record_read(reg, 0, NULL, NULL))
+#define cdp_record_read_int32(reg)    (*(int32_t*)cdp_record_read(reg, 0, NULL, NULL))
+#define cdp_record_read_int64(reg)    (*(int64_t*)cdp_record_read(reg, 0, NULL, NULL))
+#define cdp_record_read_float32(reg)  (*(float*)cdp_record_read(reg, 0, NULL, NULL))
+#define cdp_record_read_float64(reg)  (*(double*)cdp_record_read(reg, 0, NULL, NULL))
 
-#define cdp_register_read_id(reg)       (*(cdpID*)cdp_register_read(reg, 0, NULL, NULL))
-#define cdp_register_read_bool(reg)     (*(uint8_t*)cdp_register_read(reg, 0, NULL, NULL))  // ToDo: use recData.reg.data.direct.
-#define cdp_register_read_utf8(reg)     ((const char*)cdp_register_read(reg, 0, NULL, NULL))
+#define cdp_record_read_id(reg)       (*(cdpID*)cdp_record_read(reg, 0, NULL, NULL))
+#define cdp_record_read_bool(reg)     (*(uint8_t*)cdp_record_read(reg, 0, NULL, NULL))  // ToDo: use recData.reg.data.direct.
+#define cdp_record_read_utf8(reg)     ((const char*)cdp_record_read(reg, 0, NULL, NULL))
 
 #define cdp_register_update_byte(reg, v)    cdp_register_update(reg, &(v), sizeof(uint8_t))
 #define cdp_register_update_uint16(reg, v)  cdp_register_update(reg, &(v), sizeof(uint16_t))

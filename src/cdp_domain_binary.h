@@ -28,13 +28,14 @@
 CDP_ATTRIBUTE_STRUCT(cdpBinaryAttribute,
     uint16_t    shift:      1,      // Role shift.
 
-                size:       4,      // Power of 2 exponent describing the native byte size.
+                size:       4,      // Power of 2 exponent describing the value byte size.
                 sign:       1,      // Is signed or unsigned.
                 endianess:  1,      // Little endian (0) is the norm.
                 dimension:  2,      // Number of dimensions (scalar, vector, etc).
+                // -----------
+
                 compression:2,      // Type of compression used to pack content.
                 encryption: 2,      // Encryption method.
-                // -----------
 
                 _reserved:  3;      // ToDo: expand to OS and HW related stuff.
     uint16_t    _reserved2;

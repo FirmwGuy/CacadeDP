@@ -24,6 +24,8 @@
 
 
 
+cdpID AUTOID = cdp_id_from_naming(CDP_NAMING_GLOBAL);   // Global autoid.
+
 #define CDP_MAX_FAST_STACK_DEPTH  16
 
 unsigned MAX_DEPTH = CDP_MAX_FAST_STACK_DEPTH;     // FixMe: (used by path/traverse) better policy than a global for this.
@@ -43,6 +45,11 @@ static inline int record_compare_by_name(const cdpRecord* restrict key, const cd
     static void* const chdStoreTech[] = {&&LINKED_LIST, &&ARRAY,               \
         &&PACKED_QUEUE, &&RED_BLACK_T};                                        \
     goto *chdStoreTech[structure];                                             \
+    do
+
+#define REC_DATA_SELECT(recdata)                                       \
+    static void* const _recData[] = {&&NONE, &&NEAR, &&DATA, &&FAR};   \
+    goto *_recData[recdata];                                           \
     do
 
 #define SELECTION_END                                                  \
@@ -122,9 +129,10 @@ void cdp_record_relink_storage(cdpRecord* record) {
 
 
 static inline void store_check_auto_id(cdpChdStore* store, cdpRecord* record) {
-    if (!cdp_record_id_is_pending(record))
-        return;
-    cdp_record_set_id(record, store->autoID++);
+    if (CDP_AUTO_ID_LOCAL == record->metarecord.name)
+        cdp_record_set_id(record, cdp_id_local(store->autoID++));
+    else if (CDP_AUTO_ID_GLOBAL == record->metarecord.name)
+        cdp_record_set_id(record, cdp_id_global(AUTOID++));
 }
 
 
@@ -214,7 +222,7 @@ void cdp_record_initialize_clone(cdpRecord* newClone, cdpID nameID, cdpRecord* r
 
       REGISTER: {
         // Clone data: Pending!
-        assert(!cdp_record_is_register(record));
+        assert(!cdp_record_has_data(record));
       }
 
       LINK: {
@@ -231,7 +239,7 @@ void cdp_record_initialize_clone(cdpRecord* newClone, cdpID nameID, cdpRecord* r
     Adds/inserts a *copy* of the specified record into another record.
 */
 cdpRecord* cdp_record_add(cdpRecord* parent, cdpRecord* record, bool prepend) {
-    assert(!cdp_record_is_void(record));    // 'Void' records are never inserted.
+    assert(!cdp_record_is_void(parent) && !cdp_record_is_void(record));    // 'Void' records are never used.
     if (preped && !cdp_record_is_insertable(parent)) {
         assert(!prepend);
         return NULL;
@@ -254,20 +262,20 @@ cdpRecord* cdp_record_add(cdpRecord* parent, cdpRecord* record, bool prepend) {
     // Add new record to parent parent.
     STORE_TECH_SELECT(parent->metarecord.storage) {
       LINKED_LIST: {
-        child = list_add(parent->children, parent, prepend, record);
+        child = list_add(store, parent, prepend, record);
         break;
       }
       ARRAY: {
-        child = array_add(parent->children, parent, prepend, record);
+        child = array_add(store, parent, prepend, record);
         break;
       }
       PACKED_QUEUE: {
         assert(!cdp_record_is_dictionary(parent));
-        child = packed_q_add(parent->children, parent, prepend, record);
+        child = packed_q_add(store, parent, prepend, record);
         break;
       }
       RED_BLACK_T: {
-        child = rb_tree_add(parent->children, parent, record);
+        child = rb_tree_add(store, parent, record);
         break;
       }
     } SELECTION_END;
@@ -285,31 +293,40 @@ cdpRecord* cdp_record_add(cdpRecord* parent, cdpRecord* record, bool prepend) {
 
 
 /*
-    Adds/inserts a *copy* of the specified record to a book.
+    Adds/inserts a *copy* of the specified record into another record.
 */
-cdpRecord* cdp_book_sorted_insert(cdpRecord* book, cdpRecord* record, cdpCompare compare, void* context) {
-    assert(cdp_record_children(book) && !cdp_record_is_void(record) && compare);    // 'None' role of records are never inserted in books.
+cdpRecord* cdp_record_sorted_insert(cdpRecord* parent, cdpRecord* record, cdpCompare compare, void* context) {
+    assert(!cdp_record_is_void(parent) && !cdp_record_is_void(record) && compare);    // 'None' role of records are never used.
 
-    cdpChdStore* store = CDP_CHD_STORE(book->children);
-    store_check_auto_id(store, record);
+    if (parent->metarecord.withstore) {
+        store = parent->children;
+    } else {
+        store = book_create_storage(parent->metarecord.storage, parent->basez);
+
+        // Link parent record with its children storage.
+        store->owner = parent;
+        parent->children = store;
+        parent->metarecord.withstore = 1;
+    }
+    store_check_auto_id(store, parent);
     cdpRecord* child;
 
-    // Add new record to parent book.
-    STORE_TECH_SELECT(book->metarecord.storage) {
+    // Add new record to parent.
+    STORE_TECH_SELECT(parent->metarecord.storage) {
       LINKED_LIST: {
-        child = list_sorted_insert(book->children, record, compare, context);
+        child = list_sorted_insert(store, record, compare, context);
         break;
       }
       ARRAY: {
-        child = array_sorted_insert(book->children, record, compare, context);
+        child = array_sorted_insert(store, record, compare, context);
         break;
       }
       PACKED_QUEUE: {
-        assert(book->metarecord.storage == CDP_STORAGE_PACKED_QUEUE);   // Unsupported.
+        assert(parent->metarecord.storage == CDP_STORAGE_PACKED_QUEUE);   // Unsupported.
         return NULL;
       }
       RED_BLACK_T: {
-        child = rb_tree_sorted_insert(book->children, record, compare, context);
+        child = rb_tree_sorted_insert(store, record, compare, context);
         break;
       }
     } SELECTION_END;
@@ -329,18 +346,28 @@ cdpRecord* cdp_book_sorted_insert(cdpRecord* book, cdpRecord* record, cdpCompare
 
 
 /*
-   Reads register data from position and puts it on data buffer (atomatically).
+   Reads data from a record.
 */
-void* cdp_register_read(const cdpRecord* reg, size_t position, void* data, size_t* size) {
-    assert(cdp_record_is_register(reg));
+cdpValue cdp_record_read(const cdpRecord* record, void* data, size_t* size, size_t* capacity) {
+    assert(!cdp_record_is_void(record));
 
-    // Calculate the actual number of bytes that can be read.
-    assert(reg->recData.reg.size > position);
-    size_t readableSize = reg->recData.reg.size - position;
-    if (size && (!*size || *size > readableSize))
-        *size = readableSize;
+    REC_DATA_SELECT(record->metadata.recdata) {
+      NONE: {
+        assert(cdp_record_has_data(record));
+        return (cdpValue){.pointer = NULL};
+      }
 
-    // ToDo: read "data.direct".
+      NEAR: {
+        return record->_near;
+      }
+
+      DATA: {
+        return (cdpValue){.pointer = record->data->_data};
+      }
+
+      FAR: {
+        return (cdpValue){.pointer = record->data->_far};
+      }
 
     // Copy the data from the register to the provided buffer (if any).
     void* pointed = cdp_ptr_off(reg->recData.reg.data.ptr, position);
@@ -348,9 +375,6 @@ void* cdp_register_read(const cdpRecord* reg, size_t position, void* data, size_
         memcpy(data, pointed, readableSize);
         return data;
     }
-
-    //assert(cdp_record_is_private(reg));       // FixMe: return atomic register if possible.
-    return pointed;
 }
 
 
@@ -358,7 +382,7 @@ void* cdp_register_read(const cdpRecord* reg, size_t position, void* data, size_
    Writes the data of a register record at position (atomically and it may reallocate memory).
 */
 void* cdp_register_write(cdpRecord* reg, size_t position, const void* data, size_t size) {
-    assert(cdp_record_is_register(reg) && !cdp_record_is_factual(reg) && data && size);
+    assert(cdp_record_has_data(reg) && !cdp_record_is_factual(reg) && data && size);
 
     // Ensure the buffer is large enough to accommodate the write
     size_t newSize = position + size;
@@ -418,7 +442,7 @@ bool cdp_record_path(const cdpRecord* record, cdpPath** path) {
 
 
 /*
-    Gets the first record from a book.
+    Gets the first child record.
 */
 cdpRecord* cdp_book_first(const cdpRecord* book) {
     assert(cdp_record_children(book));

@@ -26,7 +26,7 @@
 
 
 CDP_ATTRIBUTE_STRUCT(cdpTextAttribute,
-    cdpAttribute    encoding:   3,      // Text encoding (UTF8, Unicode, ISO90.., etc).
+    cdpAttribute    encoding:   3,      // Text encoding (UTF8, Unicode, Latin1, etc).
                     heading:    3,      // Heading level value for titles (H1, H2, etc).
                     listing:    2,      // Type of listing for table/list (enumerated, definition, etc).
                     formating:  3,      // Text format (bold, italic, etc).
