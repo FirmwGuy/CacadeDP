@@ -47,9 +47,9 @@ static inline int record_compare_by_name(const cdpRecord* restrict key, const cd
     goto *chdStoreTech[structure];                                             \
     do
 
-#define REC_DATA_SELECT(recdata)                                       \
+#define REC_DATA_SELECT(record)                                        \
     static void* const _recData[] = {&&NONE, &&NEAR, &&DATA, &&FAR};   \
-    goto *_recData[recdata];                                           \
+    goto *_recData[(record)->metarecord.recdata];                      \
     do
 
 #define SELECTION_END                                                  \
@@ -348,54 +348,183 @@ cdpRecord* cdp_record_sorted_insert(cdpRecord* parent, cdpRecord* record, cdpCom
 /*
    Reads data from a record.
 */
-cdpValue cdp_record_read(const cdpRecord* record, void* data, size_t* size, size_t* capacity) {
+cdpValue cdp_record_read(const cdpRecord* record, size_t* capacity, size_t* size, void* data) {
     assert(!cdp_record_is_void(record));
 
-    REC_DATA_SELECT(record->metadata.recdata) {
+    REC_DATA_SELECT(record) {
       NONE: {
         assert(cdp_record_has_data(record));
-        return (cdpValue){.pointer = NULL};
+        break;
       }
 
       NEAR: {
+        if (data) {
+            assert(capacity);
+            memcpy(data, &record->_near, cdp_min(*capacity, sizeof(cdpValue)));
+        }
+        CDP_PTR_SEC_SET(capacity, sizeof(record->_near));
+        CDP_PTR_SEC_SET(size, sizeof(cdpValue));    // FixMe: should this be the real size?
         return record->_near;
       }
 
       DATA: {
+        if (data) {
+            assert(capacity);
+            memcpy(data, record->_data, cdp_min(*capacity, record->data->capacity));
+        }
+        CDP_PTR_SEC_SET(capacity, record->data->capacity);
+        CDP_PTR_SEC_SET(size, record->data->size);
         return (cdpValue){.pointer = record->data->_data};
       }
 
       FAR: {
+        if (data) {
+            assert(capacity);
+            memcpy(data, record->_far, cdp_min(*capacity, record->data->capacity));
+        }
+        CDP_PTR_SEC_SET(capacity, record->data->capacity);
+        CDP_PTR_SEC_SET(size, record->data->size);
         return (cdpValue){.pointer = record->data->_far};
       }
+    } SELECTION_END;
 
-    // Copy the data from the register to the provided buffer (if any).
-    void* pointed = cdp_ptr_off(reg->recData.reg.data.ptr, position);
-    if (data) {
-        memcpy(data, pointed, readableSize);
-        return data;
-    }
+    CDP_PTR_SEC_SET(size, 0);
+    CDP_PTR_SEC_SET(capacity, 0);
+    return (cdpValue){.pointer = NULL};
+}
+
+cdpValue cdp_record_read_value(const cdpRecord* record) {
+    assert(!cdp_record_is_void(record));
+
+    REC_DATA_SELECT(record) {
+      NONE: {
+        assert(cdp_record_has_data(record));
+        break;
+      }
+      NEAR: {
+        return record->_near;
+      }
+      DATA: {
+        return (cdpValue){.pointer = record->data->_data};
+      }
+      FAR: {
+        return (cdpValue){.pointer = record->data->_far};
+      }
+    } SELECTION_END;
+
+    return (cdpValue){.pointer = NULL};
 }
 
 
+
 /*
-   Writes the data of a register record at position (atomically and it may reallocate memory).
+   Updates the data of a record.
 */
-void* cdp_register_write(cdpRecord* reg, size_t position, const void* data, size_t size) {
-    assert(cdp_record_has_data(reg) && !cdp_record_is_factual(reg) && data && size);
+void* cdp_record_update(cdpRecord* record, size_t capacity, size_t size, cdpValue data, bool swap) {
+    assert(!cdp_record_is_void(record) && capacity && size);
 
-    // Ensure the buffer is large enough to accommodate the write
-    size_t newSize = position + size;
-    if (newSize > reg->recData.reg.size) {
-        // Resize the buffer
-        CDP_REALLOC(reg->recData.reg.data.ptr, newSize);
-        reg->recData.reg.size = newSize;
-    }
+    // ToDo: re-grow buffer and capacities if needed.
 
-    // Copy the provided data into the register's buffer at the specified position
-    memcpy(cdp_ptr_off(reg->recData.reg.data.ptr, position), data, size);
+    REC_DATA_SELECT(record) {
+      NONE: {
+        assert(cdp_record_has_data(record));
+        break;
+      }
 
-    return reg->recData.reg.data.ptr;
+      NEAR: {
+        assert(capacity == sizeof(cdpValue));
+        record->_near = data;
+        return &record->_near;
+      }
+
+      DATA: {
+        assert(record->data->capacity == capacity  &&  data.pointer);
+        if (size)
+            memcpy(record->data->data, data.pointer, capacity);
+        else
+            memset(record->data->data, 0, capacity);
+        record->data->size = size;
+        return record->data->data;
+      }
+
+      FAR: {
+        assert(data.pointer);
+        if (swap) {
+            assert(size && capacity);
+            record->data->capacity = capacity;
+            record->data->_far = data.pointer;
+        } else if (size) {
+            assert(capacity);
+            memcpy(record->data->_far, data.pointer, capacity);
+        } else {
+            memset(record->data->_far, 0, capacity);
+        }
+        record->data->size = size;
+        return record->data->_far;
+      }
+    } SELECTION_END;
+
+    return NULL;
+}
+
+
+
+
+void cdp_record_data_delete(cdpRecord* record) {
+    assert(!cdp_record_is_void(record));
+
+    REC_DATA_SELECT(record) {
+      NONE: {
+        return;
+      }
+
+      NEAR: {
+        record->_near.pointer = NULL;
+        break;
+      }
+
+      DATA: {
+        CDP_FREE(record->data);
+        break;
+      }
+
+      FAR: {
+        record->data->destructor(record->data->_far);
+        CDP_FREE(record->data);
+        break;
+      }
+    } SELECTION_END;
+
+    record->metarecord.recdata = CDP_RECDATA_NONE;
+}
+
+
+
+
+void cdp_record_data_reset(cdpRecord* record) {
+    assert(!cdp_record_is_void(record));
+
+    REC_DATA_SELECT(record) {
+      NONE: {
+        assert(cdp_record_has_data(record));
+        break;
+      }
+
+      NEAR: {
+        record->_near.pointer = NULL;
+        return;
+      }
+
+      DATA: {
+        memset(record->data->data, 0, record->data->capacity);
+        return;
+      }
+
+      FAR: {
+        memset(record->data->_far, 0, record->data->capacity);
+        return;
+      }
+    } SELECTION_END;
 }
 
 
@@ -433,7 +562,7 @@ bool cdp_record_path(const cdpRecord* record, cdpPath** path) {
         }
 
         // Prepend the current record's id to the path
-        tempPath->id[tempPath->capacity - tempPath->length - 1] = current->metadata.id;
+        tempPath->id[tempPath->capacity - tempPath->length - 1] = current->metarecord.name;
         tempPath->length++;
     }
 
@@ -444,23 +573,23 @@ bool cdp_record_path(const cdpRecord* record, cdpPath** path) {
 /*
     Gets the first child record.
 */
-cdpRecord* cdp_book_first(const cdpRecord* book) {
-    assert(cdp_record_children(book));
-    cdpChdStore* store = CDP_CHD_STORE(book->children);
+cdpRecord* cdp_record_first(const cdpRecord* record) {
+    assert(cdp_record_children(record));
+    cdpChdStore* store = CDP_CHD_STORE(record->children);
     if (!store->chdCount) return NULL;
 
-    STORE_TECH_SELECT(book->metarecord.storage) {
+    STORE_TECH_SELECT(record->metarecord.storage) {
       LINKED_LIST: {
-        return list_first(book->children);
+        return list_first(store);
       }
       ARRAY: {
-        return array_first(book->children);
+        return array_first(store);
       }
       PACKED_QUEUE: {
-        return packed_q_first(book->children);
+        return packed_q_first(store);
       }
       RED_BLACK_T: {
-        return rb_tree_first(book->children);
+        return rb_tree_first(store);
       }
     } SELECTION_END;
 
@@ -469,25 +598,25 @@ cdpRecord* cdp_book_first(const cdpRecord* book) {
 
 
 /*
-    Gets the last record from a book.
+    Gets the last child record.
 */
-cdpRecord* cdp_book_last(const cdpRecord* book) {
-    assert(cdp_record_children(book));
-    cdpChdStore* store = CDP_CHD_STORE(book->children);
+cdpRecord* cdp_record_last(const cdpRecord* record) {
+    assert(cdp_record_children(record));
+    cdpChdStore* store = CDP_CHD_STORE(record->children);
     if (!store->chdCount)   return NULL;
 
     STORE_TECH_SELECT(book->metarecord.storage) {
       LINKED_LIST: {
-        return list_last(book->children);
+        return list_last(store);
       }
       ARRAY: {
-        return array_last(book->children);
+        return array_last(store);
       }
       PACKED_QUEUE: {
-        return packed_q_last(book->children);
+        return packed_q_last(store);
       }
       RED_BLACK_T: {
-        return rb_tree_last(book->children);
+        return rb_tree_last(store);
       }
     } SELECTION_END;
 
@@ -761,7 +890,7 @@ bool cdp_book_deep_traverse(cdpRecord* book, cdpTraverse func, cdpTraverse endFu
     if (!entry) entry = cdp_alloca(sizeof(cdpBookEntry));
     CDP_0(entry);
     entry->parent = book;
-    entry->record = cdp_book_first(book);
+    entry->record = cdp_record_first(book);
 
     // Non-recursive version of branch descent:
     size_t stackSize = MAX_DEPTH * sizeof(cdpBookEntry);
@@ -815,7 +944,7 @@ bool cdp_book_deep_traverse(cdpRecord* book, cdpTraverse func, cdpTraverse endFu
 
         // Descent to children if it's a book.
         if (cdp_record_children(entry->record)
-        && ((child = cdp_book_first(entry->record)))) {
+        && ((child = cdp_record_first(entry->record)))) {
             assert(depth < MAX_DEPTH);
 
             stack[depth++]  = *entry;

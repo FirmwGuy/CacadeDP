@@ -58,7 +58,7 @@ bool cdp_agent_error(cdpRecord* instance, cdpTask* signal) {
 
 
 bool cdp_agent_connect(cdpRecord* instance, cdpTask* signal) {
-    cdpRecord* link = cdp_book_first(&signal->input);
+    cdpRecord* link = cdp_record_first(&signal->input);
     cdpID nameID = cdp_record_get_id(link);
 
     if (cdp_record_children(instance)) {
@@ -128,7 +128,7 @@ bool cdp_agent_reset_book(cdpRecord* instance, cdpTask* signal) {
 
 
 bool cdp_agent_reset_register(cdpRecord* instance, cdpTask* signal) {
-    cdp_register_reset(instance);
+    cdp_record_data_reset(instance);
     return true;
 }
 

@@ -570,7 +570,7 @@ static inline void  cdp_record_set_id(cdpRecord* record, cdpID name)  {assert(re
 
 #define CDP_CHD_STORE(children)         ({assert(children);  (cdpChdStore*)(children);})
 #define cdp_record_par_store(record)    CDP_CHD_STORE((record)->store)
-static inline cdpRecord* cdp_record_parent  (const cdpRecord* record)   {assert(record);  return CDP_EXPECT_PTR(record->store)? cdp_record_par_store(record)->book: NULL;}
+static inline cdpRecord* cdp_record_parent  (const cdpRecord* record)   {assert(record);  return CDP_EXPECT_PTR(record->store)? cdp_record_par_store(record)->owner: NULL;}
 static inline size_t     cdp_record_siblings(const cdpRecord* record)   {assert(record);  return CDP_EXPECT_PTR(record->store)? cdp_record_par_store(record)->chdCount: 0;}
 
 static inline size_t cdp_record_children(const cdpRecord* record)       {assert(record);  if (record->metarecord.withstore) return ((cdpChdStore*)record->store)->chdCount; else return 0;}
@@ -706,47 +706,26 @@ static inline cdpRecord* cdp_book_add_text(cdpRecord* book, unsigned attrib, cdp
 static inline cdpRecord* cdp_root(void)  {extern cdpRecord CDP_ROOT; assert(CDP_ROOT.children);  return &CDP_ROOT;}
 
 
+// Accessing data
+cdpValue cdp_record_read(const cdpRecord* record, size_t* capacity, size_t* size, void* data);
+cdpValue cdp_record_read_value(const cdpRecord* record);
+void* cdp_record_update(cdpRecord* record, size_t capacity, size_t size, cdpValue data, bool swap);
+#define cdp_register_update_value(r, v) cdp_record_update(r, sizeof(cdpValue), sizeof(cdpValue), v, 0)
+
+void cdp_record_data_delete(cdpRecord* record);
+void cdp_record_data_reset(cdpRecord* record);
+void cdp_record_branch_reset(cdpRecord* record);
+#define cdp_record_full_reset(r)    do{ cdp_record_branch_reset(r); cdp_record_data_reset(r);} while(0)
+#define cdp_record_full_delete(r)    do{ cdp_record_branch_reset(r); cdp_record_data_delete(r);} while(0)
+
+
 // Constructs the full path (sequence of ids) for a given record, returning the depth.
 bool cdp_record_path(const cdpRecord* record, cdpPath** path);
 
 
-// Accessing registers
-void* cdp_record_read(const cdpRecord* reg, size_t position, void* data, size_t* size);   // Reads register data from position and puts it on data buffer (atomically).
-void* cdp_register_write(cdpRecord* reg, size_t position, const void* data, size_t size);   // Writes the data of a register record at position (atomically and it may reallocate memory).
-#define cdp_register_update(reg, data, size)   cdp_register_write(reg, 0, data, size)
-
-#define cdp_record_read_byte(reg)     (*(uint8_t*)cdp_record_read(reg, 0, NULL, NULL))
-#define cdp_record_read_uint16(reg)   (*(uint16_t*)cdp_record_read(reg, 0, NULL, NULL))
-#define cdp_record_read_uint32(reg)   (*(uint32_t*)cdp_record_read(reg, 0, NULL, NULL))
-#define cdp_record_read_uint64(reg)   (*(uint64_t*)cdp_record_read(reg, 0, NULL, NULL))
-#define cdp_record_read_int16(reg)    (*(int16_t*)cdp_record_read(reg, 0, NULL, NULL))
-#define cdp_record_read_int32(reg)    (*(int32_t*)cdp_record_read(reg, 0, NULL, NULL))
-#define cdp_record_read_int64(reg)    (*(int64_t*)cdp_record_read(reg, 0, NULL, NULL))
-#define cdp_record_read_float32(reg)  (*(float*)cdp_record_read(reg, 0, NULL, NULL))
-#define cdp_record_read_float64(reg)  (*(double*)cdp_record_read(reg, 0, NULL, NULL))
-
-#define cdp_record_read_id(reg)       (*(cdpID*)cdp_record_read(reg, 0, NULL, NULL))
-#define cdp_record_read_bool(reg)     (*(uint8_t*)cdp_record_read(reg, 0, NULL, NULL))  // ToDo: use recData.reg.data.direct.
-#define cdp_record_read_utf8(reg)     ((const char*)cdp_record_read(reg, 0, NULL, NULL))
-
-#define cdp_register_update_byte(reg, v)    cdp_register_update(reg, &(v), sizeof(uint8_t))
-#define cdp_register_update_uint16(reg, v)  cdp_register_update(reg, &(v), sizeof(uint16_t))
-#define cdp_register_update_uint32(reg, v)  cdp_register_update(reg, &(v), sizeof(uint32_t))
-#define cdp_register_update_uint64(reg, v)  cdp_register_update(reg, &(v), sizeof(uint64_t))
-#define cdp_register_update_int16(reg, v)   cdp_register_update(reg, &(v), sizeof(int16_t))
-#define cdp_register_update_int32(reg, v)   cdp_register_update(reg, &(v), sizeof(int32_t))
-#define cdp_register_update_int64(reg, v)   cdp_register_update(reg, &(v), sizeof(int64_t))
-#define cdp_register_update_float32(reg, v) cdp_register_update(reg, &(v), sizeof(float))
-#define cdp_register_update_float64(reg, v) cdp_register_update(reg, &(v), sizeof(double))
-
-#define cdp_register_update_bool(reg, v)    cdp_register_update(reg, &(v), sizeof(uint8_t))
-
-static inline void cdp_register_reset(cdpRecord* reg)   {memset(cdp_register_data(reg), 0, cdp_register_size(reg));}
-
-
-// Accessing books
-cdpRecord* cdp_book_first(const cdpRecord* book);   // Gets the first record from book.
-cdpRecord* cdp_book_last (const cdpRecord* book);   // Gets the last record from book.
+// Accessing branche record
+cdpRecord* cdp_record_first(const cdpRecord* book);   // Gets the first record from book.
+cdpRecord* cdp_record_last (const cdpRecord* book);   // Gets the last record from book.
 
 cdpRecord* cdp_book_find_by_name(const cdpRecord* book, cdpID id);             // Retrieves a child record by its id.
 cdpRecord* cdp_book_find_by_key(const cdpRecord* book, cdpRecord* key, cdpCompare compare, void* context);  // Finds a child record based on specified key record.
