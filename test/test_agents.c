@@ -92,11 +92,11 @@ bool adder_agent_initiate(cdpRecord* instance, cdpTask* signal) {
 
 
 bool adder_agent_update(cdpRecord* instance, cdpTask* signal) {
-    cdpRecord* ansLink = cdp_book_find_by_name(instance, ADDER_ANS);
+    cdpRecord* ansLink = cdp_record_find_by_name(instance, ADDER_ANS);
     assert(ansLink);
 
     uint32_t op2 = cdp_dict_get_uint32(&signal->input, ADDER_OP2);
-    cdpRecord* regOp2 = cdp_book_find_by_name(instance, ADDER_OP2);
+    cdpRecord* regOp2 = cdp_record_find_by_name(instance, ADDER_OP2);
     cdp_register_update_uint32(regOp2, op2);
 
     uint32_t op1 = cdp_dict_get_uint32(instance, ADDER_OP1);
@@ -158,7 +158,7 @@ MunitResult test_agents(const MunitParameter params[], void* user_data_or_fixtur
     extern cdpRecord* TEMP;
 
     // Instance initiation
-    cdpRecord* cascade = cdp_book_add_dictionary(TEMP, CDP_AUTO_ID, CDP_STORAGE_ARRAY, 3);
+    cdpRecord* cascade = cdp_book_add_dictionary(TEMP, CDP_AUTOID, CDP_STORAGE_ARRAY, 3);
     cdpRecord* stdInp = cdp_book_add_instance(cascade, CDP_ID("stdin"), NULL);
     cdpRecord* adderI = cdp_book_add_instance(cascade, CDP_ID("adder"), NULL);
     cdpRecord* stdOut = cdp_book_add_instance(cascade, CDP_ID("stdout"), NULL);
@@ -166,7 +166,7 @@ MunitResult test_agents(const MunitParameter params[], void* user_data_or_fixtur
     // Connect pipeline (from downstreaam to upstream)
     cdp_system_connect(adderI, CDP_ID("ans"), stdOut);
 
-    cdpRecord* adder_op2 = cdp_book_find_by_name(adderI, CDP_ID("op2"));
+    cdpRecord* adder_op2 = cdp_record_find_by_name(adderI, CDP_ID("op2"));
     cdp_system_connect(stdInp, cdp_record_get_id(stdInp), adder_op2);
 
     // Execute pipeline

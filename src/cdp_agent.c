@@ -30,10 +30,10 @@ void cdp_system_initiate_agent_fields(void) {
     /**** WARNING: this must be done in the same order as the
                 enumeration in "cdp_action.h". ****/
 
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID,  "storage");
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID,     "base");
+    cdp_book_add_static_text(NAME, CDP_AUTOID,  "storage");
+    cdp_book_add_static_text(NAME, CDP_AUTOID,     "base");
 
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID,   "record");
+    cdp_book_add_static_text(NAME, CDP_AUTOID,   "record");
 
 }
 
@@ -45,7 +45,7 @@ bool cdp_agent_ignore(cdpRecord* instance, cdpTask* signal) {
 
 bool cdp_agent_error(cdpRecord* instance, cdpTask* signal) {
     cdp_record_initialize_list(&signal->condition, CDP_NAME_ERROR, CDP_STORAGE_LINKED_LIST);
-    cdp_book_add_static_text(&signal->condition, CDP_AUTO_ID, "Unsupported action.");
+    cdp_book_add_static_text(&signal->condition, CDP_AUTOID, "Unsupported action.");
     return false;
 }
 
@@ -62,7 +62,7 @@ bool cdp_agent_connect(cdpRecord* instance, cdpTask* signal) {
     cdpID nameID = cdp_record_get_id(link);
 
     if (cdp_record_children(instance)) {
-        cdpRecord* found = cdp_book_find_by_name(instance, nameID);
+        cdpRecord* found = cdp_record_find_by_name(instance, nameID);
         assert(!found);
         cdp_book_add_link(instance, nameID, cdp_link_data(link));
     } else {
@@ -80,7 +80,7 @@ bool cdp_agent_initiate_book(cdpRecord* instance, cdpTask* signal) {
     cdpID    agentID = cdp_dict_get_id(&signal->input, CDP_NAME_AGENT);
     unsigned storage = cdp_dict_get_id(&signal->input, CDP_NAME_STORAGE);
 
-    cdpRecord* regBase  = cdp_book_find_by_name(&signal->input, CDP_NAME_BASE);
+    cdpRecord* regBase  = cdp_record_find_by_name(&signal->input, CDP_NAME_BASE);
     if (regBase)
         cdp_record_initialize(instance, CDP_ROLE_BOOK, 0, nameID, agentID, storage, cdp_record_read_uint32(regBase));
     else
@@ -94,7 +94,7 @@ bool cdp_agent_initiate_register(cdpRecord* instance, cdpTask* signal) {
     cdpID  nameID = cdp_dict_get_id(&signal->input, CDP_NAME_NAME);
     cdpID agentID = cdp_dict_get_id(&signal->input, CDP_NAME_AGENT);
 
-    cdpRecord* data = cdp_book_find_by_name(&signal->input, CDP_NAME_DATA);
+    cdpRecord* data = cdp_record_find_by_name(&signal->input, CDP_NAME_DATA);
 
     cdp_record_transfer(data, instance);
     instance->metadata.id    = nameID;
@@ -106,7 +106,7 @@ bool cdp_agent_initiate_register(cdpRecord* instance, cdpTask* signal) {
 
 bool cdp_agent_initiate_link(cdpRecord* instance, cdpTask* signal) {
     cdpID  nameID = cdp_dict_get_id(&signal->input, CDP_NAME_NAME);
-    cdpRecord* link = cdp_book_find_by_name(&signal->input, CDP_NAME_LINK);
+    cdpRecord* link = cdp_record_find_by_name(&signal->input, CDP_NAME_LINK);
 
     cdp_record_transfer(link, instance);
     instance->metadata.id = nameID;
@@ -122,7 +122,7 @@ bool cdp_agent_terminate(cdpRecord* instance, cdpTask* signal) {
 
 
 bool cdp_agent_reset_book(cdpRecord* instance, cdpTask* signal) {
-    cdp_book_reset(instance);
+    cdp_record_branch_reset(instance);
     return true;
 }
 
@@ -134,7 +134,7 @@ bool cdp_agent_reset_register(cdpRecord* instance, cdpTask* signal) {
 
 
 bool cdp_agent_next(cdpRecord* instance, cdpTask* signal) {
-    cdpRecord* nextRec = cdp_book_next(NULL, instance);
+    cdpRecord* nextRec = cdp_record_next(NULL, instance);
     if (nextRec)
         cdp_book_add_link(&signal->output, CDP_NAME_OUTPUT, nextRec);
     return true;
@@ -142,7 +142,7 @@ bool cdp_agent_next(cdpRecord* instance, cdpTask* signal) {
 
 
 bool cdp_agent_previous(cdpRecord* instance, cdpTask* signal) {
-    cdpRecord* prevRec = cdp_book_prev(NULL, instance);
+    cdpRecord* prevRec = cdp_record_prev(NULL, instance);
     if (prevRec)
         cdp_book_add_link(&signal->output, CDP_NAME_OUTPUT, prevRec);
     return true;

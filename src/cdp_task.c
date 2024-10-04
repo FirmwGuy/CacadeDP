@@ -31,42 +31,42 @@ void cdp_system_initiate_task_names(void) {
     /**** WARNING: this must be done in the same order as the _cdpTaskID enumeration in "cdp_task.h". ****/
 
     // System tasks
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID,     "startup");
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID,    "shutdown");
+    cdp_book_add_static_text(NAME, CDP_AUTOID,     "startup");
+    cdp_book_add_static_text(NAME, CDP_AUTOID,    "shutdown");
 
     // Record tasks
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID,    "initiate");
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID,   "terminate");
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID,       "reset");
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID,        "next");
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID,    "previous");
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID,    "validate");
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID,      "remove");
+    cdp_book_add_static_text(NAME, CDP_AUTOID,    "initiate");
+    cdp_book_add_static_text(NAME, CDP_AUTOID,   "terminate");
+    cdp_book_add_static_text(NAME, CDP_AUTOID,       "reset");
+    cdp_book_add_static_text(NAME, CDP_AUTOID,        "next");
+    cdp_book_add_static_text(NAME, CDP_AUTOID,    "previous");
+    cdp_book_add_static_text(NAME, CDP_AUTOID,    "validate");
+    cdp_book_add_static_text(NAME, CDP_AUTOID,      "remove");
 
     // Book tasks
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID,         "add");
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID,     "prepend");
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID,      "insert");
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID,       "first");
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID,        "last");
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID,        "take");
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID,         "pop");
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID,      "search");
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID,        "link");
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID,      "shadow");
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID,       "clone");
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID,        "move");
+    cdp_book_add_static_text(NAME, CDP_AUTOID,         "add");
+    cdp_book_add_static_text(NAME, CDP_AUTOID,     "prepend");
+    cdp_book_add_static_text(NAME, CDP_AUTOID,      "insert");
+    cdp_book_add_static_text(NAME, CDP_AUTOID,       "first");
+    cdp_book_add_static_text(NAME, CDP_AUTOID,        "last");
+    cdp_book_add_static_text(NAME, CDP_AUTOID,        "take");
+    cdp_book_add_static_text(NAME, CDP_AUTOID,         "pop");
+    cdp_book_add_static_text(NAME, CDP_AUTOID,      "search");
+    cdp_book_add_static_text(NAME, CDP_AUTOID,        "link");
+    cdp_book_add_static_text(NAME, CDP_AUTOID,      "shadow");
+    cdp_book_add_static_text(NAME, CDP_AUTOID,       "clone");
+    cdp_book_add_static_text(NAME, CDP_AUTOID,        "move");
 
     // Register tasks
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID,   "reference");
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID, "unreference");
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID,   "serialize");
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID, "unserialize");
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID,  "textualize");
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID,"untextualize");
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID,        "read");
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID,      "update");
-    cdp_book_add_static_text(NAME, CDP_AUTO_ID,       "patch");
+    cdp_book_add_static_text(NAME, CDP_AUTOID,   "reference");
+    cdp_book_add_static_text(NAME, CDP_AUTOID, "unreference");
+    cdp_book_add_static_text(NAME, CDP_AUTOID,   "serialize");
+    cdp_book_add_static_text(NAME, CDP_AUTOID, "unserialize");
+    cdp_book_add_static_text(NAME, CDP_AUTOID,  "textualize");
+    cdp_book_add_static_text(NAME, CDP_AUTOID,"untextualize");
+    cdp_book_add_static_text(NAME, CDP_AUTOID,        "read");
+    cdp_book_add_static_text(NAME, CDP_AUTOID,      "update");
+    cdp_book_add_static_text(NAME, CDP_AUTOID,       "patch");
 }
 
 
@@ -193,7 +193,7 @@ void cdp_system_finalize_tasks(void) {
     signaler_action(  signal,                                                  \
                       result,                                                  \
                       read_op(o),                                              \
-                      cdpRecord* o = cdp_book_find_by_name( &signal->output,   \
+                      cdpRecord* o = cdp_record_find_by_name( &signal->output,   \
                                                             CDP_NAME_OUTPUT ));\
     return result
 
@@ -288,7 +288,7 @@ void cdp_reset(cdpRecord* instance) {
             CDP_LINK_RESOLVE(instance);
 
         if (cdp_record_children(instance))
-            cdp_book_reset(instance);
+            cdp_record_branch_reset(instance);
         else if (cdp_record_has_data(instance))
             cdp_record_data_reset(instance);
         return;
@@ -300,7 +300,7 @@ void cdp_reset(cdpRecord* instance) {
 
 cdpRecord* cdp_next(cdpRecord* instance) {
     if (!cdp_record_is_connected(instance))
-        return cdp_book_next(NULL, instance);
+        return cdp_record_next(NULL, instance);
 
     signaler_start(CDP_NAME_NEXT, SIGNAL_NEXT, 0, 1);
     signaler_return(cdpRecord*, SIGNAL_NEXT, cdp_link_data);
@@ -309,7 +309,7 @@ cdpRecord* cdp_next(cdpRecord* instance) {
 
 cdpRecord* cdp_previous(cdpRecord* instance) {
     if (!cdp_record_is_connected(instance))
-        return cdp_book_prev(NULL, instance);
+        return cdp_record_prev(NULL, instance);
 
     signaler_start(CDP_NAME_PREVIOUS, SIGNAL_PREVIOUS, 0, 1);
     signaler_return(cdpRecord*, SIGNAL_PREVIOUS, cdp_link_data);
@@ -333,7 +333,7 @@ void cdp_remove(cdpRecord* instance, cdpRecord* target) {
 
     cdp_system_does_action(instance, SIGNAL_REMOVE);
 
-    cdpRecord* moved = cdp_book_find_by_name(&SIGNAL_REMOVE->output, CDP_NAME_OUTPUT);
+    cdpRecord* moved = cdp_record_find_by_name(&SIGNAL_REMOVE->output, CDP_NAME_OUTPUT);
     cdp_record_remove(moved, target);
 
     cdp_task_reset(SIGNAL_REMOVE);
@@ -408,7 +408,7 @@ bool cdp_take(cdpRecord* instance, cdpRecord* target) {
     CDP_LINK_RESOLVE(instance);
     assert(cdp_record_children(instance));
     if (!cdp_record_is_connected(instance))
-        return cdp_book_take(instance, target);
+        return cdp_record_child_take(instance, target);
 
     signaler_start(CDP_NAME_TAKE, SIGNAL_TAKE, 1, 1);
     if (target)
@@ -416,7 +416,7 @@ bool cdp_take(cdpRecord* instance, cdpRecord* target) {
 
     cdp_system_does_action(instance, SIGNAL_TAKE);
     if (target) {
-        cdpRecord* moved = cdp_book_find_by_name(&SIGNAL_TAKE->output, CDP_NAME_OUTPUT);
+        cdpRecord* moved = cdp_record_find_by_name(&SIGNAL_TAKE->output, CDP_NAME_OUTPUT);
         cdp_record_remove(moved, target);
     }
 
@@ -429,7 +429,7 @@ bool cdp_pop(cdpRecord* instance, cdpRecord* target) {
     CDP_LINK_RESOLVE(instance);
     assert(cdp_record_children(instance));
     if (!cdp_record_is_connected(instance))
-        return cdp_book_pop(instance, target);
+        return cdp_record_child_pop(instance, target);
 
     signaler_start(CDP_NAME_POP, SIGNAL_POP, 1, 1);
     if (target)
@@ -437,7 +437,7 @@ bool cdp_pop(cdpRecord* instance, cdpRecord* target) {
 
     cdp_system_does_action(instance, SIGNAL_POP);
     if (target) {
-        cdpRecord* moved = cdp_book_find_by_name(&SIGNAL_POP->output, CDP_NAME_OUTPUT);
+        cdpRecord* moved = cdp_record_find_by_name(&SIGNAL_POP->output, CDP_NAME_OUTPUT);
         cdp_record_remove(moved, target);
     }
 
@@ -564,7 +564,7 @@ void* cdp_read(cdpRecord* instance, void* data, size_t* size) {
 
     cdp_system_does_action(instance, SIGNAL_READ);
 
-    cdpRecord* reg = cdp_book_find_by_name(&SIGNAL_READ->output, CDP_NAME_OUTPUT);
+    cdpRecord* reg = cdp_record_find_by_name(&SIGNAL_READ->output, CDP_NAME_OUTPUT);
     assert(cdp_record_has_data(reg));
     if (size)
         *size = cdp_register_size(reg);
