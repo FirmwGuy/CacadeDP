@@ -143,7 +143,7 @@ static inline void store_check_auto_id(cdpChdStore* parStore, cdpRecord* record)
 */
 bool cdp_record_initialize( cdpRecord* record, cdpID name,
                             bool dictionary, unsigned storage, size_t basez,
-                            cdpID metadata, size_t capacity, size_t size,
+                            cdpMetadata metadata, size_t capacity, size_t size,
                             cdpValue data, cdpDel destructor) {
     assert(record && cdp_id_valid(name) && storage < CDP_STORAGE_COUNT);
     if (dictionary) {
@@ -166,6 +166,7 @@ bool cdp_record_initialize( cdpRecord* record, cdpID name,
     record->metarecord.name       = name;
     record->metarecord.dictionary = dictionary? 1: 0;
     record->metarecord.storage    = storage;
+    record->metadata = metadata;
     record->basez = basez;
 
     if (capacity) {

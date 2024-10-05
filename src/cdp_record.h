@@ -251,6 +251,8 @@ enum _cdpDomain {
     static_assert(sizeof(cdpAttribute) == sizeof(n))
 
 
+#define CDP_TAG_BRANCH  0
+
 
 
 /*
@@ -536,14 +538,14 @@ static inline cdpRecord* cdp_root(void)  {extern cdpRecord CDP_ROOT; assert(CDP_
 
 bool cdp_record_initialize( cdpRecord* record, cdpID name,
                             bool dictionary, unsigned storage, size_t basez,
-                            cdpID metadata, size_t capacity, size_t size,
+                            cdpMetadata metadata, size_t capacity, size_t size,
                             cdpValue data, cdpDel destructor  );
 void cdp_record_initialize_clone(cdpRecord* newClone, cdpID nameID, cdpRecord* record);
 void cdp_record_finalize(cdpRecord* record);
 
-#define cdp_record_initialize_value(r, name, metadata, capacity, size, data, destructor)  cdp_record_initialize(r, name, true, CDP_STORAGE_RED_BLACK_T, 0, metadata, capacity, size, data, destructor)
-#define cdp_record_initialize_branch(r, name, dictionary, storage, basez)                 cdp_record_initialize(r, name, dictionary, storage, basez, 0, 0, 0, (cdpValue){0}, NULL)
-#define cdp_record_initialize_dictionary(r, name, storage, basez)                         cdp_record_initialize(r, name, true, storage, basez, 0, 0, 0, (cdpValue){0}, NULL)
+#define cdp_record_initialize_value(r, name, metadata, capacity, size, data, destructor)    cdp_record_initialize(r, name, true, CDP_STORAGE_RED_BLACK_T, 0, metadata, capacity, size, data, destructor)
+#define cdp_record_initialize_branch(r, name, storage, basez)                               cdp_record_initialize(r, name, false, storage, basez, (cdpMetadata){0}, 0, 0, (cdpValue){0}, NULL)
+#define cdp_record_initialize_dictionary(r, name, storage, basez)                           cdp_record_initialize(r, name, true,  storage, basez, (cdpMetadata){0}, 0, 0, (cdpValue){0}, NULL)
 
 static inline cdpTag cdp_record_domain(const cdpRecord* record) {assert(record);  return record->metadata.domain;}
 static inline cdpTag cdp_record_role(const cdpRecord* record)   {assert(record);  return record->metadata.role;}
@@ -599,18 +601,21 @@ static inline void cdp_record_replace(cdpRecord* oldr, cdpRecord* newr) {
 cdpRecord* cdp_record_add(cdpRecord* parent, cdpRecord* record, bool prepend);
 cdpRecord* cdp_record_sorted_insert(cdpRecord* parent, cdpRecord* record, cdpCompare compare, void* context);
 
-#define cdp_record_prepend_record(parent, name, dictionary, storage, basez, metadata, capacity, size, data, destructor, ...)\
-    ({cdpRecord r={0}; cdp_record_initialize(&r, name, dictionary, storage, basez, metadata, capacity, size, data, destructor)? cdp_record_add(parent, &r, true ##__VA_ARGS__): NULL;})
+#define cdp_record_add_record(parent, name, dictionary, storage, basez, metadata, capacity, size, data, destructor)\
+    ({cdpRecord r={0}; cdp_record_initialize(&r, name, dictionary, storage, basez, metadata, capacity, size, data, destructor)? cdp_record_add(parent, &r, false): NULL;})
 
-#define cdp_record_prepend_value(parent, name, metadata, capacity, size, data, destructor)  cdp_record_prepend_record(parent, name, true, CDP_STORAGE_RED_BLACK_T, 0, metadata, capacity, size, data, destructor)
-#define cdp_record_prepend_branch(parent, name, dictionary, storage, basez)                 cdp_record_prepend_record(parent, name, dictionary, storage, basez, 0, 0, 0, (cdpValue){0}, NULL)
-#define cdp_record_prepend_dictionary(parent, name, storage, basez)                         cdp_record_prepend_record(parent, name, true, storage, basez, 0, 0, 0, (cdpValue){0}, NULL)
+#define cdp_record_add_data(parent, name, metadata, capacity, size, data, destructor)       cdp_record_add_record(parent, name, true, CDP_STORAGE_RED_BLACK_T, 0, metadata, capacity, size, data, destructor)
+#define cdp_record_add_value(parent, name, metadata, v)                                     cdp_record_add_record(parent, name, true, CDP_STORAGE_RED_BLACK_T, 0, metadata, sizeof(cdpValue), 0, v, NULL)
+#define cdp_record_add_branch(parent, name, storage, basez)                                 cdp_record_add_record(parent, name, false, storage, basez, (cdpMetadata){0}, 0, 0, (cdpValue){0}, NULL)
+#define cdp_record_add_dictionary(parent, name, storage, basez)                             cdp_record_add_record(parent, name, true,  storage, basez, (cdpMetadata){0}, 0, 0, (cdpValue){0}, NULL)
 
-#define cdp_record_add_record(p, n, t, s, b, m, c, z, d, f)                                 cdp_record_prepend_record(p, n, t, s, b, m, c, z, d, f, &&false)
+#define cdp_record_prepend_record(parent, name, dictionary, storage, basez, metadata, capacity, size, data, destructor)\
+    ({cdpRecord r={0}; cdp_record_initialize(&r, name, dictionary, storage, basez, metadata, capacity, size, data, destructor)? cdp_record_add(parent, &r, true): NULL;})
 
-#define cdp_record_add_value(parent, name, metadata, capacity, size, data, destructor)      cdp_record_add_record(parent, name, true, CDP_STORAGE_RED_BLACK_T, 0, metadata, capacity, size, data, destructor)
-#define cdp_record_add_branch(parent, name, dictionary, storage, basez)                     cdp_record_add_record(parent, name, dictionary, storage, basez, 0, 0, 0, (cdpValue){0}, NULL)
-#define cdp_record_add_dictionary(parent, name, storage, basez)                             cdp_record_add_record(parent, name, true, storage, basez, 0, 0, 0, (cdpValue){0}, NULL)
+#define cdp_record_prepend_data(parent, name, metadata, capacity, size, data, destructor)   cdp_record_prepend_record(parent, name, true, CDP_STORAGE_RED_BLACK_T, 0, metadata, capacity, size, data, destructor)
+#define cdp_record_prepend_value(parent, name, metadata, v)                                 cdp_record_prepend_record(parent, name, true, CDP_STORAGE_RED_BLACK_T, 0, metadata, sizeof(cdpValue), 0, v, NULL)
+#define cdp_record_prepend_branch(parent, name, storage, basez)                             cdp_record_prepend_record(parent, name, false, storage, basez, (cdpMetadata){0}, 0, 0, (cdpValue){0}, NULL)
+#define cdp_record_prepend_dictionary(parent, name, storage, basez)                         cdp_record_prepend_record(parent, name, true,  storage, basez, (cdpMetadata){0}, 0, 0, (cdpValue){0}, NULL)
 
 
 // Accessing data
@@ -622,8 +627,8 @@ void* cdp_record_update(cdpRecord* record, size_t capacity, size_t size, cdpValu
 void cdp_record_data_delete(cdpRecord* record);
 void cdp_record_data_reset(cdpRecord* record);
 void cdp_record_branch_reset(cdpRecord* record);
-#define cdp_record_reset(r)    do{ cdp_record_branch_reset(r); cdp_record_data_reset(r);} while(0)
-#define cdp_record_delete(r)    do{ cdp_record_branch_reset(r); cdp_record_data_delete(r);} while(0)
+#define cdp_record_reset(r)     do{ cdp_record_branch_reset(r); cdp_record_data_reset(r);} while(0)
+#define cdp_record_delete(r)    cdp_record_remove(r, NULL)
 
 
 // Constructs the full path (sequence of ids) for a given record, returning the depth.
@@ -642,8 +647,8 @@ cdpRecord* cdp_record_find_by_path(const cdpRecord* start, const cdpPath* path);
 cdpRecord* cdp_record_prev(const cdpRecord* parent, cdpRecord* record);
 cdpRecord* cdp_record_next(const cdpRecord* parent, cdpRecord* record);
 
-cdpRecord* cdp_book_next_by_name(const cdpRecord* record, cdpID id, uintptr_t* prev);
-cdpRecord* cdp_book_next_by_path(const cdpRecord* start, cdpPath* path, uintptr_t* prev);
+cdpRecord* cdp_record_find_next_by_name(const cdpRecord* record, cdpID id, uintptr_t* childIdx);
+cdpRecord* cdp_record_find_next_by_path(const cdpRecord* start, cdpPath* path, uintptr_t* prev);
 
 bool cdp_record_traverse     (cdpRecord* record, cdpTraverse func, void* context, cdpBookEntry* entry);
 bool cdp_record_deep_traverse(cdpRecord* record, cdpTraverse func, cdpTraverse listEnd, void* context, cdpBookEntry* entry);
@@ -661,6 +666,7 @@ void cdp_record_to_dictionary(cdpRecord* record);
 
 /*
     TODO:
+    - Change name from 'id' to 'name' in cdpPath.
     - Implement clone (deep copy) records.
     - Traverse book in internal (stoTech) order.
     - Add indexof for records.
