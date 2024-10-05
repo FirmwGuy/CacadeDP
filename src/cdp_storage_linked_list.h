@@ -22,17 +22,17 @@
 typedef struct _cdpListNode     cdpListNode;
 
 struct _cdpListNode {
-    cdpListNode*  next;           // Previous node.
-    cdpListNode*  prev;           // Next node.
+    cdpListNode*  next;         // Previous node.
+    cdpListNode*  prev;         // Next node.
     //
-    cdpRecord     record;         // Child record.
+    cdpRecord     record;       // Child record.
 };
 
 typedef struct {
-    cdpChdStore   store;       // Parent info.
+    cdpChdStore   store;        // Parent info.
     //
-    cdpListNode*  head;           // Head of the doubly linked list
-    cdpListNode*  tail;           // Tail of the doubly linked list for quick append
+    cdpListNode*  head;         // Head of the doubly linked list
+    cdpListNode*  tail;         // Tail of the doubly linked list for quick append
 } cdpList;
 
 
@@ -46,7 +46,7 @@ typedef struct {
 #define list_del        cdp_free
 
 
-static inline cdpListNode* list_node_from_record(cdpRecord* record) {
+static inline cdpListNode* list_node_from_record(const cdpRecord* record) {
     return cdp_ptr_dif(record, offsetof(cdpListNode, record));
 }
 
@@ -131,9 +131,9 @@ static inline cdpRecord* list_last(cdpList* list) {
 }
 
 
-static inline cdpRecord* list_find_by_name(cdpList* list, cdpID id) {
+static inline cdpRecord* list_find_by_name(cdpList* list, cdpID name) {
     for (cdpListNode* node = list->head;  node;  node = node->next) {
-        if (node->record.metadata.id == id)
+        if (node->record.metarecord.name == name)
             return &node->record;
     }
     return NULL;
@@ -161,22 +161,22 @@ static inline cdpRecord* list_find_by_position(cdpList* list, size_t position) {
 }
 
 
-static inline cdpRecord* list_prev(cdpRecord* record) {
+static inline cdpRecord* list_prev(const cdpRecord* record) {
     cdpListNode* node = list_node_from_record(record);
     return node->prev? &node->prev->record: NULL;
 }
 
 
-static inline cdpRecord* list_next(cdpRecord* record) {
+static inline cdpRecord* list_next(const cdpRecord* record) {
     cdpListNode* node = list_node_from_record(record);
     return node->next? &node->next->record: NULL;
 }
 
 
-static inline cdpRecord* list_next_by_name(cdpList* list, cdpID id, cdpListNode** prev) {
+static inline cdpRecord* list_next_by_name(cdpList* list, cdpID name, cdpListNode** prev) {
     cdpListNode* node = *prev?  (*prev)->next:  list->head;
     while (node) {
-        if (node->record.metadata.id == id) {
+        if (node->record.metarecord.name == name) {
             *prev = node;
             return &node->record;
         }
@@ -187,8 +187,8 @@ static inline cdpRecord* list_next_by_name(cdpList* list, cdpID id, cdpListNode*
 }
 
 
-static inline bool list_traverse(cdpList* list, cdpRecord* book, cdpTraverse func, void* context, cdpBookEntry* entry) {
-    entry->parent = book;
+static inline bool list_traverse(cdpList* list, cdpRecord* parent, cdpTraverse func, void* context, cdpBookEntry* entry) {
+    entry->parent = parent;
     entry->depth  = 0;
     cdpListNode* node = list->head, *next;
     do {

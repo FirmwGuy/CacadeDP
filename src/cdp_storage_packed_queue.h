@@ -31,7 +31,7 @@ struct _cdpPackedQNode {
 };
 
 typedef struct {
-    cdpChdStore     store;   // Parent info.
+    cdpChdStore     store;      // Parent info.
     //
     size_t          pSize;      // Pack size in bytes.
     cdpPackedQNode* pHead;      // Head of the buffer list.
@@ -119,10 +119,10 @@ static inline cdpRecord* packed_q_last(cdpPackedQ* pkdq) {
 }
 
 
-static inline cdpRecord* packed_q_find_by_name(cdpPackedQ* pkdq, cdpID id) {
+static inline cdpRecord* packed_q_find_by_name(cdpPackedQ* pkdq, cdpID name) {
     for (cdpPackedQNode* pNode = pkdq->pHead;  pNode;  pNode = pNode->pNext) {
         for (cdpRecord* record = pNode->first;  record <= pNode->last;  record++) {
-            if (record->metadata.id == id)
+            if (record->metarecord.name == name)
                 return record;
         }
     }
@@ -161,10 +161,10 @@ static inline cdpRecord* packed_q_next(cdpPackedQ* pkdq, cdpRecord* record) {
 }
 
 
-static inline cdpRecord* packed_q_next_by_name(cdpPackedQ* pkdq, cdpID id, cdpPackedQNode** prev) {
+static inline cdpRecord* packed_q_next_by_name(cdpPackedQ* pkdq, cdpID name, cdpPackedQNode** prev) {
     for (cdpPackedQNode* pNode = prev? (*prev)->pNext: pkdq->pHead;  pNode;  pNode = pNode->pNext) {
         for (cdpRecord* record = pNode->first;  record <= pNode->last;  record++) {
-            if (record->metadata.id == id)
+            if (record->metarecord.name == name)
                 return record;
         }
     }
@@ -172,8 +172,8 @@ static inline cdpRecord* packed_q_next_by_name(cdpPackedQ* pkdq, cdpID id, cdpPa
 }
 
 
-static inline bool packed_q_traverse(cdpPackedQ* pkdq, cdpRecord* book, cdpTraverse func, void* context, cdpBookEntry* entry) {
-    entry->parent = book;
+static inline bool packed_q_traverse(cdpPackedQ* pkdq, cdpRecord* parent, cdpTraverse func, void* context, cdpBookEntry* entry) {
+    entry->parent = parent;
     entry->depth  = 0;
     cdpPackedQNode* pNode = pkdq->pHead;
     do {

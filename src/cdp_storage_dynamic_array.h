@@ -20,11 +20,11 @@
 
 
 typedef struct {
-    cdpChdStore store;         // Parent info.
+    cdpChdStore store;          // Parent info.
     //
-    size_t      capacity;         // Total capacity of the array to manage allocations
+    size_t      capacity;       // Total capacity of the array to manage allocations
     //
-    cdpRecord*  record;           // Children Record
+    cdpRecord*  record;         // Children Record
 } cdpArray;
 
 
@@ -163,14 +163,14 @@ static inline cdpRecord* array_last(cdpArray* array) {
 }
 
 
-static inline cdpRecord* array_find_by_name(cdpArray* array, cdpID id, const cdpRecord* book) {
-    if (cdp_record_is_dictionary(book)) {
-        cdpRecord key = {.metadata.id = id};
+static inline cdpRecord* array_find_by_name(cdpArray* array, cdpID name, const cdpRecord* parent) {
+    if (cdp_record_is_dictionary(parent)) {
+        cdpRecord key = {.metarecord.name = name};
         return array_search(array, &key, record_compare_by_name, NULL, NULL);
     } else {
         cdpRecord* record = array->record;
         for (size_t i = 0; i < array->store.chdCount; i++, record++) {
-            if (record->metadata.id == id)
+            if (record->metarecord.name == name)
                 return record;
         }
     }
@@ -200,18 +200,18 @@ static inline cdpRecord* array_next(cdpArray* array, cdpRecord* record) {
 }
 
 
-static inline cdpRecord* array_next_by_name(cdpArray* array, cdpID id, uintptr_t* prev) {
+static inline cdpRecord* array_next_by_name(cdpArray* array, cdpID name, uintptr_t* prev) {
     cdpRecord* record = array->record;
     for (size_t i = prev? (*prev + 1): 0;  i < array->store.chdCount;  i++, record++){
-        if (record->metadata.id == id)
+        if (record->metarecord.name == name)
             return record;
     }
     return NULL;
 }
 
-static inline bool array_traverse(cdpArray* array, cdpRecord* book, cdpTraverse func, void* context, cdpBookEntry* entry) {
+static inline bool array_traverse(cdpArray* array, cdpRecord* parent, cdpTraverse func, void* context, cdpBookEntry* entry) {
     assert(array && array->capacity >= array->store.chdCount);
-    entry->parent = book;
+    entry->parent = parent;
     entry->depth  = 0;
     entry->next   = array->record;
     cdpRecord* last = &array->record[array->store.chdCount - 1];

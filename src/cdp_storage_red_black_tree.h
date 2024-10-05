@@ -31,7 +31,7 @@ struct _cdpRbTreeNode {
 };
 
 typedef struct {
-    cdpChdStore     store;     // Parent info.
+    cdpChdStore     store;        // Parent info.
     //
     cdpRbTreeNode*  root;         // The root node.
     //cdpRbTreeNode*  maximum;      // Node holding the maximum data.
@@ -200,12 +200,12 @@ static inline cdpRecord* rb_tree_last(cdpRbTree* tree) {
 }
 
 
-static inline bool rb_tree_traverse(cdpRbTree* tree, cdpRecord* book, unsigned maxDepth, cdpTraverse func, void* context, cdpBookEntry* entry) {
+static inline bool rb_tree_traverse(cdpRbTree* tree, cdpRecord* parent, unsigned maxDepth, cdpTraverse func, void* context, cdpBookEntry* entry) {
   cdpRbTreeNode* tnode = tree->root, *tnodePrev = NULL;
   cdpRbTreeNode* stack[maxDepth];
   int top = -1;  // Stack index initialized to empty.
 
-  entry->parent = book;
+  entry->parent = parent;
   entry->depth  = 0;
   do {
       if (tnode) {
@@ -233,13 +233,13 @@ static inline bool rb_tree_traverse(cdpRbTree* tree, cdpRecord* book, unsigned m
 }
 
 
-static inline int rb_traverse_func_break_at_name(cdpBookEntry* entry, uintptr_t id) {
-    return (entry->record->metadata.id != id);
+static inline int rb_traverse_func_break_at_name(cdpBookEntry* entry, uintptr_t name) {
+    return (entry->record->metarecord.name != name);
 }
 
 
-static inline cdpRecord* rb_tree_find_by_id(cdpRbTree* tree, cdpID id) {
-    cdpRecord key = {.metadata.id = id};
+static inline cdpRecord* rb_tree_find_by_id(cdpRbTree* tree, cdpID name) {
+    cdpRecord key = {.metarecord.name = name};
     cdpRbTreeNode* tnode = tree->root;
     do {
         int cmp = record_compare_by_name(&key, &tnode->record, NULL);
@@ -255,12 +255,12 @@ static inline cdpRecord* rb_tree_find_by_id(cdpRbTree* tree, cdpID id) {
 }
 
 
-static inline cdpRecord* rb_tree_find_by_name(cdpRbTree* tree, cdpID id, const cdpRecord* book) {
-    if (cdp_record_is_dictionary(book)) {
+static inline cdpRecord* rb_tree_find_by_name(cdpRbTree* tree, cdpID id, const cdpRecord* parent) {
+    if (cdp_record_is_dictionary(parent)) {
         return rb_tree_find_by_id(tree, id);
     } else {
         cdpBookEntry entry = {0};
-        if (!rb_tree_traverse(tree, CDP_P(book), cdp_bitson(tree->store.chdCount) + 2, (cdpFunc) rb_traverse_func_break_at_name, cdp_v2p(id), &entry))
+        if (!rb_tree_traverse(tree, CDP_P(parent), cdp_bitson(tree->store.chdCount) + 2, (cdpFunc) rb_traverse_func_break_at_name, cdp_v2p(id), &entry))
             return entry.record;
     }
     return NULL;
@@ -287,9 +287,9 @@ static inline int rb_traverse_func_break_at_position(cdpBookEntry* entry, uintpt
     return (entry->position != position);
 }
 
-static inline cdpRecord* rb_tree_find_by_position(cdpRbTree* tree, size_t position, const cdpRecord* book) {
+static inline cdpRecord* rb_tree_find_by_position(cdpRbTree* tree, size_t position, const cdpRecord* parent) {
     cdpBookEntry entry = {0};
-    if (!rb_tree_traverse(tree, CDP_P(book), cdp_bitson(tree->store.chdCount) + 2, (void*) rb_traverse_func_break_at_position, cdp_v2p(position), &entry))
+    if (!rb_tree_traverse(tree, CDP_P(parent), cdp_bitson(tree->store.chdCount) + 2, (void*) rb_traverse_func_break_at_position, cdp_v2p(position), &entry))
         return entry.record;
     return NULL;
 }

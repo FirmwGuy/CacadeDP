@@ -334,4 +334,9 @@ cdpRecord* cdp_task_begin(  cdpTask* task, cdpRecord* agency, cdpTag cast, cdpRe
 cdpRecord* cdp_task_commit(cdpTask* task);
 
 
+
+static inline cdpRecord* cdp_book_add_text(cdpRecord* book, unsigned attrib, cdpID id, bool borrow, const char* text)    {assert(cdp_record_children(book) && text && *text);  cdpRecord* reg = cdp_record_add_value(book, attrib, id, CDP_TAG_UTF8, borrow, text, strlen(text) + 1); reg->recData.reg.size--; return reg;}
+#define cdp_book_add_static_text(b, id, text)   cdp_book_add_text(b, CDP_ATTRIB_FACTUAL, id, true, text)
+
+
 #endif
