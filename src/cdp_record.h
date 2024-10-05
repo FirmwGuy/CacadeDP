@@ -174,14 +174,14 @@ enum _cdpRecordNaming {
     CDP_NAMING_TEXT,            // Cross-domain indexed text id.
     CDP_NAMING_TAG,             // Per-domain indexed text id.
     CDP_NAMING_LOCAL,           // Per-record numerical id.
-    CDP_NAMING_GLOBAL,          // Global numerical id (it may be used with a system global autoID).
+    CDP_NAMING_GLOBAL,          // Global numerical id (it may be used with a system global autoid).
 
     CDP_NAMING_COUNT
 }
 
 #define cdp_id_from_naming(naming)  (((cdpID)((naming) & 3)) << CDP_AUTOID_BITS)
 //#define cdp_id_to_naming(id)        (((id) >> CDP_AUTOID_BITS) & 3)
-#define CDP_NAMING_POS_MASK         cdp_id_from_naming(3)
+#define CDP_NAMING_MASK             cdp_id_from_naming(3)
 
 #define cdp_id_to_text(pos)         ((pos) & cdp_id_from_naming(CDP_NAMING_TEXT))
 #define cdp_id_to_tag(pos)          ((pos) & cdp_id_from_naming(CDP_NAMING_TAG))
@@ -189,16 +189,16 @@ enum _cdpRecordNaming {
 #define cdp_id_global(id)           ((id)  & cdp_id_from_naming(CDP_NAMING_GLOBAL))
 
 #define cdp_id(name)                ((name) & CDP_AUTOID_MAXVAL)
-#define CDP_ID_SET(name, id)        (name = ((name) & CDP_NAMING_POS_MASK) & cdp_id(id))
+#define CDP_ID_SET(name, id)        (name = ((name) & CDP_NAMING_MASK) | cdp_id(id))
 
 #define CDP_AUTOID_USE              CDP_AUTOID_MAXVAL
 #define CDP_AUTOID_LOCAL            cdp_id_local(CDP_AUTOID_USE)
 #define CDP_AUTOID_GLOBAL           cdp_id_global(CDP_AUTOID_USE)
 
-#define cdp_id_name_is_local(name)  ((CDP_NAMING_POS_MASK & (name)) == cdp_id_from_naming(CDP_NAMING_LOCAL))
-#define cdp_id_name_is_global(name) ((CDP_NAMING_POS_MASK & (name)) == cdp_id_from_naming(CDP_NAMING_GLOBAL))
-#define cdp_id_valid(name)          (((name) & ~CDP_NAMING_POS_MASK) < CDP_AUTOID_MAXVAL) /* ToDo: "name" max check, tag check.*/
-#define cdp_id_is_auto(name)        (((name) & ~CDP_NAMING_POS_MASK) == CDP_AUTOID_MAXVAL)
+#define cdp_id_name_is_local(name)  ((CDP_NAMING_MASK & (name)) == cdp_id_from_naming(CDP_NAMING_LOCAL))
+#define cdp_id_name_is_global(name) ((CDP_NAMING_MASK & (name)) == cdp_id_from_naming(CDP_NAMING_GLOBAL))
+#define cdp_id_valid(name)          (((name) & ~CDP_NAMING_MASK) <= CDP_AUTOID_USE) /* ToDo: "name" max check, tag check.*/
+#define cdp_id_is_auto(name)        (((name) & ~CDP_NAMING_MASK) == CDP_AUTOID_USE)
 
 
 // Initial text name IDs:
@@ -264,11 +264,11 @@ struct _cdpRecord {
         cdpRecord*  linked;     // A linked shadow record (if no children, see in cdpChdStore otherwise).
         cdpShadow*  shadow;     // Structure for multiple linked records (if no children).
     };
-    cdpRecord*      self;       // Next instance of self (circular list ending in this very record).
+    //cdpRecord*      self;       // Next instance of self (circular list ending in this very record).
 };
 
 typedef struct {
-    cdpID           autoID;     // Auto-increment ID for naming contained records.
+    cdpID           autoid;     // Auto-increment ID for naming contained records.
     cdpRecord*      owner;      // Parent record owning this child storage.
     union {
         cdpRecord*  linked;     // A linked shadow record (when children, see in cdpRecord otherwise).
@@ -286,9 +286,9 @@ typedef struct {
     unsigned        depth;
 } cdpBookEntry;
 
-typedef int (*cdpCompare)(const cdpRecord* restrict, const cdpRecord* restrict, void*);
-typedef bool (*cdpTraverse)(cdpBookEntry*, void*);
-typedef bool (*cdpAgent)(cdpRecord* task);
+typedef int  (*cdpCompare)  (const cdpRecord* restrict, const cdpRecord* restrict, void*);
+typedef bool (*cdpTraverse) (cdpBookEntry*, void*);
+typedef bool (*cdpAgent)    (cdpRecord* task);
 
 typedef struct {
     unsigned        count;
@@ -493,7 +493,7 @@ struct _cdpMetadata {
 
 
 enum _cdpDomain {
-    CDP_DOMAIN_BRANCHE,          // A symbolic domain used to indicate all sorts of (pure) branched types.
+    CDP_DOMAIN_BRANCHE,         // A symbolic domain used to indicate all sorts of purely branched types.
     CDP_DOMAIN_BINARY,
     CDP_DOMAIN_TEXT,
     CDP_DOMAIN_INTERFACE,
@@ -538,12 +538,12 @@ static inline cdpRecord* cdp_root(void)  {extern cdpRecord CDP_ROOT; assert(CDP_
 
 bool cdp_record_initialize( cdpRecord* record, cdpID name,
                             bool dictionary, unsigned storage, size_t basez,
-                            cdpID metadata, size_t capacity,, size_t size
+                            cdpID metadata, size_t capacity, size_t size,
                             cdpValue data, cdpDel destructor  );
 void cdp_record_initialize_clone(cdpRecord* newClone, cdpID nameID, cdpRecord* record);
 void cdp_record_finalize(cdpRecord* record);
 
-#define cdp_record_initialize_value(r, name, metadata, size, capacity, data, destructor)  cdp_record_initialize(r, name, true, CDP_STORAGE_LINKED_LIST, 0, metadata, capacity, size, data, destructor)
+#define cdp_record_initialize_value(r, name, metadata, capacity, size, data, destructor)  cdp_record_initialize(r, name, true, CDP_STORAGE_RED_BLACK_T, 0, metadata, capacity, size, data, destructor)
 #define cdp_record_initialize_branch(r, name, dictionary, storage, basez)                 cdp_record_initialize(r, name, dictionary, storage, basez, 0, 0, 0, 0, NULL)
 #define cdp_record_initialize_dictionary(r, name, storage, basez)                         cdp_record_initialize(r, name, true, storage, basez, 0, 0, 0, 0, NULL)
 
@@ -563,10 +563,9 @@ static inline cdpRecord* cdp_record_parent  (const cdpRecord* record)   {assert(
 static inline size_t     cdp_record_siblings(const cdpRecord* record)   {assert(record);  return CDP_EXPECT_PTR(record->store)? cdp_record_par_store(record)->chdCount: 0;}
 static inline size_t     cdp_record_children(const cdpRecord* record)   {assert(record);  return cdp_record_with_store(record)? CDP_CHD_STORE(record->children)->chdCount: 0;}
 
-
 #define cdp_record_is_void(r)       (!cdp_record_get_name(r))
 #define cdp_record_has_data(r)      ((r)->metarecord.recdata != CDP_RECDATA_NONE)
-#define cdp_record_is_dictionary(r) ((r)->metarecord.dictionary == 1)
+#define cdp_record_is_dictionary(r) ((r)->metarecord.dictionary)
 #define cdp_record_is_insertable(r) ((r)->metarecord.storage != CDP_STORAGE_RED_BLACK_T)
 
 #define cdp_record_is_private(r)    ((r)->metarecord.priv)
@@ -575,60 +574,60 @@ static inline size_t     cdp_record_children(const cdpRecord* record)   {assert(
 #define cdp_record_is_baby(r)       ((r)->metarecord.baby)
 #define cdp_record_is_connected(r)  ((r)->metarecord.connected)
 
-#define cdp_record_id_is_pending(r) (cdp_id_is_auto((r)->metarecord.name)
-static inline void  cdp_record_set_autoid(const cdpRecord* record, cdpID id)  {assert(cdp_record_children(record));  cdpChdStore* store = CDP_CHD_STORE(record->children); assert(store->autoID < id  &&  id <= CDP_AUTOID_MAX); store->autoID = id;}
-static inline cdpID cdp_record_get_autoid(const cdpRecord* record)            {assert(cdp_record_children(record));  return CDP_CHD_STORE(record->children)->autoID;}
+#define cdp_record_id_is_pending(r) cdp_id_is_auto((r)->metarecord.name)
+static inline void  cdp_record_set_autoid(const cdpRecord* record, cdpID id)  {assert(cdp_record_with_store(record));  cdpChdStore* store = CDP_CHD_STORE(record->children); assert(store->autoid < id  &&  id <= CDP_AUTOID_MAX); store->autoid = id;}
+static inline cdpID cdp_record_get_autoid(const cdpRecord* record)            {assert(cdp_record_with_store(record));  return CDP_CHD_STORE(record->children)->autoid;}
 
-void cdp_record_relink_storage(cdpRecord* book);
+void cdp_record_relink_storage(cdpRecord* record);
 
 static inline void cdp_record_transfer(cdpRecord* src, cdpRecord* dst) {
     assert(!cdp_record_is_void(src) && dst);
-    dst->metadata = src->metadata;
-    dst->recData  = src->recData;
-    dst->store    = NULL;
+
+    dst = src;
+
     if (cdp_record_children(dst))
         cdp_record_relink_storage(dst);
+
+    // ToDo: relink self list.
 }
 
-static inline void cdp_record_replace(cdpRecord* original, cdpRecord* newRecord) {
-    assert(original && !cdp_record_is_void(newRecord));
-    cdp_record_finalize(original);
-    original->metadata = newRecord->metadata;
-    original->recData  = newRecord->recData;
-    if (cdp_record_children(original))
-        cdp_record_relink_storage(original);
+static inline void cdp_record_replace(cdpRecord* oldr, cdpRecord* newr) {
+    cdp_record_finalize(oldr);
+    cdp_record_transfer(newr, oldr);
 }
 
 
-
-
-
-// Appends, inserts or prepends a copy of record into another record.
+// Appends, inserts or prepends a (copy of) record into another record.
 cdpRecord* cdp_record_add(cdpRecord* parent, cdpRecord* record, bool prepend);
 cdpRecord* cdp_record_sorted_insert(cdpRecord* parent, cdpRecord* record, cdpCompare compare, void* context);
 
-#define cdp_book_add(b, type, attribute, id, tag, prepend, ...)  ({cdpRecord r={0}; cdp_record_initialize(&r, type, attribute, id, tag, ##__VA_ARGS__)? cdp_record_add(b, &r, prepend): NULL;})
-#define cdp_book_add_register(b, attrib, id, tag, borrow, data, size)          cdp_book_add(b, CDP_ROLE_REGISTER, attrib, id, tag, false, ((unsigned)(borrow)), data, ((size_t)(size)))
-#define cdp_book_prepend_register(b, attrib, id, tag, borrow, data, size)      cdp_book_add(b, CDP_ROLE_REGISTER, attrib, id, tag,  true, ((unsigned)(borrow)), data, ((size_t)(size)))
+#define cdp_record_add_record(parent, name, dictionary, storage, basez, metadata, capacity, size, data, destructor)\
+    ({cdpRecord r={0}; cdp_record_initialize(&r, name, dictionary, storage, basez, metadata, capacity, size, data, destructor)? cdp_record_add(parent, &r, prepend): NULL;})
 
-static inline cdpRecord* cdp_book_add_text(cdpRecord* book, unsigned attrib, cdpID id, bool borrow, const char* text)    {assert(cdp_record_children(book) && text && *text);  cdpRecord* reg = cdp_book_add_register(book, attrib, id, CDP_TAG_UTF8, borrow, text, strlen(text) + 1); reg->recData.reg.size--; return reg;}
+#define cdp_record_add_value(b, attrib, id, tag, borrow, data, size)          cdp_record_add_record(b, CDP_ROLE_REGISTER, attrib, id, tag, false, ((unsigned)(borrow)), data, ((size_t)(size)))
+#define cdp_record_add_branch(b, attrib, id, tag, borrow, data, size)          cdp_record_add_record(b, CDP_ROLE_REGISTER, attrib, id, tag, false, ((unsigned)(borrow)), data, ((size_t)(size)))
+#define cdp_record_add_dictionary(b, attrib, id, tag, borrow, data, size)          cdp_record_add_record(b, CDP_ROLE_REGISTER, attrib, id, tag, false, ((unsigned)(borrow)), data, ((size_t)(size)))
+
+#define cdp_book_prepend_register(b, attrib, id, tag, borrow, data, size)      cdp_record_add_record(b, CDP_ROLE_REGISTER, attrib, id, tag,  true, ((unsigned)(borrow)), data, ((size_t)(size)))
+
+static inline cdpRecord* cdp_book_add_text(cdpRecord* book, unsigned attrib, cdpID id, bool borrow, const char* text)    {assert(cdp_record_children(book) && text && *text);  cdpRecord* reg = cdp_record_add_value(book, attrib, id, CDP_TAG_UTF8, borrow, text, strlen(text) + 1); reg->recData.reg.size--; return reg;}
 #define cdp_book_add_static_text(b, id, text)   cdp_book_add_text(b, CDP_ATTRIB_FACTUAL, id, true, text)
 
 
-#define cdp_book_add_book(b, id, tag, chdStorage, ...)            cdp_book_add(b, CDP_ROLE_BOOK, 0, id, tag, false, ((unsigned)(chdStorage)), ##__VA_ARGS__)
-#define cdp_book_prepend_book(b, id, tag, chdStorage, ...)        cdp_book_add(b, CDP_ROLE_BOOK, 0, id, tag,  true, ((unsigned)(chdStorage)), ##__VA_ARGS__)
+#define cdp_book_add_book(b, id, tag, chdStorage, ...)            cdp_record_add_record(b, CDP_ROLE_BOOK, 0, id, tag, false, ((unsigned)(chdStorage)), ##__VA_ARGS__)
+#define cdp_book_prepend_book(b, id, tag, chdStorage, ...)        cdp_record_add_record(b, CDP_ROLE_BOOK, 0, id, tag,  true, ((unsigned)(chdStorage)), ##__VA_ARGS__)
 
 #define cdp_book_add_list(b, id, chdStorage, ...)                 cdp_book_add_book(b, id, CDP_TAG_LIST,  ((unsigned)(chdStorage)), ##__VA_ARGS__)
 #define cdp_book_add_queue(b, id, chdStorage, ...)                cdp_book_add_book(b, id, CDP_TAG_QUEUE, ((unsigned)(chdStorage)), ##__VA_ARGS__)
 #define cdp_book_add_stack(b, id, chdStorage, ...)                cdp_book_add_book(b, id, CDP_TAG_STACK, ((unsigned)(chdStorage)), ##__VA_ARGS__)
 
-#define cdp_book_add_dictionary(b, id, tag, chdStorage, ...)      cdp_book_add(b, CDP_ROLE_BOOK, CDP_ATTRIB_DICTIONARY, id, tag? tag: CDP_TAG_DICTIONARY, false, ((unsigned)(chdStorage)), ##__VA_ARGS__)
+#define cdp_book_add_dictionary(b, id, tag, chdStorage, ...)      cdp_record_add_record(b, CDP_ROLE_BOOK, CDP_ATTRIB_DICTIONARY, id, tag? tag: CDP_TAG_DICTIONARY, false, ((unsigned)(chdStorage)), ##__VA_ARGS__)
 
 #define cdp_book_prepend_list(b, id, chdStorage, ...)             cdp_book_prepend_book(b, id, CDP_TAG_LIST,  ((unsigned)(chdStorage)), ##__VA_ARGS__)
 #define cdp_book_prepend_queue(b, id, chdStorage, ...)            cdp_book_prepend_book(b, id, CDP_TAG_QUEUE, ((unsigned)(chdStorage)), ##__VA_ARGS__)
 #define cdp_book_prepend_stack(b, id, chdStorage, ...)            cdp_book_prepend_book(b, id, CDP_TAG_STACK, ((unsigned)(chdStorage)), ##__VA_ARGS__)
 
-#define cdp_book_prepend_dictionary(b, id, tag, chdStorage, ...)  cdp_book_add(b, CDP_ROLE_BOOK, CDP_ATTRIB_DICTIONARY, id, tag? tag: CDP_TAG_DICTIONARY, true, ((unsigned)(chdStorage)), ##__VA_ARGS__)
+#define cdp_book_prepend_dictionary(b, id, tag, chdStorage, ...)  cdp_record_add_record(b, CDP_ROLE_BOOK, CDP_ATTRIB_DICTIONARY, id, tag? tag: CDP_TAG_DICTIONARY, true, ((unsigned)(chdStorage)), ##__VA_ARGS__)
 
 
 

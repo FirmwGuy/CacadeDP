@@ -130,7 +130,7 @@ void cdp_record_relink_storage(cdpRecord* record) {
 
 static inline void store_check_auto_id(cdpChdStore* store, cdpRecord* record) {
     if (CDP_AUTOID_LOCAL == record->metarecord.name)
-        cdp_record_set_id(record, cdp_id_local(store->autoID++));
+        cdp_record_set_id(record, cdp_id_local(store->autoid++));
     else if (CDP_AUTOID_GLOBAL == record->metarecord.name)
         cdp_record_set_id(record, cdp_id_global(AUTOID++));
 }
@@ -146,17 +146,21 @@ bool cdp_record_initialize( cdpRecord* record, cdpID name,
                             cdpID metadata, size_t capacity, size_t size,
                             cdpValue data, cdpDel destructor) {
     assert(record && cdp_id_valid(name) && storage < CDP_STORAGE_COUNT);
-    if (dictionary && storage == CDP_STORAGE_PACKED_QUEUE) {
-        assert(storage != CDP_STORAGE_PACKED_QUEUE);
-        return false;
+    if (dictionary) {
+        if (storage == CDP_STORAGE_PACKED_QUEUE) {
+            assert(storage != CDP_STORAGE_PACKED_QUEUE);
+            return false;
+        }
+    } else if (storage == CDP_STORAGE_RED_BLACK_T) {
+        dictionary = true;
     }
     if (storage == CDP_STORAGE_ARRAY
     ||  storage == CDP_STORAGE_PACKED_QUEUE) {
         if (!basez) {
             assert(basez);
             return false;
-        }
-    }
+    }   }
+
     //CDP_0(record);
 
     record->metarecord.name       = name;
@@ -188,9 +192,8 @@ bool cdp_record_initialize( cdpRecord* record, cdpID name,
                 memcpy(record->data->_data, data.pointer, capacity);
             } else {
                 record->data = cdp_malloc0(sizeof(cdpData) - sizeof((cdpData)->_data) + dmax);
-                record->data->capacity   = dmax;
-                record->data->size       = size;
-                record->data->destructor = NULL;
+                record->data->capacity = dmax;
+                record->data->size     = size;
             }
             metarecord->recdata = CDP_RECDATA_DATA;
         } else {
