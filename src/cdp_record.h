@@ -410,10 +410,10 @@ enum _cdpRecordNaming {
 //#define cdp_id_to_naming(id)        (((id) >> CDP_AUTOID_BITS) & 3)
 #define CDP_NAMING_MASK             cdp_id_from_naming(3)
 
-#define cdp_id_to_text(pos)         ((pos) & cdp_id_from_naming(CDP_NAMING_TEXT))
-#define cdp_id_to_tag(pos)          ((pos) & cdp_id_from_naming(CDP_NAMING_TAG))
-#define cdp_id_local(id)            ((id)  & cdp_id_from_naming(CDP_NAMING_LOCAL))
-#define cdp_id_global(id)           ((id)  & cdp_id_from_naming(CDP_NAMING_GLOBAL))
+#define cdp_id_to_text(pos)         ((pos) | cdp_id_from_naming(CDP_NAMING_TEXT))
+#define cdp_id_to_tag(pos)          ((pos) | cdp_id_from_naming(CDP_NAMING_TAG))
+#define cdp_id_local(id)            ((id)  | cdp_id_from_naming(CDP_NAMING_LOCAL))
+#define cdp_id_global(id)           ((id)  | cdp_id_from_naming(CDP_NAMING_GLOBAL))
 
 #define cdp_id(name)                ((name) & CDP_AUTOID_MAXVAL)
 #define CDP_ID_SET(name, id)        (name = ((name) & CDP_NAMING_MASK) | cdp_id(id))
@@ -532,10 +532,6 @@ void cdp_record_system_initiate(void);
 void cdp_record_system_shutdown(void);
 
 
-// Root dictionary.
-static inline cdpRecord* cdp_root(void)  {extern cdpRecord CDP_ROOT; assert(CDP_ROOT.children);  return &CDP_ROOT;}
-
-
 bool cdp_record_initialize( cdpRecord* record, cdpID name,
                             bool dictionary, unsigned storage, size_t basez,
                             cdpMetadata metadata, size_t capacity, size_t size,
@@ -583,7 +579,7 @@ void cdp_record_relink_storage(cdpRecord* record);
 static inline void cdp_record_transfer(cdpRecord* src, cdpRecord* dst) {
     assert(!cdp_record_is_void(src) && dst);
 
-    dst = src;
+    *dst = *src;
 
     if (cdp_record_children(dst))
         cdp_record_relink_storage(dst);
@@ -633,6 +629,9 @@ void cdp_record_branch_reset(cdpRecord* record);
 
 // Constructs the full path (sequence of ids) for a given record, returning the depth.
 bool cdp_record_path(const cdpRecord* record, cdpPath** path);
+
+// Root dictionary.
+static inline cdpRecord* cdp_root(void)  {extern cdpRecord CDP_ROOT; assert(!cdp_record_is_void(&CDP_ROOT));  return &CDP_ROOT;}
 
 
 // Accessing branched records

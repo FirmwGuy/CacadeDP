@@ -84,7 +84,7 @@ cdpID     AUTOID;     // Global autoid used with CDP_NAMING_GLOBAL.
     Initiates the record system.
 */
 void cdp_record_system_initiate(void) {
-    cdp_record_initialize_dictionary(&CDP_ROOT, CDP_NAME_ROOT, CDP_STORAGE_RED_BLACK_T, 0);   // The root dictionary is the same as "/" in text paths.
+    cdp_record_initialize_dictionary(&CDP_ROOT, cdp_id_to_text(CDP_NAME_ROOT), CDP_STORAGE_RED_BLACK_T, 0);   // The root dictionary is the same as "/" in text paths.
 }
 
 
@@ -265,6 +265,8 @@ cdpRecord* cdp_record_add(cdpRecord* parent, cdpRecord* record, bool prepend) {
       }
     } SELECTION_END;
 
+    cdp_record_transfer(record, child);
+
     CDP_0(record);      // This avoids deleting children during move operations.
 
     // Update child.
@@ -316,6 +318,8 @@ cdpRecord* cdp_record_sorted_insert(cdpRecord* parent, cdpRecord* record, cdpCom
         break;
       }
     } SELECTION_END;
+
+    cdp_record_transfer(record, child);
 
     CDP_0(record);
 
@@ -690,7 +694,7 @@ cdpRecord* cdp_record_find_by_position(const cdpRecord* record, size_t position)
     Gets the record by its path from start record.
 */
 cdpRecord* cdp_record_find_by_path(const cdpRecord* start, const cdpPath* path) {
-    assert(cdp_record_children(start) && path && path->length);
+    assert(!cdp_record_is_void(start) && path && path->length);
     if (!cdp_record_children(start))
         return NULL;
     const cdpRecord* record = start;
@@ -1138,7 +1142,7 @@ bool cdp_record_child_pop(cdpRecord* record, cdpRecord* target) {
     Deletes a record and all its children re-organizing (sibling) storage
 */
 void cdp_record_remove(cdpRecord* record, cdpRecord* target) {
-    assert(record && !cdp_record_is_shadowed(record));
+    assert(record && !cdp_record_is_shadowed(record) && record != &CDP_ROOT);
 
     cdpChdStore* store = cdp_record_par_store(record);
     cdpRecord*  parent = store->owner;

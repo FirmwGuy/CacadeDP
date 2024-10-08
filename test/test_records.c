@@ -77,7 +77,7 @@ static void test_records_value(cdpRecord* rec, cdpValue trueval) {
 
 
 static void test_records_zero_item_ops(cdpRecord* record) {
-    assert_true(cdp_record_children(record));
+    assert_false(cdp_record_children(record));
     assert_null(cdp_record_last(record));
     assert_null(cdp_record_find_by_name(record, CDP_NAME_ENUMERATION));
     assert_null(cdp_record_find_by_position(record, 0));
@@ -91,6 +91,7 @@ static void test_records_zero_item_ops(cdpRecord* record) {
 
 
 static void test_records_one_item_ops(cdpRecord* record, cdpRecord* item) {
+    assert_true(cdp_record_children(record));
     cdpRecord* found = cdp_record_last(record);
     assert_ptr_equal(found, item);
     found = cdp_record_find_by_name(record, cdp_record_get_name(item));

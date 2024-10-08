@@ -130,10 +130,13 @@ bool stdout_agent_update(cdpRecord* instance, cdpTask* signal) {
     return true;
 }
 
+#endif
+
 
 
 
 void* test_agents_setup(const MunitParameter params[], void* user_data) {
+#if 0
     cdpID linkID = CDP_TAG_LINK;
     AGENT_STDIN = cdp_system_set_agent("stdin", 0, 1, &linkID, 1, stdin_agent_initiate, NULL);
     cdp_system_set_action(AGENT_STDIN, "step", stdin_agent_step);
@@ -147,10 +150,11 @@ void* test_agents_setup(const MunitParameter params[], void* user_data) {
     cdp_system_set_action(AGENT_STDOUT, "update", stdout_agent_update);
 
     cdp_system_startup();
+#endif
+
     return NULL;
 }
 
-#endif
 
 
 void test_agents_tear_down(void* fixture) {
