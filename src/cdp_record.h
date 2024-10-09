@@ -440,17 +440,35 @@ enum _cdpInitialNameID {
 typedef struct _cdpRecord   cdpRecord;
 
 typedef union {
-    void*       pointer;
-    size_t      offset;
-    uint8_t     byte[8];
-    uint64_t    uint64[1];
-    uint32_t    uint32[2];
-    uint16_t    uint16[4];
-    int64_t     int64[1];
-    int32_t     int32[2];
-    int16_t     int16[4];
-    float       float32[2];
-    double      float64[1];
+    void*           pointer;
+    size_t          offset;
+    union {
+        uint8_t     byte;
+        uint8_t     _byte[8];
+    };
+    uint64_t        uint64;
+    union {
+        uint32_t    uint32;
+        uint32_t    _uint32[2];
+    };
+    union {
+        uint16_t    uint16;
+        uint16_t    _uint16[4];
+    };
+    int64_t         int64;
+    union {
+        int32_t     int32;
+        int32_t     _int32[2];
+    };
+    union {
+        int16_t     int16;
+        int16_t     _int16[4];
+    };
+    union {
+        float       float32;
+        float       _float32[2];
+    };
+    double          float64;
 } cdpValue;
 
 typedef struct {

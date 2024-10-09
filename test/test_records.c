@@ -47,7 +47,7 @@ static void test_records_print(cdpRecord* record, char *sval) {
         sprintf(sval, "[%llu]", cdp_record_get_name(record));
     } else if (cdp_record_has_data(record)) {
         cdpValue val = cdp_record_read_value(record);
-        sprintf(sval, "%u", val.uint32[0]);
+        sprintf(sval, "%u", val.uint32);
     }
 }
 
@@ -69,8 +69,8 @@ static void test_records_value(cdpRecord* rec, cdpValue trueval) {
     cdpValue value = cdp_record_read(rec, &capacity, &size, &vread);
     assert_size(capacity, ==, sizeof(vread));
     assert_size(size, ==, sizeof(value));
-    assert_uint(trueval.uint32[0], ==, vread.uint32[0]);
-    assert_uint(trueval.uint32[0], ==, value.uint32[0]);
+    assert_uint(trueval.uint32, ==, vread.uint32);
+    assert_uint(trueval.uint32, ==, value.uint32);
 }
 
 
@@ -142,7 +142,7 @@ static void test_records_tech_branch(unsigned storage) {
 
     // Append, lookups and delete
     test_records_zero_item_ops(parent);
-    cdpValue  value = (cdpValue){.uint32[0] = 1};
+    cdpValue  value = (cdpValue){.uint32 = 1};
     cdpRecord* item = cdp_record_add_value(parent, CDP_NAME_ENUMERATION, (cdpMetadata){0}, value);
     test_records_value(item, value);
     test_records_one_item_ops(parent, item);
@@ -150,7 +150,7 @@ static void test_records_tech_branch(unsigned storage) {
 
     // Push and lookups
     test_records_zero_item_ops(parent);
-    value.uint32[0] = 1;
+    value.uint32 = 1;
     item = cdp_record_prepend_value(parent, CDP_NAME_ENUMERATION, (cdpMetadata){0}, value);
     test_records_value(item, value);
     test_records_one_item_ops(parent, item);
@@ -169,17 +169,17 @@ static void test_records_tech_branch(unsigned storage) {
               case 1:
                 cdp_record_delete(cdp_record_first(parent));
                 found = cdp_record_first(parent);
-                first = cdp_record_read_value(found).uint32[0];
+                first = cdp_record_read_value(found).uint32;
                 break;
               case 2:
                 cdp_record_delete(cdp_record_last(parent));
                 found = cdp_record_last(parent);
-                last  = cdp_record_read_value(found).uint32[0];
+                last  = cdp_record_read_value(found).uint32;
                 break;
             }
         }
 
-        value.uint32[0] = n + 1;
+        value.uint32 = n + 1;
         if (munit_rand_uint32() & 1) {
             index = cdp_record_children(parent);
 
@@ -187,11 +187,11 @@ static void test_records_tech_branch(unsigned storage) {
             test_records_value(item, value);
 
             found = cdp_record_first(parent);
-            test_records_value(found, (cdpValue){.uint32[0] = first});
+            test_records_value(found, (cdpValue){.uint32 = first});
             found = cdp_record_last(parent);
             test_records_value(found, value);
 
-            last = value.uint32[0];
+            last = value.uint32;
         } else {
             index = 0;
 
@@ -201,9 +201,9 @@ static void test_records_tech_branch(unsigned storage) {
             found = cdp_record_first(parent);
             test_records_value(found, value);
             found = cdp_record_last(parent);
-            test_records_value(found, (cdpValue){.uint32[0] = last});
+            test_records_value(found, (cdpValue){.uint32 = last});
 
-            first = value.uint32[0];
+            first = value.uint32;
         }
 
         found = cdp_record_find_by_name(parent, cdp_record_get_name(item));
@@ -237,7 +237,7 @@ static void test_records_tech_dictionary(unsigned storage) {
 
     // Isert, lookups and delete
     test_records_zero_item_ops(dict);
-    cdpValue  value = (cdpValue){.uint32[0] = 1};
+    cdpValue  value = (cdpValue){.uint32 = 1};
     cdpRecord* item = cdp_record_add_value(dict, CDP_NAME_ENUMERATION, (cdpMetadata){0}, value);
     test_records_value(item, value);
     test_records_one_item_ops(dict, item);
@@ -257,23 +257,23 @@ static void test_records_tech_dictionary(unsigned storage) {
               case 1:
                 cdp_record_delete(cdp_record_first(dict));
                 found = cdp_record_first(dict);
-                vmin = cdp_record_read_value(found).uint32[0];
+                vmin = cdp_record_read_value(found).uint32;
                 break;
               case 2:
                 cdp_record_delete(cdp_record_last(dict));
                 found = cdp_record_last(dict);
-                vmax = cdp_record_read_value(found).uint32[0];
+                vmax = cdp_record_read_value(found).uint32;
                 break;
             }
         }
 
         do {
-            value.uint32[0] = munit_rand_int_range(1, 1000);
-            name = CDP_NAME_ENUMERATION + value.uint32[0];
+            value.uint32 = munit_rand_int_range(1, 1000);
+            name = CDP_NAME_ENUMERATION + value.uint32;
             found = cdp_record_find_by_name(dict, name);
         } while (found);
-        if (value.uint32[0] < vmin)   vmin = value.uint32[0];
-        if (value.uint32[0] > vmax)   vmax = value.uint32[0];
+        if (value.uint32 < vmin)   vmin = value.uint32;
+        if (value.uint32 > vmax)   vmax = value.uint32;
 
         item = cdp_record_add_value(dict, name, (cdpMetadata){0}, value);
         test_records_value(item, value);
@@ -282,16 +282,16 @@ static void test_records_tech_dictionary(unsigned storage) {
         assert_ptr_equal(found, item);
 
         found = cdp_record_first(dict);
-        test_records_value(found, (cdpValue){.uint32[0] = vmin});
+        test_records_value(found, (cdpValue){.uint32 = vmin});
 
         found = cdp_record_find_by_position(dict, 0);
-        test_records_value(found, (cdpValue){.uint32[0] = vmin});
+        test_records_value(found, (cdpValue){.uint32 = vmin});
 
         found = cdp_record_last(dict);
-        test_records_value(found, (cdpValue){.uint32[0] = vmax});
+        test_records_value(found, (cdpValue){.uint32 = vmax});
 
         found = cdp_record_find_by_position(dict, cdp_record_children(dict) - 1);
-        test_records_value(found, (cdpValue){.uint32[0] = vmax});
+        test_records_value(found, (cdpValue){.uint32 = vmax});
 
         path->id[0] = cdp_record_get_name(item);
         found = cdp_record_find_by_path(dict, path);
@@ -334,7 +334,7 @@ static void test_records_tech_catalog(unsigned storage) {
 
     // Isert, lookups and delete
     test_records_zero_item_ops(cat);
-    cdpValue value = (cdpValue){.int32[0] = 1};
+    cdpValue value = (cdpValue){.int32 = 1};
     cdpRecord* record = cdp_record_sorted_insert(cat, tech_catalog_create_structure(CDP_NAME_TEMP, value), tech_catalog_compare, NULL);
     cdpRecord* item = cdp_record_find_by_name(record, CDP_NAME_ENUMERATION);
     test_records_nested_one_item_ops(cat, CDP_NAME_TEMP, item);
@@ -355,24 +355,24 @@ static void test_records_tech_catalog(unsigned storage) {
                 cdp_record_delete(cdp_record_first(cat));
                 record = cdp_record_first(cat);
                 found = cdp_record_find_by_name(record, CDP_NAME_ENUMERATION);
-                vmin = cdp_record_read_value(found).int32[0];
+                vmin = cdp_record_read_value(found).int32;
                 break;
               case 2:
                 cdp_record_delete(cdp_record_last(cat));
                 record = cdp_record_last(cat);
                 found = cdp_record_find_by_name(record, CDP_NAME_ENUMERATION);
-                vmax = cdp_record_read_value(found).int32[0];
+                vmax = cdp_record_read_value(found).int32;
                 break;
             }
         }
 
         do {
-            value.int32[0] = munit_rand_int_range(1, 1000);
-            name = CDP_NAME_TEMP + value.int32[0];
+            value.int32 = munit_rand_int_range(1, 1000);
+            name = CDP_NAME_TEMP + value.int32;
             record = cdp_record_find_by_name(cat, name);
         } while (record);
-        if (value.int32[0] < vmin)   vmin = value.int32[0];
-        if (value.int32[0] > vmax)   vmax = value.int32[0];
+        if (value.int32 < vmin)   vmin = value.int32;
+        if (value.int32 > vmax)   vmax = value.int32;
 
         record = cdp_record_sorted_insert(cat, tech_catalog_create_structure(name, value), tech_catalog_compare, NULL);
         item   = cdp_record_find_by_name(record, CDP_NAME_ENUMERATION);
@@ -384,19 +384,19 @@ static void test_records_tech_catalog(unsigned storage) {
 
         record = cdp_record_first(cat);
         found  = cdp_record_find_by_name(record, CDP_NAME_ENUMERATION);
-        test_records_value(found, (cdpValue){.int32[0] = vmin});
+        test_records_value(found, (cdpValue){.int32 = vmin});
 
         record = cdp_record_find_by_position(cat, 0);
         found  = cdp_record_find_by_name(record, CDP_NAME_ENUMERATION);
-        test_records_value(found, (cdpValue){.int32[0] = vmin});
+        test_records_value(found, (cdpValue){.int32 = vmin});
 
         record = cdp_record_last(cat);
         found  = cdp_record_find_by_name(record, CDP_NAME_ENUMERATION);
-        test_records_value(found, (cdpValue){.int32[0] = vmax});
+        test_records_value(found, (cdpValue){.int32 = vmax});
 
         record = cdp_record_find_by_position(cat, cdp_record_children(cat) - 1);
         found  = cdp_record_find_by_name(record, CDP_NAME_ENUMERATION);
-        test_records_value(found, (cdpValue){.int32[0] = vmax});
+        test_records_value(found, (cdpValue){.int32 = vmax});
 
         path->id[0] = name;
         record = cdp_record_find_by_path(cat, path);
@@ -424,8 +424,8 @@ static void test_records_tech_sequencing_branch(void) {
     cdpRecord* foundL, *foundA;
 
     for (unsigned n = 0; n < maxItems;  n++) {
-        cdpValue value = (cdpValue){.uint32[0] = 1 + (munit_rand_uint32() % (maxItems>>1))};
-        cdpID name = CDP_NAME_ENUMERATION + value.uint32[0];
+        cdpValue value = (cdpValue){.uint32 = 1 + (munit_rand_uint32() % (maxItems>>1))};
+        cdpID name = CDP_NAME_ENUMERATION + value.uint32;
 
         if ((foundL = cdp_record_find_by_name(bookL, name))) cdp_record_delete(foundL);
         if ((foundA = cdp_record_find_by_name(bookA, name))) cdp_record_delete(foundA);
@@ -476,8 +476,8 @@ static void test_records_tech_sequencing_dictionary(void) {
     cdpRecord* foundL, *foundA, *foundT;
 
     for (unsigned n = 0; n < maxItems;  n++) {
-        cdpValue value = (cdpValue){.uint32[0] = 1 + (munit_rand_uint32() % (maxItems>>1))};
-        cdpID name = CDP_NAME_ENUMERATION + value.uint32[0];
+        cdpValue value = (cdpValue){.uint32 = 1 + (munit_rand_uint32() % (maxItems>>1))};
+        cdpID name = CDP_NAME_ENUMERATION + value.uint32;
 
         if ((foundL = cdp_record_find_by_name(dictL, name))) cdp_record_delete(foundL);
         if ((foundA = cdp_record_find_by_name(dictA, name))) cdp_record_delete(foundA);
@@ -538,8 +538,8 @@ static void test_records_tech_sequencing_catalog(void) {
     cdpRecord* item = cdp_record_find_by_name(&key, CDP_NAME_ENUMERATION);
 
     for (unsigned n = 0; n < maxItems;  n++) {
-        cdpValue value = {.int32[0] = 1 + (munit_rand_uint32() % (maxItems>>1))};
-        cdpID name = CDP_NAME_ENUMERATION + value.int32[0];
+        cdpValue value = {.int32 = 1 + (munit_rand_uint32() % (maxItems>>1))};
+        cdpID name = CDP_NAME_ENUMERATION + value.int32;
         cdp_record_update_value(item, value);
 
         if ((foundL = cdp_record_find_by_key(catL, &key, tech_catalog_compare, NULL)))    cdp_record_delete(foundL);
