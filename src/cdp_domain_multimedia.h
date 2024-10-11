@@ -72,8 +72,8 @@ enum _cdpMultimediaContainer {
     CDP_COTNR_SVG,              // Scalable vector graphics.
     CDP_COTNR_PDF,              // Portable document format.
 
-    CDP_COTNR_OBJ,              // Open (Wavefront) 3D container.
-    CDP_COTNR_FBX,              // Common (Flimbox) 3D container.
+    CDP_COTNR_OBJ,              // Open 3D container.
+    CDP_COTNR_FBX,              // Common 3D container.
 };
 
 enum _cdpMultimediaAudio {

@@ -25,7 +25,7 @@
 #include "cdp_record.h"
 
 
-CDP_METADATA_STRUCT(cdpTextAttribute,
+CDP_METADATA_STRUCT(cdpText,
     cdpAttribute    encoding:   3,      // Text encoding (UTF8, Unicode, Latin1, etc).
                     heading:    3,      // Heading level value for titles (H1, H2, etc).
                     listing:    2,      // Type of listing for table/list (enumerated, definition, etc).
@@ -146,6 +146,13 @@ enum _cdpTextTagID {
 
     CDP_TAG_TEXT_COUNT
 };
+
+
+static inline cdpText cdp_text_metadata_paragraph() {
+    return (cdpText) {
+        ,
+    };
+}
 
 
 #endif
