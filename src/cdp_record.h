@@ -164,9 +164,9 @@ be described through universal attributes alone.
 
 The objective of this 32 bits is to store static information that won't
 change during execution lifetime as a form of type description, in
-order to avoid type-if-then hell during coding. For example, instead of
-asking if a number representation belongs to Float32, Float64 or
-Float128 we can just ask if the role is "Float".
+order to avoid type if-then-else hell during coding. For example,
+instead of asking if a number representation belongs to Float32,
+Float64 or Float128 we can just ask if the role is "Float".
 
 - **In the Natural Language Domain**, domain-specific attributes could
 describe word forms (e.g., tense, number, case).
@@ -201,10 +201,9 @@ typedef uint32_t  cdpAttribute;
 #define CDP_TAG_MAXVAL      ((cdpTag)-1)
 //#define CDP_ATTRIB_BITS     cdp_bitsof(cdpAttribute)
 
-typedef struct {
-    union {
-      cdpAttribute  _head;                          // The header attributes (tag, domain, etc) as a single value.
-      struct {
+typedef union {
+    cdpAttribute    _head;                          // The header attributes (tag, domain, etc) as a single value.
+    struct {
         uint8_t     domain:     CDP_DOMAIN_BITS,    // Domain language selector.
 
                     abstract:   1;                  // Is a concrete or abstract concept.
@@ -217,10 +216,31 @@ typedef struct {
                     role:       CDP_ROLE_BITS;      // Role of this data.
 
         cdpTag      tag;                            // Tag assigned to this record. The lexicon is the same per domain (not per role).
-      };
     };
+} cdpMetadataHead;
+
+typedef struct {
+    cdpMetadataHead;
     cdpAttribute    _attribute;                     // Flags/bitfields for domain specific attributes as a single value.
 } cdpMetadata;
+
+
+#define CDP_METADATA_STRUCT(n, s)                                      \
+    struct n##_attrib {                                                \
+        s                                                              \
+    };                                                                 \
+    static_assert(sizeof(cdpAttribute) >= sizeof(struct n##_attrib));  \
+    typedef union {                                                    \
+        struct {                                                       \
+            cdpAttribute        _head2;                                \
+            union {                                                    \
+                struct          n##_attrib;                            \
+                cdpAttribute    _attribute2;                           \
+            };                                                         \
+        };                                                             \
+        cdpMetadata;                                                   \
+    } n;                                                               \
+    static_assert(sizeof(cdpMetadata) == sizeof(n))
 
 
 enum _cdpDomain {
@@ -238,21 +258,7 @@ enum _cdpDomain {
     CDP_DOMAIN_COUNT
 };
 
-
-#define CDP_ATTRIBUTE_STRUCT(n, s)                                     \
-    struct _##n {                                                      \
-        s                                                              \
-    };                                                                 \
-    static_assert(sizeof(cdpAttribute) >= sizeof(_##n));               \
-    typedef union {                                                    \
-        cdpAttribute  _attribute;                                      \
-        struct _##n;                                                   \
-    } n;                                                               \
-    static_assert(sizeof(cdpAttribute) == sizeof(n))
-
-
 #define CDP_TAG_BRANCH  0
-
 
 
 /*
@@ -401,7 +407,7 @@ enum _cdpRecordNaming {
     CDP_NAMING_TEXT,            // Cross-domain indexed text id.
     CDP_NAMING_TAG,             // Per-domain indexed text id.
     CDP_NAMING_LOCAL,           // Per-record numerical id.
-    CDP_NAMING_GLOBAL,          // Global numerical id (it may be used with a system global autoid).
+    CDP_NAMING_GLOBAL,          // Global numerical id (shared by the system and all domains).
 
     CDP_NAMING_COUNT
 };
@@ -440,35 +446,23 @@ enum _cdpInitialNameID {
 typedef struct _cdpRecord   cdpRecord;
 
 typedef union {
-    void*           pointer;
-    size_t          offset;
-    union {
-        uint8_t     byte;
-        uint8_t     _byte[8];
-    };
-    uint64_t        uint64;
-    union {
-        uint32_t    uint32;
-        uint32_t    _uint32[2];
-    };
-    union {
-        uint16_t    uint16;
-        uint16_t    _uint16[4];
-    };
-    int64_t         int64;
-    union {
-        int32_t     int32;
-        int32_t     _int32[2];
-    };
-    union {
-        int16_t     int16;
-        int16_t     _int16[4];
-    };
-    union {
-        float       float32;
-        float       _float32[2];
-    };
-    double          float64;
+    void*       pointer;
+    size_t      size;
+    uint8_t     byte;
+    uint8_t     _byte[8];
+    uint64_t    uint64;
+    uint32_t    uint32;
+    uint32_t    _uint32[2];
+    uint16_t    uint16;
+    uint16_t    _uint16[4];
+    int64_t     int64;
+    int32_t     int32;
+    int32_t     _int32[2];
+    int16_t     int16;
+    int16_t     _int16[4];
+    float       float32;
+    float       _float32[2];
+    double      float64;
 } cdpValue;
 
 typedef struct {

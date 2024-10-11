@@ -25,11 +25,11 @@
 #include "cdp_record.h"
 
 
-CDP_ATTRIBUTE_STRUCT(cdpBinaryAttribute,
+CDP_METADATA_STRUCT(cdpBinary,
     uint16_t    shift:      1,      // Role shift.
 
-                size:       4,      // Power of 2 exponent describing the value byte size.
-                sign:       1,      // Is signed or unsigned.
+                size:       4,      // Power of 2 exponent describing the machine value byte size.
+                sign:       1,      // Is it signed (1) or unsigned {0}?
                 endianess:  1,      // Little endian (0) is the norm.
                 dimension:  2,      // Number of dimensions (scalar, vector, etc).
                 // -----------
@@ -42,11 +42,9 @@ CDP_ATTRIBUTE_STRUCT(cdpBinaryAttribute,
 );
 
 
-
-
 enum _cdpBinaryRole {
-    CDP_ROLE_BIN_ENUMERATION,   // Indexed enumeration where values translate to meaning.
     CDP_ROLE_BIN_BOOLEAN,       // True or false value.
+    CDP_ROLE_BIN_INDEX,         // Index/enumeration where values translate to meaning.
     CDP_ROLE_BIN_ADDRESS,       // Local memory pointer, address, size or offset.
     CDP_ROLE_BIN_INTEGER,       // Integer value.
     CDP_ROLE_BIN_DECIMAL,       // Decimal floating point value.
@@ -62,6 +60,14 @@ enum _cdpBinaryRoleShited {
     CDP_ROLE_BIN_CONTAINER = 4, // An opaque memory block, buffer or binary stream.
     CDP_ROLE_BIN_DEVICE,        // A hardware device (port, adapter, etc).
     CDP_ROLE_BIN_FILE,          // A binary (raw format) file.
+};
+
+enum _cdpBinarySize {
+    CDP_BITESIZE_1,
+    CDP_BITESIZE_2,
+    CDP_BITESIZE_4,
+    CDP_BITESIZE_8,
+    CDP_BITESIZE_16,
 };
 
 enum _cdpBinaryDimension {
@@ -86,54 +92,151 @@ enum _cdpBinaryEncryption {
 };
 
 
-// Initial tag IDs (for a description see cdp_agent.h):
-enum _cdpBinaryTagID {
-    // Children
-    CDP_TAG_BIN_LENGTH,     // Arbitrary length of a vector.
-    CDP_TAG_BIN_LENGTH2D,
-    CDP_TAG_BIN_LENGTH3D,
-    CDP_TAG_BIN_LENGTH4D,
+static inline cdpBinary cdp_binary_metadata_link(void) {
+    return (cdpBinary) {
+        .domain = CDP_DOMAIN_BINARY,
+        .tag    = CDP_TAG_BIN_LINK,
 
-    CDP_TAG_BIN_TENSOR_ORD, // Tensor order (if over 4 dimensions).
-    CDP_TAG_BIN_TENSOR_LEN, // A vector with arbitrary dimension lengths for a tensor.
-    //
+        //.abstract =
+        //.physical =
+        //etc
 
-    CDP_TAG_BIN_LINK,           // Link to other record.
-    CDP_TAG_BIN_AGENT,          // Address of agent function.
-    CDP_TAG_BIN_TAG,
-    CDP_TAG_BIN_ID,
-    CDP_TAG_BIN_PATCH,
+        .role   = CDP_ROLE_BIN_ADDRESS,
+        .size   = cdp_ctz(sizeof(void*))    // Same as log2(sizeof(void*)).
+    };
+}
 
-    CDP_TAG_BIN_BYTE,
-    CDP_TAG_BIN_UINT16,
-    CDP_TAG_BIN_UINT32,
-    CDP_TAG_BIN_UINT64,
-    CDP_TAG_BIN_UINT128,
-    CDP_TAG_BIN_INT16,
-    CDP_TAG_BIN_INT32,
-    CDP_TAG_BIN_INT64,
-    CDP_TAG_BIN_INT128,
-    CDP_TAG_BIN_DECIMAL32,
-    CDP_TAG_BIN_DECIMAL64,
-    CDP_TAG_BIN_DECIMAL128,
-    CDP_TAG_BIN_FLOAT32,
-    CDP_TAG_BIN_FLOAT64,
-    CDP_TAG_BIN_FLOAT128,
-    CDP_TAG_BIN_COMPLEX32,      // Complex number as an array of 2 Float32.
-    CDP_TAG_BIN_COMPLEX64,      // Complex number as an array of 2 Float64.
-    CDP_TAG_BIN_COMPLEX128,     // Complex number as an array of 2 Float128.
-    CDP_TAG_BIN_VECT2D,         // Vector of 2 Float32.
-    CDP_TAG_BIN_VECT3D,         // Vector of 3 Float32.
-    CDP_TAG_BIN_VECT4D,         // Vector of 4 Float32.
+static inline cdpBinary cdp_binary_metadata_agent(void) {
+    return (cdpBinary) {
+        .domain = CDP_DOMAIN_BINARY,
+        .tag    = CDP_TAG_BIN_AGENT,
 
-    CDP_TAG_BIN_CRC16,
-    CDP_TAG_BIN_CRC32,
+        //.abstract =
+        //.physical =
+        //etc
 
-    CDP_TAG_BIN_MURMUR64,
-    CDP_TAG_BIN_MURMUR128,
+        .role   = CDP_ROLE_BIN_ADDRESS,
+        .size   = cdp_ctz(sizeof(cdpAgent)) // Same as log2(sizeof(cdpAgent)).
+    };
+}
 
-    CDP_TAG_BINARY_COUNT
-};
+static inline cdpBinary cdp_binary_metadata_boolean(void) {
+    return (cdpBinary) {
+        .domain = CDP_DOMAIN_BINARY,
+        .tag    = CDP_TAG_BIN_BOOLEAN,
+
+        //.abstract =
+        //.physical =
+        //etc
+
+        .role   = CDP_ROLE_BIN_BOOLEAN,
+        .size   = cdp_ctz(sizeof(uint8_t)).
+    };
+}
+
+static inline cdpBinary cdp_binary_metadata_uint32(void) {
+    return (cdpBinary) {
+        .domain = CDP_DOMAIN_BINARY,
+        .tag    = CDP_TAG_BIN_UINT32,
+
+        //.abstract =
+        //.physical =
+        //etc
+
+        .role   = CDP_ROLE_BIN_INTEGER,
+        .size   = cdp_ctz(sizeof(uint32_t)).
+    };
+}
+
+static inline cdpBinary cdp_binary_metadata_uint64(void) {
+    return (cdpBinary) {
+        .domain = CDP_DOMAIN_BINARY,
+        .tag    = CDP_TAG_BIN_UINT64,
+
+        //.abstract =
+        //.physical =
+        //etc
+
+        .role   = CDP_ROLE_BIN_INTEGER,
+        .size   = cdp_ctz(sizeof(uint64_t)).
+    };
+}
+
+static inline cdpBinary cdp_binary_metadata_int32(void) {
+    return (cdpBinary) {
+        .domain = CDP_DOMAIN_BINARY,
+        .tag    = CDP_TAG_BIN_INT32,
+
+        //.abstract =
+        //.physical =
+        //etc
+
+        .role   = CDP_ROLE_BIN_INTEGER,
+        .size   = cdp_ctz(sizeof(int32_t)),
+        .sign   = 1
+    };
+}
+
+static inline cdpBinary cdp_binary_metadata_int64(void) {
+    return (cdpBinary) {
+        .domain = CDP_DOMAIN_BINARY,
+        .tag    = CDP_TAG_BIN_INT64,
+
+        //.abstract =
+        //.physical =
+        //etc
+
+        .role   = CDP_ROLE_BIN_INTEGER,
+        .size   = cdp_ctz(sizeof(int64_t)),
+        .sign   = 1
+    };
+}
+
+static inline cdpBinary cdp_binary_metadata_float32(void) {
+    return (cdpBinary) {
+        .domain = CDP_DOMAIN_BINARY,
+        .tag    = CDP_TAG_BIN_FLOAT32,
+
+        //.abstract =
+        //.physical =
+        //etc
+
+        .role   = CDP_ROLE_BIN_FLOAT,
+        .size   = cdp_ctz(sizeof(float)),
+        .sign   = 1
+    };
+}
+
+static inline cdpBinary cdp_binary_metadata_float64(void) {
+    return (cdpBinary) {
+        .domain = CDP_DOMAIN_BINARY,
+        .tag    = CDP_TAG_BIN_FLOAT64,
+
+        //.abstract =
+        //.physical =
+        //etc
+
+        .role   = CDP_ROLE_BIN_FLOAT,
+        .size   = cdp_ctz(sizeof(double)),
+        .sign   = 1
+    };
+}
+
+
+static inline cdpBinary cdp_binary_metadata_float64(void) {
+    return (cdpBinary) {
+        .domain = CDP_DOMAIN_BINARY,
+        .tag    = CDP_TAG_BIN_FLOAT64,
+
+        //.abstract =
+        //.physical =
+        //etc
+
+        .role   = CDP_ROLE_BIN_FLOAT,
+        .size   = cdp_ctz(sizeof(double)),
+        .sign   = 1
+    };
+}
 
 
 #endif

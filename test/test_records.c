@@ -179,7 +179,7 @@ static void test_records_tech_branch(unsigned storage) {
             }
         }
 
-        value.uint32 = n + 1;
+        value = (cdpValue) (n + 1);
         if (munit_rand_uint32() & 1) {
             index = cdp_record_children(parent);
 
@@ -187,7 +187,7 @@ static void test_records_tech_branch(unsigned storage) {
             test_records_value(item, value);
 
             found = cdp_record_first(parent);
-            test_records_value(found, (cdpValue){.uint32 = first});
+            test_records_value(found, (cdpValue)first);
             found = cdp_record_last(parent);
             test_records_value(found, value);
 
@@ -201,7 +201,7 @@ static void test_records_tech_branch(unsigned storage) {
             found = cdp_record_first(parent);
             test_records_value(found, value);
             found = cdp_record_last(parent);
-            test_records_value(found, (cdpValue){.uint32 = last});
+            test_records_value(found, (cdpValue)last);
 
             first = value.uint32;
         }
@@ -282,16 +282,16 @@ static void test_records_tech_dictionary(unsigned storage) {
         assert_ptr_equal(found, item);
 
         found = cdp_record_first(dict);
-        test_records_value(found, (cdpValue){.uint32 = vmin});
+        test_records_value(found, (cdpValue)vmin);
 
         found = cdp_record_find_by_position(dict, 0);
-        test_records_value(found, (cdpValue){.uint32 = vmin});
+        test_records_value(found, (cdpValue)vmin);
 
         found = cdp_record_last(dict);
-        test_records_value(found, (cdpValue){.uint32 = vmax});
+        test_records_value(found, (cdpValue)vmax);
 
         found = cdp_record_find_by_position(dict, cdp_record_children(dict) - 1);
-        test_records_value(found, (cdpValue){.uint32 = vmax});
+        test_records_value(found, (cdpValue)vmax);
 
         path->id[0] = cdp_record_get_name(item);
         found = cdp_record_find_by_path(dict, path);
@@ -384,19 +384,19 @@ static void test_records_tech_catalog(unsigned storage) {
 
         record = cdp_record_first(cat);
         found  = cdp_record_find_by_name(record, CDP_NAME_ENUMERATION);
-        test_records_value(found, (cdpValue){.int32 = vmin});
+        test_records_value(found, (cdpValue)vmin);
 
         record = cdp_record_find_by_position(cat, 0);
         found  = cdp_record_find_by_name(record, CDP_NAME_ENUMERATION);
-        test_records_value(found, (cdpValue){.int32 = vmin});
+        test_records_value(found, (cdpValue)vmin);
 
         record = cdp_record_last(cat);
         found  = cdp_record_find_by_name(record, CDP_NAME_ENUMERATION);
-        test_records_value(found, (cdpValue){.int32 = vmax});
+        test_records_value(found, (cdpValue)vmax);
 
         record = cdp_record_find_by_position(cat, cdp_record_children(cat) - 1);
         found  = cdp_record_find_by_name(record, CDP_NAME_ENUMERATION);
-        test_records_value(found, (cdpValue){.int32 = vmax});
+        test_records_value(found, (cdpValue)vmax);
 
         path->id[0] = name;
         record = cdp_record_find_by_path(cat, path);

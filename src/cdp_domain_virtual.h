@@ -25,7 +25,7 @@
 #include "cdp_record.h"
 
 
-CDP_ATTRIBUTE_STRUCT(cdpVirtualAttribute,
+CDP_METADATA_STRUCT(cdpVirtualAttribute,
     cdpAttribute  element:      4,  // Distinguishes types of structures (e.g., wall, character).
                   interaction:  2,  // Type of interaction.
 

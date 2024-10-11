@@ -25,7 +25,7 @@
 #include "cdp_record.h"
 
 
-CDP_ATTRIBUTE_STRUCT(cdpMultimediaAttribute,
+CDP_METADATA_STRUCT(cdpMultimediaAttribute,
     cdpAttribute    container:    4,  // Container for data (file format).
                     audio:        3,  // Codec for audio data.
                     soundq:       2,  // Sound quality in audio/video.
