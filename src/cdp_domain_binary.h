@@ -98,6 +98,23 @@ enum _cdpBinaryEncryption {
     CDP_BIN_CRYPT_OTHER = 15    // Secure hash algorithm.
 };
 
+//~ enum cdpIFDevice {
+    //~ // Input device
+    //~ CDP_IF_DEVICE_KEYBOARD,     // Keyboard (may be virtual).
+    //~ CDP_IF_DEVICE_MOUSE,        // Mouse.
+    //~ CDP_IF_DEVICE_TOUCHPAD,     // Touchscreen/touchpad.
+    //~ CDP_IF_DEVICE_JOYSTICK,     // Joystick.
+    //~ CDP_IF_DEVICE_MICROPHONE,   // User voice command.
+    //~ CDP_IF_DEVICE_CAMERA,       // User video input.
+    //~ CDP_IF_DEVICE_VR,           // User VR input.
+
+    //~ // Output device
+    //~ CDP_IF_DEVICE_SCREEN = 8,   // Screen/display.
+    //~ CDP_IF_DEVICE_SPEAKER,      // Speaker/headset.
+    //~ CDP_IF_DEVICE_VIBRATOR,     // Vibration.
+    //~ CDP_IF_DEVICE_PRINTER,      // User printer.
+//~ };
+
 
 enum _cdpBinaryTag {
     // Uses
