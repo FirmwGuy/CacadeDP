@@ -25,18 +25,17 @@
 #include "cdp_record.h"
 
 
-CDP_METADATA_STRUCT(cdpVirtualAttribute,
-    cdpAttribute  element:      4,  // Distinguishes types of structures (e.g., wall, character).
-                  interaction:  2,  // Type of interaction.
+CDP_METADATA_STRUCT(cdpVirtual,
+    cdpAttribute    element:      4,  // Distinguishes types of structures (e.g., wall, character).
+                    interaction:  2,  // Type of interaction.
 
-                  object:       5,  // Interface object element.
-                  event:        5,  // Generated interface events.
-                  //--------
+                    object:       5,  // Interface object element.
+                    event:        5,  // Generated interface events.
 
-                  device:       4;  // Hardware used for I/O.
-                  state:        2,  // State of event (doing, committing, etc).);
+                    device:       4;  // Hardware used for I/O.
+                    state:        2,  // State of event (doing, committing, etc).);
 
-                  _reserved:    10;
+                    _reserved:    10;
 );
 
 enum _cdpVirtualRole {

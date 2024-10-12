@@ -26,84 +26,119 @@
 
 
 CDP_METADATA_STRUCT(cdpBinary,
-    cdpAttribute  pow2:       4,  // Power of 2 exponent describing the element scalar size (in bytes).
-                  exponent:   1,  // True (1) if not an integer.
-                  sign:       1,  // Is it signed (1) or unsigned (0)?
-                  dimension:  2,  // Number of dimensions (scalar, vector, etc).
+    cdpAttribute    pow2:       4,  // Power of 2 exponent describing the element scalar size (in bytes).
+                    exponent:   1,  // True (1) if not an integer.
+                    sign:       1,  // Is it signed (1) or unsigned (0)?
+                    dimension:  3,  // Dimensions of data.
 
-                  endianess:  1,  // Little endian (0) is the norm.
-                  encoding:   4,  // Binary representation of content.
-                  compression:3,  // Type of compression used to pack content.
-                  encryption: 3,  // Encryption method.
+                    endianess:  1,  // Little endian (0) is the norm.
+                    encoding:   4,  // Binary representation of content.
+                    compression:3,  // Type of compression used to pack content.
+                    encryption: 3,  // Encryption method.
 
-                  _reserved:  13; // ToDo: expand to OS and HW related stuff.
+                    _reserved:  12; // ToDo: expand to streams and communication related stuff.
 );
 
 
-enum _cdpBinaryRole {
-    CDP_ROLE_BIN_MATH,          // Mathematical meaning (ADD, COS, etc).
-    CDP_ROLE_BIN_LOGICAL,       // Logical value/operation meaning (AND, LT/GT, etc).
-    CDP_ROLE_BIN_BITWISE,       // Bitwise/bitmask meaning (SHIFT, POPCOUNT, etc).
-    CDP_ROLE_BIN_ADDRESS,       // Local memory/size/offset meaning.
+enum _cdpBinaryDimension {
+    CDP_BIN_DIM_SCALAR,         // A single value.
+    CDP_BIN_DIM_VECTOR2D,       // Vector of 2 values.
+    CDP_BIN_DIM_VECTOR3D,
+    CDP_BIN_DIM_VECTOR4D,
+    CDP_BIN_DIM_MATRIX2D,       // Squared 2x2 matrix.
+    CDP_BIN_DIM_MATRIX3D,
+    CDP_BIN_DIM_MATRIX4D,
 
-    CDP_ROLE_BIN_CONTAINER,     // An opaque memory block, buffer or binary stream.
-    CDP_ROLE_BIN_DEVICE,        // A hardware device (port, adapter, etc).
-    CDP_ROLE_BIN_FILE,          // A binary (raw format) file.
+    CDP_BIN_DIM_OTHER = 7
 };
 
 enum _cdpBinaryPow2 {
-    CDP_POW2_BYTE1,             // Scalar size is 1 byte.
-    CDP_POW2_BYTE2,             // Scalar size is 2 bytes...
-    CDP_POW2_BYTE4,
-    CDP_POW2_BYTE8,
-    CDP_POW2_BYTE16,
+    CDP_BIN_POW2_BYTE1,         // Scalar size is 1 byte.
+    CDP_BIN_POW2_BYTE2,         // Scalar size is 2 bytes...
+    CDP_BIN_POW2_BYTE4,
+    CDP_BIN_POW2_BYTE8,
+    CDP_BIN_POW2_BYTE16,
 
-    CDP_POW2_OTHER = 15
+    CDP_BIN_POW2_OTHER = 15
 };
 
-enum _cdpBinaryDimension {
-    CDP_DIM_SCALAR,
-    CDP_DIM_VECTOR,
-    CDP_DIM_MATRIX,
-
-    CDP_DIM_OTHER
-};
 
 enum _cdpBinaryEncoding {
-    CDP_BINENC_BYTE,            // Content is an opaque sequence of bytes.
-    CDP_BINENC_UNSIGNED,        // All GCC-supported unsigned sizes.
-    CDP_BINENC_INTEGER,         // All GCC-supported integer sizes.
-    CDP_BINENC_GMP,             // LGPL bignum library.
-    CDP_BINENC_FLOAT,           // IEEE binary representation of floats.
-    CDP_BINENC_MPFR,            // LGPL bigfloat library.
-    CDP_BINENC_DECIMAL,         // GCC decimal representation.
-    CDP_BINENC_MPDECIMAL,       // MPDecimal library.
-    CDP_BINENC_COMPLEX,         // GCC representation of complex floats.
-    CDP_BINENC_MPC,             // LGPL bigcomplex library.
-    CDP_BINENC_MATRIX,          // CDP representation of vector/matrices.
-    CDP_BINENC_ARRAYFIRE,       // Arrayfire BSD-3C tensor library.
-
-    CDP_BINENC_OTHER = 15
+    CDP_BIN_ENC_BYTE,           // Content is an opaque sequence of bytes.
+    CDP_BIN_ENC_UNSIGNED,       // All GCC-supported unsigned sizes.
+    CDP_BIN_ENC_INTEGER,        // All GCC-supported signed integer sizes.
+    CDP_BIN_ENC_GMP,            // LGPL GMP (bignum) library.
+    CDP_BIN_ENC_FLOAT,          // IEEE binary representation of floats.
+    CDP_BIN_ENC_MPFR,           // LGPL MPFR (bigfloat) library.
+    CDP_BIN_ENC_DECIMAL,        // GCC decimal representation.
+    CDP_BIN_ENC_MPDECIMAL,      // BSD MPDecimal library.
+    CDP_BIN_ENC_COMPLEX,        // GCC representation of complex floats.
+    CDP_BIN_ENC_MPC,            // LGPL MPC (bigcomplex) library.
+    CDP_BIN_ENC_MATRIX,         // CDP representation of vector/matrices.
+    CDP_BIN_ENC_ARRAYFIRE,      // BSD Arrayfire tensor library.
+           _
+    CDP_BIN_ENC_OTHER = 15
 };
 
 enum _cdpBinaryCompression {
-    CDP_COMPRESS_NONE,          // Uncompressed content.
-    CDP_COMPRESS_RLE,           // Run-length encoding.
-    CDP_COMPRESS_ZIP,           // Zip (deflate) method.
-    CDP_COMPRESS_LZW,           // 7z kind of compression.
+    CDP_BIN_COMPRESS_NONE,      // Uncompressed content.
+    CDP_BIN_COMPRESS_RLE,       // Run-length encoding.
+    CDP_BIN_COMPRESS_ZIP,       // Zip (deflate) method.
+    CDP_BIN_COMPRESS_LZW,       // 7z kind of compression.
 
-    CDP_COMPRESS_OTHER = 15     // Run-length encoding.
+    CDP_BIN_COMPRESS_OTHER = 15 // Run-length encoding.
 };
 
 enum _cdpBinaryEncryption {
-    CDP_CRYPT_NONE,             // Unencrypted content.
-    CDP_CRYPT_AES,              // Advanced encryption standard.
-    CDP_CRYPT_RSA,              // Rivest-Shamir-Adleman.
-    CDP_CRYPT_SHA,              // Secure hash algorithm.
+    CDP_BIN_CRYPT_NONE,         // Unencrypted content.
+    CDP_BIN_CRYPT_AES,          // Advanced encryption standard.
+    CDP_BIN_CRYPT_RSA,          // Rivest-Shamir-Adleman.
+    CDP_BIN_CRYPT_SHA,          // Secure hash algorithm.
 
-    CDP_CRYPT_OTHER = 15        // Secure hash algorithm.
+    CDP_BIN_CRYPT_OTHER = 15    // Secure hash algorithm.
 };
 
+
+enum _cdpBinaryTagID {
+    // Children
+    CDP_TAG_BIN_LENGTH,     // Arbitrary length of a vector.
+    CDP_TAG_BIN_LENGTH2D,
+    CDP_TAG_BIN_LENGTH3D,
+
+    CDP_TAG_BIN_TENSOR_ORD, // Tensor order (if over 4 dimensions).
+    CDP_TAG_BIN_TENSOR_LEN, // A vector with arbitrary dimension lengths for a tensor.
+
+    // Uses
+    CDP_TAG_BIN_LINK,           // Link to other record.
+    CDP_TAG_BIN_AGENT,          // Address of agent function.
+    CDP_TAG_BIN_TAG,
+    CDP_TAG_BIN_ID,
+    CDP_TAG_BIN_PATCH,
+
+    CDP_TAG_BIN_BYTE,           // Opaque binary representation.
+    CDP_TAG_BIN_VALUE,
+    CDP_TAG_BIN_INDEX,
+    CDP_TAG_BIN_BOOLEAN,
+    CDP_TAG_BIN_BITWISE,        // Bitwise/bitmask.
+    CDP_TAG_BIN_ADDRESS,        // Local memory/size/offset.
+
+    CDP_TAG_BIN_CRC,
+    CDP_TAG_BIN_HASH,
+
+    CDP_TAG_BINARY_COUNT
+
+    // Agencies
+    CDP_TAG_BIN_AND,
+    CDP_TAG_BIN_OR,
+    CDP_TAG_BIN_NOT,
+
+    CDP_TAG_BIN_ADD,
+    CDP_TAG_BIN_SUBSTRACT,
+    CDP_TAG_BIN_MULTIPLY,
+    CDP_TAG_BIN_DIVIDE,
+
+    CDP_TAG_BINARY_COUNT
+};
 
 
 static inline size_t cdp_binary_size(cdpRecord* record) {

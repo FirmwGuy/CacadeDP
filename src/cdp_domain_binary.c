@@ -26,50 +26,5 @@
 void cdp_binary_system_initiate(void) {
 
 
-enum _cdpBinaryTagID {
-    // Children
-    CDP_TAG_BIN_LENGTH,     // Arbitrary length of a vector.
-    CDP_TAG_BIN_LENGTH2D,
-    CDP_TAG_BIN_LENGTH3D,
-
-    CDP_TAG_BIN_TENSOR_ORD, // Tensor order (if over 4 dimensions).
-    CDP_TAG_BIN_TENSOR_LEN, // A vector with arbitrary dimension lengths for a tensor.
-
-    // Tags
-    CDP_TAG_BIN_LINK,           // Link to other record.
-    CDP_TAG_BIN_AGENT,          // Address of agent function.
-    CDP_TAG_BIN_TAG,
-    CDP_TAG_BIN_ID,
-    CDP_TAG_BIN_PATCH,
-
-    CDP_TAG_BIN_BYTE,
-    CDP_TAG_BIN_BOOLEAN,
-    CDP_TAG_BIN_INDEX,
-    CDP_TAG_BIN_NUMBER,
-
-    CDP_TAG_BIN_VECTOR2D,
-    CDP_TAG_BIN_VECTOR3D,
-    CDP_TAG_BIN_VECTOR4D,
-    CDP_TAG_BIN_MATRIX2D,
-    CDP_TAG_BIN_MATRIX3D,
-    CDP_TAG_BIN_MATRIX4D,
-
-    CDP_TAG_BIN_CRC,
-    CDP_TAG_BIN_HASH,
-
-    CDP_TAG_BINARY_COUNT
-
-    // Agencies
-    CDP_TAG_BIN_AND,
-    CDP_TAG_BIN_OR,
-    CDP_TAG_BIN_NOT,
-
-    CDP_TAG_BIN_ADD,
-    CDP_TAG_BIN_SUBSTRACT,
-    CDP_TAG_BIN_MULTIPLY,
-    CDP_TAG_BIN_DIVIDE,
-
-    CDP_TAG_BINARY_COUNT
-};
 }
 
