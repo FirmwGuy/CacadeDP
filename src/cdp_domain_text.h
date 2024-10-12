@@ -33,9 +33,9 @@ CDP_METADATA_STRUCT(cdpText,
                     font:       3,  // Recommended font family to use for rendering.
                     alignment:  2,  // Recommended horizontal text alignment (left, center, etc).
                     language:   6,  // Language of content (including programming language for scripts).
-                    media:      2,  // Embedded media type (image, video, etc).
+                    media:      3,  // Embedded media type (image, video, etc).
 
-                    _reserved:  8;  // ToDO: expand to include DOM things.
+                    _reserved:  7;  // ToDO: expand to include DOM things?
 );
 
 
@@ -47,14 +47,14 @@ enum _cdpTextEncoding {
     CDP_TXT_ENCOD_BIG5,         // Cantonese chinese.
     CDP_TXT_ENCOD_GB18030,      // Simplified chinese.
 
-    CDP_TXT_ENCOD_OTHER = 15
+    CDP_TXT_ENCOD_OTHER = 7
 };
 
 enum _cdpTextHeding {
+    CDP_TXT_HEADING_NONE,       // Normal text.
     CDP_TXT_HEADING_1,          // Topmost title level.
-    CDP_TXT_HEADING_2,          // Secondary title level...
-    CDP_TXT_HEADING_3,
-    CDP_TXT_HEADING_4,
+    CDP_TXT_HEADING_2,          // Nested title level.
+    CDP_TXT_HEADING_3,          // Nested nested title level...
 
     CDP_TXT_HEADING_OTHER = 7
 };
@@ -89,10 +89,10 @@ enum _cdpTextFont {
 };
 
 enum _cdpTextAlignment {
-    CDP_TEXT_ALIGN_DEFAULT,     // The default in western countries is "left".
-    CDP_TEXT_ALIGN_CENTER,
-    CDP_TEXT_ALIGN_OPPOSITE,    // The opposite alignment in western countries is "right".
-    CDP_TEXT_ALIGN_JUSTIFIED
+    CDP_TXT_ALIGN_DEFAULT,      // The default in western countries is "left".
+    CDP_TXT_ALIGN_CENTER,
+    CDP_TXT_ALIGN_OPPOSITE,     // The opposite alignment in western countries is "right".
+    CDP_TXT_ALIGN_JUSTIFIED
 };
 
 enum _cdpTextLanguage {
@@ -116,66 +116,68 @@ enum _cdpTextLanguage {
 };
 
 enum _cdpTextMedia {
-    CDP_TEXT_MEDIA_IMAGE,
-    CDP_TEXT_MEDIA_AUDIO,
-    CDP_TEXT_MEDIA_VIDEO,
+    CDP_TXT_MEDIA_NONE,
+    CDP_TXT_MEDIA_IMAGE,
+    CDP_TXT_MEDIA_AUDIO,
+    CDP_TXT_MEDIA_VIDEO,
 
-    CDP_TEXT_MEDIA_OTHER = 3
+    CDP_TXT_MEDIA_OTHER = 7
 };
 
 
 enum _cdpTextTagID {
-    // Children
-    CDP_TAG_TXT_LENGTH,     // Non-ASCII text length in characters (NOT in bytes).
-
     // Uses
-    CDP_TAG_TXT_URL,
-    CDP_TAG_TXT_METADATA,      // Used for defining metadata, comments, or annotations within the text (e.g., <meta>, comments in markdown).
-    CDP_TAG_TXT_MEDIA,         // Represents media elements like images, videos, and embedded content (e.g., <img>, <iframe>).
-    CDP_TAG_TXT_SCRIPT         // The (executable) code part of this document.
+    CDP_TXT_TAG_URL,
+    CDP_TXT_TAG_METADATA,      // Used for defining metadata, comments, or annotations within the text (e.g., <meta>, comments in markdown).
+    CDP_TXT_TAG_MEDIA,         // Represents media elements like images, videos, and embedded content (e.g., <img>, <iframe>).
+    CDP_TXT_TAG_SCRIPT         // The (executable) code part of this document.
 
-    CDP_TAG_TXT_CHARACTER,
-    CDP_TAG_TXT_WORD,
-    CDP_TAG_TXT_LINE,
-    CDP_TAG_TXT_PARAGRAPH,
-    CDP_TAG_TXT_TABLE,
-    CDP_TAG_TXT_FORMULA,
-    CDP_TAG_TXT_FOOTNOTE,
-    CDP_TAG_TXT_HEADER,
+    CDP_TXT_TAG_CHARACTER,
+    CDP_TXT_TAG_WORD,
+    CDP_TXT_TAG_LINE,
+    CDP_TXT_TAG_PARAGRAPH,
+    CDP_TXT_TAG_TABLE,
+    CDP_TXT_TAG_FORMULA,
+    CDP_TXT_TAG_FOOTNOTE,
+    CDP_TXT_TAG_HEADER,
 
-    CDP_TAG_TXT_TITLE,
-    CDP_TAG_TXT_ABSTRACT,
-    CDP_TAG_TXT_BODY,
-    CDP_TAG_TXT_TOC,
-    CDP_TAG_TXT_CHAPTER,
-    CDP_TAG_TXT_SECTION,
-    CDP_TAG_TXT_CONCLUSION,
-    CDP_TAG_TXT_AKNOWLEDGMENT,
-    CDP_TAG_TXT_APPENDICE,
-    CDP_TAG_TXT_GLOSSARY,
+    CDP_TXT_TAG_TITLE,
+    CDP_TXT_TAG_ABSTRACT,
+    CDP_TXT_TAG_BODY,
+    CDP_TXT_TAG_TOC,
+    CDP_TXT_TAG_CHAPTER,
+    CDP_TXT_TAG_SECTION,
+    CDP_TXT_TAG_CONCLUSION,
+    CDP_TXT_TAG_AKNOWLEDGMENT,
+    CDP_TXT_TAG_APPENDICE,
+    CDP_TXT_TAG_GLOSSARY,
 
-    CDP_TAG_TXT_AUTHOR,
-    CDP_TAG_TXT_DATE,
-    CDP_TAG_TXT_VERSION,
-    CDP_TAG_TXT_COPYRIGHT,
-    CDP_TAG_TXT_LICENSE,
+    CDP_TXT_TAG_AUTHOR,
+    CDP_TXT_TAG_DATE,
+    CDP_TXT_TAG_VERSION,
+    CDP_TXT_TAG_COPYRIGHT,
+    CDP_TXT_TAG_LICENSE,
+
+    // Children
+    CDP_TXT_TAG_LENGTH,     // Non-ASCII text length in characters (NOT in bytes).
+    CDP_TXT_TAG_HASH,       // Hash value of text content.
 
     // Agencies
-    CDP_TAG_TXT_UPPERCASE,
-    CDP_TAG_TXT_LOWERCASE,
-    CDP_TAG_TXT_CAPITALIZE,
-    CDP_TAG_TXT_TRIM,
+    CDP_TXT_TAG_UPPERCASE,
+    CDP_TXT_TAG_LOWERCASE,
+    CDP_TXT_TAG_CAPITALIZE,
+    CDP_TXT_TAG_TRIM,
 
-
-    CDP_TAG_TEXT_COUNT
+    //
+    CDP_TAG_TEXT_INI_COUNT
 };
 
 
-static inline cdpText cdp_text_metadata_paragraph() {
-    return (cdpText) {
-        ,
-    };
-}
+#define cdp_text_metadata_paragraph()                                          \
+    ((cdpText) {                                                               \
+        .domain   = CDP_DOMAIN_TEXT,                                           \
+        .tag      = CDP_TXT_TAG_PARAGRAPH                                      \
+    })
 
 
 #endif

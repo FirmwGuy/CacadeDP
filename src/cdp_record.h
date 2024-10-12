@@ -28,239 +28,6 @@
 static_assert(sizeof(void*) == sizeof(uint64_t), "32 bit is unssoported yet!");
 
 
-/* ### **cdpMetadata: A 64-Bit Attribute Encoding System**
-
-The **cdpMetadata** system is a powerful and scalable **64-bit encoding
-framework** designed to universally describe entities, actions, data
-structures, and concepts across diverse domains. By providing a flexible
-structure that divides its 64 bits into defined segments, the system enables
-concise yet richly descriptive metadata that can efficiently encode everything
-from natural language elements to complex graphical user interfaces,
-programming constructs, and scientific data.
-
-### **Core Structure of cdpMetadata**
-
-The system's 64-bit structure is divided into five core components,
-each serving a critical function in the encoding process:
-
-1. **Domain Selector (7 bits)**: Identifies the knowledge domain (up to
-128 domains).
-2. **Role (3 bits)**: Defines the functional category or type
-of entity within its domain (up to 8, with potential for extension).
-3. **Entity ID (16 bits)**: Uniquely identifies specific entities or
-structures within a domain (64k).
-4. **Universal Attributes (6 bits)**: Captures 6 general, cross-domain
-characteristics that apply to entities regardless of domain.
-5. **Domain-Specific Attributes (32 bits)**: Provides detailed and
-context-specific information about entities within a particular domain
-using enumerations and flags.1111111111111111
-
-The objective of this fields is not to provide quantities (values) but
-rather qualities of the data being represented. Values are intended to be
-stored in child records.
-
----
-
-### **1. Domain Selector (7 bits)**
-
-The **Domain Selector** is a 7-bit segment that identifies the specific
-domain of knowledge that an entity or concept belongs to. With **128
-possible domains**, this ensures broad coverage across human knowledge,
-with the potential for adding more fields in the future.
-
-#### **Examples of Domains**:
-
-| **ID** | **Domain Name**                  | **Description**                                                    |
-|:------:|:---------------------------------|:-------------------------------------------------------------------|
-| `2`    | Binary Data Domain               | Buffers, memory blocks, data structures, and binary files.         |
-| `3`    | GUI and Interface                | Components like buttons, text fields, windows, and sliders in UIs. |
-| `7`    | Video Game Engines               | Entities, mechanics, and objects within video game development.    |
-| `9`    | Physics                          | Forces, particles, physical fields, and equations of motion.       |
-| `20`   | Natural Language                 | Words, grammar, and linguistic structures.                         |
-| `21`   | Mathematics                      | Numbers, functions, and equations.                                 |
-| `22`   | Programming & Softw. Engineering | Data types, functions, and algorithms in software.                 |
-
----
-
-### **2. Role (3 bits, extendable)**
-
-The **Role** defines the type or function of the entity within its
-domain. This 3-bit field allows for up to **8 primary roles** within
-each domain, but can be extended in complex domains by borrowing bits
-from the domain-specific attributes. These roles can represent common
-linguistic categories (e.g., nouns, verbs) or domain-specific types
-like data structures in programming, or UI components in a graphical
-interface.
-
-#### **Role Examples** (common across domains):
-
-| **Role** | **Description**                          |
-|----------|------------------------------------------|
-| `0`      | Entity/Container                         |
-| `1`      | Action/Operation                         |
-| `2`      | Input/Output Element                     |
-| `3`      | Visual Component                         |
-| `4`      | State/Condition                          |
-| `5`      | Control/Interactive Element              |
-| `6`      | Data Structure                           |
-| `7`      | Metadata/Annotation                      |
-
-By borrowing bits from **domain-specific attributes**, this can expand
-to support specialized sub-roles in domains where greater specificity
-is required, such as distinguishing between various kinds of input
-fields in a GUI domain or more nuanced data types in a programming
-domain.
-
----
-
-### **3. Entity ID (16 bits)**
-
-The **Entity ID** provides a unique identifier for each entity,
-concept, or object within a domain. With **16 bits**, this allows for
-**65,536 unique entities** in each domain, providing extensive coverage
-for representing words, objects, data structures, or components.
-
-- **In the Natural Language Domain**, an Entity ID could represent a
-specific word (e.g., "run").
-- **In the GUI Domain**, an Entity ID could represent a specific button
-or interactive widget.
-- **In the Programming Domain**, it might represent a specific data
-type like an integer or an array.
-
-This field allows the system to handle specific objects within the
-broader context of their domain and role.
-
----
-
-### **4. Universal Attributes (6 bits)**
-
-The **Universal Attributes** are a set of 6 bits that apply across all
-domains and describe general characteristics of entities. These
-attributes are **consistent across domains**, ensuring that any entity
-can be evaluated for certain high-level properties.
-
-| **Bit** | **Attribute Name**            | **Description**                                                            |
-|--------|-------------------------------|----------------------------------------------------------------------------|
-| 0      | **Concrete/Abstract**          | Is the entity a concrete object (0) or an abstract concept (1)?             |
-| 1      | **Physical/Virtual/Conceptual**| Is it physical (0), virtual (1), or conceptual (1)?                         |
-| 2      | **Active/Static**              | Is the entity operational or alive (1) or static/inactive (0)?              |
-| 3      | **Interactive**                | Can the entity be interacted with (1) or is it passive (0)?                 |
-| 4      | **Mutable/Immutable**          | Is the entity changeable (1) or immutable (0)?                              |
-| 5      | **Relational**                 | Does the entity form part of a relationship or structure with other entities (1)? |
-
-This common set of attributes makes it easier to manage and interpret
-entities across domains, such as understanding whether an object is
-mutable in both the programming and multimedia domains.
-
----
-
-### **5. Domain-Specific Attributes (32 bits)**
-
-The **Domain-Specific Attributes** are the most flexible part of the
-system, allowing for detailed, domain-specific flags and enumerations.
-These **32 bits** provide domain-specific information that is unique to
-the field in question and captures essential characteristics that can't
-be described through universal attributes alone.
-
-The objective of this 32 bits is to store static information that won't
-change during execution lifetime as a form of type description, in
-order to avoid type if-then-else hell during coding. For example,
-instead of asking if a number representation belongs to Float32,
-Float64 or Float128 we can just ask if the role is "Float".
-
-- **In the Natural Language Domain**, domain-specific attributes could
-describe word forms (e.g., tense, number, case).
-- **In the GUI Domain**, these attributes could describe visual
-properties (e.g., size, color, alignment).
-- **In the Programming Domain**, they could describe data types, memory
-allocation, or access.
-
-#### Example Breakdown (for GUI Domain):
-
-| **Bit Range**  | **Attribute**                | **Description**                                                        |
-|---------------|------------------------------|------------------------------------------------------------------------|
-| 0-3           | **Element Type**              | Identifies the specific type of GUI element (e.g., button, text field). |
-| 4-7           | **Size/Style**                | Defines size or style (e.g., large, small, rounded, flat).              |
-| 8-11          | **Alignment**                 | Describes horizontal or vertical alignment (e.g., left, center, right). |
-| 12-15         | **Layout Type**               | Defines the layout of containers (e.g., grid, flow, vertical).          |
-| 16-21         | **Interaction Type**          | Flags for user interaction types (e.g., click, hover, drag/drop).       |
-| 22-23         | **Scrollability**             | Describes if the element can scroll or is paged.                        |
-| 24-31         | **Visual State/Feedback**     | Visual cues and feedback mechanisms (e.g., highlighted, selected, ripple). |
-
-This structure allows for maximum flexibility while remaining compact
-and domain-appropriate.
-
-*/
-
-typedef uint16_t  cdpTag;
-typedef uint32_t  cdpAttribute;
-
-#define CDP_DOMAIN_BITS     7
-#define CDP_ROLE_BITS       3
-//#define CDP_TAG_BITS        cdp_bitsof(cdpTag)
-#define CDP_TAG_MAXVAL      ((cdpTag)-1)
-//#define CDP_ATTRIB_BITS     cdp_bitsof(cdpAttribute)
-
-typedef union {
-    cdpAttribute    _head;                          // The header attributes (tag, domain, etc) as a single value.
-    struct {
-        uint8_t     domain:     CDP_DOMAIN_BITS,    // Domain language selector.
-
-                    abstract:   1;                  // Is a concrete or abstract concept.
-        uint8_t     physical:   1,                  // Is a physical, virtual or conceptual idea (depends of abstract flag).
-                    alive:      1,                  // Is it alive/operational or is it a static/inactive thing.
-                    interactive:1,                  // Can it be interacted with.
-                    immutable:  1,                  // Is mutable or immutable.
-                    relational: 1,                  // Is it related to (or part of) another thing or is it independent?
-
-                    role:       CDP_ROLE_BITS;      // Role of this data.
-
-        cdpTag      tag;                            // Tag assigned to this record. The lexicon is the same per domain (not per role).
-    };
-} cdpMetadataHead;
-
-typedef struct {
-    cdpMetadataHead;
-    cdpAttribute    _attribute;                     // Flags/bitfields for domain specific attributes as a single value.
-} cdpMetadata;
-
-
-#define CDP_METADATA_STRUCT(n, s)                                      \
-    struct n##_attrib {                                                \
-        s                                                              \
-    };                                                                 \
-    static_assert(sizeof(cdpAttribute) >= sizeof(struct n##_attrib));  \
-    typedef union {                                                    \
-        struct {                                                       \
-            cdpAttribute        _head2;                                \
-            union {                                                    \
-                struct          n##_attrib;                            \
-                cdpAttribute    _attribute2;                           \
-            };                                                         \
-        };                                                             \
-        cdpMetadata;                                                   \
-    } n;                                                               \
-    static_assert(sizeof(cdpMetadata) == sizeof(n))
-
-
-enum _cdpDomain {
-    CDP_DOMAIN_BRANCHE,         // A symbolic domain used to indicate all sorts of purely branched types.
-    CDP_DOMAIN_BINARY,
-    CDP_DOMAIN_TEXT,
-    CDP_DOMAIN_INTERFACE,
-    CDP_DOMAIN_MULTIMEDIA,
-    CDP_DOMAIN_SIMULATION,
-    CDP_DOMAIN_RENDERING,
-    CDP_DOMAIN_PHYSICS,
-    CDP_DOMAIN_AI,
-    //CDP_DOMAIN_USERS,
-
-    CDP_DOMAIN_COUNT
-};
-
-#define CDP_TAG_BRANCH  0
-
-
 /*
     Cascade Data Processing System - Layer 1
     ------------------------------------------
@@ -281,9 +48,9 @@ enum _cdpDomain {
 
     * Link: A record that points to another record.
 
-    * Metarecord: Each record contains metadata, including flags that
-    specify the record's characteristics, and a name identifier indicating
-    the record's role or ID within its parent.
+    * Metarecord: Each record contains meta, including flags that specify the
+    record's characteristics, and a name identifier indicating the record's
+    role or ID within its parent.
 
     * cdpMetadata: This is metadata about the actual data (value) being hold
     by the record.
@@ -345,6 +112,77 @@ enum _cdpDomain {
       access.
 */
 
+
+/*
+ * Metadata
+ */
+
+typedef uint16_t  cdpTag;
+typedef uint32_t  cdpAttribute;
+
+#define CDP_RECDATA_BITS        2
+#define CDP_DOMAIN_BITS         (cdp_bitsof(cdpTag) - CDP_RECDATA_BITS)
+#define CDP_TAG_MAXVAL          ((cdpTag)(-1))
+
+typedef union {
+    cdpAttribute    _head;                          // The header attributes (tag, domain, etc) as a single value.
+    struct {
+        cdpTag      recdata:    2,                  // Where the data is located.
+                    domain:     CDP_DOMAIN_BITS;    // Domain language selector.
+        cdpTag      tag;                            // Tag assigned to this record. The lexicon is the same per domain (not globally).
+    };
+} cdpMetadataHead;
+
+enum _cdpRecordData {
+    CDP_RECDATA_NONE,           // Record has no data.
+    CDP_RECDATA_NEAR,           // Data (small) is inside "_near" field of cdpRecord.
+    CDP_RECDATA_DATA,           // Data starts at "_data" field of cdpData.
+    CDP_RECDATA_FAR             // Data is in address pointed by "_far" field of cdpData.
+};
+
+typedef struct {
+    cdpMetadataHead;
+    cdpAttribute    _attribute;                     // Flags/bitfields for domain specific attributes as a single value.
+} cdpMetadata;
+
+
+#define CDP_METADATA_STRUCT(n, s)                                              \
+    struct n##_attrib {                                                        \
+        s                                                                      \
+    };                                                                         \
+    static_assert(sizeof(cdpAttribute) >= sizeof(struct n##_attrib));          \
+    typedef struct {                                                           \
+        cdpMetadataHead;                                                       \
+        union {                                                                \
+            struct          n##_attrib;                                        \
+            cdpAttribute    _attribute;                                        \
+        };                                                                     \
+    } n;                                                                       \
+    static_assert(sizeof(cdpMetadata) == sizeof(n))
+
+
+enum _cdpDomain {
+    CDP_DOMAIN_BRANCHE,         // A symbolic domain used to indicate all sorts of purely branched types.
+    CDP_DOMAIN_BINARY,
+    CDP_DOMAIN_TEXT,
+    CDP_DOMAIN_INTERFACE,
+    CDP_DOMAIN_MULTIMEDIA,
+    CDP_DOMAIN_SIMULATION,
+    CDP_DOMAIN_RENDERING,
+    CDP_DOMAIN_PHYSICS,
+    CDP_DOMAIN_AI,
+    //CDP_DOMAIN_USERS,
+
+    CDP_DOMAIN_COUNT
+};
+
+//#define CDP_TAG_BRANCH  0
+
+
+/*
+ * Record structures
+ */
+
 typedef uint64_t  cdpID;
 
 #define CDP_ID_BITS             cdp_bitsof(cdpID)
@@ -363,22 +201,22 @@ typedef struct {
       cdpID   storage:    2,    // Data structure for children storage.
               dictionary: 1,    // Children name ids must be unique.
 
+              withstore:  1,    // Record has child storage (but not necessarily children).
+              shadowing:  2,    // If record has shadowing records (links pointing to it).
+
               factual:    1,    // Record can't be modified anymore (but it still can be deleted).
               priv:       1,    // Record (with all its children) is private (unlockable).
-              //hidden:     1,    // Data structure for children storage (it depends on the record type).
-              //system:     1,    // Record is part of the system and can't be modified or deleted.
+              hidden:     1,    // Data structure for children storage (it depends on the record type).
+              system:     1,    // Record is part of the system and can't be modified or deleted.
 
               connected:  1,    // Record is connected (it can't skip the signal API).
               baby:       1,    // On receiving any signal this record will first alert its parent.
-
-              recdata:    2,    // Where the data is located.
-              withstore:  1,    // Record has child storage (but not necessarily children).
-              shadowing:  2,    // If record has shadowing records (links pointing to it).
 
               name: CDP_NAME_BITS; // Name id of this record instance (the first 2 MSB bits are the naming convention).
     };
   };
 } cdpMetarecord;
+
 
 enum _cdpRecordStorage {
     CDP_STORAGE_LINKED_LIST,    // Children stored in a doubly linked list.
@@ -389,19 +227,11 @@ enum _cdpRecordStorage {
     CDP_STORAGE_COUNT
 };
 
-enum _cdpRecordData {
-    CDP_RECDATA_NONE,           // Record has no data.
-    CDP_RECDATA_NEAR,           // Data (small) is inside "_near" field of cdpRecord.
-    CDP_RECDATA_DATA,           // Data starts at "_data" field of cdpData.
-    CDP_RECDATA_FAR             // Data is in address pointed by "_far" field of cdpData.
-};
-
 enum _cdpRecordShadowing {
     CDP_SHADOW_NONE,            // No shadow records.
     CDP_SHADOW_SINGLE,          // Single shadow record.
     CDP_SHADOW_MULTIPLE,        // Multiple shadows.
 };
-
 
 enum _cdpRecordNaming {
     CDP_NAMING_TEXT,            // Cross-domain indexed text id.
@@ -556,7 +386,6 @@ void cdp_record_finalize(cdpRecord* record);
 #define cdp_record_initialize_dictionary(r, name, storage, basez)                           cdp_record_initialize(r, name, true,  storage, basez, (cdpMetadata){0}, 0, 0, (cdpValue){0}, NULL)
 
 static inline cdpTag cdp_record_domain(const cdpRecord* record) {assert(record);  return record->metadata.domain;}
-static inline cdpTag cdp_record_role(const cdpRecord* record)   {assert(record);  return record->metadata.role;}
 static inline cdpTag cdp_record_tag(const cdpRecord* record)    {assert(record);  return record->metadata.tag;}
 
 static inline void  cdp_record_set_id(cdpRecord* record, cdpID id)      {assert(record && cdp_id_valid(id));  CDP_ID_SET(record->metarecord.name, id);}
@@ -572,7 +401,7 @@ static inline size_t     cdp_record_siblings(const cdpRecord* record)   {assert(
 static inline size_t     cdp_record_children(const cdpRecord* record)   {assert(record);  return cdp_record_with_store(record)? CDP_CHD_STORE(record->children)->chdCount: 0;}
 
 #define cdp_record_is_void(r)       (!cdp_record_get_name(r))
-#define cdp_record_has_data(r)      ((r)->metarecord.recdata != CDP_RECDATA_NONE)
+#define cdp_record_has_data(r)      ((r)->metadata.recdata != CDP_RECDATA_NONE)
 #define cdp_record_is_dictionary(r) ((r)->metarecord.dictionary)
 #define cdp_record_is_insertable(r) ((r)->metarecord.storage != CDP_STORAGE_RED_BLACK_T)
 

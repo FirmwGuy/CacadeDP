@@ -38,13 +38,8 @@ CDP_METADATA_STRUCT(cdpVirtual,
                     _reserved:    10;
 );
 
-enum _cdpVirtualRole {
-    CDP_ROLE_SIM_ENTITY,        // World entity (anything that occupies space).
-    CDP_ROLE_SIM_CONTAINER,     // Basic objects or containers that hold space and other entities.
-    CDP_ROLE_SIM_ACTION,        // Actions or operations that entities can perform.
-    CDP_ROLE_SIM_INTERACTIVE,   // Entities designed for world interaction, like doors or moving platforms.
-    CDP_ROLE_SIM_SETUP,         // Simulation parameters or system settings that affect the behavior of the simulation.
 
+enum _cdpVirtualRole {
     CDP_ROLE_IF_OBJECT,         // Basic interactive interface element (e.g., buttons, sliders, etc).
     CDP_ROLE_IF_CONTROL,        // A control element (e.g., text command, mouse-clicks, mouse-pointing, gesture-based controls).
     CDP_ROLE_IF_TEXT,           // A pure (rich) text component.
@@ -52,25 +47,6 @@ enum _cdpVirtualRole {
     CDP_ROLE_IF_VISUAL,         // A pure visual component.
     CDP_ROLE_IF_TACTILE,        // A pure tactile component.
     CDP_ROLE_IF_METAOBJ         // An interface configuration and customization component.
-};
-
-enum _cdpVirtualElement {
-    CDP_SIM_ELEMENT_CHARACTER,  //
-    CDP_SIM_ELEMENT_VEHICLE,    //
-    CDP_SIM_ELEMENT_TOOL,       //
-    CDP_SIM_ELEMENT_FURNITURE,  //
-
-    CDP_SIM_ELEMENT_WALL,       //
-    CDP_SIM_ELEMENT_GROUND,     //
-    CDP_SIM_ELEMENT_VEGETATION, //
-
-    CDP_SIM_ELEMENT_PARTICLE,   // Used for effects and overlays.
-};
-
-enum _cdpVirtualInteraction {
-    CDP_SIM_INTERACT_OPEN,      //
-    CDP_SIM_INTERACT_CLOSE,     //
-    CDP_SIM_INTERACT_ACTIVATE,  //
 };
 
 
@@ -158,6 +134,8 @@ enum cdpInterfaceState {
 };
 
 enum _cdpVirtualTagID {
+    // Uses
+
     // Children
     CDP_TAG_SIM_POSITION,       // Position vector with respect to anchor.
     CDP_TAG_SIM_ANCHOR,         // Anchor position with respect to parent.
@@ -173,7 +151,10 @@ enum _cdpVirtualTagID {
 
     CDP_TAG_IF_MOUSE_POS,       // Mouse screen position in pixels (as a 2D vector).
     CDP_TAG_IF_SCREEN_SIZE,     // Current screen size (may be a combined virtual desktop size).
-    //
+
+    // Children
+    CDP_TAG_IF_MOUSE_POS,       // Mouse screen position in pixels (as a 2D vector).
+    CDP_TAG_IF_SCREEN_SIZE,     // Current screen size (may be a combined virtual desktop size).
 
     CDP_TAG_IF_CONSOLE,         // Log of output messages.
     CDP_TAG_IF_TEXT_INPUT,
@@ -196,6 +177,7 @@ enum _cdpVirtualTagID {
     CDP_TAG_IF_CONFIRMATION,    // Tactile confirmation vibration.
     CDP_TAG_IF_NAV_PULSE,       // Tactile navigation pulse.
 
+    //
 };
 
 

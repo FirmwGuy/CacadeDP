@@ -27,8 +27,8 @@
 
 CDP_METADATA_STRUCT(cdpBinary,
     cdpAttribute    pow2:       4,  // Power of 2 exponent describing the element scalar size (in bytes).
-                    exponent:   1,  // True (1) if not an integer.
                     sign:       1,  // Is it signed (1) or unsigned (0)?
+                    exponent:   1,  // True (1) if not an integer.
                     dimension:  3,  // Dimensions of data.
 
                     endianess:  1,  // Little endian (0) is the norm.
@@ -99,224 +99,158 @@ enum _cdpBinaryEncryption {
 };
 
 
-enum _cdpBinaryTagID {
-    // Children
-    CDP_TAG_BIN_LENGTH,     // Arbitrary length of a vector.
-    CDP_TAG_BIN_LENGTH2D,
-    CDP_TAG_BIN_LENGTH3D,
-
-    CDP_TAG_BIN_TENSOR_ORD, // Tensor order (if over 4 dimensions).
-    CDP_TAG_BIN_TENSOR_LEN, // A vector with arbitrary dimension lengths for a tensor.
-
+enum _cdpBinaryTag {
     // Uses
-    CDP_TAG_BIN_LINK,           // Link to other record.
-    CDP_TAG_BIN_AGENT,          // Address of agent function.
-    CDP_TAG_BIN_TAG,
-    CDP_TAG_BIN_ID,
-    CDP_TAG_BIN_PATCH,
+    CDP_BIN_TAG_LINK,           // Link to other record.
+    CDP_BIN_TAG_AGENT,          // Address of agent function.
+    CDP_BIN_TAG_TAG,
+    CDP_BIN_TAG_NAME,
+    CDP_BIN_TAG_PATCH,
 
-    CDP_TAG_BIN_BYTE,           // Opaque binary representation.
-    CDP_TAG_BIN_VALUE,
-    CDP_TAG_BIN_INDEX,
-    CDP_TAG_BIN_BOOLEAN,
-    CDP_TAG_BIN_BITWISE,        // Bitwise/bitmask.
-    CDP_TAG_BIN_ADDRESS,        // Local memory/size/offset.
+    CDP_BIN_TAG_BYTE,           // Opaque binary representation.
+    CDP_BIN_TAG_VALUE,
+    CDP_BIN_TAG_INDEX,
+    CDP_BIN_TAG_BOOLEAN,
+    CDP_BIN_TAG_BITWISE,        // Bitwise/bitmask.
+    CDP_BIN_TAG_ADDRESS,        // Local memory/size/offset.
 
-    CDP_TAG_BIN_CRC,
-    CDP_TAG_BIN_HASH,
+    CDP_BIN_TAG_CRC,
+    CDP_BIN_TAG_HASH,
 
-    CDP_TAG_BINARY_COUNT
+    // Children
+    CDP_BIN_TAG_LENGTH,         // Arbitrary length of a vector.
+    CDP_BIN_TAG_LENGTH2D,       // Arbitrary length of a matrix.
+    CDP_BIN_TAG_LENGTH3D,
+    CDP_BIN_TAG_LENGTH4D,
+
+    CDP_BIN_TAG_TENSOR_ORD,     // Tensor order (if over 4 dimensions).
+    CDP_BIN_TAG_TENSOR_LEN,     // A vector with arbitrary dimension lengths for a tensor.
 
     // Agencies
-    CDP_TAG_BIN_AND,
-    CDP_TAG_BIN_OR,
-    CDP_TAG_BIN_NOT,
+    CDP_BIN_TAG_AND,
+    CDP_BIN_TAG_OR,
+    CDP_BIN_TAG_NOT,
 
-    CDP_TAG_BIN_ADD,
-    CDP_TAG_BIN_SUBSTRACT,
-    CDP_TAG_BIN_MULTIPLY,
-    CDP_TAG_BIN_DIVIDE,
+    CDP_BIN_TAG_EQUAL,
+    CDP_BIN_TAG_GREATER,
+    CDP_BIN_TAG_LESSER,
 
-    CDP_TAG_BINARY_COUNT
+    CDP_BIN_TAG_ADD,
+    CDP_BIN_TAG_SUBSTRACT,
+    CDP_BIN_TAG_MULTIPLY,
+    CDP_BIN_TAG_DIVIDE,
+
+    //
+    CDP_BIN_TAG_INI_COUNT
 };
+
+
+#define cdp_binary_metadata_link()                                             \
+    ((cdpBinary) {                                                             \
+        .domain   = CDP_DOMAIN_BINARY,                                         \
+        .tag      = CDP_BIN_TAG_LINK,                                          \
+        .pow2     = cdp_ctz(sizeof(void*)), /* Same as log2(sizeof(void*)). */ \
+        .encoding = CDP_BIN_ENC_UNSIGNED                                       \
+    })
+
+#define cdp_binary_metadata_agent()                                            \
+    ((cdpBinary) {                                                             \
+        .domain   = CDP_DOMAIN_BINARY,                                         \
+        .tag      = CDP_BIN_TAG_AGENT,                                         \
+        .pow2     = cdp_ctz(sizeof(cdpAgent)),                                 \
+        .encoding = CDP_BIN_ENC_UNSIGNED                                       \
+    })
+
+#define cdp_binary_metadata_boolean()                                          \
+    ((cdpBinary) {                                                             \
+        .domain   = CDP_DOMAIN_BINARY,                                         \
+        .tag      = CDP_BIN_TAG_BOOLEAN,                                       \
+        .pow2     = CDP_BIN_POW2_BYTE1,                                        \
+        .encoding = CDP_BIN_ENC_BYTE                                           \
+    })
+
+#define cdp_binary_metadata_uint32()                                           \
+    ((cdpBinary) {                                                             \
+        .domain   = CDP_DOMAIN_BINARY,                                         \
+        .tag      = CDP_BIN_TAG_VALUE,                                         \
+        .pow2     = cdp_ctz(sizeof(uint32_t)),                                 \
+        .encoding = CDP_BIN_ENC_UNSIGNED                                       \
+    })
+
+#define cdp_binary_metadata_uint64()                                           \
+    ((cdpBinary) {                                                             \
+        .domain   = CDP_DOMAIN_BINARY,                                         \
+        .tag      = CDP_BIN_TAG_VALUE,                                         \
+        .pow2     = cdp_ctz(sizeof(uint64_t)),                                 \
+        .encoding = CDP_BIN_ENC_UNSIGNED                                       \
+    })
+
+#define cdp_binary_metadata_int32()                                            \
+    ((cdpBinary) {                                                             \
+        .domain   = CDP_DOMAIN_BINARY,                                         \
+        .tag      = CDP_BIN_TAG_VALUE,                                         \
+        .pow2     = cdp_ctz(sizeof(int32_t)),                                  \
+        .sign     = 1,                                                         \
+        .encoding = CDP_BIN_ENC_INTEGER                                        \
+    })
+
+#define cdp_binary_metadata_int64()                                            \
+    ((cdpBinary) {                                                             \
+        .domain   = CDP_DOMAIN_BINARY,                                         \
+        .tag      = CDP_BIN_TAG_VALUE,                                         \
+        .pow2     = cdp_ctz(sizeof(int64_t)),                                  \
+        .sign     = 1,                                                         \
+        .encoding = CDP_BIN_ENC_INTEGER                                        \
+    })
+
+#define cdp_binary_metadata_float32()                                          \
+    ((cdpBinary) {                                                             \
+        .domain   = CDP_DOMAIN_BINARY,                                         \
+        .tag      = CDP_BIN_TAG_VALUE,                                         \
+        .pow2     = cdp_ctz(sizeof(float)),                                    \
+        .sign     = 1,                                                         \
+        .exponent = 1,                                                         \
+        .encoding = CDP_BIN_ENC_FLOAT                                          \
+    })
+
+#define cdp_binary_metadata_float64()                                          \
+    ((cdpBinary) {                                                             \
+        .domain   = CDP_DOMAIN_BINARY,                                         \
+        .tag      = CDP_BIN_TAG_VALUE,                                         \
+        .pow2     = cdp_ctz(sizeof(double)),                                   \
+        .sign     = 1,                                                         \
+        .exponent = 1,                                                         \
+        .encoding = CDP_BIN_ENC_FLOAT                                          \
+    })
+
+
+void cdp_binary_system_initiate(void);
 
 
 static inline size_t cdp_binary_size(cdpRecord* record) {
     assert(!cdp_record_is_void(record));
 
-    REC_DATA_SELECT(record) {
+    static void* const _recData[] = {&&NONE, &&NEAR, &&DATA, &&FAR};
+    goto *_recData[(record)->metadata.recdata];
+    do {
       NONE: {
         assert(cdp_record_has_data(record));  // This shouldn't happen.
-        break;
+        return 0;
       }
       NEAR: {
         cdpBinary* binary = &record->metadata;
-        size_t entries;
-        switch (binary->dimension) {
-          case CDP_DIM_SCALAR:  entries = 1;  break;
-          case CDP_DIM_VECTOR:  entries = 2;  break;    // FixMe: this may be avoided altogether.
-
-          case CDP_DIM_MATRIX:
-          case CDP_DIM_SCALAR:
-            assert(binary->dimension <= CDP_DIM_VECTOR);
-            return 0;
-        }
-        return (entries * (1 << binary->size));
+        assert(binary->dimension <= CDP_BIN_DIM_VECTOR4D);
+        size_t entries = 1 + binary->dimension;
+        size_t bsize = (1 << binary->size);
+        return (entries * bsize);
       }
       DATA:;
       FAR: {
-        return record->data.pow2;
+        return record->data->size;
       }
-    } SELECTION_END;
+    }
 
     return 0;
-}
-
-
-static inline cdpBinary cdp_binary_metadata_link(void) {
-    return (cdpBinary) {
-        .domain = CDP_DOMAIN_BINARY,
-        .tag    = cdp_tag("link"),
-
-        //.abstract =
-        //.physical =
-        //etc
-
-        .role   = CDP_ROLE_BIN_ADDRESS,
-        .pow2   = cdp_ctz(sizeof(void*))    // Same as log2(sizeof(void*)).
-    };
-}
-
-static inline cdpBinary cdp_binary_metadata_agent(void) {
-    return (cdpBinary) {
-        .domain = CDP_DOMAIN_BINARY,
-        .tag    = CDP_TAG_BIN_AGENT,
-
-        //.abstract =
-        //.physical =
-        //etc
-
-        .role   = CDP_ROLE_BIN_ADDRESS,
-        .pow2   = cdp_ctz(sizeof(cdpAgent)) // Same as log2(sizeof(cdpAgent)).
-    };
-}
-
-static inline cdpBinary cdp_binary_metadata_boolean(void) {
-    return (cdpBinary) {
-        .domain = CDP_DOMAIN_BINARY,
-        .tag    = CDP_TAG_BIN_BOOLEAN,
-
-        //.abstract =
-        //.physical =
-        //etc
-
-        .role   = CDP_ROLE_BIN_BOOLEAN,
-        .pow2   = cdp_ctz(sizeof(uint8_t)).
-    };
-}
-
-static inline cdpBinary cdp_binary_metadata_uint32(void) {
-    return (cdpBinary) {
-        .domain = CDP_DOMAIN_BINARY,
-        .tag    = CDP_TAG_BIN_UINT32,
-
-        //.abstract =
-        //.physical =
-        //etc
-
-        .role   = CDP_ROLE_BIN_INTEGER,
-        .pow2   = cdp_ctz(sizeof(uint32_t)).
-    };
-}
-
-static inline cdpBinary cdp_binary_metadata_uint64(void) {
-    return (cdpBinary) {
-        .domain = CDP_DOMAIN_BINARY,
-        .tag    = CDP_TAG_BIN_UINT64,
-
-        //.abstract =
-        //.physical =
-        //etc
-
-        .role   = CDP_ROLE_BIN_INTEGER,
-        .pow2   = cdp_ctz(sizeof(uint64_t)).
-    };
-}
-
-static inline cdpBinary cdp_binary_metadata_int32(void) {
-    return (cdpBinary) {
-        .domain = CDP_DOMAIN_BINARY,
-        .tag    = CDP_TAG_BIN_INT32,
-
-        //.abstract =
-        //.physical =
-        //etc
-
-        .role   = CDP_ROLE_BIN_INTEGER,
-        .pow2   = cdp_ctz(sizeof(int32_t)),
-        .sign   = 1
-    };
-}
-
-static inline cdpBinary cdp_binary_metadata_int64(void) {
-    return (cdpBinary) {
-        .domain = CDP_DOMAIN_BINARY,
-        .tag    = CDP_TAG_BIN_INT64,
-
-        //.abstract =
-        //.physical =
-        //etc
-
-        .role   = CDP_ROLE_BIN_INTEGER,
-        .pow2   = cdp_ctz(sizeof(int64_t)),
-        .sign   = 1
-    };
-}
-
-static inline cdpBinary cdp_binary_metadata_float32(void) {
-    return (cdpBinary) {
-        .domain = CDP_DOMAIN_BINARY,
-        .tag    = CDP_TAG_BIN_FLOAT32,
-
-        //.abstract =
-        //.physical =
-        //etc
-
-        .role   = CDP_ROLE_BIN_FLOAT,
-        .pow2   = cdp_ctz(sizeof(float)),
-        .sign   = 1
-    };
-}
-
-static inline cdpBinary cdp_binary_metadata_float64(void) {
-    return (cdpBinary) {
-        .domain = CDP_DOMAIN_BINARY,
-        .tag    = CDP_TAG_BIN_FLOAT64,
-
-        //.abstract =
-        //.physical =
-        //etc
-
-        .role   = CDP_ROLE_BIN_FLOAT,
-        .pow2   = cdp_ctz(sizeof(double)),
-        .sign   = 1
-    };
-}
-
-
-static inline cdpBinary cdp_binary_metadata_float64(void) {
-    return (cdpBinary) {
-        .domain = CDP_DOMAIN_BINARY,
-        .tag    = CDP_TAG_BIN_FLOAT64,
-
-        //.abstract =
-        //.physical =
-        //etc
-
-        .role   = CDP_ROLE_BIN_FLOAT,
-        .pow2  = cdp_ctz(sizeof(double)),
-        .sign    = 1
-    };
 }
 
 

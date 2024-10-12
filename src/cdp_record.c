@@ -47,12 +47,12 @@ static inline int record_compare_by_name(const cdpRecord* restrict key, const cd
     goto *_chdStoreTech[structure];                                            \
     do
 
-#define REC_DATA_SELECT(record)                                        \
-    static void* const _recData[] = {&&NONE, &&NEAR, &&DATA, &&FAR};   \
-    goto *_recData[(record)->metarecord.recdata];                      \
+#define REC_DATA_SELECT(record)                                                \
+    static void* const _recData[] = {&&NONE, &&NEAR, &&DATA, &&FAR};           \
+    goto *_recData[(record)->metadata.recdata];                                \
     do
 
-#define SELECTION_END                                                  \
+#define SELECTION_END                                                          \
     while (0)
 
 
@@ -179,7 +179,7 @@ bool cdp_record_initialize( cdpRecord* record, cdpID name,
             record->data->_far       = data.pointer;
             record->data->destructor = destructor;
 
-            record->metarecord.recdata = CDP_RECDATA_FAR;
+            record->metadata.recdata = CDP_RECDATA_FAR;
         } else if (capacity > sizeof(record->_near)) {
             size_t dmax = cdp_max(sizeof(record->data->_data), capacity);
             if (data.pointer) {
@@ -191,10 +191,10 @@ bool cdp_record_initialize( cdpRecord* record, cdpID name,
             }
             record->data->capacity = dmax;
             record->data->size     = size;
-            record->metarecord.recdata = CDP_RECDATA_DATA;
+            record->metadata.recdata = CDP_RECDATA_DATA;
         } else {
             record->_near = data;
-            record->metarecord.recdata = CDP_RECDATA_NEAR;
+            record->metadata.recdata = CDP_RECDATA_NEAR;
         }
     }
 
@@ -483,7 +483,7 @@ void cdp_record_data_delete(cdpRecord* record) {
       }
     } SELECTION_END;
 
-    record->metarecord.recdata = CDP_RECDATA_NONE;
+    record->metadata.recdata = CDP_RECDATA_NONE;
 }
 
 
@@ -1056,8 +1056,8 @@ void cdp_record_finalize(cdpRecord* record) {
     }
 
     // Delete value
-    if (record->metarecord.recdata != CDP_RECDATA_NEAR) {
-        if (record->metarecord.recdata == CDP_RECDATA_FAR) {
+    if (record->metadata.recdata != CDP_RECDATA_NEAR) {
+        if (record->metadata.recdata == CDP_RECDATA_FAR) {
             record->data->destructor(record->data->_far);
         cdp_free(record->data);
     }   }

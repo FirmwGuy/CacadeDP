@@ -33,16 +33,11 @@ CDP_METADATA_STRUCT(cdpMultimedia,
                     video:        4,  // Codec for video data.
                     imageq:       2,  // Image/video quality.
                     icspace:      3,  // Image/video color space.
+                    framerate:    3,  // Animation/video frames per second.
                     projection:   3,  // Projection for 360 image/video.
+                    subtitle:     2,  // Subtitles encoding if available.
 
-                    srt:          1,  // Subs use SRT (SubRip Text), SSA (SubStation Alpha) otherwise.
-                    //english:      1,  // English content available.
-                    //spanish:      1,  // Spanish content available.
-                    //indi:         1,  // Indi content available.
-                    //mandarin:     1,  // Chinese mandarin content available.
-                    //russian:      1,  // Russian content available.
-
-                    _reserved:    1;
+                    _reserved:    2;
 );
 
 
@@ -60,12 +55,6 @@ enum _cdpMultimediaContainer {
 
     CDP_MM_COTNR_MTS,           // MPEG Transport Stream.
     CDP_MM_COTNR_MOV,           // Apple streaming stuff.
-
-    CDP_MM_COTNR_SVG,           // Scalable vector graphics.
-    CDP_MM_COTNR_PDF,           // Portable document format.
-
-    CDP_MM_COTNR_OBJ,           // Open 3D container.
-    CDP_MM_COTNR_FBX,           // Common 3D container.
 
     CDP_MM_COTNR_OTHER = 15
 };
@@ -87,8 +76,8 @@ enum _cdpMultimediaAudio {
 
 enum _cdpMultimediaSoundQ {
     CDP_MM_SQ_NONE,             // No audio.
-    CDP_MM_SQ_MONO,             // Mono (1) audio channel.
-    CDP_MM_SQ_STEREO,           // Stereo (2) audio channels.
+    CDP_MM_SQ_MONO,             // Mono (1 audio channel).
+    CDP_MM_SQ_STEREO,           // Stereo (2 audio channels).
     CDP_MM_SQ_SORROUND          // 5.1 sorround audio.
 };
 
@@ -134,8 +123,20 @@ enum _cdpMultimediaColorSpace {
     CDP_MM_COLSPA_OTHER = 7
 };
 
+enum _cdpMultimediaFramerate {
+    CDP_MM_FR_NONE,             // Static image.
+    CDP_MM_FR_10,
+    CDP_MM_FR_20,
+    CDP_MM_FR_24,
+    CDP_MM_FR_30,               // Standard framerate.
+    CDP_MM_FR_60,
+    CDP_MM_FR_120,
+
+    CDP_MM_FR_OTHER = 7
+};
+
 enum _cdpMultimediaProjection {
-    CDP_MM_PROJ_NONW,           // Unprojected.
+    CDP_MM_PROJ_NONE,           // Unprojected.
     CDP_MM_PROJ_EQUIRECT,       // Equirectangular projection (the most common).
     CDP_MM_PROJ_CUBEMAP,        // Skybox kind of projection.
     CDP_MM_PROJ_EQUIANG,        // Equiangular (used by Google).
@@ -143,58 +144,73 @@ enum _cdpMultimediaProjection {
     CDP_MM_PROJ_OTHER = 7
 };
 
+enum _cdpMultimediaSubtitle {
+    CDP_MM_SUBS_NONE,           // No subtitles/captions.
+    CDP_MM_SUBS_SRT,            // Subs in SRT (SubRip Text) format.
+    CDP_MM_SUBS_SSA,            // Subs in SSA (SubStation Alpha) format.
+
+    CDP_MM_SUBS_OTHER = 3
+};
+
 
 enum _cdpMultimediaTagID {
-    // Children
-    CDP_TAG_MM_RESOLUTION,   // Image/video width in pixels.
-
-    CDP_TAG_MM_DURATION,     // Duration in mili-seconds.
-    CDP_TAG_MM_FRAMES,       // Duration in frames.
-    CDP_TAG_MM_SAMPLES,      // Duration in audio samples.
-
-    CDP_TAG_MM_ANIM_NAME,    // Name/id of animations.
-    CDP_TAG_MM_ANIM_INDEX,   // Index of animation.
-
-    CDP_TAG_MM_METADATA     // Anex information related to media (eg, copywrite, license, etc).
-
-    CDP_TAG_MM_LANGUAGE,     // A list of per-language audio tracks.
-    CDP_TAG_MM_SUBTITLE,     // A list of per-language subtitle tracks.
-
     // Uses
-    CDP_TAG_MM_IMAGE,       // Static image.
-    CDP_TAG_MM_AUDIO,       // Pure audio.
-    CDP_TAG_MM_VIDEO,       // Video or animated image.
-    CDP_TAG_MM_CAPTION,     // Textual overlay or subtitle.
-    CDP_TAG_MM_3D,          // 3D model.
+    CDP_MM_TAG_AUDIO,       // Pure audio.
+    CDP_MM_TAG_IMAGE,       // Static image.
+    CDP_MM_TAG_ANIMATION,   // Animated image.
+    CDP_MM_TAG_VIDEO,       // Pure video.
+    CDP_MM_TAG_CAPTION,     // Textual overlay or subtitle.
 
-    CDP_TAG_MM_ICON,
-    CDP_TAG_MM_THUMBNAIL,
-    CDP_TAG_MM_PREVIEW,
-    CDP_TAG_MM_BACKGROUND,
-    CDP_TAG_MM_SCREENSHOT,
+    CDP_MM_TAG_ICON,
+    CDP_MM_TAG_THUMBNAIL,
+    CDP_MM_TAG_PREVIEW,
+    CDP_MM_TAG_BACKGROUND,
+    CDP_MM_TAG_SCREENSHOT,
 
-    CDP_TAG_MM_SOUND_EFFECT,
-    CDP_TAG_MM_DIALOG,
-    CDP_TAG_MM_MUSIC,
-    CDP_TAG_MM_LOOP,
-    CDP_TAG_MM_A_RECORDING,
+    CDP_MM_TAG_SOUND_EFFECT,
+    CDP_MM_TAG_DIALOG,
+    CDP_MM_TAG_MUSIC,
+    CDP_MM_TAG_LOOP,
+    CDP_MM_TAG_A_RECORDING,
 
-    CDP_TAG_MM_MOVIE,
-    CDP_TAG_MM_CLIP,
-    CDP_TAG_MM_SCREEN_VCAP,
+    CDP_MM_TAG_MOVIE,
+    CDP_MM_TAG_CLIP,
+    CDP_MM_TAG_SCREEN_VCAP,
 
-    CDP_TAG_MM_ANIMATION,
-    CDP_TAG_MM_SPRITE_ACTION,
-    CDP_TAG_MM_SPRITE_IDLE,
+    CDP_MM_TAG_ANIMATION,
+    CDP_MM_TAG_SPRITE_ACTION,
+    CDP_MM_TAG_SPRITE_IDLE,
+
+    // Children
+    CDP_MM_TAG_RESOLUTION,      // Image/video width in pixels.
+
+    CDP_MM_TAG_DURATION,        // Duration in milliseconds.
+    CDP_MM_TAG_FRAMES,          // Duration in frames.
+    CDP_MM_TAG_SAMPLES,         // Duration in audio samples.
+
+    CDP_MM_TAG_ANIM_NAME,       // Name/id of animations.
+    CDP_MM_TAG_ANIM_INDEX,      // Index of animation.
+
+    CDP_MM_TAG_METADATA         // Anex information related to media (eg, copywrite, license, etc).
+
+    CDP_MM_TAG_LANGUAGE,        // A list of per-language audio tracks.
+    CDP_MM_TAG_SUBTITLE,        // A list of per-language subtitle tracks.
+
 
     // Agencies
-    CDP_TAG_MM_LOAD,
-    CDP_TAG_MM_UNLOAD,
-    CDP_TAG_MM_PLAY,
-    CDP_TAG_MM_PAUSE,
-    CDP_TAG_MM_REWIND,
-    CDP_TAG_MM_FORWARD,
-    CDP_TAG_MM_STOP,
+    CDP_MM_TAG_LOAD,
+    CDP_MM_TAG_UNLOAD,
+    CDP_MM_TAG_NEXT_PIXBUF,
+    CDP_MM_TAG_NEXT_AUDIOFRAME,
+    CDP_MM_TAG_PLAY,
+    CDP_MM_TAG_PAUSE,
+    CDP_MM_TAG_CAN_REWIND,
+    CDP_MM_TAG_REWIND,
+    CDP_MM_TAG_FORWARD,
+    CDP_MM_TAG_STOP,
+
+    // Events
+    CDP_MM_TAG_END              // End of media was reached.
 };
 
 
