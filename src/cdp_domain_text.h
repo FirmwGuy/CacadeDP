@@ -125,7 +125,7 @@ enum _cdpTextMedia {
 };
 
 
-enum _cdpTextTagID {
+enum _cdpTextTag {
     // Uses
     CDP_TXT_TAG_URL,
     CDP_TXT_TAG_METADATA,      // Used for defining metadata, comments, or annotations within the text (e.g., <meta>, comments in markdown).

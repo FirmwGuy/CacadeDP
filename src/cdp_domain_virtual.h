@@ -29,16 +29,25 @@ CDP_METADATA_STRUCT(cdpVirtual,
     cdpAttribute    visible:    2,  // How virtual object may be seen.
                     audible:    2,  // How object may be heard.
                     tactil:     2,  // How object may be felt.
-                    anchor:     1,  // If its linked (anchored) to a parent object.
-                    group:      1,  // True if it has child objects.
-                    bounding:   3,  // Type of bounding (used for collisions).
-                    collision:  3,  // Collision rule (as a child).
-                    expand:     2,  // How container object may expand to accomodate children.
-                    halign:     2,  // Horizontal alignment.
-                    valign:     2,  // Vertical alignment.
-                    interface:  2,
 
-                    _reserved:    9;
+                    group:      1,  // True if it has child objects.
+                    anchor:     1,  // If its linked (anchored) to a parent object. Anchored to the world otherwise.
+                    xalign:     2,  // Children horizontal (X) alignment.
+                    yalign:     2,  // Children vertical (Y) alignment.
+                    zalign:     2,  // Children dept (Z) alignment.
+
+                    bounding:   3,  // Type of bounding (used for collisions).
+                    expand:     2,  // How (container) object may expand to accomodate children.
+                    collision:  3,  // Collision rule (as a child).
+
+                    iflook:     1,  // Object responds to be looked at (eg, in field of view).
+                    ifpointed:  1,  // Object responds to be pointed at (eg, mouse pointer).
+                    ifclick:    1,  // Object responds to device/virtual clicks.
+                    ifread:     1,  // Object responds to written text.
+                    ifhear:     1,  // Object responds to sounds/voice.
+                    ifgesture:  1,  // Object responds to gestures.
+
+                    _reserved:  4;
 );
 
 
@@ -66,6 +75,13 @@ enum _cdpVirtualTactil {
     CDP_VIRT_TACTIL_OTHER = 3
 };
 
+enum _cdpVirtualAlignment {
+    CDP_VIRT_ALG_NONE,
+    CDP_VIRT_ALG_FAR,
+    CDP_VIRT_ALG_CENTER,
+    CDP_VIRT_ALG_NEAR
+};
+
 enum _cdpVirtualBounding {
     CDP_VIRT_BOUND_PARTICLE,    // Object is treated as a particle.
     CDP_VIRT_BOUND_SPHERE,      // Object has a bounding sphere.
@@ -73,16 +89,6 @@ enum _cdpVirtualBounding {
     CDP_VIRT_BOUND_POLYGON,     // Object has a bounding (3D) polygon.
 
     CDP_VIRT_BOUND_OTHER = 7
-};
-
-enum _cdpVirtualCollision {
-    CDP_VIRT_COLLI_NONE,        // Object never collides with other objects.
-    CDP_VIRT_COLLI_STACKING,    // Object pushes other objects, while parent limits are ignored.
-    CDP_VIRT_COLLI_FLOWING,     // Object pushes other objects, colliding with parent limits.
-    CDP_VIRT_COLLI_PHYSICS2D,   // Object collision is dictated by 2D physics in the parent's XY plane.
-    CDP_VIRT_COLLI_PHYSICS,     // Object collision is dictated by a 3D physics engine.
-
-    CDP_VIRT_COLLI_OTHER = 7
 };
 
 enum _cdpVirtualExpand {
@@ -93,24 +99,16 @@ enum _cdpVirtualExpand {
     CDP_VIRT_EXPAND_OTHER = 3
 };
 
-enum _cdpVirtualHorizAlign {
-    CDP_VIRT_HALG_NONE,
-    CDP_VIRT_HALG_LEFT,
-    CDP_VIRT_HALG_CENTER,
-    CDP_VIRT_HALG_RIGHT
+enum _cdpVirtualCollision {
+    CDP_VIRT_COLLI_NONE,        // Object never collides with other objects.
+    CDP_VIRT_COLLI_STACKING,    // Object pushes other objects ignoring parent limits.
+    CDP_VIRT_COLLI_FLOWING,     // Object pushes other objects colliding with parent limits.
+    CDP_VIRT_COLLI_PHYSICS,     // Object collision is dictated by (2D) physics.
+    CDP_VIRT_COLLI_PHYSICS3D,   // Object collision is dictated by a 3D physics engine.
+
+    CDP_VIRT_COLLI_OTHER = 7
 };
 
-enum _cdpVirtualVertAlign {
-    CDP_VIRT_VALG_NONE,
-    CDP_VIRT_VALG_TOP,
-    CDP_VIRT_VALG_CENTER,
-    CDP_VIRT_VALG_BOTTOM
-};
-
-enum _cdpVirtualInterface {
-    CDP_VIRT_STATIC,            // Object can't be interacted with.
-    CDP_VIRT_STATIC,            // Object can't be interacted with.
-};
 
 //~ enum cdpVirtualState {
     //~ CDP_IF_STATE_START,
@@ -119,7 +117,7 @@ enum _cdpVirtualInterface {
     //~ CDP_IF_STATE_ABORT,
 //~ };
 
-enum _cdpVirtualTagID {
+enum _cdpVirtualTag {
     // Uses
 
     // Low level objects
@@ -133,28 +131,29 @@ enum _cdpVirtualTagID {
     CDP_VIRT_TAG_LIST,          // List of (possible multiple selectable) objects.
     CDP_VIRT_TAG_SLIDE,         // A range selector.
 
-    CDP_VIRT_TAG_CURSOR,        // Text input prompt.
     CDP_VIRT_TAG_POINTER,       // Pointer guide (eg, mouse cursor).
     CDP_VIRT_TAG_SELECTOR,      // A pointer range selector (eg, mouse drag box).
 
     CDP_VIRT_TAG_TITLE,         // A (possible) tabbed title and container for frames.
-    CDP_VIRT_TAG_FRAME,         // Frame to put interface objects on.
+    CDP_VIRT_TAG_FRAME,         // Decorated frame to put interface objects in.
     CDP_VIRT_TAG_BAR,           // A frame status meta-space.
+    CDP_VIRT_TAG_SYSTEM,        // An interface customization component (eg, resizer, etc).
 
-    CDP_VIRT_TAG_LABEL,
+    CDP_VIRT_TAG_LABEL,         // Static text.
+    CDP_VIRT_TAG_CURSOR,        // Text input (character) prompt.
+    CDP_VIRT_TAG_TEXT_INPUT,    // Text input line.
+    CDP_VIRT_TAG_PASSWORD,      // Hidden content text input.
+    CDP_VIRT_TAG_CONSOLE,       // Log of output messages.
+
     CDP_VIRT_TAG_DROPDOWN,
     CDP_VIRT_TAG_COMBOBOX,
     CDP_VIRT_TAG_CHECKBOX,
 
-    CDP_VIRT_TAG_TEXT_INPUT,
-    CDP_VIRT_TAG_PASSWORD,
-    CDP_VIRT_TAG_CONSOLE,       // Log of output messages.
-
     // High level objects
-    CDP_VIRT_TAG_MAP,           // A contextual interface map selector (e.g., menus, mind map, etc).
-    CDP_VIRT_TAG_CONFIG,        // An interface configuration and customization component.
-    CDP_VIRT_TAG_SYSTEM,        // A system options dialog.
-    CDP_VIRT_TAG_FILE,          // Resource (eg, file, folder) selector dialog.
+    CDP_VIRT_TAG_MAP,           // A contextual interface map selector (e.g., menus, radials, etc).
+    CDP_VIRT_TAG_CONFIG,        // A system configuration options dialog.
+
+    CDP_VIRT_TAG_FILE,          // Resource (eg, file/folder) selector dialog.
     CDP_VIRT_TAG_FONT,          // Font selector dialog.
     CDP_VIRT_TAG_COLOR,         // Color picker dialog.
     CDP_VIRT_TAG_CALENDAR,      // Date selector dialog.
@@ -170,11 +169,6 @@ enum _cdpVirtualTagID {
     CDP_VIRT_TAG_BOUNDING,      // Bounding sphere, volume, etc.
     CDP_VIRT_TAG_SHAPE,         // Shape (contour) of element.
 
-    CDP_VIRT_TAG_COLLISION,     // Rule to resolve collisions and positioning.
-
-    CDP_VIRT_TAG_MOUSE_POS,     // Mouse screen position in pixels (as a 2D vector).
-    CDP_VIRT_TAG_SCREEN_SIZE,   // Current screen size (may be a combined virtual desktop size).
-
     CDP_VIRT_TAG_CLICK_BEEP,    // Click beep.
     CDP_VIRT_TAG_SELECT_BEEP,   // Selection confirmation beep.
     CDP_VIRT_TAG_NOTICE_BEEP,   // On notice event sound.
@@ -183,10 +177,11 @@ enum _cdpVirtualTagID {
     CDP_VIRT_TAG_CONFIRMATION,  // Tactile confirmation vibration.
     CDP_VIRT_TAG_NAV_PULSE,     // Tactile navigation pulse.
 
+    CDP_VIRT_TAG_VIEW_SIZE,     // Current world viewport size.
+    CDP_VIRT_TAG_MOUSE_POS,     // Mouse pointer position.
+
     // Agencies
-    CDP_VIRT_TAG_SET_TRANSFORM,
-    CDP_VIRT_TAG_MOVE_TO,
-    CDP_VIRT_TAG_ARC_TO,
+    CDP_VIRT_TAG_SET_TRANSFORM, // Updates object position, rotation, scale, etc.
 
     // Events
     // Input Event
@@ -226,7 +221,8 @@ enum _cdpVirtualTagID {
     CDP_VIRT_TAG_U_EXPIRE,      // User response took too long.
     CDP_VIRT_TAG_TIMEOUT,       // Program response took too long.
 
-
+    //
+    CDP_VIRT_TAG_INI_COUNT
 };
 
 

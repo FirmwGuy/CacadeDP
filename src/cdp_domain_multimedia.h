@@ -153,7 +153,7 @@ enum _cdpMultimediaSubtitle {
 };
 
 
-enum _cdpMultimediaTagID {
+enum _cdpMultimediaTag {
     // Uses
     CDP_MM_TAG_AUDIO,       // Pure audio.
     CDP_MM_TAG_IMAGE,       // Static image.
@@ -211,6 +211,9 @@ enum _cdpMultimediaTagID {
 
     // Events
     CDP_MM_TAG_END              // End of media was reached.
+
+    //
+    CDP_MM_TAG_INI_COUNT
 };
 
 

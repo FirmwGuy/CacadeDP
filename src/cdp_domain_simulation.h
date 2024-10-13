@@ -26,25 +26,23 @@
 
 
 CDP_METADATA_STRUCT(cdpSimulation,
-    cdpAttribute    element:      4,  // Distinguishes types of structures (e.g., wall, character).
-                    interaction:  2,  // Type of interaction.
+    cdpAttribute    role:       3,
+                    element:    4,  // Distinguishes types of structures (e.g., wall, character).
+                    interaction:3,  // Type of interaction.
 
-                    object:       5,  // Interface object element.
-                    event:        5,  // Generated interface events.
-
-                    _reserved:    10;
+                    _reserved:  22;
 );
 
 
-enum _cdpVirtualRole {
-    CDP_ROLE_SIM_ENTITY,        // World entity (anything that occupies space).
-    CDP_ROLE_SIM_CONTAINER,     // Basic objects or containers that hold space and other entities.
-    CDP_ROLE_SIM_ACTION,        // Actions or operations that entities can perform.
-    CDP_ROLE_SIM_INTERACTIVE,   // Entities designed for world interaction, like doors or moving platforms.
-    CDP_ROLE_SIM_SETUP,         // Simulation parameters or system settings that affect the behavior of the simulation.
+enum _cdpSimulationRole {
+    CDP_SIM_ROLE_ENTITY,        // World entity (anything that occupies space).
+    CDP_SIM_ROLE_CONTAINER,     // Basic objects or containers that hold space and other entities.
+    CDP_SIM_ROLE_ACTION,        // Actions or operations that entities can perform.
+    CDP_SIM_ROLE_INTERACTIVE,   // Entities designed for world interaction, like doors or moving platforms.
+    CDP_SIM_ROLE_SETUP,         // Simulation parameters or system settings that affect the behavior of the simulation.
 };
 
-enum _cdpVirtualElement {
+enum _cdpSimulationElement {
     CDP_SIM_ELEMENT_CHARACTER,  //
     CDP_SIM_ELEMENT_VEHICLE,    //
     CDP_SIM_ELEMENT_TOOL,       //
@@ -57,16 +55,13 @@ enum _cdpVirtualElement {
     CDP_SIM_ELEMENT_PARTICLE,   // Used for effects and overlays.
 };
 
-enum _cdpVirtualInteraction {
+enum _cdpSimulationInteraction {
     CDP_SIM_INTERACT_OPEN,      //
     CDP_SIM_INTERACT_CLOSE,     //
     CDP_SIM_INTERACT_ACTIVATE,  //
 };
 
-enum _cdpVirtualTagID {
-    // Children
-    CDP_TAG_SIM_COLLISION,      // Rule to resolve collisions and positioning.
-
+enum _cdpSimulationTag {
 
 };
 
