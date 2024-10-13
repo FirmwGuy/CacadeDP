@@ -127,6 +127,7 @@
                                   ans: 5
                               status/
                                   completion: 100
+                      failed/
                   float/ (tag)
                       agent: add_float()
               multiply/

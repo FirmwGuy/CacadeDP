@@ -130,7 +130,7 @@ enum _cdpTextTag {
     CDP_TXT_TAG_URL,
     CDP_TXT_TAG_METADATA,      // Used for defining metadata, comments, or annotations within the text (e.g., <meta>, comments in markdown).
     CDP_TXT_TAG_MEDIA,         // Represents media elements like images, videos, and embedded content (e.g., <img>, <iframe>).
-    CDP_TXT_TAG_SCRIPT         // The (executable) code part of this document.
+    CDP_TXT_TAG_SCRIPT,        // The (executable) code part of this document.
 
     CDP_TXT_TAG_CHARACTER,
     CDP_TXT_TAG_WORD,

@@ -146,19 +146,21 @@ typedef struct {
 } cdpMetadata;
 
 
-#define CDP_METADATA_STRUCT(n, s)                                              \
-    struct n##_attrib {                                                        \
-        s                                                                      \
+#define CDP_METADATA_STRUCT(n, ...)                                            \
+    struct n##Attribute {                                                      \
+        __VA_ARGS__                                                            \
     };                                                                         \
-    static_assert(sizeof(cdpAttribute) >= sizeof(struct n##_attrib));          \
+    static_assert(sizeof(cdpAttribute) >= sizeof(struct n##Attribute));        \
     typedef struct {                                                           \
         cdpMetadataHead;                                                       \
         union {                                                                \
-            struct          n##_attrib;                                        \
+            struct          n##Attribute;                                      \
             cdpAttribute    _attribute;                                        \
         };                                                                     \
     } n;                                                                       \
-    static_assert(sizeof(cdpMetadata) == sizeof(n))
+    static_assert(sizeof(cdpMetadata) == sizeof(n));                           \
+    static_assert(offsetof(cdpMetadata, tag) == offsetof(n, tag));             \
+    static_assert(offsetof(cdpMetadata, _attribute) == offsetof(n, _attribute))
 
 
 enum _cdpDomain {

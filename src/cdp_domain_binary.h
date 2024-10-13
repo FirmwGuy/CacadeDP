@@ -76,7 +76,7 @@ enum _cdpBinaryEncoding {
     CDP_BIN_ENC_MPC,            // LGPL MPC (bigcomplex) library.
     CDP_BIN_ENC_MATRIX,         // CDP representation of vector/matrices.
     CDP_BIN_ENC_ARRAYFIRE,      // BSD Arrayfire tensor library.
-           _
+
     CDP_BIN_ENC_OTHER = 15
 };
 
@@ -249,16 +249,16 @@ static inline size_t cdp_binary_size(cdpRecord* record) {
 
     static void* const _recData[] = {&&NONE, &&NEAR, &&DATA, &&FAR};
     goto *_recData[(record)->metadata.recdata];
-    do {
+    {
       NONE: {
         assert(cdp_record_has_data(record));  // This shouldn't happen.
         return 0;
       }
       NEAR: {
-        cdpBinary* binary = &record->metadata;
+        cdpBinary* binary = (cdpBinary*) &record->metadata;
         assert(binary->dimension <= CDP_BIN_DIM_VECTOR4D);
         size_t entries = 1 + binary->dimension;
-        size_t bsize = (1 << binary->size);
+        size_t bsize = (1 << binary->pow2);
         return (entries * bsize);
       }
       DATA:;
