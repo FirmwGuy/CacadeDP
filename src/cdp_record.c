@@ -42,13 +42,13 @@ static inline int record_compare_by_name(const cdpRecord* restrict key, const cd
 
 #define STORE_TECH_SELECT(structure)                                           \
     assert((structure) < CDP_STORAGE_COUNT);                                   \
-    static void* const _chdStoreTech[] = {&&LINKED_LIST, &&ARRAY,              \
+    static const void* const _chdStoreTech[] = {&&LINKED_LIST, &&ARRAY,        \
         &&PACKED_QUEUE, &&RED_BLACK_T};                                        \
     goto *_chdStoreTech[structure];                                            \
     do
 
 #define REC_DATA_SELECT(record)                                                \
-    static void* const _recData[] = {&&NONE, &&NEAR, &&DATA, &&FAR};           \
+    static const void* const _recData[] = {&&NONE, &&NEAR, &&DATA, &&FAR};     \
     goto *_recData[(record)->metadata.recdata];                                \
     do
 
@@ -181,7 +181,7 @@ bool cdp_record_initialize( cdpRecord* record, cdpID name,
 
             record->metadata.recdata = CDP_RECDATA_FAR;
         } else if (capacity > sizeof(record->_near)) {
-            size_t dmax = cdp_max(sizeof(record->data->_data), capacity);
+            size_t dmax = cdp_max(sizeof((cdpData){}._data), capacity);
             if (data.pointer) {
                 assert(size);
                 record->data = cdp_malloc(sizeof(cdpData) - sizeof(record->data->_data) + dmax);
@@ -338,7 +338,7 @@ cdpRecord* cdp_record_sorted_insert(cdpRecord* parent, cdpRecord* record, cdpCom
 /*
    Reads data from a record.
 */
-cdpValue cdp_record_read(const cdpRecord* record, size_t* capacity, size_t* size, void* data) {
+void* cdp_record_read(const cdpRecord* record, size_t* capacity, size_t* size, void* data) {
     assert(!cdp_record_is_void(record));
 
     REC_DATA_SELECT(record) {
@@ -353,8 +353,8 @@ cdpValue cdp_record_read(const cdpRecord* record, size_t* capacity, size_t* size
             memcpy(data, &record->_near, cdp_min(*capacity, sizeof(cdpValue)));
         }
         CDP_PTR_SEC_SET(capacity, sizeof(record->_near));
-        CDP_PTR_SEC_SET(size, sizeof(cdpValue));    // FixMe: should this be the real size?
-        return record->_near;
+        CDP_PTR_SEC_SET(size, sizeof(cdpValue));
+        return &record->_near;
       }
 
       DATA: {
@@ -364,7 +364,7 @@ cdpValue cdp_record_read(const cdpRecord* record, size_t* capacity, size_t* size
         }
         CDP_PTR_SEC_SET(capacity, record->data->capacity);
         CDP_PTR_SEC_SET(size, record->data->size);
-        return (cdpValue){.pointer = record->data->_data};
+        return record->data->_data;
       }
 
       FAR: {
@@ -374,13 +374,13 @@ cdpValue cdp_record_read(const cdpRecord* record, size_t* capacity, size_t* size
         }
         CDP_PTR_SEC_SET(capacity, record->data->capacity);
         CDP_PTR_SEC_SET(size, record->data->size);
-        return (cdpValue){.pointer = record->data->_far};
+        return record->data->_far;
       }
     } SELECTION_END;
 
     CDP_PTR_SEC_SET(size, 0);
     CDP_PTR_SEC_SET(capacity, 0);
-    return (cdpValue){0};
+    return NULL;
 }
 
 
@@ -396,10 +396,12 @@ cdpValue cdp_record_read_value(const cdpRecord* record) {
         return record->_near;
       }
       DATA: {
-        return (cdpValue){.pointer = record->data->_data};
+        assert(record->data->size >= sizeof(cdpValue));
+        return record->data->_data[0];
       }
       FAR: {
-        return (cdpValue){.pointer = record->data->_far};
+        assert(record->data->size >= sizeof(cdpValue));
+        return *(cdpValue*)record->data->_far;
       }
     } SELECTION_END;
 

@@ -53,11 +53,11 @@ enum _cdpBinaryDimension {
 };
 
 enum _cdpBinaryPow2 {
-    CDP_BIN_POW2_BYTE1,         // Scalar size is 1 byte.
-    CDP_BIN_POW2_BYTE2,         // Scalar size is 2 bytes...
-    CDP_BIN_POW2_BYTE4,
-    CDP_BIN_POW2_BYTE8,
-    CDP_BIN_POW2_BYTE16,
+    CDP_BIN_POW2_BYTE1,         // Scalar size is 8 bits.
+    CDP_BIN_POW2_BYTE2,         // Scalar is 16 bits.
+    CDP_BIN_POW2_BYTE4,         // 32 bits.
+    CDP_BIN_POW2_BYTE8,         // 64.
+    CDP_BIN_POW2_BYTE16,        // 128.
 
     CDP_BIN_POW2_OTHER = 15
 };
@@ -247,7 +247,7 @@ void cdp_binary_system_initiate(void);
 static inline size_t cdp_binary_size(cdpRecord* record) {
     assert(!cdp_record_is_void(record));
 
-    static void* const _recData[] = {&&NONE, &&NEAR, &&DATA, &&FAR};
+    static const void* const _recData[] = {&&NONE, &&NEAR, &&DATA, &&FAR};
     goto *_recData[(record)->metadata.recdata];
     {
       NONE: {

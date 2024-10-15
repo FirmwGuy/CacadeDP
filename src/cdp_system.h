@@ -259,16 +259,6 @@
 #include "cdp_record.h"
 
 
-typedef struct {
-    cdpRecord*  agTag;
-    cdpRecord*  task;
-    cdpRecord*  input;
-} cdpTask;
-
-
-static inline cdpRecord* cdp_void(void)  {extern cdpRecord* CDP_VOID; assert(CDP_VOID);  return CDP_VOID;}
-
-
 // Name IDs:
 enum _cdpNameID {
     // Core directories
@@ -308,21 +298,32 @@ enum _cdpNameID {
     CDP_NAME_ID_SYSTEM_COUNT
 };
 
+
 #define CDP_NAME_SYSTEM_COUNT   (CDP_NAME_ID_SYSTEM_COUNT - CDP_NAME_SYSTEM)
+
+
+typedef struct {
+    cdpRecord*  agTag;
+    cdpRecord*  task;
+    cdpRecord*  input;
+} cdpTask;
+
+
+static inline cdpRecord* cdp_void(void)  {extern cdpRecord* CDP_VOID; assert(CDP_VOID);  return CDP_VOID;}
+
+void       cdp_name_id_static_destructor(void* text);
+cdpID      cdp_name_id_add(const char* name, cdpTag domain, cdpDel destructor);
+#define    cdp_name_id_add_static(name)   cdp_name_id_add(name, CDP_DOMAIN_GLOBAL, cdp_name_id_static_destructor)
+#define    cdp_tag_id_add_static(name)    cdp_name_id_add(name, domain, cdp_name_id_static_destructor)
+#define    CDP_TAG   cdp_tag_id_add_static
+#define    CDP_ID    cdp_name_id_add_static
+cdpRecord* cdp_name_id_text(cdpID nameID);
 
 
 cdpRecord* cdp_system_agency_add(cdpID name, cdpTag tag, cdpAgent agent);
 bool       cdp_system_startup(void);
 bool       cdp_system_step(void);
 void       cdp_system_shutdown(void);
-
-
-cdpID      cdp_name_id_add(const char* name, bool tag, bool borrow);
-cdpRecord* cdp_name_id_text(cdpID nameID);
-#define    cdp_name_id_add_static(name)   cdp_name_id_add(name, false, true)
-#define    cdp_tag_id_add_static(name)    cdp_name_id_add(name, true, true)
-#define    CDP_TAG   cdp_tag_id_add_static
-#define    CDP_ID    cdp_name_id_add_static
 
 
 cdpRecord* cdp_agency(cdpID name);

@@ -173,6 +173,13 @@ enum _cdpTextTag {
 };
 
 
+#define cdp_text_metadata_word()                                               \
+    ((cdpText) {                                                               \
+        .domain   = CDP_DOMAIN_TEXT,                                           \
+        .tag      = CDP_TXT_TAG_WORD                                           \
+    })
+
+
 #define cdp_text_metadata_paragraph()                                          \
     ((cdpText) {                                                               \
         .domain   = CDP_DOMAIN_TEXT,                                           \

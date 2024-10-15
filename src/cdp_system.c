@@ -35,7 +35,8 @@ cdpRecord* DATA;
 cdpRecord* NETWORK;
 cdpRecord* TEMP;
 
-cdpRecord* TAG;
+cdpRecord* DOMAIN;
+
 cdpRecord* NAME;
 cdpRecord* AGENCY;
 cdpRecord* CASCADE;
@@ -53,23 +54,28 @@ static void system_initiate(void);
  */
 
 
+void cdp_name_id_static_destructor(void* text) {}
+
+
 struct NID {const char* name; size_t length; cdpID id;};
 
 
 static bool name_id_traverse_find_text(cdpBookEntry* entry, struct NID* nid) {
-    const char* name = cdp_record_read_utf8(entry->record);
-    if (cdp_register_size(entry->record) == nid->length
-     && 0 == memcmp(name, nid->name, nid->length)) {
-        nid->id = cdp_record_get_id(entry->record);
-        return false;
+    if (cdp_record_domain(entry->record) == CDP_DOMAIN_TEXT) {
+        size_t size;
+        const char* name = cdp_record_read(entry->record, NULL, &size, NULL);
+        if (size == nid->length
+         && 0 == memcmp(name, nid->name, nid->length)) {
+            nid->id = cdp_record_get_id(entry->record);
+            return false;
+        }
     }
     return true;
 }
 
 
-cdpID cdp_name_id_add(const char* name, bool tag, bool borrow) {
-    assert(name && *name && (tag? cdp_record_get_autoid(TAG) <= CDP_TAG_MAXVAL: true));
-    if (!SYSTEM)  system_initiate();
+cdpID cdp_name_id_add(const char* name, cdpTag domain, cdpDel destructor) {
+    assert(name && *name && (domain <= CDP_DOMAIN_MAXVAL));
 
     size_t length = 0;
     for (const char* c=name; *c; c++, length++) {
@@ -78,27 +84,32 @@ cdpID cdp_name_id_add(const char* name, bool tag, bool borrow) {
             return CDP_TAG_VOID;
     }   }
 
+    if (!SYSTEM)
+        system_initiate();
+
+    cdpRecord* txtlist = cdp_record_find_by_name(DOMAIN, cdp_id_to_text(domain));
+    assert(txtlist);
+
     // Find previous
     struct NID nid = {name, length};
-    if (!cdp_record_traverse(TAG, (cdpTraverse)name_id_traverse_find_text, &nid, NULL))
-        return nid.id;
-
-    if (!cdp_record_traverse(NAME, (cdpTraverse)name_id_traverse_find_text, &nid, NULL)) {
-        if (tag) {
-            assert(!tag);   // ToDo: Tag is already registered as a name id, should we replace it with a link?
-            return CDP_TAG_VOID;
-        }
-        return nid.id;
+    if (!cdp_record_traverse(txtlist, (cdpTraverse)name_id_traverse_find_text, &nid, NULL)) {
+        return domain? cdp_id_to_text(nid.id): cdp_id_to_tag(nid.id);
     }
 
     // Add new
-    cdpRecord* reg = cdp_book_add_text((tag? TAG: NAME), (borrow? CDP_ATTRIB_FACTUAL: 0), CDP_AUTOID, borrow, name);
-    return CDP_POS2NAMEID(cdp_record_get_id(reg));
+    cdpRecord* r = cdp_record_add_data(txtlist, CDP_AUTOID_LOCAL, cdp_text_metadata_word(), length, length, name, destructor);
+    cdpID id = cdp_record_get_id(r);
+
+    return domain? cdp_id_to_text(id): cdp_id_to_tag(id);
 }
 
 
-cdpRecord* cdp_name_id_text(cdpID nameID) {
-    cdpID id = CDP_NAMEID2POS(nameID);
+cdpRecord* cdp_name_id_text(cdpID nameID, cdpTag domain) {
+    assert(!cdp_id_name_is_global(nameID) && !cdp_id_name_is_local(nameID));
+
+    cdpRecord* txtlist = cdp_record_find_by_name(DOMAIN, cdp_id_to_text(domain));
+    assert(txtlist);
+
     if (id > CDP_TAG_MAXVAL) {
         assert(id < cdp_record_get_autoid(NAME));
         return cdp_record_find_by_position(NAME, id - CDP_TAG_MAXVAL);  // Find by position index (instead of by its own id).
