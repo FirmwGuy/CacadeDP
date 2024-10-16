@@ -48,25 +48,29 @@ static void system_initiate(void);
 
 
 
+cdpTag cdp_system_domain_add(const char* text, unsigned basez) {
+
+}
+
 
 /*
  *   String interning routines
  */
 
 
-void cdp_name_id_static_destructor(void* text) {}
+void cdp_tag_id_static_destructor(void* text) {}
 
 
-struct NID {const char* name; size_t length; cdpID id;};
+struct NID {const char* text; size_t length; cdpID name;};
 
 
 static bool name_id_traverse_find_text(cdpBookEntry* entry, struct NID* nid) {
     if (cdp_record_domain(entry->record) == CDP_DOMAIN_TEXT) {
         size_t size;
-        const char* name = cdp_record_read(entry->record, NULL, &size, NULL);
+        const char* text = cdp_record_read(entry->record, NULL, &size, NULL);
         if (size == nid->length
-         && 0 == memcmp(name, nid->name, nid->length)) {
-            nid->id = cdp_record_get_id(entry->record);
+         && 0 == memcmp(text, nid->text, nid->length)) {
+            nid->name = cdp_record_get_name(entry->record);
             return false;
         }
     }
@@ -74,53 +78,45 @@ static bool name_id_traverse_find_text(cdpBookEntry* entry, struct NID* nid) {
 }
 
 
-cdpID cdp_name_id_add(const char* name, cdpTag domain, cdpDel destructor) {
-    assert(name && *name && (domain <= CDP_DOMAIN_MAXVAL));
+cdpID cdp_tag_id_add_generic(const char* text, cdpTag domain, bool data, cdpDel destructor) {
+    assert(text && *text && cdp_domain_valid(domain) && destructor);
 
     size_t length = 0;
-    for (const char* c=name; *c; c++, length++) {
+    for (const char* c=text; *c; c++, length++) {
         if (isupper(*c)) {
             assert(!isupper(*c));   // ToDo: make lowercase.
-            return CDP_TAG_VOID;
+            return cdp_id_to_tag(CDP_TAG_VOID);
     }   }
 
     if (!SYSTEM)
         system_initiate();
 
-    cdpRecord* txtlist = cdp_record_find_by_name(DOMAIN, cdp_id_to_text(domain));
-    assert(txtlist);
+    cdpRecord* perdomain = cdp_record_find_by_name(DOMAIN, cdp_id_to_tag(domain));
+    assert(perdomain);
+    cdpRecord* interned = cdp_record_find_by_name(perdomain, cdp_id_to_tag(CDP_TAG_INTERNED));
 
     // Find previous
-    struct NID nid = {name, length};
-    if (!cdp_record_traverse(txtlist, (cdpTraverse)name_id_traverse_find_text, &nid, NULL)) {
-        return domain? cdp_id_to_text(nid.id): cdp_id_to_tag(nid.id);
+    struct NID nid = {text, length};
+    if (!cdp_record_traverse(interned, (cdpTraverse)name_id_traverse_find_text, &nid, NULL)) {
+        return nid.name;
     }
 
-    // Add new
-    cdpRecord* r = cdp_record_add_data(txtlist, CDP_AUTOID_LOCAL, cdp_text_metadata_word(), length, length, name, destructor);
-    cdpID id = cdp_record_get_id(r);
+    // Add new tag
+    // ToDo: preppend "data" tags bellow CDP_TAG_MAXVAL.
+    cdpRecord* r = cdp_record_add_data(interned, CDP_AUTOID_LOCAL, cdp_text_metadata_word(), length, length, text, destructor);
 
-    return domain? cdp_id_to_text(id): cdp_id_to_tag(id);
+    return cdp_id_to_tag(cdp_record_get_id(r));
 }
 
 
-cdpRecord* cdp_name_id_text(cdpID nameID, cdpTag domain) {
-    assert(!cdp_id_name_is_global(nameID) && !cdp_id_name_is_local(nameID));
+cdpRecord* cdp_tag_id_text(cdpID tagID, cdpTag domain) {
+    assert(cdp_id_valid_tag(tagID) && cdp_domain_valid(domain));
 
-    cdpRecord* txtlist = cdp_record_find_by_name(DOMAIN, cdp_id_to_text(domain));
-    assert(txtlist);
+    cdpRecord* perdomain = cdp_record_find_by_name(DOMAIN, cdp_id_to_tag(domain));
 
-    if (id > CDP_TAG_MAXVAL) {
-        assert(id < cdp_record_get_autoid(NAME));
-        return cdp_record_find_by_position(NAME, id - CDP_TAG_MAXVAL);  // Find by position index (instead of by its own id).
-    }
-    assert(id < cdp_record_get_autoid(TAG);
-    return cdp_record_find_by_position(TAG, id);     // FixMe: check if entry is disabled.
+    return cdp_record_find_by_position(perdomain, cdp_id(tagID));     // FixMe: check if entry is disabled.
+    //return cdp_record_find_by_name(perdomain, cdp_id(tagID));     // FixMe: check if entry is disabled.
 }
-
-
-static inline cdp_name_id_valid(name)   {return  name != CDP_TAG_VOID  &&  CDP_NAMEID2POS(name) < cdp_record_get_autoid(NAME);}
-static inline cdp_tag_id_valid(tag)     {return   tag != CDP_TAG_VOID  &&  CDP_NAMEID2POS(tag)  < cdp_record_get_autoid(TAG);}
 
 
 
@@ -131,7 +127,7 @@ static inline cdp_tag_id_valid(tag)     {return   tag != CDP_TAG_VOID  &&  CDP_N
 
 
 cdpRecord* cdp_agency(cdpID name) {
-    assert(SYSTEM && cdp_name_id_valid(name));
+    assert(SYSTEM && cdp_tag_id_valid(name));
     return cdp_record_find_by_name(AGENCY, name);
 }
 
@@ -209,9 +205,10 @@ cdpRecord* cdp_task_commit(cdpTask* cTask) {
 
 /* System related routines */
 
-cdpRecord* cdp_system_agency_add(cdpID name, cdpTag tag, cdpAgent agent) {
-    if (!SYSTEM)  system_initiate();
-    assert(cdp_name_id_valid(name));
+cdpRecord* cdp_system_agency_add(cdpTag domain, cdpID tagID, cdpAgent agent) {
+    assert(cdp_domain_valid(domain) && cdp_tag_id_valid(tagID) && agent);
+    if (!SYSTEM)
+        system_initiate();
 
     // Find previous
     cdpRecord* agency = cdp_record_find_by_name(AGENCY, name);

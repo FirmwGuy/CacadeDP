@@ -84,7 +84,7 @@ cdpID     AUTOID;     // Global autoid used with CDP_NAMING_GLOBAL.
     Initiates the record system.
 */
 void cdp_record_system_initiate(void) {
-    cdp_record_initialize_dictionary(&CDP_ROOT, cdp_id_to_text(CDP_NAME_ROOT), CDP_STORAGE_RED_BLACK_T, 0);   // The root dictionary is the same as "/" in text paths.
+    cdp_record_initialize_dictionary(&CDP_ROOT, cdp_id_to_tag(CDP_NAME_ROOT), CDP_STORAGE_RED_BLACK_T, 0);   // The root dictionary is the same as "/" in text paths.
 }
 
 
@@ -354,7 +354,7 @@ void* cdp_record_read(const cdpRecord* record, size_t* capacity, size_t* size, v
         }
         CDP_PTR_SEC_SET(capacity, sizeof(record->_near));
         CDP_PTR_SEC_SET(size, sizeof(cdpValue));
-        return &record->_near;
+        return CDP_P(&record->_near);
       }
 
       DATA: {

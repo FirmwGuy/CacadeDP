@@ -75,9 +75,9 @@ cdpID ADDER_ANS;
 
 
 bool adder_agent_initiate(cdpRecord* instance, cdpTask* signal) {
-    ADDER_OP1 = cdp_name_id_add_static("op1");
-    ADDER_OP2 = cdp_name_id_add_static("op2");
-    ADDER_ANS = cdp_name_id_add_static("ans");
+    ADDER_OP1 = cdp_tag_id_add_static("op1");
+    ADDER_OP2 = cdp_tag_id_add_static("op2");
+    ADDER_ANS = cdp_tag_id_add_static("ans");
 
     cdpID nameID = cdp_dict_get_id(&signal->input, CDP_NAME_NAME);
 

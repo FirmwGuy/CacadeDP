@@ -32,7 +32,7 @@ CDP_METADATA_STRUCT(cdpBinary,
                     dimension:  3,  // Dimensions of data.
 
                     endianess:  1,  // Little endian (0) is the norm.
-                    encoding:   4,  // Binary representation of content.
+                    abi:        4,  // Binary representation of content.
                     compression:3,  // Type of compression used to pack content.
                     encryption: 3,  // Encryption method.
 
@@ -63,7 +63,7 @@ enum _cdpBinaryPow2 {
 };
 
 
-enum _cdpBinaryEncoding {
+enum _cdpBinaryABI {            // Aplication Binary Interface:
     CDP_BIN_ENC_BYTE,           // Content is an opaque sequence of bytes.
     CDP_BIN_ENC_UNSIGNED,       // All GCC-supported unsigned sizes.
     CDP_BIN_ENC_INTEGER,        // All GCC-supported signed integer sizes.

@@ -311,29 +311,33 @@ typedef struct {
 
 static inline cdpRecord* cdp_void(void)  {extern cdpRecord* CDP_VOID; assert(CDP_VOID);  return CDP_VOID;}
 
-void       cdp_name_id_static_destructor(void* text);
-cdpID      cdp_name_id_add(const char* name, cdpTag domain, cdpDel destructor);
-#define    cdp_name_id_add_static(name)   cdp_name_id_add(name, CDP_DOMAIN_GLOBAL, cdp_name_id_static_destructor)
-#define    cdp_tag_id_add_static(name)    cdp_name_id_add(name, domain, cdp_name_id_static_destructor)
-#define    CDP_TAG   cdp_tag_id_add_static
-#define    CDP_ID    cdp_name_id_add_static
-cdpRecord* cdp_name_id_text(cdpID nameID);
+void       cdp_tag_id_static_destructor(void* text);
+
+cdpID      cdp_tag_id_add_generic(const char* text, cdpTag domain, bool data, cdpDel destructor);
+#define    cdp_tag_id_add_generic_static(text, domain, data)    cdp_tag_id_add_generic(text, domain, data, cdp_tag_id_static_destructor)
+#define    cdp_tag_id_add(text, domain, destructor)             cdp_tag_id_add_generic(text, domain, false, destructor)
+#define    cdp_tag_id_add_static(text, domain)                  cdp_tag_id_add_generic(text, domain, false, cdp_tag_id_static_destructor)
+#define    cdp_tag_id_add_data(text, domain, destructor)        cdp_tag_id_add_generic(text, domain, true, destructor)
+#define    cdp_tag_id_add_data_static(text, domain)             cdp_tag_id_add_generic(text, domain, true, cdp_tag_id_static_destructor)
+
+cdpRecord* cdp_tag_id_text(cdpID tagID, cdpTag domain);
 
 
-cdpRecord* cdp_system_agency_add(cdpID name, cdpTag tag, cdpAgent agent);
+cdpRecord* cdp_system_agency_add(cdpTag domain, cdpID tagID, cdpAgent agent);
 bool       cdp_system_startup(void);
 bool       cdp_system_step(void);
 void       cdp_system_shutdown(void);
 
 
-cdpRecord* cdp_agency(cdpID name);
-bool       cdp_agency_set_agent(cdpRecord* agency, cdpTag tag, cdpAgent agent);
+cdpRecord* cdp_agency(cdpTag domain, cdpID tagID);
+bool       cdp_agency_set_agent(cdpRecord* agency, cdpTag tagID, cdpAgent agent);
 
 
-cdpRecord* cdp_task_begin(  cdpTask* task, cdpRecord* agency, cdpTag cast, cdpRecord* instance,
+cdpRecord* cdp_task_begin(  cdpTask* task, cdpTag domain, cdpRecord* agency, cdpRecord* instance,
                             cdpRecord* parentTask, cdpRecord* baby,
                             int numInput, int numOutput );
 cdpRecord* cdp_task_commit(cdpTask* task);
+void       cdp_task_end(cdpTask* task);
 
 
 

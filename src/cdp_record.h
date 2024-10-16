@@ -165,7 +165,7 @@ typedef struct {
 
 
 enum _cdpDomain {
-    CDP_DOMAIN_GLOBAL,          // A global (cross-)domain (also used to indicate all sorts of purely branched types).
+    CDP_DOMAIN_GLOBAL,          // A global domain (also used to indicate all sorts of purely branched types).
 
     CDP_DOMAIN_BINARY,
     CDP_DOMAIN_TEXT,
@@ -181,6 +181,8 @@ enum _cdpDomain {
 };
 
 //#define CDP_TAG_BRANCH  0
+
+#define cdp_domain_valid(d)     ((d) <= CDP_DOMAIN_MAXVAL)
 
 
 /*
@@ -216,6 +218,7 @@ typedef struct {
               connected:  1,    // Record is connected (it can't skip the signal API).
               baby:       1,    // On receiving any signal this record will first alert its parent.
 
+              // ToDo: merge domain inside nameID (right after naming conv).
               domain:     CDP_DOMAIN_BITS,  // Namespace.
               name:       CDP_NAME_BITS;    // Name id of this record instance (the first 2 MSB bits are the naming convention).
     };
