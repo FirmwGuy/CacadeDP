@@ -165,7 +165,7 @@ typedef struct {
 
 
 enum _cdpDomain {
-    CDP_DOMAIN_GLOBAL,          // A global domain (also used to indicate all sorts of purely branched types).
+    CDP_DOMAIN_RECORD,          // Also used to indicate purely branched types.
 
     CDP_DOMAIN_BINARY,
     CDP_DOMAIN_TEXT,
@@ -193,12 +193,13 @@ typedef uint64_t  cdpID;
 
 #define CDP_ID_BITS             cdp_bitsof(cdpID)
 #define CDP_RECD_FLAG_BITS      12
-#define CDP_NAME_BITS           (CDP_ID_BITS - (CDP_RECD_FLAG_BITS + CDP_DOMAIN_BITS))
+#define CDP_NAME_BITS           (CDP_ID_BITS - CDP_RECD_FLAG_BITS)
 #define CDP_NAME_MAXVAL         (~(((cdpID)(-1)) << CDP_NAME_BITS))
 #define CDP_NAMECONV_BITS       2
 #define CDP_AUTOID_BITS         (CDP_NAME_BITS - CDP_NAMECONV_BITS)
 #define CDP_AUTOID_MAXVAL       (~(((cdpID)(-1)) << CDP_AUTOID_BITS))
 #define CDP_AUTOID_MAX          (CDP_AUTOID_MAXVAL - 1)
+#define CDP_NAME_GLOBAL_BITS    (CDP_AUTOID_BITS - CDP_DOMAIN_BITS)
 
 typedef struct {
   union {
@@ -218,9 +219,7 @@ typedef struct {
               connected:  1,    // Record is connected (it can't skip the signal API).
               baby:       1,    // On receiving any signal this record will first alert its parent.
 
-              // ToDo: merge domain inside nameID (right after naming conv).
-              domain:     CDP_DOMAIN_BITS,  // Namespace.
-              name:       CDP_NAME_BITS;    // Name id of this record instance (the first 2 MSB bits are the naming convention).
+              name:       CDP_NAME_BITS;    // Name id of this record instance (including naming convention and domain).
     };
   };
 } cdpMetarecord;
@@ -254,9 +253,12 @@ enum _cdpRecordNaming {
 //#define cdp_id_to_naming(id)            (((id) >> CDP_AUTOID_BITS) & 3)
 #define CDP_NAMING_MASK                 cdp_id_from_naming(3)
 
-#define cdp_id_to_tag(pos)              ((pos) | cdp_id_from_naming(CDP_NAMING_TAG))
+#define cdp_id_from_domain(domain)      (((cdpID)(domain)) << CDP_NAME_GLOBAL_BITS)
+#define cdp_id_domain(id)               (((id) >> CDP_NAME_GLOBAL_BITS) & CDP_DOMAIN_MAXVAL)
+
+#define cdp_id_to_tag(domain, pos)      (cdp_id_from_naming(CDP_NAMING_TAG) | cdp_id_from_domain(domain) | (pos))
 #define cdp_id_to_property(pos)         ((pos) | cdp_id_from_naming(CDP_NAMING_TEXT))
-#define cdp_id_global(id)               ((id)  | cdp_id_from_naming(CDP_NAMING_GLOBAL))
+#define cdp_id_global(domain, id)       (cdp_id_from_naming(CDP_NAMING_GLOBAL) | cdp_id_from_domain(domain) | (id))
 #define cdp_id_local(id)                ((id)  | cdp_id_from_naming(CDP_NAMING_LOCAL))
 
 #define cdp_id(name)                    ((name) & CDP_AUTOID_MAXVAL)
@@ -264,8 +266,9 @@ enum _cdpRecordNaming {
 
 #define CDP_AUTOID_USE                  CDP_AUTOID_MAXVAL
 #define CDP_AUTOID_LOCAL                cdp_id_local(CDP_AUTOID_USE)
-#define CDP_AUTOID_GLOBAL               cdp_id_global(CDP_AUTOID_USE)
+//#define CDP_AUTOID_GLOBAL               cdp_id_global(CDP_AUTOID_USE)
 
+#define cdp_id_naming(name)             (((name) >> CDP_AUTOID_BITS) & 3)
 #define cdp_id_name_is_tag(name)        ((CDP_NAMING_MASK & (name)) == cdp_id_from_naming(CDP_NAMING_TAG))
 #define cdp_id_name_is_property(name)   ((CDP_NAMING_MASK & (name)) == cdp_id_from_naming(CDP_NAMING_PROPERTY))
 #define cdp_id_name_is_global(name)     ((CDP_NAMING_MASK & (name)) == cdp_id_from_naming(CDP_NAMING_GLOBAL))

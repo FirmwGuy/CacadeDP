@@ -313,14 +313,15 @@ static inline cdpRecord* cdp_void(void)  {extern cdpRecord* CDP_VOID; assert(CDP
 
 void       cdp_tag_id_static_destructor(void* text);
 
-cdpID      cdp_tag_id_add_generic(const char* text, cdpTag domain, bool data, cdpDel destructor);
-#define    cdp_tag_id_add_generic_static(text, domain, data)    cdp_tag_id_add_generic(text, domain, data, cdp_tag_id_static_destructor)
-#define    cdp_tag_id_add(text, domain, destructor)             cdp_tag_id_add_generic(text, domain, false, destructor)
-#define    cdp_tag_id_add_static(text, domain)                  cdp_tag_id_add_generic(text, domain, false, cdp_tag_id_static_destructor)
-#define    cdp_tag_id_add_data(text, domain, destructor)        cdp_tag_id_add_generic(text, domain, true, destructor)
-#define    cdp_tag_id_add_data_static(text, domain)             cdp_tag_id_add_generic(text, domain, true, cdp_tag_id_static_destructor)
+cdpID      cdp_tag_id_add_generic(cdpTag domain, const char* text, bool data, cdpDel destructor);
+#define    cdp_tag_id_add_generic_static(domain, text, data)    cdp_tag_id_add_generic(DOMAIN, text, data, cdp_tag_id_static_destructor)
+#define    cdp_tag_id_add(domain, text, destructor)             cdp_tag_id_add_generic(DOMAIN, text, false, destructor)
+#define    cdp_tag_id_add_static(domain, text)                  cdp_tag_id_add_generic(DOMAIN, text, false, cdp_tag_id_static_destructor)
+#define    cdp_tag_id_add_data(domain, text, destructor)        cdp_tag_id_add_generic(DOMAIN, text, true, destructor)
+#define    cdp_tag_id_add_data_static(domain, text)             cdp_tag_id_add_generic(DOMAIN, text, true, cdp_tag_id_static_destructor)
 
-cdpRecord* cdp_tag_id_text(cdpID tagID, cdpTag domain);
+cdpRecord* cdp_tag_text(cdpTag domain, cdpID tag);
+#define cdp_tag_text_from_name(name)    cdp_tag_text(cdp_id_domain(name), cdp_id(name))
 
 
 cdpRecord* cdp_system_agency_add(cdpTag domain, cdpID tagID, cdpAgent agent);

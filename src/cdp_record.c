@@ -77,14 +77,13 @@ static inline int record_compare_by_name(const cdpRecord* restrict key, const cd
 
 
 cdpRecord CDP_ROOT;   // The root record.
-cdpID     AUTOID;     // Global autoid used with CDP_NAMING_GLOBAL.
 
 
 /*
     Initiates the record system.
 */
 void cdp_record_system_initiate(void) {
-    cdp_record_initialize_dictionary(&CDP_ROOT, cdp_id_to_tag(CDP_NAME_ROOT), CDP_STORAGE_RED_BLACK_T, 0);   // The root dictionary is the same as "/" in text paths.
+    cdp_record_initialize_dictionary(&CDP_ROOT, cdp_id_to_tag(CDP_DOMAIN_RECORD, CDP_NAME_ROOT), CDP_STORAGE_RED_BLACK_T, 0);   // The root dictionary is the same as "/" in text paths.
 }
 
 
@@ -129,10 +128,10 @@ void cdp_record_relink_storage(cdpRecord* record) {
 
 
 static inline void store_check_auto_id(cdpChdStore* parStore, cdpRecord* record) {
-    if (CDP_AUTOID_LOCAL == record->metarecord.name)
+    if (CDP_AUTOID_LOCAL == record->metarecord.name) {
         cdp_record_set_name(record, cdp_id_local(parStore->autoid++));
-    else if (CDP_AUTOID_GLOBAL == record->metarecord.name)
-        cdp_record_set_name(record, cdp_id_global(AUTOID++));
+    }
+    // FixMe: if otherwise.
 }
 
 

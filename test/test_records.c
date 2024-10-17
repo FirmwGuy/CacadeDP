@@ -66,11 +66,11 @@ static void test_records_value(cdpRecord* rec, cdpValue trueval) {
     size_t capacity = sizeof(cdpValue);
     size_t size = 0;
     cdpValue vread = {0};
-    cdpValue value = cdp_record_read(rec, &capacity, &size, &vread);
+    cdpValue value = *(cdpValue*) cdp_record_read(rec, &capacity, &size, &vread);
     assert_size(capacity, ==, sizeof(vread));
     assert_size(size, ==, sizeof(value));
-    assert_uint(trueval.uint32, ==, vread.uint32);
     assert_uint(trueval.uint32, ==, value.uint32);
+    assert_uint(trueval.uint32, ==, vread.uint32);
 }
 
 

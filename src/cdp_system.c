@@ -78,8 +78,8 @@ static bool name_id_traverse_find_text(cdpBookEntry* entry, struct NID* nid) {
 }
 
 
-cdpID cdp_tag_id_add_generic(const char* text, cdpTag domain, bool data, cdpDel destructor) {
-    assert(text && *text && cdp_domain_valid(domain) && destructor);
+cdpID cdp_tag_id_add_generic(cdpTag domain, const char* text, bool data, cdpDel destructor) {
+    assert(cdp_domain_valid(domain) && text && *text && destructor);
 
     size_t length = 0;
     for (const char* c=text; *c; c++, length++) {
@@ -91,31 +91,41 @@ cdpID cdp_tag_id_add_generic(const char* text, cdpTag domain, bool data, cdpDel 
     if (!SYSTEM)
         system_initiate();
 
-    cdpRecord* perdomain = cdp_record_find_by_name(DOMAIN, cdp_id_to_tag(domain));
-    assert(perdomain);
-    cdpRecord* interned = cdp_record_find_by_name(perdomain, cdp_id_to_tag(CDP_TAG_INTERNED));
+    cdpRecord* perdomain = cdp_record_find_by_name(DOMAIN, cdp_id_to_property(domain));  // ToDo: use tags for domains also (instead of enumeration).
+    if CDP_UNLIKELY(!perdomain) {
+        perdomain = cdp_record_add_dictionary(DOMAIN, cdp_id_to_property(domain), CDP_STORAGE_ARRAY, 2);
+    }
 
-    // Find previous
-    struct NID nid = {text, length};
-    if (!cdp_record_traverse(interned, (cdpTraverse)name_id_traverse_find_text, &nid, NULL)) {
-        return nid.name;
+    cdpRecord* interned = cdp_record_find_by_name(perdomain, cdp_id_to_tag(CDP_TAG_INTERNED));
+    if CDP_UNLIKELY(!interned) {
+        interned = cdp_record_add_branch(perdomain, cdp_id_to_tag(CDP_TAG_INTERNED), CDP_STORAGE_RED_BLACK_T, 0);
+    } else {
+        // Find previous
+        struct NID nid = {text, length};
+        if (!cdp_record_traverse(interned, (cdpTraverse)name_id_traverse_find_text, &nid, NULL)) {
+            return nid.name;
+        }
     }
 
     // Add new tag
-    // ToDo: preppend "data" tags bellow CDP_TAG_MAXVAL.
     cdpRecord* r = cdp_record_add_data(interned, CDP_AUTOID_LOCAL, cdp_text_metadata_word(), length, length, text, destructor);
 
-    return cdp_id_to_tag(cdp_record_get_id(r));
+    // ToDo: check overflow.
+
+    return cdp_id_to_tag(domain, cdp_record_get_id(r));
 }
 
 
-cdpRecord* cdp_tag_id_text(cdpID tagID, cdpTag domain) {
-    assert(cdp_id_valid_tag(tagID) && cdp_domain_valid(domain));
+cdpRecord* cdp_tag_text(cdpTag domain, cdpID tag) {
+    assert(cdp_domain_valid(domain) && (tag < CDP_TAG_MAXVAL));     // FixMe: tag limits.
 
-    cdpRecord* perdomain = cdp_record_find_by_name(DOMAIN, cdp_id_to_tag(domain));
+    cdpRecord* perdomain = cdp_record_find_by_name(DOMAIN, cdp_id_to_property(domain));
+    assert(perdomain);
+    cdpRecord* interned = cdp_record_find_by_name(perdomain, cdp_id_to_tag(CDP_TAG_INTERNED));
+    assert(inerned);
 
-    return cdp_record_find_by_position(perdomain, cdp_id(tagID));     // FixMe: check if entry is disabled.
-    //return cdp_record_find_by_name(perdomain, cdp_id(tagID));     // FixMe: check if entry is disabled.
+    //return cdp_record_find_by_position(perdomain, cdp_id(tagID));     // FixMe: check if entry is disabled.
+    return cdp_record_find_by_name(perdomain, cdp_id_local(tag));
 }
 
 
@@ -205,13 +215,29 @@ cdpRecord* cdp_task_commit(cdpTask* cTask) {
 
 /* System related routines */
 
-cdpRecord* cdp_system_agency_add(cdpTag domain, cdpID tagID, cdpAgent agent) {
-    assert(cdp_domain_valid(domain) && cdp_tag_id_valid(tagID) && agent);
+cdpRecord* cdp_system_agency_add(cdpTag domain, cdpTag tag, cdpAgent agent) {
+    assert(cdp_domain_valid(domain) && agent);
     if (!SYSTEM)
         system_initiate();
 
+    cdpRecord* perdomain = cdp_record_find_by_name(DOMAIN, cdp_id_to_property(domain));  // ToDo: use tags for domains also (instead of enumeration).
+    if CDP_UNLIKELY(!perdomain) {
+        perdomain = cdp_record_add_dictionary(DOMAIN, cdp_id_to_property(domain), CDP_STORAGE_ARRAY, 2);
+    }
+
+    cdpRecord* agencies = cdp_record_find_by_name(perdomain, cdp_id_to_tag(CDP_TAG_AGENCY));
+    if CDP_UNLIKELY(!interned) {
+        interned = cdp_record_add_branch(perdomain, cdp_id_to_tag(CDP_TAG_INTERNED), CDP_STORAGE_RED_BLACK_T, 0);
+    } else {
+        // Find previous
+        struct NID nid = {text, length};
+        if (!cdp_record_traverse(interned, (cdpTraverse)name_id_traverse_find_text, &nid, NULL)) {
+            return nid.name;
+        }
+    }
+
     // Find previous
-    cdpRecord* agency = cdp_record_find_by_name(AGENCY, name);
+    cdpRecord* perdomain = cdp_record_find_by_name(DOMAIN, name);
     if (!agency)
         agency = cdp_book_add_dictionary(AGENCY, name, CDP_TAG_DICTIONARY, CDP_STORAGE_RED_BLACK_T);
 
