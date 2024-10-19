@@ -135,6 +135,31 @@ cdpRecord* cdp_tag_text(cdpTag domain, cdpID tag) {
  *    Agent related routines
  */
 
+cdpRecord* cdp_system_agency_add(cdpTag domain, cdpTag agency, cdpTag tag, cdpAgent agent) {
+    assert(cdp_domain_valid(domain) && agent);
+    if (!SYSTEM)
+        system_initiate();
+
+    cdpRecord* perdomain = cdp_record_find_by_name(DOMAIN, cdp_id_to_property(domain));  // ToDo: use tags for domains also (instead of enumeration).
+    if CDP_UNLIKELY(!perdomain) {
+        perdomain = cdp_record_add_dictionary(DOMAIN, cdp_id_to_property(domain), CDP_STORAGE_ARRAY, 2);
+    }
+
+    cdpRecord* agtlist;
+    cdpRecord* acydic = cdp_record_find_by_name(perdomain, cdp_id_to_tag(CDP_TAG_AGENCY));
+    if CDP_UNLIKELY(!acydic) {
+        acydic = cdp_record_add_dictionary(perdomain, cdp_id_to_tag(CDP_TAG_AGENCY), CDP_STORAGE_RED_BLACK_T, 0);
+        agtlist = NULL;
+    } else {
+        agtlist = cdp_record_find_by_name(acydic, cdp_id_to_tag(tag));
+    }
+    if (!agtlist) {
+        agtlist = cdp_record_add_dictionary(acydic, cdp_id_to_tag(tag), CDP_STORAGE_LINKED_LIST, 0);
+    }
+
+    return cdp_record_add_agent(agtlist, );
+}
+
 
 cdpRecord* cdp_agency(cdpID name) {
     assert(SYSTEM && cdp_tag_id_valid(name));
@@ -214,38 +239,6 @@ cdpRecord* cdp_task_commit(cdpTask* cTask) {
 
 
 /* System related routines */
-
-cdpRecord* cdp_system_agency_add(cdpTag domain, cdpTag tag, cdpAgent agent) {
-    assert(cdp_domain_valid(domain) && agent);
-    if (!SYSTEM)
-        system_initiate();
-
-    cdpRecord* perdomain = cdp_record_find_by_name(DOMAIN, cdp_id_to_property(domain));  // ToDo: use tags for domains also (instead of enumeration).
-    if CDP_UNLIKELY(!perdomain) {
-        perdomain = cdp_record_add_dictionary(DOMAIN, cdp_id_to_property(domain), CDP_STORAGE_ARRAY, 2);
-    }
-
-    cdpRecord* agencies = cdp_record_find_by_name(perdomain, cdp_id_to_tag(CDP_TAG_AGENCY));
-    if CDP_UNLIKELY(!interned) {
-        interned = cdp_record_add_branch(perdomain, cdp_id_to_tag(CDP_TAG_INTERNED), CDP_STORAGE_RED_BLACK_T, 0);
-    } else {
-        // Find previous
-        struct NID nid = {text, length};
-        if (!cdp_record_traverse(interned, (cdpTraverse)name_id_traverse_find_text, &nid, NULL)) {
-            return nid.name;
-        }
-    }
-
-    // Find previous
-    cdpRecord* perdomain = cdp_record_find_by_name(DOMAIN, name);
-    if (!agency)
-        agency = cdp_book_add_dictionary(AGENCY, name, CDP_TAG_DICTIONARY, CDP_STORAGE_RED_BLACK_T);
-
-    cdp_agency_set_agent(agency, tag, agent);
-
-    return agency;
-}
-
 
 static void system_initiate_tags(void) {
 

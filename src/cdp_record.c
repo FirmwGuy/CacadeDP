@@ -141,10 +141,10 @@ static inline void store_check_auto_id(cdpChdStore* parStore, cdpRecord* record)
     Initiates a record struct with the requested parameters.
 */
 bool cdp_record_initialize( cdpRecord* record, cdpID name,
-                            bool dictionary, unsigned storage, size_t basez,
+                            unsigned type, bool dictionary, unsigned storage, size_t basez,
                             cdpMetadata metadata, size_t capacity, size_t size,
                             cdpValue data, cdpDel destructor) {
-    assert(record && cdp_id_valid(name) && storage < CDP_STORAGE_COUNT);
+    assert(record && cdp_id_valid(name) && type && (type < CDP_TYPE_COUNT) && (storage < CDP_STORAGE_COUNT));
     if (dictionary) {
         if CDP_RARELY(storage == CDP_STORAGE_PACKED_QUEUE) {
             assert(storage != CDP_STORAGE_PACKED_QUEUE);
@@ -163,6 +163,7 @@ bool cdp_record_initialize( cdpRecord* record, cdpID name,
     //CDP_0(record);
 
     record->metarecord.name       = name;
+    record->metarecord.type       = type;
     record->metarecord.dictionary = dictionary? 1: 0;
     record->metarecord.storage    = storage;
     record->metadata = metadata;
