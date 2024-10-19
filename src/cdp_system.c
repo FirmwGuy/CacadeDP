@@ -131,11 +131,9 @@ cdpRecord* cdp_tag_text(cdpTag domain, cdpID tag) {
 
 
 
-/*
- *    Agent related routines
- */
+/* System related routines */
 
-cdpRecord* cdp_system_agency_add(cdpTag domain, cdpTag agency, cdpTag tag, cdpAgent agent) {
+cdpRecord* cdp_system_add_agent(cdpTag domain, cdpTag agency, cdpTag tag, cdpAgent agent) {
     assert(cdp_domain_valid(domain) && agent);
     if (!SYSTEM)
         system_initiate();
@@ -145,100 +143,21 @@ cdpRecord* cdp_system_agency_add(cdpTag domain, cdpTag agency, cdpTag tag, cdpAg
         perdomain = cdp_record_add_dictionary(DOMAIN, cdp_id_to_property(domain), CDP_STORAGE_ARRAY, 2);
     }
 
-    cdpRecord* agtlist;
-    cdpRecord* acydic = cdp_record_find_by_name(perdomain, cdp_id_to_tag(CDP_TAG_AGENCY));
-    if CDP_UNLIKELY(!acydic) {
-        acydic = cdp_record_add_dictionary(perdomain, cdp_id_to_tag(CDP_TAG_AGENCY), CDP_STORAGE_RED_BLACK_T, 0);
-        agtlist = NULL;
+    cdpRecord* agentlist;
+    cdpRecord* agencydic = cdp_record_find_by_name(perdomain, cdp_id_to_tag(CDP_TAG_AGENCY));
+    if CDP_UNLIKELY(!agencydic) {
+        agencydic = cdp_record_add_dictionary(perdomain, cdp_id_to_tag(CDP_TAG_AGENCY), CDP_STORAGE_RED_BLACK_T, 0);
+        agentlist = NULL;
     } else {
-        agtlist = cdp_record_find_by_name(acydic, cdp_id_to_tag(tag));
+        agentlist = cdp_record_find_by_name(agencydic, cdp_id_to_tag(agency));
     }
-    if (!agtlist) {
-        agtlist = cdp_record_add_dictionary(acydic, cdp_id_to_tag(tag), CDP_STORAGE_LINKED_LIST, 0);
-    }
-
-    return cdp_record_add_agent(agtlist, );
-}
-
-
-cdpRecord* cdp_agency(cdpID name) {
-    assert(SYSTEM && cdp_tag_id_valid(name));
-    return cdp_record_find_by_name(AGENCY, name);
-}
-
-
-bool cdp_agency_set_agent(cdpRecord* agency, cdpTag tag, cdpAgent agent) {
-    assert(cdp_record_is_dictionary(agency) && cdp_tag_id_valid(tag) && agent);
-
-    if (cdp_record_find_by_name(agency, tag)) {
-        assert(!tag);   // Tag shouldn't exist!
-        return false;
+    if (!agentlst) {
+        agentlist = cdp_record_add_dictionary(agencydic, cdp_id_to_tag(agency), CDP_STORAGE_RED_BLACK_T, 0);
     }
 
-    cdpRecord* agTag = cdp_book_add_dictionary(agency, tag, CDP_TAG_DICTIONARY, CDP_STORAGE_ARRAY, 4);
-    cdp_book_add_agent(agTag, CDP_NAME_AGENT, agent);
-    cdp_book_add_book(agTag, CDP_NAME_CALL, CDP_TAG_BOOK, CDP_STORAGE_LINKED_LIST);
-    cdp_book_add_book(agTag, CDP_NAME_DONE, CDP_TAG_BOOK, CDP_STORAGE_LINKED_LIST);
-    cdp_book_add_book(agTag, CDP_NAME_WORK, CDP_TAG_BOOK, CDP_STORAGE_LINKED_LIST);
-
-    return true;
+    return cdp_record_add_agent(agentlist, cdp_id_to_tag(tag), agent);
 }
 
-
-cdpRecord* cdp_task_begin(  cdpTask* cTask, cdpRecord* agency, cdpTag cast, cdpRecord* instance,
-                            cdpRecord* parentTask, cdpRecord* baby,
-                            int numInput, int numOutput ) {
-    assert(cTask && cdp_record_is_dictionary(agency) && !cdp_record_is_void(instance
-
-    //CDP_0(cTask);
-
-    // Find instance tag to define agent
-    cdpTag tag = cdp_record_tag(instance);    // ToDo: traverse all multiple tags on books.
-    cTask->agTag = cdp_record_find_by_name(agency, tag);
-    if (!cTask->agTag) {
-        // If tag is not found, use tag being cast.
-        if (cast != CDP_TAG_VOID)
-            cTask->agTag = cdp_record_find_by_name(agency, cast);
-        if (!cTask->agTag) {
-            assert(cTask->agTag);       // No suitable agent was ever found.
-            return NULL;
-        }
-    }
-    cdpRecord* call = cdp_record_find_by_name(cTask->agTag, CDP_NAME_CALL);
-
-    // ToDo: check in the "done" book to find recyclable entries.
-
-    cTask->task = cdp_book_add_dictionary(call, CDP_AUTOID, CDP_TAG_DICTIONARY, CDP_STORAGE_ARRAY, 6);
-    cdp_book_add_link(cTask->task, CDP_NAME_PARENT, parentTask);
-    cdp_book_add_link(cTask->task, CDP_NAME_INSTANCE, instance);
-
-    if (baby)
-        cdp_book_add_link(task, CDP_NAME_BABY, baby);
-
-    if (0 <= numInput)
-        cTask->input = cdp_book_add_dictionary(cTask->task, CDP_NAME_INPUT, CDP_TAG_DICTIONARY, ((0 == numInput)? CDP_STORAGE_RED_BLACK_T: CDP_STORAGE_ARRAY), numInput);
-    else
-        cTask->input = NULL;
-
-    if (0 <= numOutput)
-        cdp_book_add_dictionary(cTask->task, CDP_NAME_OUTPUT, CDP_TAG_DICTIONARY, ((0 == numOutput)? CDP_STORAGE_RED_BLACK_T: CDP_STORAGE_ARRAY), numOutput);
-
-    cdp_book_add_dictionary(cTask->task, CDP_NAME_STATUS, CDP_TAG_DICTIONARY, CDP_STORAGE_RED_BLACK_T);
-
-    return cTask->task;
-}
-
-
-cdpRecord* cdp_task_commit(cdpTask* cTask) {
-    assert(cTask && cdp_record_is_dictionary(cTask->task));
-    cdpRecord* work = cdp_record_find_by_name(cTask->agTag, CDP_NAME_WORK);
-    return cdp_book_move_to(work, CDP_AUTOID, cTask->task);
-}
-
-
-
-
-/* System related routines */
 
 static void system_initiate_tags(void) {
 
@@ -323,7 +242,7 @@ static void system_initiate_names(void) {
 }
 
 
-_Static_assert( (CDP_NAME_ID_ACTION_COUNT - CDP_NAME_ID_INITIAL_COUNT) == (CDP_NAME_SYSTEM_COUNT + CDP_TASK_COUNT + CDP_ACTION_COUNT));
+static_assert((CDP_NAME_ID_ACTION_COUNT - CDP_NAME_ID_INITIAL_COUNT) == (CDP_NAME_SYSTEM_COUNT + CDP_TASK_COUNT + CDP_ACTION_COUNT));
 
 
 static void system_initiate(void) {
@@ -390,4 +309,64 @@ void cdp_system_shutdown(void) {
 
     SYSTEM = NULL;
 }
+
+
+
+
+/*
+ *    Agent related routines
+ */
+
+cdpRecord* cdp_task_begin(  cdpTask* cTask, cdpRecord* agency, cdpTag cast, cdpRecord* instance,
+                            cdpRecord* parentTask, cdpRecord* baby,
+                            int numInput, int numOutput ) {
+    assert(cTask && cdp_record_is_dictionary(agency) && !cdp_record_is_void(instance
+
+    //CDP_0(cTask);
+
+    // Find instance tag to define agent
+    cdpTag tag = cdp_record_tag(instance);    // ToDo: traverse all multiple tags on books.
+    cTask->agTag = cdp_record_find_by_name(agency, tag);
+    if (!cTask->agTag) {
+        // If tag is not found, use tag being cast.
+        if (cast != CDP_TAG_VOID)
+            cTask->agTag = cdp_record_find_by_name(agency, cast);
+        if (!cTask->agTag) {
+            assert(cTask->agTag);       // No suitable agent was ever found.
+            return NULL;
+        }
+    }
+    cdpRecord* call = cdp_record_find_by_name(cTask->agTag, CDP_NAME_CALL);
+
+    // ToDo: check in the "done" book to find recyclable entries.
+
+    cTask->task = cdp_book_add_dictionary(call, CDP_AUTOID, CDP_TAG_DICTIONARY, CDP_STORAGE_ARRAY, 6);
+    cdp_book_add_link(cTask->task, CDP_NAME_PARENT, parentTask);
+    cdp_book_add_link(cTask->task, CDP_NAME_INSTANCE, instance);
+
+    if (baby)
+        cdp_book_add_link(task, CDP_NAME_BABY, baby);
+
+    if (0 <= numInput)
+        cTask->input = cdp_book_add_dictionary(cTask->task, CDP_NAME_INPUT, CDP_TAG_DICTIONARY, ((0 == numInput)? CDP_STORAGE_RED_BLACK_T: CDP_STORAGE_ARRAY), numInput);
+    else
+        cTask->input = NULL;
+
+    if (0 <= numOutput)
+        cdp_book_add_dictionary(cTask->task, CDP_NAME_OUTPUT, CDP_TAG_DICTIONARY, ((0 == numOutput)? CDP_STORAGE_RED_BLACK_T: CDP_STORAGE_ARRAY), numOutput);
+
+    cdp_book_add_dictionary(cTask->task, CDP_NAME_STATUS, CDP_TAG_DICTIONARY, CDP_STORAGE_RED_BLACK_T);
+
+    return cTask->task;
+}
+
+
+cdpRecord* cdp_task_commit(cdpTask* cTask) {
+    assert(cTask && cdp_record_is_dictionary(cTask->task));
+    cdpRecord* work = cdp_record_find_by_name(cTask->agTag, CDP_NAME_WORK);
+    return cdp_book_move_to(work, CDP_AUTOID, cTask->task);
+}
+
+
+
 

@@ -46,6 +46,7 @@ enum _cdpTextEncoding {
     CDP_TXT_ENCOD_SHIFT_JIS,    // Japanse.
     CDP_TXT_ENCOD_BIG5,         // Cantonese chinese.
     CDP_TXT_ENCOD_GB18030,      // Simplified chinese.
+    CDP_TXT_ENCOD_ASCII64,      // A subset of ASCII (range 32-95).
 
     CDP_TXT_ENCOD_OTHER = 7
 };

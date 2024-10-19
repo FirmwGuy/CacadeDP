@@ -151,6 +151,7 @@ bool cdp_record_initialize( cdpRecord* record, cdpID name, unsigned type,
             return false;
         }
     } else if (storage == CDP_STORAGE_RED_BLACK_T) {
+        assert(dictionary);
         dictionary = true;
     }
     if (storage == CDP_STORAGE_ARRAY
@@ -216,7 +217,7 @@ bool cdp_record_initialize( cdpRecord* record, cdpID name, unsigned type,
 /* Creates a deep copy of record and all its data.
 */
 void cdp_record_initialize_clone(cdpRecord* clone, cdpID nameID, cdpRecord* record) {
-    assert(clone && !cdp_record_is_void(record));
+    assert(clone && cdp_record_is_normal(record));
 
     assert(!cdp_record_has_data(record) && !cdp_record_with_store(record));
     // Clone data: Pending!
@@ -350,6 +351,13 @@ cdpRecord* cdp_record_sorted_insert(cdpRecord* parent, cdpRecord* record, cdpCom
 void* cdp_record_read(const cdpRecord* record, size_t* capacity, size_t* size, void* data) {
     assert(!cdp_record_is_void(record));
 
+    if (record->metarecord.type == CDP_TYPE_LINK) {
+        return record->link;
+    }
+    if (record->metarecord.type == CDP_TYPE_AGENT) {
+        return record->agent;
+    }
+
     REC_DATA_SELECT(record) {
       NONE: {
         assert(cdp_record_has_data(record));  // This shouldn't happen.
@@ -396,6 +404,13 @@ void* cdp_record_read(const cdpRecord* record, size_t* capacity, size_t* size, v
 cdpValue cdp_record_read_value(const cdpRecord* record) {
     assert(!cdp_record_is_void(record));
 
+    if (record->metarecord.type == CDP_TYPE_LINK) {
+        return (cdpValue) record->link;
+    }
+    if (record->metarecord.type == CDP_TYPE_AGENT) {
+        return (cdpValue) record->agent;
+    }
+
     REC_DATA_SELECT(record) {
       NONE: {
         assert(cdp_record_has_data(record));  // This shouldn't happen.
@@ -423,7 +438,7 @@ cdpValue cdp_record_read_value(const cdpRecord* record) {
    Updates the data of a record.
 */
 void* cdp_record_update(cdpRecord* record, size_t capacity, size_t size, cdpValue data, bool swap) {
-    assert(!cdp_record_is_void(record) && capacity && size);
+    assert(cdp_record_is_normal(record) && capacity && size);
 
     // ToDo: re-grow buffer and capacities if needed.
 
@@ -473,7 +488,7 @@ void* cdp_record_update(cdpRecord* record, size_t capacity, size_t size, cdpValu
 
 
 void cdp_record_data_delete(cdpRecord* record) {
-    assert(!cdp_record_is_void(record));
+    assert(cdp_record_is_normal(record));
 
     REC_DATA_SELECT(record) {
       NONE: {
@@ -499,7 +514,7 @@ void cdp_record_data_delete(cdpRecord* record) {
 
 
 void cdp_record_data_reset(cdpRecord* record) {
-    assert(!cdp_record_is_void(record));
+    assert(cdp_record_is_normal(record));
 
     REC_DATA_SELECT(record) {
       NONE: {
@@ -1000,7 +1015,7 @@ void cdp_record_to_dictionary(cdpRecord* record) {
     Sorts unsorted records according to user defined function.
 */
 void cdp_record_sort(cdpRecord* record, cdpCompare compare, void* context) {
-    assert(!cdp_record_is_void(record) && compare);
+    assert(!cdp_record_is_void(record) && !cdp_record_is_dictionary(record) && compare);
 
     if (cdp_record_children(record) <= 1)
         return;
@@ -1072,6 +1087,8 @@ void cdp_record_finalize(cdpRecord* record) {
             record->data->destructor(record->data->_far);
         cdp_free(record->data);
     }   }
+
+    // ToDo: deal with link/agent here.
 
     // ToDo: unlink from 'self' list.
 }

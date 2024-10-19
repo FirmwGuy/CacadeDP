@@ -99,37 +99,40 @@
     - **Example Structure**:
       ```
       /system/
-          agency/
-              add/
-                  int/ (tag)
-                      agent: add_int()
-                      call/ (queue)
-                          101/ (task)
-                              parent -> /system/agency/sum/int/task/10/
-                              instance -> /system/cascade/pipeline01/agent001/adder
-                      working/ (queue)
-                          100/ (task)
-                              parent -> /system/agency/sum/int/task/10/
-                              instance -> /system/cascade/pipeline01/agent001/adder01
-                              baby -> /system/cascade/pipeline01/agent001/adder01/op02
-                              input/
-                                  op1: 5
-                              status/
-                                  completion: 99
-                      done/ (queue)
-                          99/ (task)
-                              parent -> /system/agency/sum/int/task/10/
-                              instance -> /system/cascade/pipeline01/agent001/adder01
-                              baby -> /system/cascade/pipeline01/agent001/adder01/op02
-                              input/
-                                  op1: 1
-                              output/
-                                  ans: 5
-                              status/
-                                  completion: 100
-                      failed/
-                  float/ (tag)
-                      agent: add_float()
+          domain/
+              binary/
+                  name: "binary"
+                  interned/
+                  agency/ (dictionary)
+                      add/ (agency)
+                          int/ (agent): add_int()
+                              call/ (queue)
+                                  101/ (task)
+                                      parent -> /system/agency/sum/int/task/10/
+                                      instance -> /system/cascade/pipeline01/agent001/adder
+                              working/ (queue)
+                                  100/ (task)
+                                      parent -> /system/agency/sum/int/task/10/
+                                      instance -> /system/cascade/pipeline01/agent001/adder01
+                                      baby -> /system/cascade/pipeline01/agent001/adder01/op02
+                                      input/
+                                          op1: 5
+                                      status/
+                                          completion: 99
+                              done/ (queue)
+                                  99/ (task)
+                                      parent -> /system/agency/sum/int/task/10/
+                                      instance -> /system/cascade/pipeline01/agent001/adder01
+                                      baby -> /system/cascade/pipeline01/agent001/adder01/op02
+                                      input/
+                                          op1: 1
+                                      output/
+                                          ans: 5
+                                      status/
+                                          completion: 100
+                              failed/
+                          float/ (tag)
+                              agent: add_float()
               multiply/
                   int/ (tag)
                       agent: mul_int()
@@ -324,14 +327,10 @@ cdpRecord* cdp_tag_text(cdpTag domain, cdpID tag);
 #define cdp_tag_text_from_name(name)    cdp_tag_text(cdp_id_domain(name), cdp_id(name))
 
 
-cdpRecord* cdp_system_agency_add(cdpTag domain, cdpID tagID, cdpAgent agent);
+cdpRecord* cdp_system_agency_add(cdpTag domain, cdpTag agency, cdpTag tag, cdpAgent agent);
 bool       cdp_system_startup(void);
 bool       cdp_system_step(void);
 void       cdp_system_shutdown(void);
-
-
-cdpRecord* cdp_agency(cdpTag domain, cdpID tagID);
-bool       cdp_agency_set_agent(cdpRecord* agency, cdpTag tagID, cdpAgent agent);
 
 
 cdpRecord* cdp_task_begin(  cdpTask* task, cdpTag domain, cdpRecord* agency, cdpRecord* instance,
@@ -339,7 +338,6 @@ cdpRecord* cdp_task_begin(  cdpTask* task, cdpTag domain, cdpRecord* agency, cdp
                             int numInput, int numOutput );
 cdpRecord* cdp_task_commit(cdpTask* task);
 void       cdp_task_end(cdpTask* task);
-
 
 
 static inline cdpRecord* cdp_book_add_text(cdpRecord* record, unsigned attrib, cdpID id, bool borrow, const char* text)    {assert(cdp_record_children(record) && text && *text);  cdpRecord* reg = cdp_record_add_data(record, attrib, id, CDP_TAG_UTF8, borrow, text, strlen(text) + 1); reg->recData.reg.size--; return reg;}
