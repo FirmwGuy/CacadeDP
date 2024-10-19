@@ -140,8 +140,8 @@ static inline void store_check_auto_id(cdpChdStore* parStore, cdpRecord* record)
 /*
     Initiates a record struct with the requested parameters.
 */
-bool cdp_record_initialize( cdpRecord* record, cdpID name,
-                            unsigned type, bool dictionary, unsigned storage, size_t basez,
+bool cdp_record_initialize( cdpRecord* record, cdpID name, unsigned type,
+                            bool dictionary, unsigned storage, size_t basez,
                             cdpMetadata metadata, size_t capacity, size_t size,
                             cdpValue data, cdpDel destructor) {
     assert(record && cdp_id_valid(name) && type && (type < CDP_TYPE_COUNT) && (storage < CDP_STORAGE_COUNT));
@@ -166,10 +166,19 @@ bool cdp_record_initialize( cdpRecord* record, cdpID name,
     record->metarecord.type       = type;
     record->metarecord.dictionary = dictionary? 1: 0;
     record->metarecord.storage    = storage;
-    record->metadata = metadata;
-    record->basez = basez;
 
-    if (capacity) {
+    record->metadata = metadata;
+    record->basez    = basez;
+
+    if (type == CDP_TYPE_LINK) {
+        assert(data.link);
+        record->link = data.link;
+    }
+    else if (type == CDP_TYPE_AGENT) {
+        assert(data.agent);
+        record->agent = data.agent;
+    }
+    else if (capacity) {
         if (destructor) {
             assert(data.pointer && size);
 
@@ -224,7 +233,7 @@ void cdp_record_initialize_clone(cdpRecord* clone, cdpID nameID, cdpRecord* reco
     Adds/inserts a *copy* of the specified record into another record.
 */
 cdpRecord* cdp_record_add(cdpRecord* parent, cdpRecord* record, bool prepend) {
-    assert(!cdp_record_is_void(parent) && !cdp_record_is_void(record));    // 'Void' records are never used.
+    assert(cdp_record_is_normal(parent) && !cdp_record_is_void(record));    // 'Void' records are never used.
     if CDP_RARELY(prepend && !cdp_record_is_insertable(parent)) {
         assert(!prepend);
         return NULL;
@@ -283,7 +292,7 @@ cdpRecord* cdp_record_add(cdpRecord* parent, cdpRecord* record, bool prepend) {
     Adds/inserts a *copy* of the specified record into another record.
 */
 cdpRecord* cdp_record_sorted_insert(cdpRecord* parent, cdpRecord* record, cdpCompare compare, void* context) {
-    assert(!cdp_record_is_void(parent) && !cdp_record_is_void(record) && compare);    // 'Void' records are never used.
+    assert(cdp_record_is_normal(parent) && cdp_record_is_insertable(parent) && !cdp_record_is_void(record) && compare); // 'Void' records are never used.
 
     cdpChdStore* store;
     if (parent->metarecord.withstore) {

@@ -300,6 +300,8 @@ enum _cdpInitialNameID {
 typedef struct _cdpRecord   cdpRecord;
 
 typedef union {
+    cdpRecord*  link;
+    cdpAgent    agent;
     void*       pointer;
     size_t      size;
     uint8_t     byte;
@@ -352,6 +354,8 @@ struct _cdpRecord {
     };
     union {
         void*       children;   // Pointer to child storage structure.
+        cdpRecord*  link;       // Link to another record.
+        cdpAgent    agent;      // Address of an agent function.
 
         cdpRecord*  linked;     // A linked shadow record (if no children, see in cdpChdStore otherwise).
         cdpShadow*  shadow;     // Structure for multiple linked records (if no children).
@@ -398,8 +402,8 @@ void cdp_record_system_initiate(void);
 void cdp_record_system_shutdown(void);
 
 
-bool cdp_record_initialize( cdpRecord* record, cdpID name,
-                            unsigned type, bool dictionary, unsigned storage, size_t basez,
+bool cdp_record_initialize( cdpRecord* record, cdpID name, unsigned type,
+                            bool dictionary, unsigned storage, size_t basez,
                             cdpMetadata metadata, size_t capacity, size_t size,
                             cdpValue data, cdpDel destructor  );
 void cdp_record_initialize_clone(cdpRecord* newClone, cdpID nameID, cdpRecord* record);
@@ -428,6 +432,7 @@ static inline size_t     cdp_record_children(const cdpRecord* record)   {assert(
 #define cdp_record_is_dictionary(r) ((r)->metarecord.dictionary)
 
 #define cdp_record_is_void(r)       (!(r)->metarecord.type)
+#define cdp_record_is_normal(r)     ((r)->metarecord.type == CDP_TYPE_RECORD)
 #define cdp_record_is_link(r)       ((r)->metarecord.type == CDP_TYPE_LINK)
 #define cdp_record_is_agent(r)      ((r)->metarecord.type == CDP_TYPE_AGENT)
 #define cdp_record_is_insertable(r) ((r)->metarecord.storage != CDP_STORAGE_RED_BLACK_T)
