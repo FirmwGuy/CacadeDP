@@ -136,10 +136,13 @@ typedef union {
 
 enum _cdpRecordData {
     CDP_RECDATA_NONE,           // Record has no data.
+
     CDP_RECDATA_NEAR,           // Data (small) is inside "_near" field of cdpRecord.
     CDP_RECDATA_DATA,           // Data starts at "_data" field of cdpData.
     CDP_RECDATA_FAR,            // Data is in address pointed by "_far" field of cdpData.
-    CDP_RECDATA_HANDLE          // Data is just a handle to an opaque (library internal) resource.
+
+    CDP_RECDATA_HANDLE,         // Data is just a handle to an opaque (library internal) resource.
+    CDP_RECDATA_SERIALIZED,     // Data is in serialized form at "_data" field (needs library to u).
     //
     CDP_RECDATA_COUNT
 };
@@ -292,11 +295,10 @@ enum _cdpRecordNaming {
 
 
 // Initial text name IDs:
-enum _cdpInitialNameID {
-    CDP_NAME_VOID,
-    CDP_NAME_ROOT,
+enum _cdpTagID {
+    CDP_TAG_ROOT,
 
-    CDP_NAME_ID_INITIAL_COUNT
+    CDP_TAG_INITIAL_COUNT
 };
 
 
@@ -338,22 +340,6 @@ typedef struct {
 } cdpData;
 
 typedef struct {
-    void* name;
-    plug;
-
-    load
-    unload
-    tocdp
-    fromcdp
-} cdpLibrary;
-
-typedef struct {
-    cdpLibrary* library;
-    size_t      id;
-    path;
-} cdpHandle;
-
-typedef struct {
     unsigned        count;      // Number of record pointers.
     unsigned        max;
     cdpRecord*      record[];   // Dynamic array of records shadowing this one.
@@ -366,7 +352,7 @@ struct _cdpRecord {
     union {
         cdpValue    _near;      // Data value if it fits in here.
         cdpData*    data;       // Address of data buffer.
-        cdpHandle*  handle;     // Address of handle structure.
+        cdpRecord*  handle;     // Resource record id (used with external libraries).
     };
 
     union {

@@ -32,11 +32,11 @@ CDP_METADATA_STRUCT(cdpBinary,
                     dimension:  3,  // Dimensions of data.
 
                     endianess:  1,  // Little endian (0) is the norm.
-                    abi:        4,  // Binary representation of content.
+                    abi:        3,  // Binary representation of content.
                     compression:3,  // Type of compression used to pack content.
                     encryption: 3,  // Encryption method.
 
-                    _reserved:  12; // ToDo: expand to streams and communication related stuff.
+                    _reserved:  13; // ToDo: expand to streams and communication related stuff.
 );
 
 
@@ -67,17 +67,17 @@ enum _cdpBinaryABI {            // Aplication Binary Interface:
     CDP_BIN_ENC_BYTE,           // Content is an opaque sequence of bytes.
     CDP_BIN_ENC_UNSIGNED,       // All GCC-supported unsigned sizes.
     CDP_BIN_ENC_INTEGER,        // All GCC-supported signed integer sizes.
-    CDP_BIN_ENC_GMP,            // LGPL GMP (bignum) library.
+    //CDP_BIN_ENC_GMP,            // LGPL GMP (bignum) library.
     CDP_BIN_ENC_FLOAT,          // IEEE binary representation of floats.
-    CDP_BIN_ENC_MPFR,           // LGPL MPFR (bigfloat) library.
+    //CDP_BIN_ENC_MPFR,           // LGPL MPFR (bigfloat) library.
     CDP_BIN_ENC_DECIMAL,        // GCC decimal representation.
-    CDP_BIN_ENC_MPDECIMAL,      // BSD MPDecimal library.
+    //CDP_BIN_ENC_MPDECIMAL,      // BSD MPDecimal library.
     CDP_BIN_ENC_COMPLEX,        // GCC representation of complex floats.
-    CDP_BIN_ENC_MPC,            // LGPL MPC (bigcomplex) library.
+    //CDP_BIN_ENC_MPC,            // LGPL MPC (bigcomplex) library.
     CDP_BIN_ENC_MATRIX,         // CDP representation of vector/matrices.
     //CDP_BIN_ENC_ARRAYFIRE,      // BSD Arrayfire tensor library.
 
-    CDP_BIN_ENC_OTHER = 15
+    CDP_BIN_ENC_OTHER = 7
 };
 
 enum _cdpBinaryCompression {

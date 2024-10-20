@@ -28,16 +28,14 @@
 CDP_METADATA_STRUCT(cdpMultimedia,
     cdpAttribute    container:    4,  // Container for data (file format).
                     audio:        4,  // Codec for audio data.
-                    soundq:       2,  // Sound quality in audio/video.
+                    soundq:       3,  // Sound quality in audio/video.
                     sampling:     3,  // Audio sampling frequency.
                     video:        4,  // Codec for video data.
-                    imageq:       2,  // Image/video quality.
+                    imageq:       3,  // Image/video quality.
                     icspace:      3,  // Image/video color space.
                     framerate:    3,  // Animation/video frames per second.
                     projection:   3,  // Projection for 360 image/video.
-                    subtitle:     2,  // Subtitles encoding if available.
-
-                    _reserved:    2;
+                    subtitle:     2;  // Subtitles encoding if available.
 );
 
 
@@ -76,9 +74,16 @@ enum _cdpMultimediaAudio {
 
 enum _cdpMultimediaSoundQ {
     CDP_MM_SQ_NONE,             // No audio.
-    CDP_MM_SQ_MONO,             // Mono (1 audio channel).
-    CDP_MM_SQ_STEREO,           // Stereo (2 audio channels).
-    CDP_MM_SQ_SORROUND          // 5.1 sorround audio.
+
+    CDP_MM_SQ_MONO,             // Mono 16 BPSp.
+
+    CDP_MM_SQ_STEREO,           // Stereo (signed) 16 BPSp.
+    CDP_MM_SQ_STEREO24,         // Stereo (signed) 24 BPSp.
+    CDP_MM_SQ_STEREO32F,        // Stereo (float) 32 BPSp.
+
+    CDP_MM_SQ_SORROUND,         // 5.1 surround audio 16 BPSp.
+
+    CDP_MM_SQ_OTHER = 7
 };
 
 enum _cdpMultimediaASample {
@@ -109,9 +114,15 @@ enum _cdpMultimediaVideo {
 
 enum _cdpMultimediaImageQ {
     CDP_MM_IQ_NONE,             // No image.
-    CDP_MM_IQ_MONOCHROME,       // Image is a bitmask.
-    CDP_MM_IQ_GRAYSCALE,        // Non colored image.
-    CDP_MM_IQ_COLOR             // Colored image.
+
+    CDP_MM_IQ_MONOCHROME,       // Image is a bitmask (1BPP).
+    CDP_MM_IQ_GRAYSCALE,        // Non colored image (8BPP).
+
+    CDP_MM_IQ_COLOR,            // Colored image (16BPP).
+    CDP_MM_IQ_HICOLOR,          // High colored image (24BPP).
+    CDP_MM_IQ_TRUECOLOR,        // Truly colored image (32BPP).
+
+    CDP_MM_IQ_OTHER = 7
 };
 
 enum _cdpMultimediaColorSpace {
