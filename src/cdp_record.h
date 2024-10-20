@@ -120,7 +120,7 @@ static_assert(sizeof(void*) == sizeof(uint64_t), "32 bit is unssoported yet!");
 typedef uint16_t  cdpTag;
 typedef uint32_t  cdpAttribute;
 
-#define CDP_RECDATA_BITS        2
+#define CDP_RECDATA_BITS        3
 #define CDP_DOMAIN_BITS         (cdp_bitsof(cdpTag) - CDP_RECDATA_BITS)
 #define CDP_DOMAIN_MAXVAL       (~(((cdpTag)(-1)) << CDP_DOMAIN_BITS))
 #define CDP_TAG_MAXVAL          ((cdpTag)(-1))1
@@ -128,7 +128,7 @@ typedef uint32_t  cdpAttribute;
 typedef union {
     cdpAttribute    _head;                          // The header attributes (tag, domain, etc) as a single value.
     struct {
-        cdpTag      recdata:    2,                  // Where the data is located.
+        cdpTag      recdata:    CDP_RECDATA_BITS,   // Where the data is located.
                     domain:     CDP_DOMAIN_BITS;    // Domain language selector.
         cdpTag      tag;                            // Tag assigned to this record. The lexicon is the same per domain (not globally).
     };
@@ -138,7 +138,10 @@ enum _cdpRecordData {
     CDP_RECDATA_NONE,           // Record has no data.
     CDP_RECDATA_NEAR,           // Data (small) is inside "_near" field of cdpRecord.
     CDP_RECDATA_DATA,           // Data starts at "_data" field of cdpData.
-    CDP_RECDATA_FAR             // Data is in address pointed by "_far" field of cdpData.
+    CDP_RECDATA_FAR,            // Data is in address pointed by "_far" field of cdpData.
+    CDP_RECDATA_HANDLE          // Data is just a handle to an opaque (library internal) resource.
+    //
+    CDP_RECDATA_COUNT
 };
 
 typedef struct {
@@ -335,6 +338,22 @@ typedef struct {
 } cdpData;
 
 typedef struct {
+    void* name;
+    plug;
+
+    load
+    unload
+    tocdp
+    fromcdp
+} cdpLibrary;
+
+typedef struct {
+    cdpLibrary* library;
+    size_t      id;
+    path;
+} cdpHandle;
+
+typedef struct {
     unsigned        count;      // Number of record pointers.
     unsigned        max;
     cdpRecord*      record[];   // Dynamic array of records shadowing this one.
@@ -345,8 +364,9 @@ struct _cdpRecord {
 
     cdpMetadata     metadata;   // Metadata about what is contained in 'data'.
     union {
-        cdpData*    data;       // Address of data buffer.
         cdpValue    _near;      // Data value if it fits in here.
+        cdpData*    data;       // Address of data buffer.
+        cdpHandle*  handle;     // Address of handle structure.
     };
 
     union {
@@ -383,8 +403,8 @@ typedef struct {
     unsigned        depth;
 } cdpBookEntry;
 
-typedef int  (*cdpCompare)  (const cdpRecord* restrict, const cdpRecord* restrict, void*);
-typedef bool (*cdpTraverse) (cdpBookEntry*, void*);
+typedef int  (*cdpCompare)(const cdpRecord* restrict, const cdpRecord* restrict, void*);
+typedef bool (*cdpTraverse)(cdpBookEntry*, void*);
 
 typedef struct {
     unsigned        length;

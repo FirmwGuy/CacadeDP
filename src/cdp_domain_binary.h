@@ -75,7 +75,7 @@ enum _cdpBinaryABI {            // Aplication Binary Interface:
     CDP_BIN_ENC_COMPLEX,        // GCC representation of complex floats.
     CDP_BIN_ENC_MPC,            // LGPL MPC (bigcomplex) library.
     CDP_BIN_ENC_MATRIX,         // CDP representation of vector/matrices.
-    CDP_BIN_ENC_ARRAYFIRE,      // BSD Arrayfire tensor library.
+    //CDP_BIN_ENC_ARRAYFIRE,      // BSD Arrayfire tensor library.
 
     CDP_BIN_ENC_OTHER = 15
 };
