@@ -36,8 +36,8 @@ cdpRecord* NETWORK;
 cdpRecord* TEMP;
 
 cdpRecord* DOMAIN;
+cdpRecord* INTERNED;
 
-cdpRecord* NAME;
 cdpRecord* AGENCY;
 cdpRecord* CASCADE;
 
@@ -61,16 +61,15 @@ cdpTag cdp_system_domain_add(const char* text, unsigned basez) {
 void cdp_tag_id_static_destructor(void* text) {}
 
 
-struct NID {const char* text; size_t length; cdpID name;};
+struct NID {const char* text; size_t length; cdpID id;};
 
 
-static bool name_id_traverse_find_text(cdpBookEntry* entry, struct NID* nid) {
+static bool interned_traverse_find_text(cdpBookEntry* entry, struct NID* nid) {
     if (cdp_record_domain(entry->record) == CDP_DOMAIN_TEXT) {
-        size_t size;
-        const char* text = cdp_record_read(entry->record, NULL, &size, NULL);
-        if (size == nid->length
-         && 0 == memcmp(text, nid->text, nid->length)) {
-            nid->name = cdp_record_get_name(entry->record);
+        size_t length;
+        const char* text = cdp_record_read(entry->record, NULL, &length, NULL);
+        if (length == nid->length  &&  0 == memcmp(text, nid->text, length)) {
+            nid->id = cdp_record_get_id(entry->record);
             return false;
         }
     }
@@ -78,41 +77,23 @@ static bool name_id_traverse_find_text(cdpBookEntry* entry, struct NID* nid) {
 }
 
 
-cdpID cdp_tag_id_add_generic(cdpTag domain, const char* text, bool data, cdpDel destructor) {
-    assert(cdp_domain_valid(domain) && text && *text && destructor);
-
-    size_t length = 0;
-    for (const char* c=text; *c; c++, length++) {
-        if (isupper(*c)) {
-            assert(!isupper(*c));   // ToDo: make lowercase.
-            return cdp_id_to_tag(CDP_TAG_VOID);
-    }   }
-
+cdpID cdp_tag_id_add_generic(const char* text, size_t length, cdpDel destructor) {
+    assert(text && *text && length && destructor);
     if (!SYSTEM)
         system_initiate();
 
-    cdpRecord* perdomain = cdp_record_find_by_name(DOMAIN, cdp_id_to_property(domain));  // ToDo: use tags for domains also (instead of enumeration).
-    if CDP_UNLIKELY(!perdomain) {
-        perdomain = cdp_record_add_dictionary(DOMAIN, cdp_id_to_property(domain), CDP_STORAGE_ARRAY, 2);
-    }
-
-    cdpRecord* interned = cdp_record_find_by_name(perdomain, cdp_id_to_tag(CDP_TAG_INTERNED));
-    if CDP_UNLIKELY(!interned) {
-        interned = cdp_record_add_branch(perdomain, cdp_id_to_tag(CDP_TAG_INTERNED), CDP_STORAGE_RED_BLACK_T, 0);
-    } else {
-        // Find previous
-        struct NID nid = {text, length};
-        if (!cdp_record_traverse(interned, (cdpTraverse)name_id_traverse_find_text, &nid, NULL)) {
-            return nid.name;
-        }
+    // Find previous
+    struct NID nid = {text, length};
+    if (!cdp_record_traverse(INTERNED, (cdpTraverse)interned_traverse_find_text, &nid, NULL)) {
+        return nid.id;
     }
 
     // Add new tag
-    cdpRecord* r = cdp_record_add_data(interned, CDP_AUTOID_LOCAL, cdp_text_metadata_word(), length, length, text, destructor);
+    cdpRecord* r = cdp_record_add_data(INTERNED, CDP_AUTOID_LOCAL, cdp_text_metadata_word(), length, length, text, destructor);
 
     // ToDo: check overflow.
 
-    return cdp_id_to_tag(domain, cdp_record_get_id(r));
+    return cdp_record_get_id(r);
 }
 
 

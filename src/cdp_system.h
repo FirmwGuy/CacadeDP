@@ -263,46 +263,46 @@
 
 
 // Name IDs:
-enum _cdpNameID {
+enum _cdpSystemTag {
     // Core directories
-    CDP_NAME_SYSTEM = CDP_NAME_ID_INITIAL_COUNT,
-    CDP_NAME_USER,
-    CDP_NAME_PUBLIC,
-    CDP_NAME_DATA,
-    CDP_NAME_NETWORK,
-    CDP_NAME_TEMP,
+    CDP_TAG_SYSTEM = CDP_TAG_INITIAL_COUNT,
+    CDP_TAG_USER,
+    CDP_TAG_PUBLIC,
+    CDP_TAG_DATA,
+    CDP_TAG_NETWORK,
+    CDP_TAG_TEMP,
 
     // Core sub-dirs
-    CDP_NAME_NAME,
-    CDP_NAME_AGENCY,
-    CDP_NAME_CASCADE,
-    CDP_NAME_PRIVATE,
+    CDP_TAG_NAME,
+    CDP_TAG_AGENCY,
+    CDP_TAG_CASCADE,
+    CDP_TAG_PRIVATE,
 
     // Basic fields
-    CDP_NAME_CALL,
-    CDP_NAME_DONE,
-    CDP_NAME_WORK,
+    CDP_TAG_CALL,
+    CDP_TAG_DONE,
+    CDP_TAG_WORK,
 
-    CDP_NAME_PARENT,
-    CDP_NAME_BABY,
-    CDP_NAME_INSTANCE,
-    CDP_NAME_SIZE,
+    CDP_TAG_PARENT,
+    CDP_TAG_BABY,
+    CDP_TAG_INSTANCE,
+    CDP_TAG_SIZE,
 
     // Task I/O fields
-    CDP_NAME_INPUT,
-    CDP_NAME_OUTPUT,
-    CDP_NAME_STATUS,
+    CDP_TAG_INPUT,
+    CDP_TAG_OUTPUT,
+    CDP_TAG_STATUS,
 
-    CDP_NAME_DEBUG,
-    CDP_NAME_WARNING,
-    CDP_NAME_ERROR,
-    CDP_NAME_FATAL,
+    CDP_TAG_DEBUG,
+    CDP_TAG_WARNING,
+    CDP_TAG_ERROR,
+    CDP_TAG_FATAL,
 
-    CDP_NAME_ID_SYSTEM_COUNT
+    CDP_TAG_ID_SYSTEM_COUNT
 };
 
 
-#define CDP_NAME_SYSTEM_COUNT   (CDP_NAME_ID_SYSTEM_COUNT - CDP_NAME_SYSTEM)
+#define CDP_TAG_SYSTEM_COUNT   (CDP_TAG_ID_SYSTEM_COUNT - CDP_TAG_SYSTEM)
 
 
 typedef struct {
@@ -316,15 +316,12 @@ static inline cdpRecord* cdp_void(void)  {extern cdpRecord* CDP_VOID; assert(CDP
 
 void       cdp_tag_id_static_destructor(void* text);
 
-cdpID      cdp_tag_id_add_generic(cdpTag domain, const char* text, bool data, cdpDel destructor);
-#define    cdp_tag_id_add_generic_static(domain, text, data)    cdp_tag_id_add_generic(domain, text, data, cdp_tag_id_static_destructor)
-#define    cdp_tag_id_add(domain, text, destructor)             cdp_tag_id_add_generic(domain, text, false, destructor)
-#define    cdp_tag_id_add_static(domain, text)                  cdp_tag_id_add_generic(domain, text, false, cdp_tag_id_static_destructor)
-#define    cdp_tag_id_add_data(domain, text, destructor)        cdp_tag_id_add_generic(domain, text, true, destructor)
-#define    cdp_tag_id_add_data_static(domain, text)             cdp_tag_id_add_generic(domain, text, true, cdp_tag_id_static_destructor)
+cdpID      cdp_tag_id_add_generic(const char* text, size_t length, cdpDel destructor);
+#define    cdp_tag_id_add(s, destructor)    cdp_tag_id_add_generic(s, strlen(s), destructor)
+#define    cdp_tag_id_add_static(s)         cdp_tag_id_add_generic(s, strlen(s), cdp_tag_id_static_destructor)
 
-cdpRecord* cdp_tag_text(cdpTag domain, cdpID tag);
-#define cdp_tag_text_from_name(name)    cdp_tag_text(cdp_id_domain(name), cdp_id(name))
+cdpRecord* cdp_tag_id_text(cdpID tag);
+#define cdp_tag_id_text_from_name(name)     cdp_tag_id_text(cdp_id(name))
 
 
 cdpRecord* cdp_system_agency_add(cdpTag domain, cdpTag agency, cdpTag tag, cdpAgent agent);
@@ -338,10 +335,6 @@ cdpRecord* cdp_task_begin(  cdpTask* task, cdpTag domain, cdpRecord* agency, cdp
                             int numInput, int numOutput );
 cdpRecord* cdp_task_commit(cdpTask* task);
 void       cdp_task_end(cdpTask* task);
-
-
-static inline cdpRecord* cdp_book_add_text(cdpRecord* record, unsigned attrib, cdpID id, bool borrow, const char* text)    {assert(cdp_record_children(record) && text && *text);  cdpRecord* reg = cdp_record_add_data(record, attrib, id, CDP_TAG_UTF8, borrow, text, strlen(text) + 1); reg->recData.reg.size--; return reg;}
-#define cdp_book_add_static_text(b, id, text)   cdp_book_add_text(b, CDP_ATTRIB_FACTUAL, id, true, text)
 
 
 #endif

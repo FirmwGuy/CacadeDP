@@ -142,7 +142,7 @@ enum _cdpRecordData {
     CDP_RECDATA_FAR,            // Data is in address pointed by "_far" field of cdpData.
 
     CDP_RECDATA_HANDLE,         // Data is just a handle to an opaque (library internal) resource.
-    CDP_RECDATA_SERIALIZED,     // Data is in serialized form at "_data" field (needs library to u).
+    //CDP_RECDATA_SERIALIZED,     // Data is in serialized form at "_data" field (needs library to unserialized).
     //
     CDP_RECDATA_COUNT
 };
@@ -214,17 +214,15 @@ typedef struct {
       cdpID   type:       2,    // Type of record (dictionary, link, etc).
               dictionary: 1,    // If children name ids must be unique (1) or they may be repeated (0).
               storage:    2,    // Data structure for children storage.
-
               withstore:  1,    // Record has child storage (but not necessarily children).
+
               shadowing:  2,    // If record has shadowing records (links pointing to it).
+              task:       1,    // Record belongs to a task (which needs to be activated after I/O).
 
               factual:    1,    // Record can't be modified anymore (but it still can be deleted).
               priv:       1,    // Record (with all its children) is private (unlockable).
-              //hidden:     1,    // Data structure for children storage (it depends on the record type).
+              hidden:     1,    // Data structure for children storage (it depends on the record type).
               //system:     1,    // Record is part of the system and can't be modified or deleted.
-
-              connected:  1,    // Record is connected (it can't skip the signal API).
-              baby:       1,    // On receiving any signal this record will first alert its parent.
 
               name:       CDP_NAME_BITS;    // Name id of this record instance (including naming convention and domain).
     };
@@ -295,7 +293,7 @@ enum _cdpRecordNaming {
 
 
 // Initial text name IDs:
-enum _cdpTagID {
+enum _cdpRecordTag {
     CDP_TAG_ROOT,
 
     CDP_TAG_INITIAL_COUNT
