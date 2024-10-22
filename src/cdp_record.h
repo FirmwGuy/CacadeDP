@@ -118,57 +118,11 @@ static_assert(sizeof(void*) == sizeof(uint64_t), "32 bit is unssoported yet!");
  */
 
 typedef uint16_t  cdpTag;
-typedef uint32_t  cdpAttribute;
+typedef uint64_t  cdpID;
 
-#define CDP_RECDATA_BITS        3
 #define CDP_DOMAIN_BITS         (cdp_bitsof(cdpTag) - CDP_RECDATA_BITS)
 #define CDP_DOMAIN_MAXVAL       (~(((cdpTag)(-1)) << CDP_DOMAIN_BITS))
 #define CDP_TAG_MAXVAL          ((cdpTag)(-1))1
-
-typedef union {
-    cdpAttribute    _head;                          // The header attributes (tag, domain, etc) as a single value.
-    struct {
-        cdpTag      recdata:    CDP_RECDATA_BITS,   // Where the data is located.
-                    domain:     CDP_DOMAIN_BITS;    // Domain language selector.
-        cdpTag      tag;                            // Tag assigned to this record. The lexicon is the same per domain (not globally).
-    };
-} cdpMetadataHead;
-
-enum _cdpRecordData {
-    CDP_RECDATA_NONE,           // Record has no data.
-
-    CDP_RECDATA_NEAR,           // Data (small) is inside "_near" field of cdpRecord.
-    CDP_RECDATA_DATA,           // Data starts at "_data" field of cdpData.
-    CDP_RECDATA_FAR,            // Data is in address pointed by "_far" field of cdpData.
-
-    CDP_RECDATA_HANDLE,         // Data is just a handle to an opaque (library internal) resource.
-    //CDP_RECDATA_SERIALIZED,     // Data is in serialized form at "_data" field (needs library to unserialized).
-    //
-    CDP_RECDATA_COUNT
-};
-
-typedef struct {
-    cdpMetadataHead;
-    cdpAttribute    _attribute;                     // Flags/bitfields for domain specific attributes as a single value.
-} cdpMetadata;
-
-
-#define CDP_METADATA_STRUCT(n, ...)                                            \
-    struct n##Attribute {                                                      \
-        __VA_ARGS__                                                            \
-    };                                                                         \
-    static_assert(sizeof(cdpAttribute) >= sizeof(struct n##Attribute));        \
-    typedef struct {                                                           \
-        cdpMetadataHead;                                                       \
-        union {                                                                \
-            struct          n##Attribute;                                      \
-            cdpAttribute    _attribute;                                        \
-        };                                                                     \
-    } n;                                                                       \
-    static_assert(sizeof(cdpMetadata) == sizeof(n));                           \
-    static_assert(offsetof(cdpMetadata, tag) == offsetof(n, tag));             \
-    static_assert(offsetof(cdpMetadata, _attribute) == offsetof(n, _attribute))
-
 
 enum _cdpDomain {
     CDP_DOMAIN_RECORD,          // Also used to indicate purely branched types.
@@ -185,17 +139,6 @@ enum _cdpDomain {
 
     CDP_DOMAIN_COUNT
 };
-
-//#define CDP_TAG_BRANCH  0
-
-#define cdp_domain_valid(d)     ((d) <= CDP_DOMAIN_MAXVAL)
-
-
-/*
- * Record structures
- */
-
-typedef uint64_t  cdpID;
 
 #define CDP_ID_BITS             cdp_bitsof(cdpID)
 #define CDP_RECD_FLAG_BITS      12
@@ -254,10 +197,10 @@ enum _cdpRecordShadowing {
 };
 
 enum _cdpRecordNaming {
-    CDP_NAMING_TAG,             // Per-domain indexed text identifier.
+    CDP_NAMING_TAG,             // Global indexed text identifier.
     CDP_NAMING_PROPERTY,        // Per-parent indexed text identifier.
-    CDP_NAMING_GLOBAL,          // Per-domain numerical id.
-    CDP_NAMING_LOCAL,           // Per-parent numerical id (used with record auto ID).
+    CDP_NAMING_GLOBAL,          // Global numerical (auto) id.
+    CDP_NAMING_LOCAL,           // Per-parent numerical (auto) id.
 
     CDP_NAMING_COUNT
 };
@@ -300,7 +243,9 @@ enum _cdpRecordTag {
 };
 
 
+typedef struct _cdpData     cdpData;
 typedef struct _cdpRecord   cdpRecord;
+typedef struct _cdpChdStore cdpChdStore;
 typedef bool (*cdpAgent)(cdpRecord* task);
 
 typedef union {
@@ -325,17 +270,36 @@ typedef union {
     double      float64;
 } cdpValue;
 
-typedef struct {
-    size_t          size;       // Data size in bytes.
-    size_t          capacity;   // Buffer capacity in bytes.
+typedef struct _cdpData {
+    cdpRecord*          domain;     // Data domain.
+    cdpRecord*          tag;        // Data tag.
+    cdpValue            attribute;  // Data attributes (depend on domain).
+    size_t              size;       // Data size in bytes.
+    unsigned            capacity;   // Buffer capacity in bytes.
+    unsigned            location;   // Where the data is located (see _cdpDataLocation).
+    cdpData*            next;       // Pointer to next data representation (if available).
     union {
         struct {
-           void*    _far;       // Points to container of data value.
-           cdpDel   destructor; // Data container destructor function.
+            void*       data;       // Points to container of data value.
+            cdpDel      destructor; // Data container destructor function.
         };
-        cdpValue   _data[2];    // Data value may start from here.
+        struct {
+            cdpRecord*  handle;     // Resource record id (used with external libraries).
+            void*       _unused;
+        };
+        cdpValue        value[sizeof(cdpValue) / sizeof(void*)]; // Data value may start from here.
     };
-} cdpData;
+};
+
+enum _cdpDataLocation {
+    CDP_DATALOC_NONE,           // Record has no data.
+    CDP_DATALOC_VALUE,          // Data starts at "value" field of cdpData.
+    CDP_DATALOC_DATA,           // Data is in address pointed by "data" field of cdpData.
+    CDP_DATALOC_HANDLE,         // Data is just a handle to an opaque (library internal) resource.
+    //
+    CDP_DATALOC_COUNT
+};
+
 
 typedef struct {
     unsigned        count;      // Number of record pointers.
@@ -346,37 +310,38 @@ typedef struct {
 struct _cdpRecord {
     cdpMetarecord   metarecord; // Meta about this record entry (including id, etc).
 
-    cdpMetadata     metadata;   // Metadata about what is contained in 'data'.
     union {
-        cdpValue    _near;      // Data value if it fits in here.
         cdpData*    data;       // Address of data buffer.
-        cdpRecord*  handle;     // Resource record id (used with external libraries).
+        cdpAgent    agent;      // Address of an agent function.
     };
 
     union {
         void*       store;      // Parent storage structure (List, Array, etc) where this record is in.
         size_t      basez;      // Base size for arrays and packed-lists.
     };
+
     union {
         void*       children;   // Pointer to child storage structure.
         cdpRecord*  link;       // Link to another record.
-        cdpAgent    agent;      // Address of an agent function.
 
         cdpRecord*  linked;     // A linked shadow record (if no children, see in cdpChdStore otherwise).
         cdpShadow*  shadow;     // Structure for multiple linked records (if no children).
     };
-    //cdpRecord*      self;       // Next instance of self (circular list ending in this very record).
 };
 
-typedef struct {
-    cdpID           autoid;     // Auto-increment ID for naming contained records.
+typedef struct _cdpChdStore {
+    cdpRecord*      domain;     // Domain this children structure belong to.
+    cdpRecord*      tag;        // Tag id of this children structure.
     cdpRecord*      owner;      // Parent record owning this child storage.
+    cdpChdStore*    next;
+
+    cdpID           autoid;     // Auto-increment ID for naming contained records.
     union {
         cdpRecord*  linked;     // A linked shadow record (when children, see in cdpRecord otherwise).
         cdpShadow*  shadow;     // Shadow structure (if record has children).
     };
     size_t          chdCount;   // Number of child records.
-} cdpChdStore;
+};
 
 typedef struct {
     cdpRecord*      record;
