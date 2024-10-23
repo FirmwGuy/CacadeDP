@@ -120,35 +120,12 @@ static_assert(sizeof(void*) == sizeof(uint64_t), "32 bit is unssoported yet!");
 typedef uint16_t  cdpTag;
 typedef uint64_t  cdpID;
 
-#define CDP_DOMAIN_BITS         (cdp_bitsof(cdpTag) - CDP_RECDATA_BITS)
-#define CDP_DOMAIN_MAXVAL       (~(((cdpTag)(-1)) << CDP_DOMAIN_BITS))
-#define CDP_TAG_MAXVAL          ((cdpTag)(-1))1
-
-enum _cdpDomain {
-    CDP_DOMAIN_RECORD,          // Also used to indicate purely branched types.
-
-    CDP_DOMAIN_BINARY,
-    CDP_DOMAIN_TEXT,
-    CDP_DOMAIN_INTERFACE,
-    CDP_DOMAIN_MULTIMEDIA,
-    CDP_DOMAIN_SIMULATION,
-    CDP_DOMAIN_RENDERING,
-    CDP_DOMAIN_PHYSICS,
-    CDP_DOMAIN_AI,
-    //CDP_DOMAIN_USERS,
-
-    CDP_DOMAIN_COUNT
-};
-
-#define CDP_ID_BITS             cdp_bitsof(cdpID)
-#define CDP_RECD_FLAG_BITS      12
-#define CDP_NAME_BITS           (CDP_ID_BITS - CDP_RECD_FLAG_BITS)
+#define CDP_NAME_BITS           52
 #define CDP_NAME_MAXVAL         (~(((cdpID)(-1)) << CDP_NAME_BITS))
 #define CDP_NAMECONV_BITS       2
 #define CDP_AUTOID_BITS         (CDP_NAME_BITS - CDP_NAMECONV_BITS)
 #define CDP_AUTOID_MAXVAL       (~(((cdpID)(-1)) << CDP_AUTOID_BITS))
 #define CDP_AUTOID_MAX          (CDP_AUTOID_MAXVAL - 1)
-#define CDP_NAME_GLOBAL_BITS    (CDP_AUTOID_BITS - CDP_DOMAIN_BITS)
 
 typedef struct {
   union {
@@ -162,10 +139,9 @@ typedef struct {
               shadowing:  2,    // If record has shadowing records (links pointing to it).
               task:       1,    // Record belongs to a task (which needs to be activated after I/O).
 
-              factual:    1,    // Record can't be modified anymore (but it still can be deleted).
+              system:     1,    // Record can't be modified or deleted (the parent can though).
               priv:       1,    // Record (with all its children) is private (unlockable).
               hidden:     1,    // Data structure for children storage (it depends on the record type).
-              //system:     1,    // Record is part of the system and can't be modified or deleted.
 
               name:       CDP_NAME_BITS;    // Name id of this record instance (including naming convention and domain).
     };
@@ -173,10 +149,10 @@ typedef struct {
 } cdpMetarecord;
 
 enum _cdpRecordType {
-    CDP_TYPE_VOID,
-    CDP_TYPE_NORMAL,
-    CDP_TYPE_LINK,
-    CDP_TYPE_AGENT,
+    CDP_TYPE_VOID,              // Void (uninitialized) record.
+    CDP_TYPE_NORMAL,            // Normal (initialized) record.
+    CDP_TYPE_LINK,              // Link to another record.
+    CDP_TYPE_AGENT,             // Agent function.
     //
     CDP_TYPE_COUNT
 };
@@ -197,8 +173,8 @@ enum _cdpRecordShadowing {
 };
 
 enum _cdpRecordNaming {
-    CDP_NAMING_TAG,             // Global indexed text identifier.
-    CDP_NAMING_PROPERTY,        // Per-parent indexed text identifier.
+    CDP_NAMING_TINY_TXT,       // Global immediate text value (10 chars max).
+    CDP_NAMING_TEXT_ID,         // Global indexed text identifier.
     CDP_NAMING_GLOBAL,          // Global numerical (auto) id.
     CDP_NAMING_LOCAL,           // Per-parent numerical (auto) id.
 
@@ -209,38 +185,26 @@ enum _cdpRecordNaming {
 //#define cdp_id_to_naming(id)            (((id) >> CDP_AUTOID_BITS) & 3)
 #define CDP_NAMING_MASK                 cdp_id_from_naming(3)
 
-#define cdp_id_from_domain(domain)      (((cdpID)(domain)) << CDP_NAME_GLOBAL_BITS)
-#define cdp_id_domain(id)               (((id) >> CDP_NAME_GLOBAL_BITS) & CDP_DOMAIN_MAXVAL)
-
-#define cdp_id_to_tag(domain, pos)      (cdp_id_from_naming(CDP_NAMING_TAG) | cdp_id_from_domain(domain) | (pos))
-#define cdp_id_to_property(pos)         ((pos) | cdp_id_from_naming(CDP_NAMING_TEXT))
-#define cdp_id_global(domain, id)       (cdp_id_from_naming(CDP_NAMING_GLOBAL) | cdp_id_from_domain(domain) | (id))
-#define cdp_id_local(id)                ((id)  | cdp_id_from_naming(CDP_NAMING_LOCAL))
+#define cdp_id_to_tiny_txt(tiny)        ((tiny) | cdp_id_from_naming(CDP_NAMING_TINY_TXT))
+#define cdp_id_to_text_id(txid)         ((txid) | cdp_id_from_naming(CDP_NAMING_TEXT_ID))
+#define cdp_id_global(id)               ((id)   | cdp_id_from_naming(CDP_NAMING_GLOBAL))
+#define cdp_id_local(id)                ((id)   | cdp_id_from_naming(CDP_NAMING_LOCAL))
 
 #define cdp_id(name)                    ((name) & CDP_AUTOID_MAXVAL)
-#define CDP_ID_SET(name, id)            (name = ((name) & CDP_NAMING_MASK) | cdp_id(id))
+#define CDP_ID_SET(name, id)            do{ name = ((name) & CDP_NAMING_MASK) | cdp_id(id); }while(0)
 
 #define CDP_AUTOID_USE                  CDP_AUTOID_MAXVAL
+#define CDP_AUTOID_GLOBAL               cdp_id_global(CDP_AUTOID_USE)
 #define CDP_AUTOID_LOCAL                cdp_id_local(CDP_AUTOID_USE)
-//#define CDP_AUTOID_GLOBAL               cdp_id_global(CDP_AUTOID_USE)
 
 #define cdp_id_naming(name)             (((name) >> CDP_AUTOID_BITS) & 3)
-#define cdp_id_name_is_tag(name)        ((CDP_NAMING_MASK & (name)) == cdp_id_from_naming(CDP_NAMING_TAG))
-#define cdp_id_name_is_property(name)   ((CDP_NAMING_MASK & (name)) == cdp_id_from_naming(CDP_NAMING_PROPERTY))
+#define cdp_id_name_is_tiny_txt(name)   ((CDP_NAMING_MASK & (name)) == cdp_id_from_naming(CDP_NAMING_TINY_TXT))
+#define cdp_id_name_is_text_id(name)    ((CDP_NAMING_MASK & (name)) == cdp_id_from_naming(CDP_NAMING_TEXT_ID))
 #define cdp_id_name_is_global(name)     ((CDP_NAMING_MASK & (name)) == cdp_id_from_naming(CDP_NAMING_GLOBAL))
 #define cdp_id_name_is_local(name)      ((CDP_NAMING_MASK & (name)) == cdp_id_from_naming(CDP_NAMING_LOCAL))
 
 #define cdp_id_is_auto(name)            (((name) & ~CDP_NAMING_MASK) == CDP_AUTOID_USE)
 #define cdp_id_valid(name)              (((name) & ~CDP_NAMING_MASK) <= CDP_AUTOID_USE) /* ToDo: "name" max check, tag check.*/
-#define cdp_id_valid_tag(tag)           (((tag) <= cdp_id_to_tag(CDP_TAG_MAXVAL))
-
-
-// Initial text name IDs:
-enum _cdpRecordTag {
-    CDP_TAG_ROOT,
-
-    CDP_TAG_INITIAL_COUNT
-};
 
 
 typedef struct _cdpData     cdpData;
