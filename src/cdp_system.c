@@ -89,7 +89,7 @@ cdpID cdp_tag_id_add_generic(const char* text, size_t length, cdpDel destructor)
     }
 
     // Add new tag
-    cdpRecord* r = cdp_record_add_data(INTERNED, CDP_AUTOID_LOCAL, cdp_text_metadata_word(), length, length, text, destructor);
+    cdpRecord* r = cdp_record_add_data(INTERNED, CDP_AUTOID, cdp_text_metadata_word(), length, length, text, destructor);
 
     // ToDo: check overflow.
 
@@ -106,7 +106,7 @@ cdpRecord* cdp_tag_text(cdpTag domain, cdpID tag) {
     assert(inerned);
 
     //return cdp_record_find_by_position(perdomain, cdp_id(tagID));     // FixMe: check if entry is disabled.
-    return cdp_record_find_by_name(perdomain, cdp_id_local(tag));
+    return cdp_record_find_by_name(perdomain, cdp_id_to_numeric(tag));
 }
 
 

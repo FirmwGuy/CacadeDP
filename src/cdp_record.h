@@ -117,7 +117,6 @@ static_assert(sizeof(void*) == sizeof(uint64_t), "32 bit is unssoported yet!");
  * Metadata
  */
 
-typedef uint16_t  cdpTag;
 typedef uint64_t  cdpID;
 
 #define CDP_NAME_BITS           52
@@ -140,8 +139,8 @@ typedef struct {
               task:       1,    // Record belongs to a task (which needs to be activated after I/O).
 
               system:     1,    // Record can't be modified or deleted (the parent can though).
-              priv:       1,    // Record (with all its children) is private (unlockable).
               hidden:     1,    // Data structure for children storage (it depends on the record type).
+              priv:       1,    // Record (with all its children) is private (unlockable).
 
               name:       CDP_NAME_BITS;    // Name id of this record instance (including naming convention and domain).
     };
@@ -173,38 +172,39 @@ enum _cdpRecordShadowing {
 };
 
 enum _cdpRecordNaming {
-    CDP_NAMING_TINY_TXT,       // Global immediate text value (10 chars max).
-    CDP_NAMING_TEXT_ID,         // Global indexed text identifier.
-    CDP_NAMING_GLOBAL,          // Global numerical (auto) id.
-    CDP_NAMING_LOCAL,           // Per-parent numerical (auto) id.
+    // This is also used for Domain/Tag naming (do not move!).
+    CDP_NAMING_WORD,            // Lowercase text value (10 chars max).
+    CDP_NAMING_ACRONYSM,        // Uppercase/numeric text (8 chars max).
+
+    // The following are only used for record naming.
+    CDP_NAMING_REFERENCE,       // Numerical reference to text record (this should be a pointer in 32bit systems).
+    CDP_NAMING_NUMERIC,         // Per-parent numerical (auto) id.
 
     CDP_NAMING_COUNT
 };
 
 #define cdp_id_from_naming(naming)      (((cdpID)((naming) & 3)) << CDP_AUTOID_BITS)
-//#define cdp_id_to_naming(id)            (((id) >> CDP_AUTOID_BITS) & 3)
 #define CDP_NAMING_MASK                 cdp_id_from_naming(3)
 
-#define cdp_id_to_tiny_txt(tiny)        ((tiny) | cdp_id_from_naming(CDP_NAMING_TINY_TXT))
-#define cdp_id_to_text_id(txid)         ((txid) | cdp_id_from_naming(CDP_NAMING_TEXT_ID))
-#define cdp_id_global(id)               ((id)   | cdp_id_from_naming(CDP_NAMING_GLOBAL))
-#define cdp_id_local(id)                ((id)   | cdp_id_from_naming(CDP_NAMING_LOCAL))
+#define cdp_id_to_word(word)            ((word) | cdp_id_from_naming(CDP_NAMING_WORD))
+#define cdp_id_to_acronysm(acro)        ((acro) | cdp_id_from_naming(CDP_NAMING_ACRONYSM))
+#define cdp_id_to_reference(ref)        ((ref)  | cdp_id_from_naming(CDP_NAMING_REFERENCE))
+#define cdp_id_to_numeric(numb)         ((numb) | cdp_id_from_naming(CDP_NAMING_NUMERIC))
 
 #define cdp_id(name)                    ((name) & CDP_AUTOID_MAXVAL)
 #define CDP_ID_SET(name, id)            do{ name = ((name) & CDP_NAMING_MASK) | cdp_id(id); }while(0)
 
 #define CDP_AUTOID_USE                  CDP_AUTOID_MAXVAL
-#define CDP_AUTOID_GLOBAL               cdp_id_global(CDP_AUTOID_USE)
-#define CDP_AUTOID_LOCAL                cdp_id_local(CDP_AUTOID_USE)
+#define CDP_AUTOID                      cdp_id_to_numeric(CDP_AUTOID_USE)
 
 #define cdp_id_naming(name)             (((name) >> CDP_AUTOID_BITS) & 3)
-#define cdp_id_name_is_tiny_txt(name)   ((CDP_NAMING_MASK & (name)) == cdp_id_from_naming(CDP_NAMING_TINY_TXT))
-#define cdp_id_name_is_text_id(name)    ((CDP_NAMING_MASK & (name)) == cdp_id_from_naming(CDP_NAMING_TEXT_ID))
-#define cdp_id_name_is_global(name)     ((CDP_NAMING_MASK & (name)) == cdp_id_from_naming(CDP_NAMING_GLOBAL))
-#define cdp_id_name_is_local(name)      ((CDP_NAMING_MASK & (name)) == cdp_id_from_naming(CDP_NAMING_LOCAL))
+#define cdp_id_name_is_word(name)       ((CDP_NAMING_MASK & (name)) == cdp_id_from_naming(CDP_NAMING_WORD))
+#define cdp_id_name_is_acronysm(name)   ((CDP_NAMING_MASK & (name)) == cdp_id_from_naming(CDP_NAMING_ACRONYSM))
+#define cdp_id_name_is_reference(name)  ((CDP_NAMING_MASK & (name)) == cdp_id_from_naming(CDP_NAMING_REFERENCE))
+#define cdp_id_name_is_numeric(name)    ((CDP_NAMING_MASK & (name)) == cdp_id_from_naming(CDP_NAMING_NUMERIC))
 
 #define cdp_id_is_auto(name)            (((name) & ~CDP_NAMING_MASK) == CDP_AUTOID_USE)
-#define cdp_id_valid(name)              (((name) & ~CDP_NAMING_MASK) <= CDP_AUTOID_USE) /* ToDo: "name" max check, tag check.*/
+#define cdp_id_valid(name)              (((name) & ~CDP_NAMING_MASK) <= CDP_AUTOID_USE)
 
 
 typedef struct _cdpData     cdpData;
@@ -234,29 +234,38 @@ typedef union {
     double      float64;
 } cdpValue;
 
+#define CDP_TAG_BITS        61
+#define CDP_TAG_VAL_BITS    (CDP_TAG_BITS - 1)
+#define CDP_TAG_MAXVAL      (~(((cdpID)(-1)) << CDP_TAG_VAL_BITS))
+
 typedef struct _cdpData {
-    cdpRecord*          domain;     // Data domain.
-    cdpRecord*          tag;        // Data tag.
-    cdpValue            attribute;  // Data attributes (depend on domain).
-    size_t              size;       // Data size in bytes.
-    unsigned            capacity;   // Buffer capacity in bytes.
-    unsigned            location;   // Where the data is located (see _cdpDataLocation).
-    cdpData*            next;       // Pointer to next data representation (if available).
+    struct {
+        cdpID           location:   2,  // Where the data is located (see _cdpDataLocation).
+                        _unused:    1,
+                        domain:     CDP_TAG_BITS;   // Data domain.
+    };
+    struct {
+        cdpID           _reserved:  3,
+                        tag:        CDP_TAG_BITS;   // Data tag.
+    };
+    cdpValue            attribute;      // Data attributes (it depends on domain).
+    size_t              size;           // Data size in bytes.
+    size_t              capacity;       // Buffer capacity in bytes.
+    cdpData*            next;           // Pointer to next data representation (if available).
     union {
         struct {
-            void*       data;       // Points to container of data value.
-            cdpDel      destructor; // Data container destructor function.
+            void*       data;           // Points to container of data value.
+            cdpDel      destructor;     // Data container destructor function.
         };
         struct {
-            cdpRecord*  handle;     // Resource record id (used with external libraries).
-            void*       _unused;
+            cdpRecord*  handle;         // Resource record id (used with external libraries).
+            cdpRecord*  library;        // Library where the resource is located.
         };
-        cdpValue        value[sizeof(cdpValue) / sizeof(void*)]; // Data value may start from here.
+        cdpValue        value[(2 * sizeof(void*)) / sizeof(cdpValue)];  // Data value may start from here.
     };
 };
 
 enum _cdpDataLocation {
-    CDP_DATALOC_NONE,           // Record has no data.
     CDP_DATALOC_VALUE,          // Data starts at "value" field of cdpData.
     CDP_DATALOC_DATA,           // Data is in address pointed by "data" field of cdpData.
     CDP_DATALOC_HANDLE,         // Data is just a handle to an opaque (library internal) resource.
@@ -277,6 +286,7 @@ struct _cdpRecord {
     union {
         cdpData*    data;       // Address of data buffer.
         cdpAgent    agent;      // Address of an agent function.
+        cdpRecord*  link;       // Link to another record.
     };
 
     union {
@@ -286,7 +296,6 @@ struct _cdpRecord {
 
     union {
         void*       children;   // Pointer to child storage structure.
-        cdpRecord*  link;       // Link to another record.
 
         cdpRecord*  linked;     // A linked shadow record (if no children, see in cdpChdStore otherwise).
         cdpShadow*  shadow;     // Structure for multiple linked records (if no children).
@@ -294,18 +303,41 @@ struct _cdpRecord {
 };
 
 typedef struct _cdpChdStore {
-    cdpRecord*      domain;     // Domain this children structure belong to.
-    cdpRecord*      tag;        // Tag id of this children structure.
-    cdpRecord*      owner;      // Parent record owning this child storage.
+    struct {
+        cdpID       _unused:    3,
+                    domain:     CDP_TAG_BITS;   // Data domain.
+    };
+    struct {
+        cdpID       _reserved:  3,
+                    tag:        CDP_TAG_BITS;   // Data tag.
+    };
     cdpChdStore*    next;
 
-    cdpID           autoid;     // Auto-increment ID for naming contained records.
+    cdpRecord*      owner;          // Parent record owning this child storage.
     union {
-        cdpRecord*  linked;     // A linked shadow record (when children, see in cdpRecord otherwise).
-        cdpShadow*  shadow;     // Shadow structure (if record has children).
+        cdpRecord*  linked;         // A linked shadow record (when children, see in cdpRecord otherwise).
+        cdpShadow*  shadow;         // Shadow structure (if record has children).
     };
-    size_t          chdCount;   // Number of child records.
+    cdpID           autoid;         // Auto-increment ID for naming contained records.
+    size_t          chdCount;       // Number of child records.
 };
+
+
+#define cdp_tag_from_naming(naming)     (((cdpID)((naming) & 1)) << CDP_TAG_VAL_BITS)
+#define CDP_TAG_NAMING_MASK             cdp_id_from_naming(1)
+
+#define cdp_tag_to_word(word)           ((word) | cdp_tag_from_naming(CDP_NAMING_WORD))
+#define cdp_tag_to_acronysm(acro)       ((acro) | cdp_tag_from_naming(CDP_NAMING_ACRONYSM))
+
+#define cdp_tag(tag)                    ((tag) & CDP_TAG_MAXVAL)
+#define CDP_TAG_SET(tag, id)            do{ tag = ((tag) & CDP_TAG_NAMING_MASK) | cdp_tag(id); }while(0)
+
+#define cdp_tag_naming(tag)             (((tag) >> CDP_TAG_VAL_BITS) & 1)
+#define cdp_tag_name_is_word(tag)       ((CDP_TAG_NAMING_MASK & (tag)) == cdp_tag_from_naming(CDP_NAMING_WORD))
+#define cdp_tag_name_is_acronysm(tag)   ((CDP_TAG_NAMING_MASK & (tag)) == cdp_tag_from_naming(CDP_NAMING_ACRONYSM))
+
+#define cdp_tag_valid(tag)              (((tag) & ~CDP_TAG_NAMING_MASK) <= CDP_TAG_MAXVAL)
+
 
 typedef struct {
     cdpRecord*      record;
@@ -349,9 +381,6 @@ void cdp_record_finalize(cdpRecord* record);
 #define cdp_record_initialize_link(r, name, source)                                         cdp_record_initialize(r, name, CDP_TYPE_LINK,   true,  CDP_STORAGE_RED_BLACK_T, 0, (cdpMetadata){0}, 0, 0, (cdpValue)(source), NULL)
 #define cdp_record_initialize_agent(r, name, agent)                                         cdp_record_initialize(r, name, CDP_TYPE_AGENT,  true,  CDP_STORAGE_RED_BLACK_T, 0, (cdpMetadata){0}, 0, 0, (cdpValue)(agent), NULL)
 
-static inline cdpTag cdp_record_domain(const cdpRecord* record) {assert(record);  return record->metadata.domain;}
-static inline cdpTag cdp_record_tag(const cdpRecord* record)    {assert(record);  return record->metadata.tag;}
-
 static inline void  cdp_record_set_id(cdpRecord* record, cdpID id)      {assert(record && cdp_id_valid(id));  CDP_ID_SET(record->metarecord.name, id);}
 static inline void  cdp_record_set_name(cdpRecord* record, cdpID name)  {assert(record && cdp_id_valid(name));  record->metarecord.name = name;}    // FixMe: mask 'name' before assignation.
 static inline cdpID cdp_record_get_name(const cdpRecord* record)        {assert(record);  return record->metarecord.name;}
@@ -373,13 +402,11 @@ static inline size_t     cdp_record_children(const cdpRecord* record)   {assert(
 
 #define cdp_record_is_insertable(r) ((r)->metarecord.storage != CDP_STORAGE_RED_BLACK_T)
 
-#define cdp_record_is_private(r)    ((r)->metarecord.priv)
-#define cdp_record_is_factual(r)    ((r)->metarecord.factual)
 #define cdp_record_is_shadowed(r)   ((r)->metarecord.shadowing)
-#define cdp_record_is_baby(r)       ((r)->metarecord.baby)
-#define cdp_record_is_connected(r)  ((r)->metarecord.connected)
+#define cdp_record_is_private(r)    ((r)->metarecord.priv)
+#define cdp_record_is_system(r)     ((r)->metarecord.system)
 
-#define cdp_record_has_data(r)      ((r)->metadata.recdata)
+static inline bool cdp_record_has_data(cdpRecord* record)   {assert(cdp_record_is_normal(record));  return record->data;}
 
 #define cdp_record_id_is_pending(r) cdp_id_is_auto((r)->metarecord.name)
 static inline void  cdp_record_set_autoid(const cdpRecord* record, cdpID id)  {assert(cdp_record_with_store(record));  cdpChdStore* store = CDP_CHD_STORE(record->children); assert(store->autoid < id  &&  id <= CDP_AUTOID_MAX); store->autoid = id;}

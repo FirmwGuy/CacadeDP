@@ -128,8 +128,8 @@ void cdp_record_relink_storage(cdpRecord* record) {
 
 
 static inline void store_check_auto_id(cdpChdStore* parStore, cdpRecord* record) {
-    if (CDP_AUTOID_LOCAL == record->metarecord.name) {
-        cdp_record_set_name(record, cdp_id_local(parStore->autoid++));
+    if (CDP_AUTOID == record->metarecord.name) {
+        cdp_record_set_name(record, cdp_id_to_numeric(parStore->autoid++));
     }
     // FixMe: if otherwise.
 }
