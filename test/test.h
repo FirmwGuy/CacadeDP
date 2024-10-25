@@ -28,6 +28,8 @@
 
 MunitResult test_records(const MunitParameter params[], void* user_data_or_fixture);
 
+MunitResult test_wordacron(const MunitParameter params[], void* user_data_or_fixture);
+
 MunitResult test_agents(const MunitParameter params[], void* user_data_or_fixture);
 void*       test_agents_setup(const MunitParameter params[], void* user_data);
 void        test_agents_tear_down(void* fixture);

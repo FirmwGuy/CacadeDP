@@ -34,6 +34,14 @@ MunitTest tests[] = {
         NULL                      // parameters
     },
     {
+        "/wordacron",
+        test_wordacron,
+        NULL,                     // setup
+        NULL,                     // tear_down
+        MUNIT_TEST_OPTION_NONE,
+        NULL                      // parameters
+    },
+    {
         "/agents",
         test_agents,
         test_agents_setup,

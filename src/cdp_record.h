@@ -197,14 +197,15 @@ enum _cdpRecordNaming {
 #define CDP_AUTOID_USE                  CDP_AUTOID_MAXVAL
 #define CDP_AUTOID                      cdp_id_to_numeric(CDP_AUTOID_USE)
 
-#define cdp_id_naming(name)             (((name) >> CDP_AUTOID_BITS) & 3)
-#define cdp_id_name_is_word(name)       ((CDP_NAMING_MASK & (name)) == cdp_id_from_naming(CDP_NAMING_WORD))
-#define cdp_id_name_is_acronysm(name)   ((CDP_NAMING_MASK & (name)) == cdp_id_from_naming(CDP_NAMING_ACRONYSM))
-#define cdp_id_name_is_reference(name)  ((CDP_NAMING_MASK & (name)) == cdp_id_from_naming(CDP_NAMING_REFERENCE))
-#define cdp_id_name_is_numeric(name)    ((CDP_NAMING_MASK & (name)) == cdp_id_from_naming(CDP_NAMING_NUMERIC))
-
 #define cdp_id_is_auto(name)            (((name) & ~CDP_NAMING_MASK) == CDP_AUTOID_USE)
-#define cdp_id_valid(name)              (((name) & ~CDP_NAMING_MASK) <= CDP_AUTOID_USE)
+#define cdp_id_is_word(name)            ((CDP_NAMING_MASK & (name)) == cdp_id_from_naming(CDP_NAMING_WORD))
+#define cdp_id_is_acronysm(name)        ((CDP_NAMING_MASK & (name)) == cdp_id_from_naming(CDP_NAMING_ACRONYSM))
+#define cdp_id_is_reference(name)       ((CDP_NAMING_MASK & (name)) == cdp_id_from_naming(CDP_NAMING_REFERENCE))
+#define cdp_id_is_numeric(name)         ((CDP_NAMING_MASK & (name)) == cdp_id_from_naming(CDP_NAMING_NUMERIC))
+
+#define cdp_id_valid(id)                ((id) < CDP_AUTOID)
+#define cdp_id_name_valid(name)         ((name) && ((name) & ~CDP_NAMING_MASK) <= CDP_AUTOID_USE))
+#define cdp_id_naming(name)             (((name) >> CDP_AUTOID_BITS) & 3)
 
 
 typedef struct _cdpData     cdpData;
@@ -285,8 +286,8 @@ struct _cdpRecord {
 
     union {
         cdpData*    data;       // Address of data buffer.
-        cdpAgent    agent;      // Address of an agent function.
         cdpRecord*  link;       // Link to another record.
+        cdpAgent    agent;      // Address of an agent function (it may have chilren).
     };
 
     union {
@@ -335,8 +336,7 @@ typedef struct _cdpChdStore {
 #define cdp_tag_naming(tag)             (((tag) >> CDP_TAG_VAL_BITS) & 1)
 #define cdp_tag_name_is_word(tag)       ((CDP_TAG_NAMING_MASK & (tag)) == cdp_tag_from_naming(CDP_NAMING_WORD))
 #define cdp_tag_name_is_acronysm(tag)   ((CDP_TAG_NAMING_MASK & (tag)) == cdp_tag_from_naming(CDP_NAMING_ACRONYSM))
-
-#define cdp_tag_valid(tag)              (((tag) & ~CDP_TAG_NAMING_MASK) <= CDP_TAG_MAXVAL)
+#define cdp_tag_valid(tag)              ((tag)  &&  (((tag) & ~CDP_TAG_NAMING_MASK) <= CDP_TAG_MAXVAL))
 
 
 typedef struct {
@@ -356,6 +356,17 @@ typedef struct {
     unsigned        capacity;
     cdpID           id[];
 } cdpPath;
+
+
+cdpID  cdp_text_to_acronysm(const char *s, bool tag);
+cdpID  cdp_text_to_word(const char *s, bool tag);
+size_t cdp_acronysm_to_text(cdpID acro, bool tag, char s[11]);
+size_t cdp_word_to_text(cdpID coded, bool tag, char s[13]);
+
+#define cdp_name_to_acronysm(s)       cdp_text_to_acronysm(s, false)
+#define cdp_domain_to_acronysm(s)     cdp_text_to_acronysm(s, true)
+#define cdp_acronysm_to_name(a, s)    cdp_acronysm_to_text(a, false, s)
+#define cdp_acronysm_to_domain(a, s)  cdp_acronysm_to_text(a, true, s)
 
 
 /*

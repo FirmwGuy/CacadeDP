@@ -49,7 +49,7 @@ static inline int record_compare_by_name(const cdpRecord* restrict key, const cd
 
 #define REC_DATA_SELECT(record)                                                \
     static const void* const _recData[] = {&&NONE, &&NEAR, &&DATA, &&FAR};     \
-    goto *_recData[(record)->metadata.recdata];                                \
+    goto *_recData[(record)->data.recdata];                                    \
     do
 
 #define SELECTION_END                                                          \
@@ -1234,5 +1234,135 @@ void cdp_record_branch_reset(cdpRecord* record) {
     } SELECTION_END;
 
     store->chdCount = 0;
+}
+
+
+
+
+/*
+    Encoding of names, domains and tags into values.
+*/
+cdpID cdp_text_to_acronysm(const char *s, bool tag) {
+    assert(s && *s);
+
+    while (*s == ' ') {
+        s++;            // Trim leading spaces.
+    }
+    if (!*s)
+        return 0;
+
+    size_t len = strlen(s);
+    while (len > 0  &&  s[len - 1] == ' ') {
+        len--;          // Trim trailing spaces.
+    }
+
+    size_t max_chars = tag? 10: 8;
+    if (len > max_chars)
+        return 0;       // Limit to max_chars characters.
+
+    cdpID coded = 0;
+    for (size_t n = 0; n < len; n++) {
+        char c = s[n];
+
+        if (c < 0x20  ||  c > 0x5F)
+            return 0;   // Uncodable characters.
+
+        coded |= (cdpID)(c - 0x20) << (6 * ((max_chars - 1) - n));  // Shift and encode each character.
+    }
+
+    return tag? cdp_tag_to_acronysm(coded): cdp_id_to_acronysm(coded);
+}
+
+
+size_t cdp_acronysm_to_text(cdpID acro, bool tag, char s[11]) {
+    assert(tag? cdp_tag_valid(acro): cdp_id_name_valid(acro));
+    cdpID coded = tag? cdp_tag(acro): cdp_id(acro);
+
+    size_t max_chars = tag? 10: 8;
+    unsigned length;
+    for (length = 0; length < max_chars; length++) {
+        char c = (char)((coded >> (6 * ((max_chars - 1) - length))) & 0x3F); // Extract 6 bits for each character (starting from the highest bits).
+
+        s[length] = c + 0x20;   // Restore the original ASCII character.
+    }
+    s[length] = '\0';
+
+    while (length > 0  &&  s[length - 1] == ' ') {
+        s[--length] = '\0';     // Replace trailing spaces with null characters.
+    }
+
+    return length;
+}
+
+
+
+
+cdpID cdp_text_to_word(const char *s, bool tag) {
+    assert(s && *s);
+
+    while (*s == ' ') {
+        s++;            // Trim leading spaces.
+    }
+    if (!*s)
+        return 0;
+
+    size_t len = strlen(s);
+    while (len > 0  &&  s[len - 1] == ' ') {
+        len--;          // Trim trailing spaces.
+    }
+    size_t max_chars = tag? 12: 10;
+    if (len > max_chars)
+        return 0;       // Limit to max_chars characters.
+
+    cdpID coded = 0;
+    for (size_t n = 0; n < len; n++) {
+        char c = s[n];
+
+        uint8_t encoded_char;
+        if (c >= 0x61  &&  c <= 0x7A) {
+            encoded_char = c - 0x61 + 1;        // Map 'a'-'z' to 1-26.
+        } else switch (c) {
+          case ' ': encoded_char = 0;   break;  // Treat space as 0.
+          case ':': encoded_char = 27;  break;
+          case '_': encoded_char = 28;  break;
+          case '-':`encoded_char = 29;  break;
+          case '.':`encoded_char = 30;  break;
+          case '/':`encoded_char = 31;  break;
+
+          default:
+            return 0;   // Uncodable characters.
+        }
+
+         coded |= (cdpID)encoded_char << (5 * ((max_chars - 1) - n)); // Shift and encode each character.
+    }
+
+    return tag? cdp_tag_to_word(coded): cdp_id_to_word(coded);
+}
+
+
+size_t cdp_word_to_text(cdpID coded, bool tag, char s[13]) {
+    assert(tag? cdp_tag_valid(coded): cdp_id_name_valid(coded));
+
+    const char translation_table[5] = {':', '_', '-', '.', '/'};        // Reverse translation table for values 27-31.
+    size_t max_chars = tag? 12: 10;
+    unsigned length;
+    for (length = 0; length < max_chars; length++) {
+        uint8_t encoded_char = (coded >> (5 * ((max_chars - 1) - length))) & 0x1F;  // Extract each 5-bit segment, starting from the most significant bits.
+
+        if (encoded_char >= 1  &&  encoded_char <= 26) {
+            s[length] = (char)(encoded_char - 1 + 0x61);                // 'a' - 'z'.
+        } else if (encoded_char == 0) {
+            s[length] = ' ';                                            // Space.
+        } else if (encoded_char >= 27  &&  encoded_char <= 31) {
+            s[length] = translation_table[encoded_char - 27];           // Map 27-31 using table.
+        }
+    }
+    s[length] = '\0';
+
+    while (length > 0  &&  s[length - 1] == ' ') {
+        s[--length] = '\0';     // Replace trailing spaces with null characters.
+    }
+
+    return length;
 }
 
