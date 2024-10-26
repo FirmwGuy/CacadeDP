@@ -131,16 +131,14 @@ typedef struct {
     cdpID     _id;
     struct {
       cdpID   type:       2,    // Type of record (dictionary, link, etc).
-              dictionary: 1,    // If children name ids must be unique (1) or they may be repeated (0).
-              storage:    2,    // Data structure for children storage.
-              withstore:  1,    // Record has child storage (but not necessarily children).
 
+              withstore:  1,    // Record has child storage (but not necessarily children).
+              storage:    3,    // Data structure for children storage.
+              sorting:    2,    // Sorting of children.
+
+              hidden:     1,    // Record won't appaear on listings (it can only be accesed directly).
               shadowing:  2,    // If record has shadowing records (links pointing to it).
               task:       1,    // Record belongs to a task (which needs to be activated after I/O).
-
-              system:     1,    // Record can't be modified or deleted (the parent can though).
-              hidden:     1,    // Data structure for children storage (it depends on the record type).
-              priv:       1,    // Record (with all its children) is private (unlockable).
 
               name:       CDP_NAME_BITS;    // Name id of this record instance (including naming convention and domain).
     };
@@ -159,10 +157,20 @@ enum _cdpRecordType {
 enum _cdpRecordStorage {
     CDP_STORAGE_LINKED_LIST,    // Children stored in a doubly linked list.
     CDP_STORAGE_ARRAY,          // Children stored in an array.
-    CDP_STORAGE_PACKED_QUEUE,   // Children stored in a packed queue (record can't be a dictionary).
-    CDP_STORAGE_RED_BLACK_T,    // Children stored in a red-black tree (record must be a dictionary).
+    CDP_STORAGE_PACKED_QUEUE,   // Children stored in a packed queue.
+    CDP_STORAGE_RED_BLACK_T,    // Children stored in a red-black tree.
+    CDP_STORAGE_OCTREE,         // Children stored in an octree.
     //
     CDP_STORAGE_COUNT
+};
+
+enum _cdpRecordSorting {
+    CDP_SORT_BY_INSERTION,      // Children sorted by their insertion order.
+    CDP_SORT_BY_NAME,           // Children sorted by their unique name (dicionary).
+    CDP_SORT_BY_FUNCTION,       // Children sorted by a custom comparation function.
+    CDP_SORT_BY_HASH,           // Children sorted by data hash value (first) and then by a comparation function (second).
+    //
+    CDP_SORT_COUNT
 };
 
 enum _cdpRecordShadowing {
@@ -173,8 +181,8 @@ enum _cdpRecordShadowing {
 
 enum _cdpRecordNaming {
     // This is also used for Domain/Tag naming (do not move!).
-    CDP_NAMING_WORD,            // Lowercase text value (10 chars max).
-    CDP_NAMING_ACRONYSM,        // Uppercase/numeric text (8 chars max).
+    CDP_NAMING_WORD,            // Lowercase text value (10-12 chars max).
+    CDP_NAMING_ACRONYSM,        // Uppercase/numeric text (8-10 chars max).
 
     // The following are only used for record naming.
     CDP_NAMING_REFERENCE,       // Numerical reference to text record (this should be a pointer in 32bit systems).
@@ -211,7 +219,9 @@ enum _cdpRecordNaming {
 typedef struct _cdpData     cdpData;
 typedef struct _cdpRecord   cdpRecord;
 typedef struct _cdpChdStore cdpChdStore;
-typedef bool (*cdpAgent)(cdpRecord* task);
+
+typedef int  (*cdpCompare)(const cdpRecord* restrict, const cdpRecord* restrict, void*);
+typedef bool (*cdpAgent)  (cdpRecord* task);
 
 typedef union {
     cdpRecord*  link;
@@ -246,13 +256,16 @@ typedef struct _cdpData {
                         domain:     CDP_TAG_BITS;   // Data domain.
     };
     struct {
-        cdpID           _reserved:  3,
+        cdpID           writable:   1,  // If data can be updated.
+                        lock:       1,  // Lock on data content.
+                        _reserved:  1,
                         tag:        CDP_TAG_BITS;   // Data tag.
     };
     cdpValue            attribute;      // Data attributes (it depends on domain).
     size_t              size;           // Data size in bytes.
     size_t              capacity;       // Buffer capacity in bytes.
     cdpData*            next;           // Pointer to next data representation (if available).
+    uintptr_t           hash;           // Hash value of content.
     union {
         struct {
             void*       data;           // Points to container of data value.
@@ -309,18 +322,21 @@ typedef struct _cdpChdStore {
                     domain:     CDP_TAG_BITS;   // Data domain.
     };
     struct {
-        cdpID       _reserved:  3,
+        cdpID       writable:   1,              // If chidren can be added/deleted.
+                    lock:       1,              // Lock on children operations.
+                    _reserved:  1,
                     tag:        CDP_TAG_BITS;   // Data tag.
     };
-    cdpChdStore*    next;
 
-    cdpRecord*      owner;          // Parent record owning this child storage.
+    cdpRecord*      owner;      // Parent record owning this child storage.
     union {
-        cdpRecord*  linked;         // A linked shadow record (when children, see in cdpRecord otherwise).
-        cdpShadow*  shadow;         // Shadow structure (if record has children).
+        cdpRecord*  linked;     // A linked shadow record (when children, see in cdpRecord otherwise).
+        cdpShadow*  shadow;     // Shadow structure (if record has children).
     };
-    cdpID           autoid;         // Auto-increment ID for naming contained records.
-    size_t          chdCount;       // Number of child records.
+
+    size_t          chdCount;   // Number of child records.
+    cdpCompare      sorting;    // Compare function for sorting children.
+    cdpID           autoid;     // Auto-increment ID for inserting new child records.
 };
 
 
@@ -348,8 +364,8 @@ typedef struct {
     unsigned        depth;
 } cdpBookEntry;
 
-typedef int  (*cdpCompare)(const cdpRecord* restrict, const cdpRecord* restrict, void*);
 typedef bool (*cdpTraverse)(cdpBookEntry*, void*);
+
 
 typedef struct {
     unsigned        length;
@@ -367,6 +383,9 @@ size_t cdp_word_to_text(cdpID coded, bool tag, char s[13]);
 #define cdp_domain_to_acronysm(s)     cdp_text_to_acronysm(s, true)
 #define cdp_acronysm_to_name(a, s)    cdp_acronysm_to_text(a, false, s)
 #define cdp_acronysm_to_domain(a, s)  cdp_acronysm_to_text(a, true, s)
+
+
+#define CDP_WORD_ROOT       ((cdpID)0x0000000000000045)     /* "/" */
 
 
 /*
