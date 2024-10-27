@@ -140,14 +140,13 @@ typedef struct {
               shadowing:  2,    // If record has shadowing records (links pointing to it).
               task:       1,    // Record belongs to a task (which needs to be activated after I/O).
 
-              name:       CDP_NAME_BITS;    // Name id of this record instance (including naming convention and domain).
+              name:       CDP_NAME_BITS;    // Name id of this record instance (depends on its naming convention).
     };
   };
 } cdpMetarecord;
 
 enum _cdpRecordType {
-    CDP_TYPE_VOID,              // Void (uninitialized) record.
-    CDP_TYPE_NORMAL,            // Normal (initialized) record.
+    CDP_TYPE_NORMAL,            // Regular record.
     CDP_TYPE_LINK,              // Link to another record.
     CDP_TYPE_AGENT,             // Agent function.
     //
@@ -159,7 +158,7 @@ enum _cdpRecordStorage {
     CDP_STORAGE_ARRAY,          // Children stored in an array.
     CDP_STORAGE_PACKED_QUEUE,   // Children stored in a packed queue.
     CDP_STORAGE_RED_BLACK_T,    // Children stored in a red-black tree.
-    CDP_STORAGE_OCTREE,         // Children stored in an octree.
+    CDP_STORAGE_OCTREE,         // Children stored in an octree spatial index.
     //
     CDP_STORAGE_COUNT
 };
@@ -186,7 +185,8 @@ enum _cdpRecordNaming {
 
     // The following are only used for record naming.
     CDP_NAMING_REFERENCE,       // Numerical reference to text record (this should be a pointer in 32bit systems).
-    CDP_NAMING_NUMERIC,         // Per-parent numerical (auto) id.
+
+    CDP_NAMING_NUMERIC,         // Per-parent numerical ID.
 
     CDP_NAMING_COUNT
 };
@@ -205,14 +205,14 @@ enum _cdpRecordNaming {
 #define CDP_AUTOID_USE                  CDP_AUTOID_MAXVAL
 #define CDP_AUTOID                      cdp_id_to_numeric(CDP_AUTOID_USE)
 
-#define cdp_id_is_auto(name)            (((name) & ~CDP_NAMING_MASK) == CDP_AUTOID_USE)
+#define cdp_id_is_auto(name)            (((name) == CDP_AUTOID)
 #define cdp_id_is_word(name)            ((CDP_NAMING_MASK & (name)) == cdp_id_from_naming(CDP_NAMING_WORD))
 #define cdp_id_is_acronysm(name)        ((CDP_NAMING_MASK & (name)) == cdp_id_from_naming(CDP_NAMING_ACRONYSM))
 #define cdp_id_is_reference(name)       ((CDP_NAMING_MASK & (name)) == cdp_id_from_naming(CDP_NAMING_REFERENCE))
 #define cdp_id_is_numeric(name)         ((CDP_NAMING_MASK & (name)) == cdp_id_from_naming(CDP_NAMING_NUMERIC))
 
-#define cdp_id_valid(id)                ((id) < CDP_AUTOID)
-#define cdp_id_name_valid(name)         ((name) && ((name) & ~CDP_NAMING_MASK) <= CDP_AUTOID_USE))
+#define cdp_id_valid(id)                (cdp_id(id) && ((id) <= CDP_AUTOID))
+#define cdp_id_name_valid(name)         (cdp_id(name) && !cdp_id_is_numeric(name))
 #define cdp_id_naming(name)             (((name) >> CDP_AUTOID_BITS) & 3)
 
 
@@ -224,8 +224,6 @@ typedef int  (*cdpCompare)(const cdpRecord* restrict, const cdpRecord* restrict,
 typedef bool (*cdpAgent)  (cdpRecord* task);
 
 typedef union {
-    cdpRecord*  link;
-    cdpAgent    agent;
     void*       pointer;
     size_t      size;
     uint8_t     byte;
@@ -251,7 +249,7 @@ typedef union {
 
 typedef struct _cdpData {
     struct {
-        cdpID           location:   2,  // Where the data is located (see _cdpDataLocation).
+        cdpID           datatype:   2,  // Type of data (see _cdpDataType).
                         _unused:    1,
                         domain:     CDP_TAG_BITS;   // Data domain.
     };
@@ -261,10 +259,12 @@ typedef struct _cdpData {
                         _reserved:  1,
                         tag:        CDP_TAG_BITS;   // Data tag.
     };
+
     cdpValue            attribute;      // Data attributes (it depends on domain).
     size_t              size;           // Data size in bytes.
     size_t              capacity;       // Buffer capacity in bytes.
     cdpData*            next;           // Pointer to next data representation (if available).
+
     uintptr_t           hash;           // Hash value of content.
     union {
         struct {
@@ -279,12 +279,12 @@ typedef struct _cdpData {
     };
 };
 
-enum _cdpDataLocation {
-    CDP_DATALOC_VALUE,          // Data starts at "value" field of cdpData.
-    CDP_DATALOC_DATA,           // Data is in address pointed by "data" field of cdpData.
-    CDP_DATALOC_HANDLE,         // Data is just a handle to an opaque (library internal) resource.
+enum _cdpDataType {
+    CDP_DATATYPE_VALUE,         // Data starts at "value" field of cdpData.
+    CDP_DATATYPE_DATA,          // Data is in address pointed by "data" field of cdpData.
+    CDP_DATATYPE_HANDLE,        // Data is just a handle to an opaque (library internal) resource.
     //
-    CDP_DATALOC_COUNT
+    CDP_DATATYPE_COUNT
 };
 
 
@@ -355,6 +355,20 @@ typedef struct _cdpChdStore {
 #define cdp_tag_valid(tag)              ((tag)  &&  (((tag) & ~CDP_TAG_NAMING_MASK) <= CDP_TAG_MAXVAL))
 
 
+cdpID  cdp_text_to_acronysm(const char *s, bool tag);
+cdpID  cdp_text_to_word(const char *s, bool tag);
+size_t cdp_acronysm_to_text(cdpID acro, bool tag, char s[11]);
+size_t cdp_word_to_text(cdpID coded, bool tag, char s[13]);
+
+#define cdp_name_to_acronysm(s)       cdp_text_to_acronysm(s, false)
+#define cdp_domain_to_acronysm(s)     cdp_text_to_acronysm(s, true)
+#define cdp_acronysm_to_name(a, s)    cdp_acronysm_to_text(a, false, s)
+#define cdp_acronysm_to_domain(a, s)  cdp_acronysm_to_text(a, true, s)
+
+
+#define CDP_WORD_ROOT       ((cdpID)0x0000000000000005)     /* "/" */
+
+
 typedef struct {
     cdpRecord*      record;
     cdpRecord*      next;
@@ -374,20 +388,6 @@ typedef struct {
 } cdpPath;
 
 
-cdpID  cdp_text_to_acronysm(const char *s, bool tag);
-cdpID  cdp_text_to_word(const char *s, bool tag);
-size_t cdp_acronysm_to_text(cdpID acro, bool tag, char s[11]);
-size_t cdp_word_to_text(cdpID coded, bool tag, char s[13]);
-
-#define cdp_name_to_acronysm(s)       cdp_text_to_acronysm(s, false)
-#define cdp_domain_to_acronysm(s)     cdp_text_to_acronysm(s, true)
-#define cdp_acronysm_to_name(a, s)    cdp_acronysm_to_text(a, false, s)
-#define cdp_acronysm_to_domain(a, s)  cdp_acronysm_to_text(a, true, s)
-
-
-#define CDP_WORD_ROOT       ((cdpID)0x0000000000000005)     /* "/" */
-
-
 /*
  * Record Operations
  */
@@ -397,12 +397,15 @@ void cdp_record_system_initiate(void);
 void cdp_record_system_shutdown(void);
 
 
-bool cdp_record_initialize( cdpRecord* record, cdpID name, unsigned type,
-                            bool dictionary, unsigned storage, size_t basez,
-                            cdpMetadata metadata, size_t capacity, size_t size,
-                            cdpValue data, cdpDel destructor  );
+void cdp_record_initialize( cdpRecord* record, cdpID name, unsigned type,
+                            unsigned storage, size_t basez, unsigned sorting,
+                            ... );
 void cdp_record_initialize_clone(cdpRecord* newClone, cdpID nameID, cdpRecord* record);
 void cdp_record_finalize(cdpRecord* record);
+
+void* cdp_record_set_data(  cdpRecord* record, cdpID domain, cdpID tag,
+                            cdpValue attribute, unsigned datatype, bool writable,
+                            cdpValue value, ... );
 
 #define cdp_record_initialize_value(r, name, metadata, capacity, size, data, destructor)    cdp_record_initialize(r, name, CDP_TYPE_NORMAL, true,  CDP_STORAGE_RED_BLACK_T, 0, metadata, capacity, size, data, destructor)
 #define cdp_record_initialize_data(r, name, metadata, capacity, size, data, destructor)     cdp_record_initialize(r, name, CDP_TYPE_NORMAL, true,  CDP_STORAGE_RED_BLACK_T, 0, metadata, cdp_max(capacity, sizeof((cdpData){}._data)), size, data, destructor)
@@ -436,6 +439,7 @@ static inline size_t     cdp_record_children(const cdpRecord* record)   {assert(
 #define cdp_record_is_private(r)    ((r)->metarecord.priv)
 #define cdp_record_is_system(r)     ((r)->metarecord.system)
 
+static inline bool cdp_record_is_empty(cdpRecord* record)   {assert(cdp_record_is_normal(record));  return (!record->data && !cdp_record_children(record));}
 static inline bool cdp_record_has_data(cdpRecord* record)   {assert(cdp_record_is_normal(record));  return record->data;}
 
 #define cdp_record_id_is_pending(r) cdp_id_is_auto((r)->metarecord.name)
