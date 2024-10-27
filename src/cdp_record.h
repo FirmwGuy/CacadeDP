@@ -165,7 +165,7 @@ enum _cdpRecordStorage {
 };
 
 enum _cdpRecordSorting {
-    CDP_SORT_BY_INSERTION,      // Children sorted by their insertion order.
+    CDP_SORT_BY_INSERTION,      // Children sorted by their insertion order (the default).
     CDP_SORT_BY_NAME,           // Children sorted by their unique name (dicionary).
     CDP_SORT_BY_FUNCTION,       // Children sorted by a custom comparation function.
     CDP_SORT_BY_HASH,           // Children sorted by data hash value (first) and then by a comparation function (second).
@@ -385,7 +385,7 @@ size_t cdp_word_to_text(cdpID coded, bool tag, char s[13]);
 #define cdp_acronysm_to_domain(a, s)  cdp_acronysm_to_text(a, true, s)
 
 
-#define CDP_WORD_ROOT       ((cdpID)0x0000000000000045)     /* "/" */
+#define CDP_WORD_ROOT       ((cdpID)0x0000000000000005)     /* "/" */
 
 
 /*

@@ -43,13 +43,14 @@ static inline int record_compare_by_name(const cdpRecord* restrict key, const cd
 #define STORE_TECH_SELECT(structure)                                           \
     assert((structure) < CDP_STORAGE_COUNT);                                   \
     static const void* const _chdStoreTech[] = {&&LINKED_LIST, &&ARRAY,        \
-        &&PACKED_QUEUE, &&RED_BLACK_T};                                        \
+        &&PACKED_QUEUE, &&RED_BLACK_T, &&OCTREE};                              \
     goto *_chdStoreTech[structure];                                            \
     do
 
-#define REC_DATA_SELECT(record)                                                \
-    static const void* const _recData[] = {&&NONE, &&NEAR, &&DATA, &&FAR};     \
-    goto *_recData[(record)->data.recdata];                                    \
+#define REC_DATA_SELECT(data)                                                  \
+    assert((data)->location < CDP_DATALOC_COUNT);                              \
+    static const void* const _recDataLoc[] = {&&VALUE, &&DATA, &&HANDLE};      \
+    goto *_recDataLoc[(data)->location];                                       \
     do
 
 #define SELECTION_END                                                          \
@@ -65,6 +66,7 @@ static inline int record_compare_by_name(const cdpRecord* restrict key, const cd
 #include "cdp_storage_dynamic_array.h"
 #include "cdp_storage_packed_queue.h"
 #include "cdp_storage_red_black_tree.h"
+#include "cdp_storage_octree.h"
 
 
 
@@ -1343,18 +1345,18 @@ cdpID cdp_text_to_word(const char *s, bool tag) {
 size_t cdp_word_to_text(cdpID coded, bool tag, char s[13]) {
     assert(tag? cdp_tag_valid(coded): cdp_id_name_valid(coded));
 
-    const char translation_table[5] = {':', '_', '-', '.', '/'};        // Reverse translation table for values 27-31.
+    const char* translation_table = ":_-./";    // Reverse translation table for values 27-31.
     size_t max_chars = tag? 12: 10;
     unsigned length;
     for (length = 0; length < max_chars; length++) {
         uint8_t encoded_char = (coded >> (5 * ((max_chars - 1) - length))) & 0x1F;  // Extract each 5-bit segment, starting from the most significant bits.
 
         if (encoded_char >= 1  &&  encoded_char <= 26) {
-            s[length] = (char)(encoded_char - 1 + 0x61);                // 'a' - 'z'.
+            s[length] = (char)(encoded_char - 1 + 0x61);            // 'a' - 'z'.
         } else if (encoded_char == 0) {
-            s[length] = ' ';                                            // Space.
+            s[length] = ' ';                                        // Space.
         } else if (encoded_char >= 27  &&  encoded_char <= 31) {
-            s[length] = translation_table[encoded_char - 27];           // Map 27-31 using table.
+            s[length] = translation_table[encoded_char - 27];       // Map 27-31 using table.
         }
     }
     s[length] = '\0';
