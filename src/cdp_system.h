@@ -263,34 +263,34 @@
 
 
 // Core directories
-#define CDP_WORD_DATA       ((cdpID)0x0000000000000045)     /* "data"       */
-#define CDP_WORD_NETWORK    ((cdpID)0x0000000000000055)     /* "network"    */
-#define CDP_WORD_PUBLIC     ((cdpID)0x0000000000000065)     /* "public"     */
-#define CDP_WORD_PRIVATE    ((cdpID)0x0000000000000075)     /* "private"    */
-#define CDP_WORD_TEMPORAL   ((cdpID)0x0000000000000085)     /* "temporal"   */
-#define CDP_WORD_SYSTEM     ((cdpID)0x0000000000000095)     /* "system"     */
-#define CDP_WORD_USER       ((cdpID)0x00000000000000A5)     /* "user"       */
+#define CDP_WORD_DATA       ((cdpID)0x0000000000000045)     /* "data"        */
+#define CDP_WORD_NETWORK    ((cdpID)0x0000000000000055)     /* "network"     */
+#define CDP_WORD_PUBLIC     ((cdpID)0x0000000000000065)     /* "public"      */
+#define CDP_WORD_PRIVATE    ((cdpID)0x0000000000000075)     /* "private"     */
+#define CDP_WORD_TEMPORAL   ((cdpID)0x0000000000000085)     /* "temporal"    */
+#define CDP_WORD_SYSTEM     ((cdpID)0x0000000000000095)     /* "system"      */
+#define CDP_WORD_USER       ((cdpID)0x00000000000000A5)     /* "user"        */
 
 
 // Core sub-dirs
-#define CDP_WORD_AGENT      ((cdpID)0x0000000000000155)     /* "agent"      */
-#define CDP_WORD_AGENCY     ((cdpID)0x0000000000000165)     /* "agency"     */
-#define CDP_WORD_DOMAIN     ((cdpID)0x0000000000000175)     /* "domain"     */
-#define CDP_WORD_LIBRARY    ((cdpID)0x0000000000000185)     /* "library"    */
-#define CDP_WORD_TASK       ((cdpID)0x0000000000000195)     /* "task"       */
+#define CDP_WORD_AGENT      ((cdpID)0x0000000000000155)     /* "agent"       */
+#define CDP_WORD_AGENCY     ((cdpID)0x0000000000000165)     /* "agency"      */
+#define CDP_WORD_DOMAIN     ((cdpID)0x0000000000000175)     /* "domain"      */
+#define CDP_WORD_LIBRARY    ((cdpID)0x0000000000000185)     /* "library"     */
+#define CDP_WORD_TASK       ((cdpID)0x0000000000000195)     /* "task"        */
 
 
 // Basic fields
-#define CDP_WORD_PENDING    ((cdpID)0x0000000000000255)     /* "pending"    */
-#define CDP_WORD_WORKING    ((cdpID)0x0000000000000265)     /* "working"    */
-#define CDP_WORD_COMPLETED  ((cdpID)0x0000000000000275)     /* "completed"  */
-#define CDP_WORD_FAILED     ((cdpID)0x0000000000000285)     /* "failed"     */
+#define CDP_WORD_PENDING    ((cdpID)0x0000000000000255)     /* "pending"     */
+#define CDP_WORD_WORKING    ((cdpID)0x0000000000000265)     /* "working"     */
+#define CDP_WORD_COMPLETED  ((cdpID)0x0000000000000275)     /* "completed"   */
+#define CDP_WORD_FAILED     ((cdpID)0x0000000000000285)     /* "failed"      */
 
 // Events
-#define CDP_WORD_DEBUG      ((cdpID)0x0000000000000355)     /* "debug"      */
-#define CDP_WORD_WARNING    ((cdpID)0x0000000000000365)     /* "warning"    */
-#define CDP_WORD_ERROR      ((cdpID)0x0000000000000375)     /* "error"      */
-#define CDP_WORD_FATAL      ((cdpID)0x0000000000000385)     /* "fatal"      */
+#define CDP_WORD_DEBUG      ((cdpID)0x0000000000000355)     /* "debug"       */
+#define CDP_WORD_WARNING    ((cdpID)0x0000000000000365)     /* "warning"     */
+#define CDP_WORD_ERROR      ((cdpID)0x0000000000000375)     /* "error"       */
+#define CDP_WORD_FATAL      ((cdpID)0x0000000000000385)     /* "fatal"       */
 
 
 #define CDP_TAG_SYSTEM_COUNT   (CDP_TAG_ID_SYSTEM_COUNT - CDP_TAG_SYSTEM)

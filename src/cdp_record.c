@@ -85,7 +85,7 @@ void cdp_record_system_shutdown(void) {
 
 
 static inline void* record_create_storage(unsigned storage, unsigned capacity) {
-    cdpChdStore* store;
+    cdpStore* store;
 
     switch (storage) {
       case CDP_STORAGE_LINKED_LIST: {
@@ -120,13 +120,13 @@ static inline void* record_create_storage(unsigned storage, unsigned capacity) {
 void cdp_record_relink_storage(cdpRecord* record) {
     assert(!cdp_record_is_void(record));
 
-    cdpChdStore* store = record->children;
+    cdpStore* store = record->children;
     assert(store);
     store->owner = record;           // Re-link record with its own children storage.
 }
 
 
-static inline void store_check_auto_id(cdpChdStore* parStore, cdpRecord* record) {
+static inline void store_check_auto_id(cdpStore* parStore, cdpRecord* record) {
     if (cdp_record_id_is_pending(record)) {
         cdp_record_set_name(record, cdp_id_to_numeric(parStore->autoid++));
     }
@@ -134,6 +134,63 @@ static inline void store_check_auto_id(cdpChdStore* parStore, cdpRecord* record)
 }
 
 
+
+
+/*
+    Creates a new children store for records.
+*/
+cdpStore* cdp_store_new(  cdpID domain, cdpID tag,
+                          unsigned storage, unsigned sorting, size_t basez
+                          cdpCompare compare  ) {
+    assert(record && cdp_id_valid(name) && (type < CDP_TYPE_COUNT) && (storage < CDP_STORAGE_COUNT) && (sorting < CDP_SORT_COUNT));
+
+    switch (storage) {
+      case CDP_STORAGE_ARRAY: {
+        assert(basez);
+        break;
+      }
+      case CDP_STORAGE_PACKED_QUEUE: {
+        sorting = CDP_SORT_BY_INSERTION;
+        assert(basez);
+        break;
+      }
+      case CDP_STORAGE_RED_BLACK_T: {
+        assert(sorting != CDP_SORT_BY_INSERTION);
+        break;
+      }
+      case CDP_STORAGE_OCTREE: {
+        sorting = CDP_SORT_BY_FUNCTION;
+        break;
+      }
+    }
+
+    //CDP_0(record);
+
+    record->metarecord.name    = name;
+    record->metarecord.type    = type;
+    record->metarecord.storage = storage;
+    record->metarecord.sorting = sorting;
+
+    va_list args;
+    va_start(args, sorting);
+    if (type == CDP_TYPE_NORMAL) {
+        record->basez = basez;
+
+        if (sorting == CDP_SORT_BY_FUNCTION
+         || sorting == CDP_SORT_BY_HASH) {
+
+        }
+    } else {
+        void* address = va_arg(args, void*);
+        assert(address);
+
+        if (type == CDP_TYPE_LINK)
+            record->link = address;
+        else
+            record->agent = address;
+    }
+    va_end(args);
+}
 
 
 /*
@@ -171,11 +228,16 @@ void cdp_record_initialize( cdpRecord* record, cdpID name, unsigned type,
     record->metarecord.storage = storage;
     record->metarecord.sorting = sorting;
 
+    va_list args;
+    va_start(args, sorting);
     if (type == CDP_TYPE_NORMAL) {
         record->basez = basez;
+
+        if (sorting == CDP_SORT_BY_FUNCTION
+         || sorting == CDP_SORT_BY_HASH) {
+
+        }
     } else {
-        va_list args;
-        va_start(args, sorting);
         void* address = va_arg(args, void*);
         assert(address);
 
@@ -183,9 +245,8 @@ void cdp_record_initialize( cdpRecord* record, cdpID name, unsigned type,
             record->link = address;
         else
             record->agent = address;
-
-        va_end(args);
     }
+    va_end(args);
 }
 
 
@@ -213,7 +274,11 @@ void cdp_record_initialize_clone(cdpRecord* clone, cdpID nameID, cdpRecord* reco
 void* cdp_record_set_data(  cdpRecord* record, cdpID domain, cdpID tag,
                             cdpValue attribute, unsigned datatype, bool writable,
                             cdpValue value, ... ) {
-    assert(!cdp_record_has_data(record) && cdp_tag_valid(domain) && cdp_tag_valid(tag) && (datatype < CDP_DATATYPE_COUNT));
+    assert(cdp_tag_valid(domain) && cdp_tag_valid(tag) && (datatype < CDP_DATATYPE_COUNT));
+    if (!cdp_record_has_data(record)) {
+        assert(cdp_record_has_data(record))
+        return NULL;
+    }
 
     cdpData* data;
     void* dataloc;
@@ -288,7 +353,7 @@ cdpRecord* cdp_record_add(cdpRecord* parent, cdpRecord* record, bool prepend) {
         return NULL;
     }
 
-    cdpChdStore* store;
+    cdpStore* store;
     if (parent->metarecord.withstore) {
         store = parent->children;
     } else {
@@ -347,7 +412,7 @@ cdpRecord* cdp_record_add(cdpRecord* parent, cdpRecord* record, bool prepend) {
 cdpRecord* cdp_record_sorted_insert(cdpRecord* parent, cdpRecord* record, cdpCompare compare, void* context) {
     assert(cdp_record_is_normal(parent) && cdp_record_is_insertable(parent) && !cdp_record_is_void(record) && compare); // 'Void' records are never used.
 
-    cdpChdStore* store;
+    cdpStore* store;
     if (parent->metarecord.withstore) {
         store = parent->children;
     } else {
@@ -1202,7 +1267,7 @@ void cdp_record_finalize(cdpRecord* record) {
 bool cdp_record_child_take(cdpRecord* record, cdpRecord* target) {
     assert(!cdp_record_is_void(record) && target);
 
-    cdpChdStore* store = CDP_CHD_STORE(record->children);
+    cdpStore* store = CDP_CHD_STORE(record->children);
     if (!store->chdCount)
         return false;
 
@@ -1242,7 +1307,7 @@ bool cdp_record_child_take(cdpRecord* record, cdpRecord* target) {
 bool cdp_record_child_pop(cdpRecord* record, cdpRecord* target) {
     assert(!cdp_record_is_void(record) && target);
 
-    cdpChdStore* store = CDP_CHD_STORE(record->children);
+    cdpStore* store = CDP_CHD_STORE(record->children);
     if (!store->chdCount)
         return false;
 
@@ -1282,7 +1347,7 @@ bool cdp_record_child_pop(cdpRecord* record, cdpRecord* target) {
 void cdp_record_remove(cdpRecord* record, cdpRecord* target) {
     assert(record && !cdp_record_is_shadowed(record) && record != &CDP_ROOT);
 
-    cdpChdStore* store = cdp_record_par_store(record);
+    cdpStore* store = cdp_record_par_store(record);
     cdpRecord*  parent = store->owner;
 
     if (target)
@@ -1324,7 +1389,7 @@ void cdp_record_remove(cdpRecord* record, cdpRecord* target) {
 void cdp_record_branch_reset(cdpRecord* record) {
     assert(!cdp_record_is_void(record));
 
-    cdpChdStore* store = CDP_CHD_STORE(record->children);
+    cdpStore* store = CDP_CHD_STORE(record->children);
     if (!store->chdCount)
         return;
 
@@ -1358,9 +1423,11 @@ void cdp_record_branch_reset(cdpRecord* record) {
 
 
 /*
-    Encoding of names, domains and tags into values.
+    Encoding of names into 6-bit values.
 */
-cdpID cdp_text_to_acronysm(const char *s, bool tag) {
+#define ACRON_MAX_CHARS     9
+
+cdpID cdp_text_to_acronysm(const char *s) {
     assert(s && *s);
 
     while (*s == ' ') {
@@ -1374,9 +1441,8 @@ cdpID cdp_text_to_acronysm(const char *s, bool tag) {
         len--;          // Trim trailing spaces.
     }
 
-    size_t max_chars = tag? 10: 8;
-    if (len > max_chars)
-        return 0;       // Limit to max_chars characters.
+    if (len > ACRON_MAX_CHARS)
+        return 0;       // Limit to max allowed characters.
 
     cdpID coded = 0;
     for (size_t n = 0; n < len; n++) {
@@ -1385,21 +1451,20 @@ cdpID cdp_text_to_acronysm(const char *s, bool tag) {
         if (c < 0x20  ||  c > 0x5F)
             return 0;   // Uncodable characters.
 
-        coded |= (cdpID)(c - 0x20) << (6 * ((max_chars - 1) - n));  // Shift and encode each character.
+        coded |= (cdpID)(c - 0x20) << (6 * ((ACRON_MAX_CHARS - 1) - n));    // Shift and encode each character.
     }
 
-    return tag? cdp_tag_to_acronysm(coded): cdp_id_to_acronysm(coded);
+    return cdp_id_to_acronysm(coded);
 }
 
 
-size_t cdp_acronysm_to_text(cdpID acro, bool tag, char s[11]) {
-    assert(tag? cdp_tag_valid(acro): cdp_id_name_valid(acro));
-    cdpID coded = tag? cdp_tag(acro): cdp_id(acro);
+size_t cdp_acronysm_to_text(cdpID acro, char s[10]) {
+    assert(cdp_id_name_valid(acro));
+    cdpID coded = cdp_id(acro);
 
-    size_t max_chars = tag? 10: 8;
     unsigned length;
-    for (length = 0; length < max_chars; length++) {
-        char c = (char)((coded >> (6 * ((max_chars - 1) - length))) & 0x3F); // Extract 6 bits for each character (starting from the highest bits).
+    for (length = 0; length < ACRON_MAX_CHARS; length++) {
+        char c = (char)((coded >> (6 * ((ACRON_MAX_CHARS - 1) - length))) & 0x3F);  // Extract 6 bits for each character (starting from the highest bits).
 
         s[length] = c + 0x20;   // Restore the original ASCII character.
     }
@@ -1415,7 +1480,12 @@ size_t cdp_acronysm_to_text(cdpID acro, bool tag, char s[11]) {
 
 
 
-cdpID cdp_text_to_word(const char *s, bool tag) {
+/*
+    Encoding of names into 5-bit values.
+*/
+#define WORD_MAX_CHARS      11
+
+cdpID cdp_text_to_word(const char *s) {
     assert(s && *s);
 
     while (*s == ' ') {
@@ -1428,9 +1498,8 @@ cdpID cdp_text_to_word(const char *s, bool tag) {
     while (len > 0  &&  s[len - 1] == ' ') {
         len--;          // Trim trailing spaces.
     }
-    size_t max_chars = tag? 12: 10;
-    if (len > max_chars)
-        return 0;       // Limit to max_chars characters.
+    if (len > WORD_MAX_CHARS)
+        return 0;       // Limit to max allowed characters.
 
     cdpID coded = 0;
     for (size_t n = 0; n < len; n++) {
@@ -1451,21 +1520,20 @@ cdpID cdp_text_to_word(const char *s, bool tag) {
             return 0;   // Uncodable characters.
         }
 
-         coded |= (cdpID)encoded_char << (5 * ((max_chars - 1) - n)); // Shift and encode each character.
+         coded |= (cdpID)encoded_char << (5 * ((WORD_MAX_CHARS - 1) - n));  // Shift and encode each character.
     }
 
-    return tag? cdp_tag_to_word(coded): cdp_id_to_word(coded);
+    return cdp_id_to_word(coded);
 }
 
 
-size_t cdp_word_to_text(cdpID coded, bool tag, char s[13]) {
-    assert(tag? cdp_tag_valid(coded): cdp_id_name_valid(coded));
+size_t cdp_word_to_text(cdpID coded, char s[12]) {
+    assert(cdp_id_name_valid(coded));
 
     const char* translation_table = ":_-./";    // Reverse translation table for values 27-31.
-    size_t max_chars = tag? 12: 10;
     unsigned length;
-    for (length = 0; length < max_chars; length++) {
-        uint8_t encoded_char = (coded >> (5 * ((max_chars - 1) - length))) & 0x1F;  // Extract each 5-bit segment, starting from the most significant bits.
+    for (length = 0; length < WORD_MAX_CHARS; length++) {
+        uint8_t encoded_char = (coded >> (5 * ((WORD_MAX_CHARS - 1) - length))) & 0x1F; // Extract each 5-bit segment, starting from the most significant bits.
 
         if (encoded_char >= 1  &&  encoded_char <= 26) {
             s[length] = (char)(encoded_char - 1 + 0x61);            // 'a' - 'z'.

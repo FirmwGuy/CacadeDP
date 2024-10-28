@@ -31,7 +31,7 @@ struct _cdpRbTreeNode {
 };
 
 typedef struct {
-    cdpChdStore     store;        // Parent info.
+    cdpStore     store;        // Parent info.
     //
     cdpRbTreeNode*  root;         // The root node.
     //cdpRbTreeNode*  maximum;      // Node holding the maximum data.
