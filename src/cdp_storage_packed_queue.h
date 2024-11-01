@@ -67,7 +67,7 @@ static inline cdpPackedQNode* packed_q_node_from_record(cdpPackedQ* pkdq, cdpRec
 
 
 static inline cdpRecord* packed_q_add(cdpPackedQ* pkdq, cdpRecord* parent, bool prepend, cdpRecord* record) {
-    assert(cdp_record_with_store(parent));
+    assert(cdp_record_has_store(parent));
 
     cdpRecord* child;
     if (pkdq->store.chdCount) {

@@ -193,7 +193,7 @@ enum _cdpRecordNaming {
 #define cdp_id_is_numeric(name)         ((CDP_NAMING_MASK & (name)) == cdp_id_from_naming(CDP_NAMING_NUMERIC))
 
 #define cdp_id_valid(id)                (cdp_id(id) && ((id) <= CDP_AUTOID))
-#define cdp_id_name_valid(name)         (cdp_id(name) && !cdp_id_is_numeric(name))
+#define cdp_id_text_valid(name)         (cdp_id(name) && !cdp_id_is_numeric(name))
 #define cdp_id_naming(name)             (((name) >> CDP_AUTOID_BITS) & 3)
 
 
@@ -230,6 +230,8 @@ typedef union {
     double      float64;
 } cdpValue;
 
+#define CDP_VALUE(v)    ((cdpValue)(v))
+
 
 typedef struct _cdpData {
     struct {
@@ -244,7 +246,7 @@ typedef struct _cdpData {
                         tag:        CDP_NAME_BITS;  // Data tag.
     };
 
-    cdpValue            attribute;      // Data attributes (it depends on domain).
+    cdpID               attribute;      // Data attributes (it depends on domain).
     size_t              size;           // Data size in bytes.
     size_t              capacity;       // Buffer capacity in bytes.
     cdpData*            next;           // Pointer to next data representation (if available).
@@ -274,7 +276,7 @@ enum _cdpDataType {
 
 cdpData* cdp_data_new(  cdpID domain, cdpID tag,
                         cdpValue attribute, unsigned datatype, bool writable,
-                        cdpValue value, ... );
+                        void** dataloc, cdpValue value, ...  );
 void     cdp_data_del(cdpData* data);
 
 
@@ -285,7 +287,7 @@ void     cdp_data_del(cdpData* data);
 typedef struct _cdpStore {
     struct {
         cdpID       storage:    3,              // Data structure for children storage.
-                    sorting:    2,              // Sorting of children.
+                    indexing:   2,              // Indexing (sorting) criteria for children.
                     _unused:    1,
                     domain:     CDP_NAME_BITS;  // Data domain.
     };
@@ -301,9 +303,10 @@ typedef struct _cdpStore {
         cdpRecord*  linked;     // A linked shadow record (when children, see in cdpRecord otherwise).
         cdpShadow*  shadow;     // Shadow structure (if record has children).
     };
+    //cdpStore*       next;       // Next index/storage (requires hard links).
 
     size_t          chdCount;   // Number of child records.
-    cdpCompare      compare;    // Compare function for sorting children.
+    cdpCompare      compare;    // Compare function for indexing children.
     cdpID           autoid;     // Auto-increment ID for inserting new child records.
 };
 
@@ -317,18 +320,18 @@ enum _cdpRecordStorage {
     CDP_STORAGE_COUNT
 };
 
-enum _cdpRecordSorting {
-    CDP_SORT_BY_INSERTION,      // Children sorted by their insertion order (the default).
-    CDP_SORT_BY_NAME,           // Children sorted by their unique name (dicionary).
-    CDP_SORT_BY_FUNCTION,       // Children sorted by a custom comparation function.
-    CDP_SORT_BY_HASH,           // Children sorted by data hash value (first) and then by a comparation function (second).
+enum _cdpRecordIndexing {
+    CDP_INDEX_BY_INSERTION,      // Children indexed by their insertion order (the default).
+    CDP_INDEX_BY_NAME,           // Children indexed by their unique name (dicionary).
+    CDP_INDEX_BY_FUNCTION,       // Children indexed by a custom comparation function.
+    CDP_INDEX_BY_HASH,           // Children indexed by data hash value (first) and then by a comparation function (second).
     //
-    CDP_SORT_COUNT
+    CDP_INDEX_COUNT
 };
 
 
 cdpStore* cdp_store_new(  cdpID domain, cdpID tag,
-                          unsigned storage, unsigned sorting, size_t basez
+                          unsigned storage, unsigned indexing, size_t capacity
                           cdpCompare compare  );
 void      cdp_store_del(cdpStore* store);
 
@@ -353,7 +356,7 @@ typedef struct {
 
 struct _cdpRecord {
     cdpMetarecord   metarecord; // Meta about this record entry (including id, etc).
-    cdpStore*       store;      // Parent storage structure (list, array, etc) where this record is stored in.
+    cdpStore*       parent;     // Parent storage structure (list, array, etc) where this record is stored in.
 
     union {
         cdpData*    data;       // Address of data buffer.
@@ -362,7 +365,7 @@ struct _cdpRecord {
     };
 
     union {
-        cdpStore*   children;   // Pointer to children storage structure.
+        cdpStore*   store;      // Pointer to children storage structure.
 
         cdpRecord*  linked;     // A linked shadow record (if no children, see in cdpStore otherwise).
         cdpShadow*  shadow;     // Structure for multiple linked records (if no children).
@@ -393,48 +396,50 @@ void cdp_record_system_initiate(void);
 void cdp_record_system_shutdown(void);
 
 
-void cdp_record_initialize(cdpRecord* record, cdpID name, unsigned type, void* data, cdpStore* store);
+void cdp_record_initialize(cdpRecord* record, unsigned type, cdpID name, cdpData* data, cdpStore* store);
 void cdp_record_initialize_clone(cdpRecord* newClone, cdpID nameID, cdpRecord* record);
 void cdp_record_finalize(cdpRecord* record);
 
-#define cdp_record_initialize_value(r, name, metadata, capacity, size, data, destructor)    cdp_record_initialize(r, name, CDP_TYPE_NORMAL, true,  CDP_STORAGE_RED_BLACK_T, 0, metadata, capacity, size, data, destructor)
-#define cdp_record_initialize_data(r, name, metadata, capacity, size, data, destructor)     cdp_record_initialize(r, name, CDP_TYPE_NORMAL, true,  CDP_STORAGE_RED_BLACK_T, 0, metadata, cdp_max(capacity, sizeof((cdpData){}._data)), size, data, destructor)
-#define cdp_record_initialize_branch(r, name, storage, basez)                               cdp_record_initialize(r, name, CDP_TYPE_NORMAL, false, storage, basez, (cdpMetadata){0}, 0, 0, (cdpValue){0}, NULL)
-#define cdp_record_initialize_dictionary(r, name, storage, basez)                           cdp_record_initialize(r, name, CDP_TYPE_NORMAL, true,  storage, basez, (cdpMetadata){0}, 0, 0, (cdpValue){0}, NULL)
-#define cdp_record_initialize_link(r, name, source)                                         cdp_record_initialize(r, name, CDP_TYPE_LINK,   true,  CDP_STORAGE_RED_BLACK_T, 0, (cdpMetadata){0}, 0, 0, (cdpValue)(source), NULL)
-#define cdp_record_initialize_agent(r, name, agent)                                         cdp_record_initialize(r, name, CDP_TYPE_AGENT,  true,  CDP_STORAGE_RED_BLACK_T, 0, (cdpMetadata){0}, 0, 0, (cdpValue)(agent), NULL)
+#define cdp_record_initialize_value(r, name, domain, tag, attrib, value, size, capacity)              cdp_record_initialize(r, CDP_TYPE_NORMAL, name, cdp_data_new(domain, tag, attrib, CDP_DATATYPE_VALUE, true, NULL, CDP_VALUE(value), size, capacity), NULL)
+#define cdp_record_initialize_data(r, name, domain, tag, attrib, data, size, capacity, destructor)    cdp_record_initialize(r, CDP_TYPE_NORMAL, name, cdp_data_new(domain, tag, attrib, CDP_DATATYPE_DATA, true, NULL, CDP_VALUE(data), size, capacity, destructor), NULL)
+
+#define cdp_record_initialize_branch(r, name, domain, tag, storage, capacity)                         cdp_record_initialize(r, CDP_TYPE_NORMAL, name, NULL, cdp_store_new(domain, tag, storage, CDP_INDEX_BY_INSERTION, capacity, NULL))
+#define cdp_record_initialize_dictionary(r, name, domain, tag, storage, capacity)                     cdp_record_initialize(r, CDP_TYPE_NORMAL, name, NULL, cdp_store_new(domain, tag, storage, CDP_INDEX_BY_NAME, capacity, NULL))
+
+#define cdp_record_initialize_link(r, name, source)                     cdp_record_initialize(r, CDP_TYPE_LINK,  name, CDP_P(source), NULL)
+#define cdp_record_initialize_agent(r, name, agent)                     cdp_record_initialize(r, CDP_TYPE_AGENT, name, CDP_P(agent),  NULL)
 
 static inline void  cdp_record_set_id(cdpRecord* record, cdpID id)      {assert(record && cdp_id_valid(id));  CDP_ID_SET(record->metarecord.name, id);}
-static inline void  cdp_record_set_name(cdpRecord* record, cdpID name)  {assert(record && cdp_id_valid(name));  record->metarecord.name = name;}    // FixMe: mask 'name' before assignation.
+static inline void  cdp_record_set_name(cdpRecord* record, cdpID name)  {assert(record && cdp_id_text_valid(name));  record->metarecord.name = name;}    // FixMe: mask 'name' before assignation.
 static inline cdpID cdp_record_get_name(const cdpRecord* record)        {assert(record);  return record->metarecord.name;}
 #define cdp_record_get_id(r)  cdp_id(cdp_record_get_name(r))
 
-#define cdp_record_with_store(record)   ((record)->metarecord.withstore == 1)
-#define CDP_CHD_STORE(children)         ({assert(children);  (cdpStore*)(children);})
-#define cdp_record_par_store(record)    CDP_CHD_STORE((record)->store)
-static inline cdpRecord* cdp_record_parent  (const cdpRecord* record)   {assert(record);  return CDP_EXPECT_PTR(record->store)? cdp_record_par_store(record)->owner: NULL;}
-static inline size_t     cdp_record_siblings(const cdpRecord* record)   {assert(record);  return CDP_EXPECT_PTR(record->store)? cdp_record_par_store(record)->chdCount: 0;}
-static inline size_t     cdp_record_children(const cdpRecord* record)   {assert(record);  return cdp_record_with_store(record)? CDP_CHD_STORE(record->children)->chdCount: 0;}
-
-#define cdp_record_is_dictionary(r) ((r)->metarecord.dictionary)
-
-#define cdp_record_is_void(r)       (!(r)->metarecord.type)
+#define cdp_record_is_void(r)       (!(r)->metarecord.type || !cdp_id_valid((r)->metarecord.name))
 #define cdp_record_is_normal(r)     ((r)->metarecord.type == CDP_TYPE_NORMAL)
 #define cdp_record_is_link(r)       ((r)->metarecord.type == CDP_TYPE_LINK)
 #define cdp_record_is_agent(r)      ((r)->metarecord.type == CDP_TYPE_AGENT)
-
-#define cdp_record_is_insertable(r) ((r)->metarecord.storage != CDP_STORAGE_RED_BLACK_T)
 
 #define cdp_record_is_shadowed(r)   ((r)->metarecord.shadowing)
 #define cdp_record_is_private(r)    ((r)->metarecord.priv)
 #define cdp_record_is_system(r)     ((r)->metarecord.system)
 
-static inline bool cdp_record_is_empty(cdpRecord* record)   {assert(cdp_record_is_normal(record));  return (!record->data && !cdp_record_children(record));}
-static inline bool cdp_record_has_data(cdpRecord* record)   {assert(cdp_record_is_normal(record));  return record->data;}
+static inline bool cdp_record_has_data(cdpRecord* record)     {assert(cdp_record_is_normal(record));  return record->data;}
+static inline bool cdp_record_has_store(cdpRecord* record)    {assert(cdp_record_is_normal(record));  return record->store;}
+
+static inline void cdp_record_set_data(cdpRecord* record, cdpData* data)      {assert(!cdp_record_has_data(record));   record->data = data;}
+static inline void cdp_record_set_store(cdpRecord* record, cdpStore* store)   {assert(!cdp_record_has_store(record));  record->store = store;}
+
+static inline bool cdp_record_is_dictionary(cdpRecord* record)  {assert(cdp_record_is_normal(record));  return cdp_record_has_store(record)? (record->store.indexing == CDP_INDEX_BY_NAME): false;}
+static inline bool cdp_record_is_insertable(cdpRecord* record)  {assert(cdp_record_has_store(record));  return cdp_record_has_store(record)? (record->store.indexing == CDP_INDEX_BY_INSERTION): false;}
+static inline bool cdp_record_is_empty(cdpRecord* record)       {assert(cdp_record_is_normal(record));  return (!record->data && !cdp_record_children(record));}
+
+static inline cdpRecord* cdp_record_parent  (const cdpRecord* record)   {assert(record);  return CDP_EXPECT_PTR(record->parent)? record->parent->owner: NULL;}
+static inline size_t     cdp_record_siblings(const cdpRecord* record)   {assert(record);  return CDP_EXPECT_PTR(record->parent)? record->parent->chdCount: 0;}
+static inline size_t     cdp_record_children(const cdpRecord* record)   {assert(record);  return cdp_record_has_store(record)? record->store->chdCount: 0;}
 
 #define cdp_record_id_is_pending(r) cdp_id_is_auto((r)->metarecord.name)
-static inline void  cdp_record_set_autoid(const cdpRecord* record, cdpID id)  {assert(cdp_record_with_store(record));  cdpStore* store = CDP_CHD_STORE(record->children); assert(store->autoid < id  &&  id <= CDP_AUTOID_MAX); store->autoid = id;}
-static inline cdpID cdp_record_get_autoid(const cdpRecord* record)            {assert(cdp_record_with_store(record));  return CDP_CHD_STORE(record->children)->autoid;}
+static inline void  cdp_record_set_autoid(const cdpRecord* record, cdpID id)  {assert(cdp_record_has_store(record) && (record->store->autoid < id)  &&  (id <= CDP_AUTOID_MAX)); record->store->autoid = id;}
+static inline cdpID cdp_record_get_autoid(const cdpRecord* record)            {assert(cdp_record_has_store(record));  return record->store->autoid;}
 
 void cdp_record_relink_storage(cdpRecord* record);
 
@@ -456,28 +461,32 @@ static inline void cdp_record_replace(cdpRecord* oldr, cdpRecord* newr) {
 
 
 // Appends, inserts or prepends a (copy of) record into another record.
-cdpRecord* cdp_record_add(cdpRecord* parent, cdpRecord* record, bool prepend);
-cdpRecord* cdp_record_sorted_insert(cdpRecord* parent, cdpRecord* record, cdpCompare compare, void* context);
+cdpRecord* cdp_record_add(cdpRecord* parent, cdpRecord* record, cdpValue context);
+cdpRecord* cdp_record_append(cdpRecord* parent, cdpRecord* record, bool prepend);
 
-#define cdp_record_add_record(parent, name, type, dictionary, storage, basez, metadata, capacity, size, data, destructor)\
-    ({cdpRecord r={0}; cdp_record_initialize(&r, name, type, dictionary, storage, basez, metadata, capacity, size, data, destructor)? cdp_record_add(parent, &r, false): NULL;})
+#define cdp_record_add_record(parent, type, name, data, store, context)        \
+    ({cdpRecord r={0}; cdp_record_initialize(&r, type, name, data, store); cdp_record_add(parent, &r, context);})
 
-#define cdp_record_add_data(parent, name, metadata, capacity, size, data, destructor)       cdp_record_add_record(parent, name, CDP_TYPE_NORMAL, true,  CDP_STORAGE_RED_BLACK_T, 0, metadata, capacity, size, data, destructor)
-#define cdp_record_add_value(parent, name, metadata, v)                                     cdp_record_add_record(parent, name, CDP_TYPE_NORMAL, true,  CDP_STORAGE_RED_BLACK_T, 0, metadata, sizeof(cdpValue), 0, v, NULL)
-#define cdp_record_add_branch(parent, name, storage, basez)                                 cdp_record_add_record(parent, name, CDP_TYPE_NORMAL, false, storage, basez, (cdpMetadata){0}, 0, 0, (cdpValue){0}, NULL)
-#define cdp_record_add_dictionary(parent, name, storage, basez)                             cdp_record_add_record(parent, name, CDP_TYPE_NORMAL, true,  storage, basez, (cdpMetadata){0}, 0, 0, (cdpValue){0}, NULL)
-#define cdp_record_add_link(parent, name, source)                                           cdp_record_add_record(parent, name, CDP_TYPE_LINK,   true,  CDP_STORAGE_RED_BLACK_T, 0, (cdpMetadata){0}, 0, 0, (cdpValue)(source), NULL)
-#define cdp_record_add_agent(parent, name, agent)                                           cdp_record_add_record(parent, name, CDP_TYPE_AGENT,  true,  CDP_STORAGE_RED_BLACK_T, 0, (cdpMetadata){0}, 0, 0, (cdpValue)(agent), NULL)
+#define cdp_record_add_value(parent, name, domain, tag, attrib, value, size, capacity, context)               cdp_record_add_record(parent, CDP_TYPE_NORMAL, name, cdp_data_new(domain, tag, attrib, CDP_DATATYPE_VALUE, true, NULL, CDP_VALUE(value), size, capacity), NULL, context)
+#define cdp_record_add_data(parent, name, domain, tag, attrib, data, size, capacity, destructor, context)     cdp_record_add_record(parent, CDP_TYPE_NORMAL, name, cdp_data_new(domain, tag, attrib, CDP_DATATYPE_DATA, true, NULL, CDP_VALUE(data), size, capacity, destructor), NULL, context)
 
-#define cdp_record_prepend_record(parent, name, type, dictionary, storage, basez, metadata, capacity, size, data, destructor)\
-    ({cdpRecord r={0}; cdp_record_initialize(&r, name, type, dictionary, storage, basez, metadata, capacity, size, data, destructor)? cdp_record_add(parent, &r, true): NULL;})
+#define cdp_record_add_branch(parent, name, domain, tag, storage, capacity, context)                          cdp_record_add_record(parent, CDP_TYPE_NORMAL, name, NULL, cdp_store_new(domain, tag, storage, CDP_INDEX_BY_INSERTION, capacity, NULL), context)
+#define cdp_record_add_dictionary(parent, name, domain, tag, storage, capacity, context)                      cdp_record_add_record(parent, CDP_TYPE_NORMAL, name, NULL, cdp_store_new(domain, tag, storage, CDP_INDEX_BY_NAME, capacity, NULL), context)
 
-#define cdp_record_prepend_data(parent, name, metadata, capacity, size, data, destructor)   cdp_record_prepend_record(parent, name, CDP_TYPE_NORMAL, true, CDP_STORAGE_RED_BLACK_T, 0, metadata, capacity, size, data, destructor)
-#define cdp_record_prepend_value(parent, name, metadata, v)                                 cdp_record_prepend_record(parent, name, CDP_TYPE_NORMAL, true, CDP_STORAGE_RED_BLACK_T, 0, metadata, sizeof(cdpValue), 0, v, NULL)
-#define cdp_record_prepend_branch(parent, name, storage, basez)                             cdp_record_prepend_record(parent, name, CDP_TYPE_NORMAL, false, storage, basez, (cdpMetadata){0}, 0, 0, (cdpValue){0}, NULL)
-#define cdp_record_prepend_dictionary(parent, name, storage, basez)                         cdp_record_prepend_record(parent, name, CDP_TYPE_NORMAL, true,  storage, basez, (cdpMetadata){0}, 0, 0, (cdpValue){0}, NULL)
-#define cdp_record_prepend_link(parent, name, source)                                       cdp_record_prepend_record(parent, name, CDP_TYPE_LINK,   true,  CDP_STORAGE_RED_BLACK_T, 0, (cdpMetadata){0}, 0, 0, (cdpValue)(source), NULL)
-#define cdp_record_prepend_agent(parent, name, agent)                                       cdp_record_prepend_record(parent, name, CDP_TYPE_AGENT,  true,  CDP_STORAGE_RED_BLACK_T, 0, (cdpMetadata){0}, 0, 0, (cdpValue)(agent), NULL)
+#define cdp_record_add_link(parent, name, source, context)        cdp_record_add_record(parent, CDP_TYPE_LINK,  name, CDP_P(source), NULL, context)
+#define cdp_record_add_agent(parent, name, agent, context)        cdp_record_add_record(parent, CDP_TYPE_AGENT, name, CDP_P(agent),  NULL, context)
+
+#define cdp_record_append_record(parent, type, name, data, store, prepend)     \
+    ({cdpRecord r={0}; cdp_record_initialize(&r, type, name, data, store); cdp_record_append(parent, &r, prepend);})
+
+#define cdp_record_append_value(parent, name, domain, tag, attrib, value, size, capacity, prepend)            cdp_record_append_record(parent, CDP_TYPE_NORMAL, name, cdp_data_new(domain, tag, attrib, CDP_DATATYPE_VALUE, true, NULL, CDP_VALUE(value), size, capacity), NULL, prepend)
+#define cdp_record_append_data(parent, name, domain, tag, attrib, data, size, capacity, destructor, prepend)  cdp_record_append_record(parent, CDP_TYPE_NORMAL, name, cdp_data_new(domain, tag, attrib, CDP_DATATYPE_DATA, true, NULL, CDP_VALUE(data), size, capacity, destructor), NULL, prepend)
+
+#define cdp_record_append_branch(parent, name, domain, tag, storage, capacity, prepend)                       cdp_record_append_record(parent, CDP_TYPE_NORMAL, name, NULL, cdp_store_new(domain, tag, storage, CDP_INDEX_BY_INSERTION, capacity, NULL), prepend)
+#define cdp_record_append_dictionary(parent, name, domain, tag, storage, capacity, prepend)                   cdp_record_append_record(parent, CDP_TYPE_NORMAL, name, NULL, cdp_store_new(domain, tag, storage, CDP_INDEX_BY_NAME, capacity, NULL), prepend)
+
+#define cdp_record_append_link(parent, name, source, prepend)     cdp_record_append_record(parent, CDP_TYPE_LINK,  name, CDP_P(source), NULL, prepend)
+#define cdp_record_append_agent(parent, name, agent, prepend)     cdp_record_append_record(parent, CDP_TYPE_AGENT, name, CDP_P(agent),  NULL, prepend)
 
 
 // Accessing data

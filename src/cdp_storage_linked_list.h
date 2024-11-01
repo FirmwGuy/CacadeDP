@@ -51,74 +51,116 @@ static inline cdpListNode* list_node_from_record(const cdpRecord* record) {
 }
 
 
-static inline void list_sorted_insert_node(cdpList* list, cdpListNode* node, cdpCompare compare, void* context) {
+
+
+static inline void list_prepend_node(cdpList* list, cdpListNode* node) {
+    node->next = list->head;
+    if (list->head)
+        list->head->prev = node;
+    else
+        list->tail = node;
+    list->head = node;
+}
+
+static inline void list_append_node(cdpList* list, cdpListNode* node) {
+    node->prev = list->tail;
+    if (list->tail)
+        list->tail->next = node;
+    else
+        list->head = node;
+    list->tail = node;
+}
+
+static inline void list_insert_node_before_next(cdpList* list, cdpListNode* node, cdpListNode* next) {
+    if (next->prev) {
+        next->prev->next = node;
+        node->prev = next->prev;
+    } else {
+        list->head = node;
+    }
+    next->prev = node;
+    node->next = next;
+}
+
+
+
+
+static inline cdpRecord* list_insert(cdpList* list, cdpRecord* record, size_t position) {
+    CDP_NEW(cdpListNode, node);
+    cdp_record_transfer(record, &node->record);
+
+    size_t n = 0;
+    cdpListNode* next;
+    for (next = list->head;  next;  next = next->next, n++) {
+        if (n == position) {
+            list_insert_node_before_next(list, node, next);
+            break;
+        }
+    }
+    if (!next)
+        list_append_node(list, node);
+
+    return &node->record;
+}
+
+
+static inline cdpRecord* list_named_insert(cdpList* list, cdpRecord* record) {
+    CDP_NEW(cdpListNode, node);
+    cdp_record_transfer(record, &node->record);
+
     cdpListNode* next;
     for (next = list->head;  next;  next = next->next) {
-        int cmp = compare(&node->record, &next->record, context);
+        int cmp = record_compare_by_name(&node->record, &next->record, NULL);
         if (0 > cmp) {
-            // Insert node before next.
-            if (next->prev) {
-                next->prev->next = node;
-                node->prev = next->prev;
-            } else {
-                list->head = node;
-            }
-            next->prev = node;
-            node->next = next;
+            list_insert_node_before_next(list, node, next);
             break;
         }
         assert(0 != cmp);   // Duplicates are not allowed.
     }
-    if (!next) {
-        // Make node the new list tail.
-        node->prev = list->tail;
-        if (list->tail)
-            list->tail->next = node;
-        else
-            list->head = node;
-        list->tail = node;
-    }
+    if (!next)
+        list_append_node(list, node);
+
+    return &node->record;
 }
 
 
 static inline cdpRecord* list_sorted_insert(cdpList* list, cdpRecord* record, cdpCompare compare, void* context) {
     CDP_NEW(cdpListNode, node);
     cdp_record_transfer(record, &node->record);
-    list_sorted_insert_node(list, node, compare, context);
+
+    cdpListNode* next;
+    for (next = list->head;  next;  next = next->next) {
+        int cmp = compare(&node->record, &next->record, context);
+        if (0 > cmp) {
+            list_insert_node_before_next(list, node, next);
+            break;
+        }
+        assert(0 != cmp);   // Duplicates are not allowed.
+    }
+    if (!next)
+        list_append_node(list, node);
+
     return &node->record;
 }
 
 
-static inline cdpRecord* list_add(cdpList* list, cdpRecord* parent, bool prepend, cdpRecord* record) {
+static inline cdpRecord* list_append(cdpList* list, cdpRecord* record, bool prepend) {
     CDP_NEW(cdpListNode, node);
     cdp_record_transfer(record, &node->record);
 
     if (list->store.chdCount) {
-        if (cdp_record_is_dictionary(parent)) {
-            list_sorted_insert_node(list, node, record_compare_by_name, NULL);
-        } else if (prepend) {
-            // Prepend node
-            node->next = list->head;
-            if (list->head)
-                list->head->prev = node;
-            else
-                list->tail = node;
-            list->head = node;
-        } else {
-            // Append node
-            node->prev = list->tail;
-            if (list->tail)
-                list->tail->next = node;
-            else
-                list->head = node;
-            list->tail = node;
-        }
+        if (prepend)
+            list_prepend_node(list, node);
+        else
+            list_append_node(list, node);
     } else {
         list->head = list->tail = node;
     }
 
     return &node->record;
 }
+
+
 
 
 static inline cdpRecord* list_first(cdpList* list) {
