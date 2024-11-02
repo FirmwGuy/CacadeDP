@@ -85,7 +85,7 @@ void cdp_record_system_shutdown(void) {
 
 
 /*
-    Create a new data store for records.
+    Create a new data store for records
 */
 cdpData* cdp_data_new(  cdpID domain, cdpID tag,
                         cdpID attribute, unsigned datatype, bool writable,
@@ -161,6 +161,19 @@ cdpData* cdp_data_new(  cdpID domain, cdpID tag,
         address = cdp_record_data(handle);
         break;
       }
+      case CDP_DATATYPE_STREAM: {
+        cdpRecord* stream  = va_arg(args, cdpRecord*);
+        cdpRecord* library = va_arg(args, cdpRecord*);
+        assert(handle && library);
+
+        data = cdp_malloc0(sizeof(cdpData));
+
+        data->stream  = stream;
+        data->library = library;
+
+        address = cdp_record_data(stream);
+        break;
+      }
     }
 
     data->domain    = domain;
@@ -182,10 +195,12 @@ void cdp_data_del(cdpData* data) {
 
     switch (data->datatype) {
       case CDP_DATATYPE_DATA: {
-        data->destructor(data->data);
+        if (data->destructor)
+            data->destructor(data->data);
         break;
       }
-      case CDP_DATATYPE_HANDLE: {
+      case CDP_DATATYPE_HANDLE:
+      case CDP_DATATYPE_STREAM: {
         // ToDo: unref handle?
         break;
       }
@@ -198,7 +213,7 @@ void cdp_data_del(cdpData* data) {
 
 
 /*
-    Children storage
+    Assign auto-id if necessary
 */
 
 static inline void store_check_auto_id(cdpStore* parStore, cdpRecord* record) {
@@ -209,8 +224,17 @@ static inline void store_check_auto_id(cdpStore* parStore, cdpRecord* record) {
 }
 
 
+void cdp_record_relink_storage(cdpRecord* record) {
+    assert(cdp_record_has_store(record));
+
+    record->store->owner = record;    // Re-link record with its own children storage.
+}
+
+
+
+
 /*
-    Creates a new children store for records.
+    Creates a new children store for records
 */
 cdpStore* cdp_store_new(  cdpID domain, cdpID tag,
                           unsigned storage, unsigned indexing, size_t capacity
@@ -267,33 +291,61 @@ void cdp_store_del(cdpStore* store) {
 
     switch (store->storage) {
       case CDP_STORAGE_LINKED_LIST: {
-        cdpList* list = record->children;
+        cdpList* list = store;
         list_del_all_children(list);
         list_del(list);
         break;
       }
       case CDP_STORAGE_ARRAY: {
-        cdpArray* array = record->children;
+        cdpArray* array = store;
         array_del_all_children(array);
         array_del(array);
         break;
       }
       case CDP_STORAGE_PACKED_QUEUE: {
-        cdpPackedQ* pkdq = record->children;
+        cdpPackedQ* pkdq = store;
         packed_q_del_all_children(pkdq);
         packed_q_del(pkdq);
         break;
       }
       case CDP_STORAGE_RED_BLACK_T: {
-        cdpRbTree* tree = record->children;
+        cdpRbTree* tree = store;
         rb_tree_del_all_children(tree);
         rb_tree_del(tree);
         break;
       }
       case CDP_STORAGE_OCTREE: {
-        cdpOctree* octree = record->children;
+        cdpOctree* octree = store;
         octree_del_all_children(octree);
         octree_del(octree);
+        break;
+      }
+    }
+}
+
+
+void cdp_store_delete_children(cdpStore* store) {
+    assert(store);
+
+    switch (store->storage) {
+      case CDP_STORAGE_LINKED_LIST: {
+        list_del_all_children(store);
+        break;
+      }
+      case CDP_STORAGE_ARRAY: {
+        array_del_all_children(store);
+        break;
+      }
+      case CDP_STORAGE_PACKED_QUEUE: {
+        packed_q_del_all_children(store);
+        break;
+      }
+      case CDP_STORAGE_RED_BLACK_T: {
+        rb_tree_del_all_children(store);
+        break;
+      }
+      case CDP_STORAGE_OCTREE: {
+        octree_del_all_children(store);
         break;
       }
     }
@@ -303,7 +355,7 @@ void cdp_store_del(cdpStore* store) {
 
 
 /*
-    Initiates a record struct with the requested parameters.
+    Initiates a record structure with the requested parameters
 */
 void cdp_record_initialize(cdpRecord* record, unsigned type, cdpID name, cdpData* data, cdpStore* store) {
     assert(record && cdp_id_valid(name) && (type < CDP_TYPE_COUNT));
@@ -313,24 +365,13 @@ void cdp_record_initialize(cdpRecord* record, unsigned type, cdpID name, cdpData
 
     record->metarecord.type = type;
     record->metarecord.name = name;
-
     record->data  = data;
     record->store = store;
 }
 
 
-
-void cdp_record_relink_storage(cdpRecord* record) {
-    assert(cdp_record_has_store(record));
-
-    record->store->owner = record;    // Re-link record with its own children storage.
-}
-
-
-
-
 /*
-    Creates a deep copy of record and all its data.
+    Creates a deep copy of record and all its data
 */
 void cdp_record_initialize_clone(cdpRecord* clone, cdpID nameID, cdpRecord* record) {
     assert(clone && cdp_record_is_normal(record));
@@ -349,14 +390,15 @@ void cdp_record_initialize_clone(cdpRecord* clone, cdpID nameID, cdpRecord* reco
 
 
 /*
-    Adds/inserts a *copy* of the specified record into another record.
+    Adds/inserts a *copy* of the specified record into another record
 */
 cdpRecord* cdp_record_add(cdpRecord* parent, cdpRecord* record, cdpValue context) {
     assert(cdp_record_has_store(parent) && !cdp_record_is_void(record));    // 'Void' records are never used.
     cdpRecord* child;
 
     switch (parent->store.indexing) {
-      case CDP_INDEX_BY_INSERTION: {
+      case CDP_INDEX_BY_INSERTION:
+      {
         assert(parent->store.chdCount >= context.size);
 
         switch (parent->store.storage) {
@@ -380,8 +422,8 @@ cdpRecord* cdp_record_add(cdpRecord* parent, cdpRecord* record, cdpValue context
         break;
       }
 
-      case CDP_INDEX_BY_NAME: {
-
+      case CDP_INDEX_BY_NAME:
+      {
         switch (parent->store.storage) {
           case CDP_STORAGE_LINKED_LIST: {
             child = list_named_insert(parent->store, record);
@@ -404,8 +446,8 @@ cdpRecord* cdp_record_add(cdpRecord* parent, cdpRecord* record, cdpValue context
       }
 
       case CDP_INDEX_BY_FUNCTION:
-      case CDP_INDEX_BY_HASH: {
-
+      case CDP_INDEX_BY_HASH:
+      {
         switch (parent->store.storage) {
           case CDP_STORAGE_LINKED_LIST: {
             child = list_sorted_insert(parent->store, record, parent->store.compare, context.pointer);
@@ -431,6 +473,7 @@ cdpRecord* cdp_record_add(cdpRecord* parent, cdpRecord* record, cdpValue context
         break;
       }
     }
+
     store_check_auto_id(parent->store, record);
 
     //cdp_record_transfer(record, child);
@@ -443,6 +486,9 @@ cdpRecord* cdp_record_add(cdpRecord* parent, cdpRecord* record, cdpValue context
 }
 
 
+/*
+    Appends/prepends a copy of record into another
+*/
 cdpRecord* cdp_record_append(cdpRecord* parent, cdpRecord* record, bool prepend) {
     assert(cdp_record_has_store(parent) && !cdp_record_is_void(record));
     if (parent->store.indexing != CDP_INDEX_BY_INSERTION)) {
@@ -481,255 +527,94 @@ cdpRecord* cdp_record_append(cdpRecord* parent, cdpRecord* record, bool prepend)
 }
 
 
+
+
 /*
-    Adds/inserts a *copy* of the specified record into another record.
+   Gets data address from a record
 */
-cdpRecord* cdp_record_insert(cdpRecord* parent, cdpRecord* record, size_t position) {
-    assert(cdp_record_is_normal(parent) && cdp_record_is_insertable(parent) && !cdp_record_is_void(record) && compare); // 'Void' records are never used.
+void* cdp_record_data(const cdpRecord* record) {
+    assert(!cdp_record_is_void(record));
 
-    cdpStore* store;
-    if (parent->metarecord.withstore) {
-        store = parent->children;
-    } else {
-        store = record_create_storage(parent->metarecord.storage, parent->basez);
+    switch (record->metarecord.type) {
+      case CDP_TYPE_NORMAL:
+      {
+        if (!record->data)
+            return NULL;
 
-        // Link parent record with its child storage.
-        store->owner = parent;
-        parent->children = store;
-        parent->metarecord.withstore = 1;
-    }
-    store_check_auto_id(store, record);
-    cdpRecord* child;
+        switch (record->data.datatype) {
+          case CDP_DATATYPE_VALUE: {
+            return record->data->value;
+          }
 
-    // Add new record to parent.
-    switch (parent->metarecord.storage) {
-      case CDP_STORAGE_LINKED_LIST: {
-        child = list_sorted_insert(parent->children, record, compare, context);
-        break;
-      }
-      case CDP_STORAGE_ARRAY: {
-        child = array_sorted_insert(parent->children, record, compare, context);
-        break;
-      }
-      case CDP_STORAGE_PACKED_QUEUE: {
-        assert(parent->metarecord.storage == CDP_STORAGE_PACKED_QUEUE);   // Unsupported.
+          case CDP_DATATYPE_DATA: {
+            return record->data->data;
+          }
+
+          case CDP_DATATYPE_HANDLE:
+          case CDP_DATATYPE_STREAM: {
+            // ToDo: pending!
+            break;
+          }
+        }
+
         return NULL;
       }
-      case CDP_STORAGE_RED_BLACK_T: {
-        child = rb_tree_sorted_insert(parent->children, record, compare, context);
-        break;
-      }
-      case CDP_STORAGE_OCTREE: {
-        child = octree_sorted_insert(parent->children, record, compare, context);
-        break;
-      }
-    }
 
-    cdp_record_transfer(record, child);
-
-    CDP_0(record);
-
-    // Update child.
-    child->store = store;
-
-    // Update parent.
-    store->chdCount++;
-
-    return child;
-}
-
-
-
-
-/*
-   Reads data from a record.
-*/
-void* cdp_record_read(const cdpRecord* record, size_t* capacity, size_t* size, void* data) {
-    assert(!cdp_record_is_void(record));
-
-    if (record->metarecord.type == CDP_TYPE_LINK) {
-        return record->link;
-    }
-    if (record->metarecord.type == CDP_TYPE_AGENT) {
-        return record->agent;
-    }
-
-    REC_DATATYPE_SELECT(record) {
-      NONE: {
-        assert(cdp_record_has_data(record));  // This shouldn't happen.
+      case CDP_TYPE_LINK: {
+        // ToDo: follow link.
         break;
       }
 
-      NEAR: {
-        if (data) {
-            assert(capacity && *capacity);
-            memcpy(data, &record->_near, cdp_min(*capacity, sizeof(cdpValue)));
-        }
-        CDP_PTR_SEC_SET(capacity, sizeof(record->_near));
-        CDP_PTR_SEC_SET(size, sizeof(cdpValue));
-        return CDP_P(&record->_near);
+      default: {
+        assert(record->metarecord.type == CDP_TYPE_NORMAL  ||  record->metarecord.type == CDP_TYPE_LINK);
       }
+    }
 
-      DATA: {
-        if (data) {
-            assert(capacity && *capacity);
-            memcpy(data, record->data->_data, cdp_min(*capacity, record->data->capacity));
-        }
-        CDP_PTR_SEC_SET(capacity, record->data->capacity);
-        CDP_PTR_SEC_SET(size, record->data->size);
-        return record->data->_data;
-      }
-
-      FAR: {
-        if (data) {
-            assert(capacity && *capacity);
-            memcpy(data, record->data->_far, cdp_min(*capacity, record->data->capacity));
-        }
-        CDP_PTR_SEC_SET(capacity, record->data->capacity);
-        CDP_PTR_SEC_SET(size, record->data->size);
-        return record->data->_far;
-      }
-    } SELECTION_END;
-
-    CDP_PTR_SEC_SET(size, 0);
-    CDP_PTR_SEC_SET(capacity, 0);
     return NULL;
 }
-
-
-cdpValue cdp_record_read_value(const cdpRecord* record) {
-    assert(!cdp_record_is_void(record));
-
-    if (record->metarecord.type == CDP_TYPE_LINK) {
-        return (cdpValue) record->link;
-    }
-    if (record->metarecord.type == CDP_TYPE_AGENT) {
-        return (cdpValue) record->agent;
-    }
-
-    REC_DATATYPE_SELECT(record) {
-      NONE: {
-        assert(cdp_record_has_data(record));  // This shouldn't happen.
-        break;
-      }
-      NEAR: {
-        return record->_near;
-      }
-      DATA: {
-        assert(record->data->size >= sizeof(cdpValue));
-        return record->data->_data[0];
-      }
-      FAR: {
-        assert(record->data->size >= sizeof(cdpValue));
-        return *(cdpValue*)record->data->_far;
-      }
-    } SELECTION_END;
-
-    return (cdpValue){0};
-}
-
 
 
 /*
    Updates the data of a record.
 */
-void* cdp_record_update(cdpRecord* record, size_t capacity, size_t size, cdpValue data, bool swap) {
-    assert(cdp_record_is_normal(record) && capacity && size);
+void* cdp_record_update(cdpRecord* record, size_t size, size_t capacity, cdpValue value, bool swap) {
+    assert(cdp_record_has_data(record) && size && capacity);
 
-    // ToDo: re-grow buffer and capacities if needed.
+    cdpData* data = record->data;
+    if (!data->writable)
+        return NULL;
 
-    REC_DATATYPE_SELECT(record) {
-      NONE: {
-        assert(cdp_record_has_data(record));  // This shouldn't happen.
-        break;
+    switch (data.datatype) {
+      case CDP_DATATYPE_VALUE: {
+        assert(data->capacity == capacity);
+        data->value = value;
+        data->size = size;
+        return data->value;
       }
 
-      NEAR: {
-        assert(capacity == sizeof(cdpValue));
-        record->_near = data;
-        return &record->_near;
-      }
-
-      DATA: {
-        if (data.pointer) {
-            assert(record->data->capacity == capacity);
-            memcpy(record->data->_data, data.pointer, capacity);
-        } else {
-            memset(record->data->_data, 0, record->data->capacity);
-        }
-        record->data->size = size;
-        return record->data->_data;
-      }
-
-      FAR: {
+      case CDP_DATATYPE_DATA: {
+        assert(value.pointer);
         if (swap) {
-            assert(capacity && data.pointer);
-            record->data->capacity = capacity;
-            record->data->_far = data.pointer;
-        } else if (data.pointer) {
-            assert(record->data->capacity == capacity);
-            memcpy(record->data->_far, data.pointer, capacity);
+            if (data->destructor)
+                data->destructor(data->data);
+            data->data = value.pointer;
+            data->capacity = capacity;
         } else {
-            memset(record->data->_far, 0, record->data->capacity);
+            assert(data->capacity >= capacity);
+            memcpy(data->data, value.pointer, size);
         }
-        record->data->size = size;
-        return record->data->_far;
+        data->size = size;
+        return data->data;
       }
-    } SELECTION_END;
+
+      case CDP_DATATYPE_HANDLE:
+      case CDP_DATATYPE_STREAM: {
+        // ToDo: pending!
+        return NULL;
+      }
+    }
 
     return NULL;
-}
-
-
-
-
-void cdp_record_data_delete(cdpRecord* record) {
-    assert(cdp_record_is_normal(record));
-
-    REC_DATATYPE_SELECT(record) {
-      NONE: {
-        return;
-      }
-      NEAR: {
-        record->_near = (cdpValue){0};
-        break;
-      }
-      DATA: {
-        CDP_FREE(record->data);
-        break;
-      }
-      FAR: {
-        record->data->destructor(record->data->_far);
-        CDP_FREE(record->data);
-        break;
-      }
-    } SELECTION_END;
-
-    record->metadata.recdata = CDP_RECDATA_NONE;
-}
-
-
-void cdp_record_data_reset(cdpRecord* record) {
-    assert(cdp_record_is_normal(record));
-
-    REC_DATATYPE_SELECT(record) {
-      NONE: {
-        assert(cdp_record_has_data(record));
-        break;
-      }
-      NEAR: {
-        record->_near = (cdpValue){0};
-        return;
-      }
-      DATA: {
-        memset(record->data->_data, 0, record->data->capacity);
-        return;
-      }
-      FAR: {
-        memset(record->data->_far, 0, record->data->capacity);
-        return;
-      }
-    } SELECTION_END;
 }
 
 

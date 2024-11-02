@@ -258,8 +258,11 @@ typedef struct _cdpData {
             cdpDel      destructor;     // Data container destructor function.
         };
         struct {
+          union {
             cdpRecord*  handle;         // Resource record id (used with external libraries).
-            cdpRecord*  library;        // Library where the resource is located.
+            cdpRecord*  stream;         // Data window to streamed content.
+          };
+          cdpRecord*    library;        // Library where the resource is located.
         };
         cdpValue        value[(2 * sizeof(void*)) / sizeof(cdpValue)];  // Data value may start from here.
     };
@@ -269,6 +272,7 @@ enum _cdpDataType {
     CDP_DATATYPE_VALUE,         // Data starts at "value" field of cdpData.
     CDP_DATATYPE_DATA,          // Data is in address pointed by "data" field of cdpData.
     CDP_DATATYPE_HANDLE,        // Data is just a handle to an opaque (library internal) resource.
+    CDP_DATATYPE_STREAM,        // Data is a window to a larger (library internal) resource.
     //
     CDP_DATATYPE_COUNT
 };
@@ -490,19 +494,17 @@ cdpRecord* cdp_record_append(cdpRecord* parent, cdpRecord* record, bool prepend)
 
 
 // Accessing data
-void*    cdp_record_read(const cdpRecord* record, size_t* capacity, size_t* size, void* data);
-cdpValue cdp_record_read_value(const cdpRecord* record);
-#define cdp_record_data(r)              cdp_record_read(r, NULL, NULL, NULL)
-#define cdp_record_data_capactiy(r)     ({size_t c; cdp_record_read(r, &c, NULL, NULL); c;})
-#define cdp_record_data_size(r)         ({size_t z; cdp_record_read(r, NULL, &z, NULL); z;})
+void*    cdp_record_data(const cdpRecord* record);
+#define  cdp_record_value(r)       (*(cdpValue*)cdp_record_data(r))
 
-void* cdp_record_update(cdpRecord* record, size_t capacity, size_t size, cdpValue data, bool swap);
-#define cdp_record_update_value(r, v)   cdp_record_update(r, sizeof(cdpValue), sizeof(cdpValue), v, false)
+void* cdp_record_update(cdpRecord* record, size_t size, size_t capacity, cdpValue value, bool swap);
+#define cdp_record_update_value(r, v)       cdp_record_update(r, sizeof(cdpValue), sizeof(cdpValue), CDP_VALUE(v), false)
+#define cdp_record_update_attribute(r, a)   do{ assert(cdp_record_has_data(r);  (r)->data.attribute = a; }while(0)
 
-void cdp_record_data_delete(cdpRecord* record);
-void cdp_record_data_reset(cdpRecord* record);
-void cdp_record_branch_reset(cdpRecord* record);
-#define cdp_record_reset(r)     do{ cdp_record_branch_reset(r); cdp_record_data_reset(r);} while(0)
+static inline void cdp_record_data_delete(cdpRecord* record)    {if (cdp_record_has_data(record))  {cdp_data_del(record->data);   record->data  = NULL;}}
+static inline void cdp_record_store_delete(cdpRecord* record)   {if (cdp_record_has_store(record)) {cdp_store_del(record->store); record->store = NULL;}}
+#define cdp_record_del_children(r);
+#define cdp_record_reset(r)     do{ cdp_record_store_reset(r); cdp_record_data_reset(r); } while(0)
 #define cdp_record_delete(r)    cdp_record_remove(r, NULL)
 
 
