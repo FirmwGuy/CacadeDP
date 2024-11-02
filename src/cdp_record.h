@@ -338,6 +338,7 @@ cdpStore* cdp_store_new(  cdpID domain, cdpID tag,
                           unsigned storage, unsigned indexing, size_t capacity
                           cdpCompare compare  );
 void      cdp_store_del(cdpStore* store);
+void      cdp_store_delete_children(cdpStore* store);
 
 
 /*
@@ -395,7 +396,7 @@ typedef bool (*cdpTraverse)(cdpBookEntry*, void*);
  * Record Operations
  */
 
-// Initiate and shutdown record system.
+// Initiate and shutdown record system
 void cdp_record_system_initiate(void);
 void cdp_record_system_shutdown(void);
 
@@ -464,7 +465,7 @@ static inline void cdp_record_replace(cdpRecord* oldr, cdpRecord* newr) {
 }
 
 
-// Appends, inserts or prepends a (copy of) record into another record.
+// Appends, inserts or prepends a (copy of) record into another record
 cdpRecord* cdp_record_add(cdpRecord* parent, cdpRecord* record, cdpValue context);
 cdpRecord* cdp_record_append(cdpRecord* parent, cdpRecord* record, bool prepend);
 
@@ -499,19 +500,19 @@ void*    cdp_record_data(const cdpRecord* record);
 
 void* cdp_record_update(cdpRecord* record, size_t size, size_t capacity, cdpValue value, bool swap);
 #define cdp_record_update_value(r, v)       cdp_record_update(r, sizeof(cdpValue), sizeof(cdpValue), CDP_VALUE(v), false)
-#define cdp_record_update_attribute(r, a)   do{ assert(cdp_record_has_data(r);  (r)->data.attribute = a; }while(0)
+#define cdp_record_update_attribute(r, a)   do{ assert(cdp_record_has_data(r);  (r)->data.attribute = (a); }while(0)
 
-static inline void cdp_record_data_delete(cdpRecord* record)    {if (cdp_record_has_data(record))  {cdp_data_del(record->data);   record->data  = NULL;}}
-static inline void cdp_record_store_delete(cdpRecord* record)   {if (cdp_record_has_store(record)) {cdp_store_del(record->store); record->store = NULL;}}
-#define cdp_record_del_children(r);
-#define cdp_record_reset(r)     do{ cdp_record_store_reset(r); cdp_record_data_reset(r); } while(0)
+static inline void cdp_record_delete_data(cdpRecord* record)        {if (cdp_record_has_data(record))  {cdp_data_del(record->data);   record->data  = NULL;}}
+static inline void cdp_record_delete_store(cdpRecord* record)       {if (cdp_record_has_store(record)) {cdp_store_del(record->store); record->store = NULL;}}
+static inline void cdp_record_delete_children(cdpRecord* record)    {assert(cdp_record_has_store(record));  cdp_store_delete_children(record->store);}
 #define cdp_record_delete(r)    cdp_record_remove(r, NULL)
 
 
-// Constructs the full path (sequence of ids) for a given record, returning the depth.
+// Constructs the full path (sequence of ids) for a given record, returning the depth
 bool cdp_record_path(const cdpRecord* record, cdpPath** path);
 
-// Root dictionary.
+
+// Root dictionary
 static inline cdpRecord* cdp_root(void)  {extern cdpRecord CDP_ROOT; assert(!cdp_record_is_void(&CDP_ROOT));  return &CDP_ROOT;}
 
 
@@ -521,7 +522,7 @@ cdpRecord* cdp_record_last (const cdpRecord* record);
 
 cdpRecord* cdp_record_find_by_name(const cdpRecord* record, cdpID name);
 cdpRecord* cdp_record_find_by_key(const cdpRecord* record, cdpRecord* key, cdpCompare compare, void* context);
-cdpRecord* cdp_record_find_by_position(const cdpRecord* record, size_t pos);
+cdpRecord* cdp_record_find_by_position(const cdpRecord* record, size_t position);
 cdpRecord* cdp_record_find_by_path(const cdpRecord* start, const cdpPath* path);
 
 cdpRecord* cdp_record_prev(const cdpRecord* parent, cdpRecord* record);
@@ -534,28 +535,33 @@ bool cdp_record_traverse     (cdpRecord* record, cdpTraverse func, void* context
 bool cdp_record_deep_traverse(cdpRecord* record, cdpTraverse func, cdpTraverse listEnd, void* context, cdpBookEntry* entry);
 
 
+// Converts an unsorted record into a sorted one
+void cdp_record_to_dictionary(cdpRecord* record);
+void cdp_record_sort(cdpRecord* record, cdpCompare compare, void* context);
+
+
 // Removing records
 bool cdp_record_child_take(cdpRecord* record, cdpRecord* target);
 bool cdp_record_child_pop(cdpRecord* record, cdpRecord* target);
 void cdp_record_remove(cdpRecord* record, cdpRecord* target);
 
 
-// Converts an unsorted record into a sorted one.
-void cdp_record_to_dictionary(cdpRecord* record);
+// Converting C text strings to/from cdpID
+cdpID  cdp_text_to_acronysm(const char *s);
+size_t cdp_acronysm_to_text(cdpID acro, char s[10]);
+
+cdpID  cdp_text_to_word(const char *s);
+size_t cdp_word_to_text(cdpID coded, char s[12]);
 
 
 /*
     TODO:
-    - Change name from 'id' to 'name' in cdpPath.
     - Implement clone (deep copy) records.
     - Traverse book in internal (stoTech) order.
     - Add indexof for records.
-    - Implement cdp_book_insert_at(position).
     - Update MAX_DEPTH based on path/traverse operations.
     - Add cdp_record_update_nested_links(old, new).
-    - Any storage tech may be a dictionary, but only if the name matches the insertion/deletion sequence.
     - If a record is added with its name explicitly above "auto_id", then that must be updated.
-    - CDP_TAG_VOID should never be a valid name for records.
     - Send simultaneous tasks to nested agent records.
 */
 
