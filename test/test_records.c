@@ -51,7 +51,7 @@ static void test_records_print(cdpRecord* record, char *sval) {
     }
 }
 
-static bool print_values(cdpBookEntry* entry, void* unused) {
+static bool print_values(cdpEntry* entry, void* unused) {
     assert_not_null(entry->record);
     char this[16], prev[16], next[16];
     test_records_print(entry->record, this);

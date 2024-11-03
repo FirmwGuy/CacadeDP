@@ -172,7 +172,7 @@ static inline cdpRecord* packed_q_next_by_name(cdpPackedQ* pkdq, cdpID name, cdp
 }
 
 
-static inline bool packed_q_traverse(cdpPackedQ* pkdq, cdpRecord* parent, cdpTraverse func, void* context, cdpBookEntry* entry) {
+static inline bool packed_q_traverse(cdpPackedQ* pkdq, cdpRecord* parent, cdpTraverse func, void* context, cdpEntry* entry) {
     entry->parent = parent;
     entry->depth  = 0;
     cdpPackedQNode* pNode = pkdq->pHead;

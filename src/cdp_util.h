@@ -68,7 +68,7 @@
   #define   cdp_alloca  __builtin_alloca
   #define   cdp_free    free
 #endif
-#define     cdp_malloc0(z, ...)         cdp_calloc(1, z __VA_ARGS__)
+#define     cdp_malloc0(z, ...)       cdp_calloc(1, z __VA_ARGS__)
 
 
 #define     cdp_new(T, ...)           cdp_malloc0(sizeof(T) __VA_ARGS__)

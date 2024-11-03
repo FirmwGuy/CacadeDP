@@ -25,7 +25,7 @@
 #include "cdp_util.h"
 
 
-static_assert(sizeof(void*) == sizeof(uint64_t), "32 bit is unssoported yet!");
+static_assert(sizeof(void*) == sizeof(uint64_t), "32 bit is unsupported yet!");
 
 
 /*
@@ -36,9 +36,9 @@ static_assert(sizeof(void*) == sizeof(uint64_t), "32 bit is unssoported yet!");
     data structures in a distributed execution environment, similar in
     flexibility to representing complex XML or JSON data models. It
     facilitates the storage, navigation, and manipulation of records,
-    which can be data values (holding actual information) and/or
-    branches of other records (acting as nodes in the hierarchical
-    structure with potential to have unique or repeatable fields).
+    which can point to data values (holding actual information) and
+    to branches of other records (acting as nodes in the hierarchical
+    structure).
 
     Key Components
     --------------
@@ -48,12 +48,18 @@ static_assert(sizeof(void*) == sizeof(uint64_t), "32 bit is unssoported yet!");
 
     * Link: A record that points to another record.
 
+    * Agent: A record with the address of a callable agent function (able
+    to be activated on record events).
+
     * Metarecord: Each record contains meta, including flags that specify the
     record's characteristics, and a name identifier indicating the record's
     role or ID within its parent.
 
-    * cdpMetadata: This is metadata about the actual data (value) being hold
-    by the record.
+    * Data: This is where the actual data (value) being hold by the record is
+    located. It has its own metadata.
+
+    * Store: Storage for children records according to different indexing
+    techniques.
 
     The system supports navigating from any record to the root of the database,
     reconstructing paths within the data hierarchy based on field identifiers
@@ -72,26 +78,24 @@ static_assert(sizeof(void*) == sizeof(uint64_t), "32 bit is unssoported yet!");
     structure, facilitating operations like queries, updates, and path
     reconstruction.
 
-    The system is adept at managing hierarchical data structures
-    through a variety of storage techniques, encapsulated within the
-    cdpVariantBook type. This flexibility allows the system to adapt to
-    different use cases and optimization requirements, particularly
-    focusing on cache efficiency and operation speed for insertions,
-    deletions, and lookups.
+    The system is adept at managing hierarchical data structures through a
+    variety of storage techniques, encapsulated within each store. This
+    flexibility allows the system to adapt to different use cases and
+    optimization requirements, particularly focusing on cache efficiency and
+    operation speed for insertions, deletions, and lookups.
 
     Children Storage Techniques
     ---------------------------
 
-    * cdpRecord->children: Serves as a versatile container within the
-    system, holding child records through diverse storage strategies.
-    Each storage can adopt one of several mechanisms, determined by
-    the structure indicator in its metadata. This design enables
-    tailored optimization based on specific needs, such as operation
-    frequency, data volume, and access patterns.
+    * Store Metadata: Stores serve as a versatile container within the system,
+    holding child records through diverse storage strategies. Each storage can
+    adopt one of several mechanisms, determined by the structure indicator in
+    its metadata. This design enables tailored optimization based on specific
+    needs, such as operation frequency, data volume, and access patterns.
 
-    * Storage Techniques: Each storage technique is selected to
-    optimize specific aspects of data management, addressing the
-    system's goals of flexibility, efficiency, and navigability.
+    * Storage Types: Each storage type is selected to optimize specific aspects
+    of data management, addressing the system's goals of flexibility,
+    efficiency, and navigability.
 
       Doubly Linked List: Provides flexibility for frequent insertions
       and deletions at arbitrary positions with minimal overhead per
@@ -110,6 +114,10 @@ static_assert(sizeof(void*) == sizeof(uint64_t), "32 bit is unssoported yet!");
       offering logarithmic time complexity for insertions, deletions,
       and lookups. Particularly useful for datasets requiring sorted
       access.
+
+      Octree: Used for (3D) spatial indexing according to contained data.
+      It only needs a comparation function able to determine if the record
+      fully fits in between a quadrant or not.
 */
 
 
@@ -150,6 +158,7 @@ typedef struct {
 } cdpMetarecord;
 
 enum _cdpRecordType {
+    CDP_TYPE_VOID,              // A void (uninitialized) record.
     CDP_TYPE_NORMAL,            // Regular record.
     CDP_TYPE_LINK,              // Link to another record.
     CDP_TYPE_AGENT,             // Agent function.
@@ -164,13 +173,14 @@ enum _cdpRecordShadowing {
 };
 
 enum _cdpRecordNaming {
-    CDP_NAMING_WORD,            // Lowercase text value (11 chars max; must be the first in this enum).
-    CDP_NAMING_ACRONYSM,        // Uppercase/numeric text (9 chars max).
+    CDP_NAMING_WORD,            // Lowercase text value, 11 chars max (it must be the first in this enum!).
+    CDP_NAMING_ACRONYSM,        // Uppercase/numeric text, 9 characters maximum.
     CDP_NAMING_REFERENCE,       // Numerical reference to text record (this should be a pointer in 32bit systems).
     CDP_NAMING_NUMERIC,         // Per-parent numerical ID.
 
     CDP_NAMING_COUNT
 };
+
 
 #define cdp_id_from_naming(naming)      (((cdpID)((naming) & 3)) << CDP_AUTOID_BITS)
 #define CDP_NAMING_MASK                 cdp_id_from_naming(3)
@@ -202,8 +212,8 @@ cdpID  cdp_text_to_word(const char *s);
 size_t cdp_acronysm_to_text(cdpID acro, char s[10]);
 size_t cdp_word_to_text(cdpID coded, char s[12]);
 
-
-#define CDP_WORD_ROOT       ((cdpID)0x0000000000000005)     /* "/"           */
+#define CDP_ID              UINT64_C
+#define CDP_WORD_ROOT       CDP_ID(0x0000000000000005)      /* "/"           */
 
 
 /*
@@ -255,7 +265,7 @@ typedef struct _cdpData {
     union {
         struct {
             void*       data;           // Points to container of data value.
-            cdpDel      destructor;     // Data container destructor function.
+            cdpDel      destructor;     // Data container destruction function.
         };
         struct {
           union {
@@ -270,9 +280,9 @@ typedef struct _cdpData {
 
 enum _cdpDataType {
     CDP_DATATYPE_VALUE,         // Data starts at "value" field of cdpData.
-    CDP_DATATYPE_DATA,          // Data is in address pointed by "data" field of cdpData.
+    CDP_DATATYPE_DATA,          // Data is in address pointed by "data" field.
     CDP_DATATYPE_HANDLE,        // Data is just a handle to an opaque (library internal) resource.
-    CDP_DATATYPE_STREAM,        // Data is a window to a larger (library internal) resource.
+    CDP_DATATYPE_STREAM,        // Data is a window to a larger (library internal) stream.
     //
     CDP_DATATYPE_COUNT
 };
@@ -290,7 +300,7 @@ void     cdp_data_del(cdpData* data);
 
 typedef struct _cdpStore {
     struct {
-        cdpID       storage:    3,              // Data structure for children storage.
+        cdpID       storage:    3,              // Data structure for children storage (array, linked-list, etc).
                     indexing:   2,              // Indexing (sorting) criteria for children.
                     _unused:    1,
                     domain:     CDP_NAME_BITS;  // Data domain.
@@ -302,7 +312,7 @@ typedef struct _cdpStore {
                     tag:        CDP_NAME_BITS;  // Data tag.
     };
 
-    cdpRecord*      owner;      // Parent record owning this child storage.
+    cdpRecord*      owner;      // Record owning this child storage.
     union {
         cdpRecord*  linked;     // A linked shadow record (when children, see in cdpRecord otherwise).
         cdpShadow*  shadow;     // Shadow structure (if record has children).
@@ -312,6 +322,8 @@ typedef struct _cdpStore {
     size_t          chdCount;   // Number of child records.
     cdpCompare      compare;    // Compare function for indexing children.
     cdpID           autoid;     // Auto-increment ID for inserting new child records.
+
+    // The specific storage structure will follow after this...
 };
 
 enum _cdpRecordStorage {
@@ -326,7 +338,7 @@ enum _cdpRecordStorage {
 
 enum _cdpRecordIndexing {
     CDP_INDEX_BY_INSERTION,      // Children indexed by their insertion order (the default).
-    CDP_INDEX_BY_NAME,           // Children indexed by their unique name (dicionary).
+    CDP_INDEX_BY_NAME,           // Children indexed by their unique name (a dicionary).
     CDP_INDEX_BY_FUNCTION,       // Children indexed by a custom comparation function.
     CDP_INDEX_BY_HASH,           // Children indexed by data hash value (first) and then by a comparation function (second).
     //
@@ -354,23 +366,23 @@ typedef struct {
 
 typedef struct {
     unsigned        count;      // Number of record pointers.
-    unsigned        max;
-    cdpRecord*      record[];   // Dynamic array of records shadowing this one.
+    unsigned        capacity;   // Capacity of array.
+    cdpRecord*      record[];   // Array of records shadowing this one.
 } cdpShadow;
 
 
 struct _cdpRecord {
     cdpMetarecord   metarecord; // Meta about this record entry (including id, etc).
-    cdpStore*       parent;     // Parent storage structure (list, array, etc) where this record is stored in.
+    cdpStore*       parent;     // Parent structure (list, array, etc) where this record is stored in.
 
     union {
-        cdpData*    data;       // Address of data buffer.
+        cdpData*    data;       // Address of cdpData structure.
         cdpRecord*  link;       // Link to another record.
-        cdpAgent    agent;      // Address of an agent function (it may have chilren).
+        cdpAgent    agent;      // Address of an agent function (which may have chilren).
     };
 
     union {
-        cdpStore*   store;      // Pointer to children storage structure.
+        cdpStore*   store;      // Address of cdpStore structure.
 
         cdpRecord*  linked;     // A linked shadow record (if no children, see in cdpStore otherwise).
         cdpShadow*  shadow;     // Structure for multiple linked records (if no children).
@@ -387,9 +399,9 @@ typedef struct {
     cdpRecord*      parent;
     size_t          position;
     unsigned        depth;
-} cdpBookEntry;
+} cdpEntry;
 
-typedef bool (*cdpTraverse)(cdpBookEntry*, void*);
+typedef bool (*cdpTraverse)(cdpEntry*, void*);
 
 
 /*
@@ -401,6 +413,7 @@ void cdp_record_system_initiate(void);
 void cdp_record_system_shutdown(void);
 
 
+// Initiate records
 void cdp_record_initialize(cdpRecord* record, unsigned type, cdpID name, cdpData* data, cdpStore* store);
 void cdp_record_initialize_clone(cdpRecord* newClone, cdpID nameID, cdpRecord* record);
 void cdp_record_finalize(cdpRecord* record);
@@ -446,7 +459,7 @@ static inline size_t     cdp_record_children(const cdpRecord* record)   {assert(
 static inline void  cdp_record_set_autoid(const cdpRecord* record, cdpID id)  {assert(cdp_record_has_store(record) && (record->store->autoid < id)  &&  (id <= CDP_AUTOID_MAX)); record->store->autoid = id;}
 static inline cdpID cdp_record_get_autoid(const cdpRecord* record)            {assert(cdp_record_has_store(record));  return record->store->autoid;}
 
-void cdp_record_relink_storage(cdpRecord* record);
+static inline void cdp_record_relink_storage(cdpRecord* record)     {assert(cdp_record_has_store(record));  record->store->owner = record;}     // Re-link record with its own children storage.
 
 static inline void cdp_record_transfer(cdpRecord* src, cdpRecord* dst) {
     assert(!cdp_record_is_void(src) && dst);
@@ -465,33 +478,33 @@ static inline void cdp_record_replace(cdpRecord* oldr, cdpRecord* newr) {
 }
 
 
-// Appends, inserts or prepends a (copy of) record into another record
-cdpRecord* cdp_record_add(cdpRecord* parent, cdpRecord* record, cdpValue context);
-cdpRecord* cdp_record_append(cdpRecord* parent, cdpRecord* record, bool prepend);
+// Appends/prepends or inserts a (copy of) record into another record
+cdpRecord* cdp_record_add(cdpRecord* record, cdpRecord* child, cdpValue context);
+cdpRecord* cdp_record_append(cdpRecord* record, cdpRecord* child, bool prepend);
 
-#define cdp_record_add_record(parent, type, name, data, store, context)        \
-    ({cdpRecord r={0}; cdp_record_initialize(&r, type, name, data, store); cdp_record_add(parent, &r, context);})
+#define cdp_record_add_child(record, type, name, data, store, context)         \
+    ({cdpRecord child={0}; cdp_record_initialize(&child, type, name, data, store); cdp_record_add(record, &child, context);})
 
-#define cdp_record_add_value(parent, name, domain, tag, attrib, value, size, capacity, context)               cdp_record_add_record(parent, CDP_TYPE_NORMAL, name, cdp_data_new(domain, tag, attrib, CDP_DATATYPE_VALUE, true, NULL, CDP_VALUE(value), size, capacity), NULL, context)
-#define cdp_record_add_data(parent, name, domain, tag, attrib, data, size, capacity, destructor, context)     cdp_record_add_record(parent, CDP_TYPE_NORMAL, name, cdp_data_new(domain, tag, attrib, CDP_DATATYPE_DATA, true, NULL, CDP_VALUE(data), size, capacity, destructor), NULL, context)
+#define cdp_record_add_value(record, name, domain, tag, attrib, value, size, capacity, context)               cdp_record_add_child(record, CDP_TYPE_NORMAL, name, cdp_data_new(domain, tag, attrib, CDP_DATATYPE_VALUE, true, NULL, CDP_VALUE(value), size, capacity), NULL, context)
+#define cdp_record_add_data(record, name, domain, tag, attrib, data, size, capacity, destructor, context)     cdp_record_add_child(record, CDP_TYPE_NORMAL, name, cdp_data_new(domain, tag, attrib, CDP_DATATYPE_DATA, true, NULL, CDP_VALUE(data), size, capacity, destructor), NULL, context)
 
-#define cdp_record_add_branch(parent, name, domain, tag, storage, capacity, context)                          cdp_record_add_record(parent, CDP_TYPE_NORMAL, name, NULL, cdp_store_new(domain, tag, storage, CDP_INDEX_BY_INSERTION, capacity, NULL), context)
-#define cdp_record_add_dictionary(parent, name, domain, tag, storage, capacity, context)                      cdp_record_add_record(parent, CDP_TYPE_NORMAL, name, NULL, cdp_store_new(domain, tag, storage, CDP_INDEX_BY_NAME, capacity, NULL), context)
+#define cdp_record_add_branch(record, name, domain, tag, storage, capacity, context)                          cdp_record_add_child(record, CDP_TYPE_NORMAL, name, NULL, cdp_store_new(domain, tag, storage, CDP_INDEX_BY_INSERTION, capacity, NULL), context)
+#define cdp_record_add_dictionary(record, name, domain, tag, storage, capacity, context)                      cdp_record_add_child(record, CDP_TYPE_NORMAL, name, NULL, cdp_store_new(domain, tag, storage, CDP_INDEX_BY_NAME, capacity, NULL), context)
 
-#define cdp_record_add_link(parent, name, source, context)        cdp_record_add_record(parent, CDP_TYPE_LINK,  name, CDP_P(source), NULL, context)
-#define cdp_record_add_agent(parent, name, agent, context)        cdp_record_add_record(parent, CDP_TYPE_AGENT, name, CDP_P(agent),  NULL, context)
+#define cdp_record_add_link(record, name, source, context)        cdp_record_add_child(record, CDP_TYPE_LINK,  name, CDP_P(source), NULL, context)
+#define cdp_record_add_agent(record, name, agent, context)        cdp_record_add_child(record, CDP_TYPE_AGENT, name, CDP_P(agent),  NULL, context)
 
-#define cdp_record_append_record(parent, type, name, data, store, prepend)     \
-    ({cdpRecord r={0}; cdp_record_initialize(&r, type, name, data, store); cdp_record_append(parent, &r, prepend);})
+#define cdp_record_append_child(record, type, name, data, store, prepend)      \
+    ({cdpRecord child={0}; cdp_record_initialize(&child, type, name, data, store); cdp_record_append(record, &child, prepend);})
 
-#define cdp_record_append_value(parent, name, domain, tag, attrib, value, size, capacity, prepend)            cdp_record_append_record(parent, CDP_TYPE_NORMAL, name, cdp_data_new(domain, tag, attrib, CDP_DATATYPE_VALUE, true, NULL, CDP_VALUE(value), size, capacity), NULL, prepend)
-#define cdp_record_append_data(parent, name, domain, tag, attrib, data, size, capacity, destructor, prepend)  cdp_record_append_record(parent, CDP_TYPE_NORMAL, name, cdp_data_new(domain, tag, attrib, CDP_DATATYPE_DATA, true, NULL, CDP_VALUE(data), size, capacity, destructor), NULL, prepend)
+#define cdp_record_append_value(record, name, domain, tag, attrib, value, size, capacity, prepend)            cdp_record_append_child(record, CDP_TYPE_NORMAL, name, cdp_data_new(domain, tag, attrib, CDP_DATATYPE_VALUE, true, NULL, CDP_VALUE(value), size, capacity), NULL, prepend)
+#define cdp_record_append_data(record, name, domain, tag, attrib, data, size, capacity, destructor, prepend)  cdp_record_append_child(record, CDP_TYPE_NORMAL, name, cdp_data_new(domain, tag, attrib, CDP_DATATYPE_DATA, true, NULL, CDP_VALUE(data), size, capacity, destructor), NULL, prepend)
 
-#define cdp_record_append_branch(parent, name, domain, tag, storage, capacity, prepend)                       cdp_record_append_record(parent, CDP_TYPE_NORMAL, name, NULL, cdp_store_new(domain, tag, storage, CDP_INDEX_BY_INSERTION, capacity, NULL), prepend)
-#define cdp_record_append_dictionary(parent, name, domain, tag, storage, capacity, prepend)                   cdp_record_append_record(parent, CDP_TYPE_NORMAL, name, NULL, cdp_store_new(domain, tag, storage, CDP_INDEX_BY_NAME, capacity, NULL), prepend)
+#define cdp_record_append_branch(record, name, domain, tag, storage, capacity, prepend)                       cdp_record_append_child(record, CDP_TYPE_NORMAL, name, NULL, cdp_store_new(domain, tag, storage, CDP_INDEX_BY_INSERTION, capacity, NULL), prepend)
+#define cdp_record_append_dictionary(record, name, domain, tag, storage, capacity, prepend)                   cdp_record_append_child(record, CDP_TYPE_NORMAL, name, NULL, cdp_store_new(domain, tag, storage, CDP_INDEX_BY_NAME, capacity, NULL), prepend)
 
-#define cdp_record_append_link(parent, name, source, prepend)     cdp_record_append_record(parent, CDP_TYPE_LINK,  name, CDP_P(source), NULL, prepend)
-#define cdp_record_append_agent(parent, name, agent, prepend)     cdp_record_append_record(parent, CDP_TYPE_AGENT, name, CDP_P(agent),  NULL, prepend)
+#define cdp_record_append_link(record, name, source, prepend)     cdp_record_append_child(record, CDP_TYPE_LINK,  name, CDP_P(source), NULL, prepend)
+#define cdp_record_append_agent(record, name, agent, prepend)     cdp_record_append_child(record, CDP_TYPE_AGENT, name, CDP_P(agent),  NULL, prepend)
 
 
 // Accessing data
@@ -531,8 +544,8 @@ cdpRecord* cdp_record_next(const cdpRecord* parent, cdpRecord* record);
 cdpRecord* cdp_record_find_next_by_name(const cdpRecord* record, cdpID id, uintptr_t* childIdx);
 cdpRecord* cdp_record_find_next_by_path(const cdpRecord* start, cdpPath* path, uintptr_t* prev);
 
-bool cdp_record_traverse     (cdpRecord* record, cdpTraverse func, void* context, cdpBookEntry* entry);
-bool cdp_record_deep_traverse(cdpRecord* record, cdpTraverse func, cdpTraverse listEnd, void* context, cdpBookEntry* entry);
+bool cdp_record_traverse     (cdpRecord* record, cdpTraverse func, void* context, cdpEntry* entry);
+bool cdp_record_deep_traverse(cdpRecord* record, cdpTraverse func, cdpTraverse listEnd, void* context, cdpEntry* entry);
 
 
 // Converts an unsorted record into a sorted one

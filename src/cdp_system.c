@@ -64,7 +64,7 @@ void cdp_tag_id_static_destructor(void* text) {}
 struct NID {const char* text; size_t length; cdpID id;};
 
 
-static bool interned_traverse_find_text(cdpBookEntry* entry, struct NID* nid) {
+static bool interned_traverse_find_text(cdpEntry* entry, struct NID* nid) {
     if (cdp_record_domain(entry->record) == CDP_DOMAIN_TEXT) {
         size_t length;
         const char* text = cdp_record_read(entry->record, NULL, &length, NULL);

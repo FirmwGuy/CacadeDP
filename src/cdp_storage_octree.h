@@ -124,7 +124,7 @@ static inline cdpRecord* octree_last(cdpOctree* tree) {
 }
 
 
-static inline bool octree_traverse(cdpOctree* tree, cdpRecord* parent, unsigned maxDepth, cdpTraverse func, void* context, cdpBookEntry* entry) {
+static inline bool octree_traverse(cdpOctree* tree, cdpRecord* parent, unsigned maxDepth, cdpTraverse func, void* context, cdpEntry* entry) {
   cdpOctreeNode* tnode = tree->root, *tnodePrev = NULL;
   cdpOctreeNode* stack[maxDepth];
   int top = -1;  // Stack index initialized to empty.
@@ -157,7 +157,7 @@ static inline bool octree_traverse(cdpOctree* tree, cdpRecord* parent, unsigned 
 }
 
 
-static inline int rb_traverse_func_break_at_name(cdpBookEntry* entry, uintptr_t name) {
+static inline int rb_traverse_func_break_at_name(cdpEntry* entry, uintptr_t name) {
     return (entry->record->metarecord.name != name);
 }
 
@@ -183,7 +183,7 @@ static inline cdpRecord* octree_find_by_name(cdpOctree* tree, cdpID id, const cd
     if (cdp_record_is_dictionary(parent)) {
         return octree_find_by_id(tree, id);
     } else {
-        cdpBookEntry entry = {0};
+        cdpEntry entry = {0};
         if (!octree_traverse(tree, CDP_P(parent), cdp_bitson(tree->store.chdCount) + 2, (cdpFunc) rb_traverse_func_break_at_name, cdp_v2p(id), &entry))
             return entry.record;
     }
@@ -207,12 +207,12 @@ static inline cdpRecord* octree_find_by_key(cdpOctree* tree, cdpRecord* key, cdp
 }
 
 
-static inline int rb_traverse_func_break_at_position(cdpBookEntry* entry, uintptr_t position) {
+static inline int rb_traverse_func_break_at_position(cdpEntry* entry, uintptr_t position) {
     return (entry->position != position);
 }
 
 static inline cdpRecord* octree_find_by_position(cdpOctree* tree, size_t position, const cdpRecord* parent) {
-    cdpBookEntry entry = {0};
+    cdpEntry entry = {0};
     if (!octree_traverse(tree, CDP_P(parent), cdp_bitson(tree->store.chdCount) + 2, (void*) rb_traverse_func_break_at_position, cdp_v2p(position), &entry))
         return entry.record;
     return NULL;
