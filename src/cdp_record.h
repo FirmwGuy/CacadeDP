@@ -292,6 +292,8 @@ cdpData* cdp_data_new(  cdpID domain, cdpID tag,
                         cdpValue attribute, unsigned datatype, bool writable,
                         void** dataloc, cdpValue value, ...  );
 void     cdp_data_del(cdpData* data);
+void*    cdp_data(const cdpData* data);
+#define  cdp_data_valid(d)      ((d) && (d)->capacity && cdp_id_text_valid((d)->domain) && cdp_id_text_valid((d)->tag))
 
 
 /*
@@ -351,6 +353,7 @@ cdpStore* cdp_store_new(  cdpID domain, cdpID tag,
                           cdpCompare compare  );
 void      cdp_store_del(cdpStore* store);
 void      cdp_store_delete_children(cdpStore* store);
+#define   cdp_store_valid(s)      ((s) && cdp_id_text_valid((s)->domain) && cdp_id_text_valid((s)->tag))
 
 
 /*
@@ -432,7 +435,7 @@ static inline void  cdp_record_set_name(cdpRecord* record, cdpID name)  {assert(
 static inline cdpID cdp_record_get_name(const cdpRecord* record)        {assert(record);  return record->metarecord.name;}
 #define cdp_record_get_id(r)  cdp_id(cdp_record_get_name(r))
 
-#define cdp_record_is_void(r)       (!(r)->metarecord.type || !cdp_id_valid((r)->metarecord.name))
+#define cdp_record_is_void(r)       (((r)->metarecord.type == CDP_TYPE_VOID) || !cdp_id_valid((r)->metarecord.name))
 #define cdp_record_is_normal(r)     ((r)->metarecord.type == CDP_TYPE_NORMAL)
 #define cdp_record_is_link(r)       ((r)->metarecord.type == CDP_TYPE_LINK)
 #define cdp_record_is_agent(r)      ((r)->metarecord.type == CDP_TYPE_AGENT)
@@ -444,11 +447,13 @@ static inline cdpID cdp_record_get_name(const cdpRecord* record)        {assert(
 static inline bool cdp_record_has_data(cdpRecord* record)     {assert(cdp_record_is_normal(record));  return record->data;}
 static inline bool cdp_record_has_store(cdpRecord* record)    {assert(cdp_record_is_normal(record));  return record->store;}
 
-static inline void cdp_record_set_data(cdpRecord* record, cdpData* data)      {assert(!cdp_record_has_data(record));   record->data = data;}
+static inline void cdp_record_set_data(cdpRecord* record, cdpData* data)      {assert(!cdp_record_has_data(record) && cdp_data_valid(data));   record->data = data;}
 static inline void cdp_record_set_store(cdpRecord* record, cdpStore* store)   {assert(!cdp_record_has_store(record));  record->store = store;}
 
-static inline bool cdp_record_is_dictionary(cdpRecord* record)  {assert(cdp_record_is_normal(record));  return cdp_record_has_store(record)? (record->store.indexing == CDP_INDEX_BY_NAME): false;}
 static inline bool cdp_record_is_insertable(cdpRecord* record)  {assert(cdp_record_has_store(record));  return cdp_record_has_store(record)? (record->store.indexing == CDP_INDEX_BY_INSERTION): false;}
+static inline bool cdp_record_is_dictionary(cdpRecord* record)  {assert(cdp_record_is_normal(record));  return cdp_record_has_store(record)? (record->store.indexing == CDP_INDEX_BY_NAME): false;}
+static inline bool cdp_record_is_f_sorted(cdpRecord* record)    {assert(cdp_record_is_normal(record));  return cdp_record_has_store(record)? (record->store.indexing == CDP_INDEX_BY_FUNCTION  ||  record->store.indexing == CDP_INDEX_BY_HASH): false;}
+static inline bool cdp_record_is_sorted(cdpRecord* record)      {assert(cdp_record_is_normal(record));  return cdp_record_has_store(record)? (record->store.indexing != CDP_INDEX_BY_INSERTION): false;}
 static inline bool cdp_record_is_empty(cdpRecord* record)       {assert(cdp_record_is_normal(record));  return (!record->data && !cdp_record_children(record));}
 
 static inline cdpRecord* cdp_record_parent  (const cdpRecord* record)   {assert(record);  return CDP_EXPECT_PTR(record->parent)? record->parent->owner: NULL;}
@@ -479,7 +484,7 @@ static inline void cdp_record_replace(cdpRecord* oldr, cdpRecord* newr) {
 
 
 // Appends/prepends or inserts a (copy of) record into another record
-cdpRecord* cdp_record_add(cdpRecord* record, cdpRecord* child, cdpValue context);
+static inline cdpRecord* cdp_record_add(cdpRecord* record, cdpRecord* child, cdpValue context);
 cdpRecord* cdp_record_append(cdpRecord* record, cdpRecord* child, bool prepend);
 
 #define cdp_record_add_child(record, type, name, data, store, context)         \
@@ -538,8 +543,8 @@ cdpRecord* cdp_record_find_by_key(const cdpRecord* record, cdpRecord* key, cdpCo
 cdpRecord* cdp_record_find_by_position(const cdpRecord* record, size_t position);
 cdpRecord* cdp_record_find_by_path(const cdpRecord* start, const cdpPath* path);
 
-cdpRecord* cdp_record_prev(const cdpRecord* parent, cdpRecord* record);
-cdpRecord* cdp_record_next(const cdpRecord* parent, cdpRecord* record);
+cdpRecord* cdp_record_prev(const cdpRecord* record, cdpRecord* child);
+cdpRecord* cdp_record_next(const cdpRecord* record, cdpRecord* child);
 
 cdpRecord* cdp_record_find_next_by_name(const cdpRecord* record, cdpID id, uintptr_t* childIdx);
 cdpRecord* cdp_record_find_next_by_path(const cdpRecord* start, cdpPath* path, uintptr_t* prev);

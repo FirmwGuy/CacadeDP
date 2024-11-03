@@ -229,8 +229,8 @@ static inline cdpRecord* list_next_by_name(cdpList* list, cdpID name, cdpListNod
 }
 
 
-static inline bool list_traverse(cdpList* list, cdpRecord* parent, cdpTraverse func, void* context, cdpEntry* entry) {
-    entry->parent = parent;
+static inline bool list_traverse(cdpList* list, cdpTraverse func, void* context, cdpEntry* entry) {
+    entry->parent = list->store.owner;
     entry->depth  = 0;
     cdpListNode* node = list->head, *next;
     do {

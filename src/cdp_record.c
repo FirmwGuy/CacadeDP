@@ -117,7 +117,7 @@ cdpData* cdp_data_new(  cdpID domain, cdpID tag,
                 memcpy(data->value, value.pointer, size);
             } else {
                 data = cdp_malloc0(alocz);
-                data->value = value;
+                data->value[0] = value;
             }
         } else {
             data = cdp_malloc0(alocz);
@@ -220,6 +220,75 @@ void cdp_data_del(cdpData* data) {
 }
 
 
+/*
+   Gets data address
+*/
+static inline void* cdp_data(const cdpData* data) {
+    assert(cdp_data_valid(data));
+
+    switch (data->datatype) {
+      case CDP_DATATYPE_VALUE: {
+        return data->value;
+      }
+
+      case CDP_DATATYPE_DATA: {
+        return data->data;
+      }
+
+      case CDP_DATATYPE_HANDLE:
+      case CDP_DATATYPE_STREAM: {
+        // ToDo: pending!
+        break;
+      }
+    }
+
+    return NULL;
+}
+
+
+/*
+   Updates the data
+*/
+static inline void* cdp_data_update(cdpData* data, size_t size, size_t capacity, cdpValue value, bool swap) {
+    assert(cdp_data_valid(data) && size && capacity);
+
+    if (!data->writable)
+        return NULL;
+
+    switch (data->datatype) {
+      case CDP_DATATYPE_VALUE: {
+        assert(data->capacity == capacity);
+        data->value[0] = value;
+        data->size = size;
+        return data->value;
+      }
+
+      case CDP_DATATYPE_DATA: {
+        assert(value.pointer);
+        if (swap) {
+            if (data->destructor)
+                data->destructor(data->data);
+            data->data = value.pointer;
+            data->capacity = capacity;
+        } else {
+            assert(data->capacity >= capacity);
+            memcpy(data->data, value.pointer, size);
+        }
+        data->size = size;
+        return data->data;
+      }
+
+      case CDP_DATATYPE_HANDLE:
+      case CDP_DATATYPE_STREAM: {
+        // ToDo: pending!
+        return NULL;
+      }
+    }
+
+    return NULL;
+}
+
+
 
 
 /*
@@ -276,7 +345,7 @@ cdpStore* cdp_store_new(  cdpID domain, cdpID tag,
 
 
 void cdp_store_del(cdpStore* store) {
-    assert(store);
+    assert(cdp_store_valid(store));
 
     switch (store->storage) {
       case CDP_STORAGE_LINKED_LIST: {
@@ -314,7 +383,7 @@ void cdp_store_del(cdpStore* store) {
 
 
 void cdp_store_delete_children(cdpStore* store) {
-    assert(store);
+    assert(cdp_store_valid(store));
 
     switch (store->storage) {
       case CDP_STORAGE_LINKED_LIST: {
@@ -347,12 +416,633 @@ void cdp_store_delete_children(cdpStore* store) {
 /*
     Assign auto-id if necessary
 */
-
 static inline void store_check_auto_id(cdpStore* store, cdpRecord* child) {
     if (cdp_record_id_is_pending(child)) {
         cdp_record_set_name(child, cdp_id_to_numeric(store->autoid++));
     }
     // FixMe: if otherwise.
+}
+
+
+/*
+    Adds/inserts a *copy* of the specified record into a store
+*/
+static inline cdpRecord* store_add_record(cdpStore* store, cdpRecord* child, cdpValue context) {
+    assert(cdp_store_valid(store) && !cdp_record_is_void(child));
+
+    if (!store->writable)
+        return NULL;
+
+    cdpRecord* record;
+
+    switch (store->indexing) {
+      case CDP_INDEX_BY_INSERTION:
+      {
+        assert(store->chdCount >= context.size);
+
+        switch (store->storage) {
+          case CDP_STORAGE_LINKED_LIST: {
+            record = list_insert(store, child, context.size);
+            break;
+          }
+          case CDP_STORAGE_ARRAY: {
+            record = array_insert(store, child, context.size);
+            break;
+          }
+          case CDP_STORAGE_PACKED_QUEUE: {
+            record = packed_q_insert(store, child, context.size);
+            break;
+          }
+          default: {
+            assert(store->storage >= CDP_STORAGE_RED_BLACK_T);
+            return NULL;
+          }
+        }
+        break;
+      }
+
+      case CDP_INDEX_BY_NAME:
+      {
+        switch (store->storage) {
+          case CDP_STORAGE_LINKED_LIST: {
+            record = list_named_insert(store, child);
+            break;
+          }
+          case CDP_STORAGE_ARRAY: {
+            record = array_named_insert(store, child);
+            break;
+          }
+          case CDP_STORAGE_RED_BLACK_T: {
+            record = rb_tree_named_insert(store, child);
+            break;
+          }
+          default: {
+            assert(store->indexing != CDP_INDEX_BY_NAME);
+            return NULL;
+          }
+        }
+        break;
+      }
+
+      case CDP_INDEX_BY_FUNCTION:
+      case CDP_INDEX_BY_HASH:
+      {
+        switch (store->storage) {
+          case CDP_STORAGE_LINKED_LIST: {
+            record = list_sorted_insert(store, child, store->compare, context.pointer);
+            break;
+          }
+          case CDP_STORAGE_ARRAY: {
+            record = array_sorted_insert(store, child, store->compare, context.pointer);
+            break;
+          }
+          case CDP_STORAGE_PACKED_QUEUE: {
+            assert(store->storage != CDP_STORAGE_PACKED_QUEUE);
+            return NULL;
+          }
+          case CDP_STORAGE_RED_BLACK_T: {
+            record = rb_tree_sorted_insert(store, child, store->compare, context.pointer);
+            break;
+          }
+          case CDP_STORAGE_OCTREE: {
+            record = octree_sorted_insert(store, child, store->compare, context.pointer);
+            break;
+          }
+        }
+        break;
+      }
+    }
+
+    store_check_auto_id(store, record);
+
+    //cdp_record_transfer(child, record);
+    CDP_0(child);      // This avoids deleting children during move operations.
+
+    record->parent = store;
+    store->chdCount++;
+
+    return record;
+}
+
+
+/*
+    Appends/prepends a copy of record into store
+*/
+static inline cdpRecord* store_append_record(cdpStore* store, cdpRecord* child, bool prepend) {
+    assert(cdp_store_valid(store) && !cdp_record_is_void(child));
+
+    if (!store->writable)
+        return NULL;
+
+    cdpRecord* record;
+
+    if (store->indexing != CDP_INDEX_BY_INSERTION)) {
+        assert(store->indexing == CDP_INDEX_BY_INSERTION);
+        return NULL;
+    }
+
+    switch (store->storage) {
+      case CDP_STORAGE_LINKED_LIST: {
+        record = list_append(store, child, prepend);
+        break;
+      }
+      case CDP_STORAGE_ARRAY: {
+        record = array_append(store, child, prepend);
+        break;
+      }
+      case CDP_STORAGE_PACKED_QUEUE: {
+        record = packed_q_append(store, child, prepend);
+        break;
+      }
+      default: {
+        assert(store->storage >= CDP_STORAGE_RED_BLACK_T);
+        return NULL;
+      }
+    }
+    store_check_auto_id(store, record);
+
+    //cdp_record_transfer(child, record);
+    CDP_0(child);
+
+    record->parent = store;
+    store->chdCount++;
+
+    return record;
+}
+
+
+/*
+    Gets the first child record from store
+*/
+static inline cdpRecord* store_first_record(const cdpStore* store) {
+    assert(cdp_store_valid(store));
+
+    if (!store->chdCount)
+        return NULL;
+
+    switch (store->storage) {
+      case CDP_STORAGE_LINKED_LIST: {
+        return list_first(store);
+      }
+      case CDP_STORAGE_ARRAY: {
+        return array_first(store);
+      }
+      case CDP_STORAGE_PACKED_QUEUE: {
+        return packed_q_first(store);
+      }
+      case CDP_STORAGE_RED_BLACK_T: {
+        return rb_tree_first(store);
+      }
+      case CDP_STORAGE_OCTREE: {
+        return octree_first(store);
+      }
+    }
+    return NULL;
+}
+
+
+/*
+    Gets the last child record from store
+*/
+static inline cdpRecord* store_last_record(const cdpStore* store) {
+    assert(cdp_store_valid(store));
+
+    if (!store->chdCount)
+        return NULL;
+
+    switch (store->storage) {
+      case CDP_STORAGE_LINKED_LIST: {
+        return list_last(store);
+      }
+      case CDP_STORAGE_ARRAY: {
+        return array_last(store);
+      }
+      case CDP_STORAGE_PACKED_QUEUE: {
+        return packed_q_last(store);
+      }
+      case CDP_STORAGE_RED_BLACK_T: {
+        return rb_tree_last(store);
+      }
+      case CDP_STORAGE_OCTREE: {
+        return octree_last(store);
+      }
+    }
+    return NULL;
+}
+
+
+/*
+    Retrieves a child record by its ID
+*/
+static inline cdpRecord* store_find_record_by_name(const cdpStore* store, cdpID name) {
+    assert(cdp_store_valid(store) && cdp_id_valid(name));
+
+    if (!store->chdCount)
+        return NULL;
+
+    switch (store->storage) {
+      case CDP_STORAGE_LINKED_LIST: {
+        return list_find_by_name(store, name);
+      }
+      case CDP_STORAGE_ARRAY: {
+        return array_find_by_name(store, name);
+      }
+      case CDP_STORAGE_PACKED_QUEUE: {
+        return packed_q_find_by_name(store, name);
+      }
+      case CDP_STORAGE_RED_BLACK_T: {
+        return rb_tree_find_by_name(store, name);
+      }
+      case CDP_STORAGE_OCTREE: {
+        return octree_find_by_name(store, name);
+      }
+    }
+    return NULL;
+}
+
+
+
+/*
+    Finds a child record based on specified key
+*/
+static inline cdpRecord* store_find_record_by_key(const cdpStore* store, cdpRecord* key, cdpCompare compare, void* context) {
+    assert(cdp_store_valid(store) && !cdp_record_is_void(key) && compare);
+
+    if (!store->chdCount)
+        return NULL;
+
+    switch (store->storage) {
+      case CDP_STORAGE_LINKED_LIST: {
+        return list_find_by_key(store, key, compare, context);
+      }
+      case CDP_STORAGE_ARRAY: {
+        return array_find_by_key(store, key, compare, context);
+      }
+      case CDP_STORAGE_PACKED_QUEUE: {
+        assert(record->metarecord.storage == CDP_STORAGE_PACKED_QUEUE);   // Unsupported.
+        break;
+      }
+      case CDP_STORAGE_RED_BLACK_T: {
+        return rb_tree_find_by_key(store, key, compare, context);
+      }
+      case CDP_STORAGE_OCTREE: {
+        return octree_find_by_key(store, key, compare, context);
+      }
+    }
+    return NULL;
+}
+
+
+/*
+    Gets the record at index position from store
+*/
+static inline cdpRecord* store_find_record_by_position(const cdpStore* store, size_t position) {
+    assert(cdp_store_valid(store));
+
+    if (store->chdCount <= position)
+        return NULL;
+
+    switch (store->storage) {
+      case CDP_STORAGE_LINKED_LIST: {
+        return list_find_by_position(store, position);
+      }
+      case CDP_STORAGE_ARRAY: {
+        return array_find_by_position(store, position);
+      }
+      case CDP_STORAGE_PACKED_QUEUE: {
+        return packed_q_find_by_position(store, position);
+      }
+      case CDP_STORAGE_RED_BLACK_T: {
+        return rb_tree_find_by_position(store, position);
+      }
+      case CDP_STORAGE_OCTREE: {
+        return octree_find_by_position(store, position);
+      }
+    }
+    return NULL;
+}
+
+
+/*
+    Retrieves the previous sibling of record
+*/
+static inline cdpRecord* store_prev_record(const cdpStore* store, cdpRecord* child) {
+    assert(!cdp_record_is_void(child));
+
+    switch (store->storage) {
+      case CDP_STORAGE_LINKED_LIST: {
+        return list_prev(child);
+      }
+      case CDP_STORAGE_ARRAY: {
+        return array_prev(store, child);
+      }
+      case CDP_STORAGE_PACKED_QUEUE: {
+        return packed_q_prev(store, child);
+      }
+      case CDP_STORAGE_RED_BLACK_T: {
+        return rb_tree_prev(child);
+      }
+      case CDP_STORAGE_OCTREE: {
+        return octree_prev(child);
+      }
+    }
+    return NULL;
+}
+
+
+/*
+    Retrieves the next sibling of record (sorted or unsorted)
+*/
+static inline cdpRecord* store_next_record(const cdpStore* store, cdpRecord* child) {
+    assert(!cdp_record_is_void(child));
+
+    switch (store->storage) {
+      case CDP_STORAGE_LINKED_LIST: {
+        return list_next(child);
+      }
+      case CDP_STORAGE_ARRAY: {
+        return array_next(store, child);
+      }
+      case CDP_STORAGE_PACKED_QUEUE: {
+        return packed_q_next(store, child);
+      }
+      case CDP_STORAGE_RED_BLACK_T: {
+        return rb_tree_next(child);
+      }
+      case CDP_STORAGE_OCTREE: {
+        return octree_next(child);
+      }
+    }
+    return NULL;
+}
+
+
+
+
+/*
+    Retrieves the first/next child record by its ID
+*/
+static inline cdpRecord* store_find_next_record_by_name(const cdpStore* store, cdpID id, uintptr_t* childIdx) {
+    assert(cdp_store_valid(store) && cdp_id_valid(id));
+
+    if (!store->chdCount)
+        return NULL;
+
+    if (store->indexing == CDP_INDEX_BY_NAME  ||  !childIdx) {
+        CDP_PTR_SEC_SET(childIdx, 0);
+        return store_find_record_by_name(store, id);
+    }
+
+    switch (store->storage) {
+      case CDP_STORAGE_LINKED_LIST: {
+        return list_next_by_name(store, id, (cdpListNode**)childIdx);
+      }
+      case CDP_STORAGE_ARRAY: {
+        return array_next_by_name(store, id, childIdx);
+      }
+      case CDP_STORAGE_PACKED_QUEUE: {
+        return packed_q_next_by_name(store, id, (cdpPackedQNode**)childIdx);
+      }
+      case CDP_STORAGE_RED_BLACK_T: {    // Unused.
+        break;
+      }
+      case CDP_STORAGE_OCTREE: {
+        return octree_next_by_name(store, id, (cdpListNode**)childIdx);
+      }
+    }
+    return NULL;
+}
+
+
+/*
+    Traverses all the children in a store, applying a function to each one
+*/
+static inline bool store_traverse(cdpStore* store, cdpTraverse func, void* context, cdpEntry* entry) {
+    assert(cdp_store_valid(store) && func);
+
+    size_t children = store->chdCount;
+    if (!children)
+        return true;
+
+    if (!entry)
+        entry = cdp_alloca(sizeof(cdpEntry));
+    CDP_0(entry);
+
+    switch (store->storage) {
+      case CDP_STORAGE_LINKED_LIST: {
+        return list_traverse(store, func, context, entry);
+      }
+      case CDP_STORAGE_ARRAY: {
+        return array_traverse(store, func, context, entry);
+      }
+      case CDP_STORAGE_PACKED_QUEUE: {
+        return packed_q_traverse(store, func, context, entry);
+      }
+      case CDP_STORAGE_RED_BLACK_T: {
+        return rb_tree_traverse(store, cdp_bitson(children) + 2, func, context, entry);
+      }
+      case CDP_STORAGE_OCTREE: {
+        return octree_traverse(store, children, func, context, entry);
+      }
+    }
+
+    return true;
+}
+
+
+/*
+    Converts an unsorted store into a dictionary
+*/
+static inline void store_to_dictionary(cdpStore* store) {
+    assert(cdp_store_valid(store));
+
+    if (store->storage == CDP_INDEX_BY_NAME)
+        return;
+
+    store->storage = CDP_INDEX_BY_NAME;
+
+    if (store->chdCount <= 1)
+        return;
+
+    switch (store->storage) {
+      case CDP_STORAGE_LINKED_LIST: {
+        list_sort(store, record_compare_by_name, NULL);
+        break;
+      }
+      case CDP_STORAGE_ARRAY: {
+        array_sort(store, record_compare_by_name, NULL);
+        break;
+      }
+      case CDP_STORAGE_PACKED_QUEUE: {
+        assert(store->storage != CDP_STORAGE_PACKED_QUEUE);    // Unsupported.
+        break;
+      }
+      case CDP_STORAGE_RED_BLACK_T: {    // Unneeded.
+        break;
+      }
+      case CDP_STORAGE_OCTREE: {
+        assert(store->storage != CDP_STORAGE_OCTREE);    // Unsupported.
+        break;
+      }
+    }
+}
+
+
+/*
+    Sorts unsorted store according to a user defined function
+*/
+static inline void store_sort(cdpStore* store, cdpCompare compare, void* context) {
+    assert(cdp_store_valid(store) && compare);
+
+    store->compare = compare;
+
+    if (store->storage == CDP_INDEX_BY_FUNCTION)
+        return;
+
+    store->storage = CDP_INDEX_BY_FUNCTION;   // FixMe: by hash?
+
+    if (store->chdCount <= 1)
+        return;
+
+    switch (store->storage) {
+      case CDP_STORAGE_LINKED_LIST: {
+        list_sort(store, compare, context);
+        break;
+      }
+      case CDP_STORAGE_ARRAY: {
+        array_sort(store, compare, context);
+        break;
+      }
+      case CDP_STORAGE_PACKED_QUEUE: {
+        assert(store->storage == CDP_STORAGE_PACKED_QUEUE);    // Unsupported.
+        break;
+      }
+      case CDP_STORAGE_RED_BLACK_T: {
+        // ToDo: re-sort RB-tree.
+        assert(store->storage != CDP_STORAGE_RED_BLACK_T);
+        break;
+      }
+      case CDP_STORAGE_OCTREE: {
+        // ToDo: re-sort RB-tree.
+        assert(store->storage != CDP_STORAGE_OCTREE);
+        break;
+      }
+    }
+}
+
+
+/*
+    Removes last child from store (re-organizing siblings)
+*/
+static inline bool store_take_record(cdpStore* store, cdpRecord* target) {
+    assert(cdp_store_valid(store) && target);
+
+    if (!store->chdCount || !store->writable)
+        return NULL;
+
+    switch (store->storage) {
+      case CDP_STORAGE_LINKED_LIST: {
+        list_take(store, target);
+        break;
+      }
+      case CDP_STORAGE_ARRAY: {
+        array_take(store, target);
+        break;
+      }
+      case CDP_STORAGE_PACKED_QUEUE: {
+        packed_q_take(store, target);
+        break;
+      }
+      case CDP_STORAGE_RED_BLACK_T: {
+        rb_tree_take(store, target);
+        break;
+      }
+      case CDP_STORAGE_OCTREE: {
+        octree_take(store, target);
+        break;
+      }
+    }
+
+    store->chdCount--;
+
+    return true;
+}
+
+
+/*
+    Removes first child from store (re-organizing siblings)
+*/
+static inline bool store_pop_record(cdpStore* store, cdpRecord* target) {
+    assert(cdp_store_valid(store) && target);
+
+    if (!store->chdCount || !store->writable)
+        return NULL;
+
+    switch (store->storage) {
+      case CDP_STORAGE_LINKED_LIST: {
+        list_pop(store, target);
+        break;
+      }
+      case CDP_STORAGE_ARRAY: {
+        array_pop(store, target);
+        break;
+      }
+      case CDP_STORAGE_PACKED_QUEUE: {
+        packed_q_pop(store, target);
+        break;
+      }
+      case CDP_STORAGE_RED_BLACK_T: {
+        rb_tree_pop(store, target);
+        break;
+      }
+      case CDP_STORAGE_OCTREE: {
+        octree_pop(store, target);
+        break;
+      }
+    }
+
+    store->chdCount--;
+
+    return true;
+}
+
+
+/*
+    Deletes a record and all its children re-organizing (sibling) storage
+*/
+static inline void store_remove_record(cdpStore* store, cdpRecord* record, cdpRecord* target) {
+    assert(cdp_store_valid(store) && store->chdCount);
+
+    if (target)
+        cdp_record_transfer(record, target);  // Save record.
+    else
+        cdp_record_finalize(record);          // Delete record (along children, if any).
+
+    // Remove this record from its parent (re-organizing siblings).
+    switch (store->storage) {
+      case CDP_STORAGE_LINKED_LIST: {
+        list_remove_record(store, record);
+        break;
+      }
+      case CDP_STORAGE_ARRAY: {
+        array_remove_record(store, record);
+        break;
+      }
+      case CDP_STORAGE_PACKED_QUEUE: {
+        packed_q_remove_record(store, record);
+        break;
+      }
+      case CDP_STORAGE_RED_BLACK_T: {
+        rb_tree_remove_record(store, record);
+        break;
+      }
+      case CDP_STORAGE_OCTREE: {
+        octree_remove_record(store, record);
+        break;
+      }
+    }
+
+    store->chdCount--;
 }
 
 
@@ -363,7 +1053,7 @@ static inline void store_check_auto_id(cdpStore* store, cdpRecord* child) {
 */
 void cdp_record_initialize(cdpRecord* record, unsigned type, cdpID name, cdpData* data, cdpStore* store) {
     assert(record && cdp_id_valid(name) && (type < CDP_TYPE_COUNT));
-    assert((data? cdp_id_text_valid(data->name): true)  &&  (store? cdp_id_text_valid(store->name): true));
+    assert((data? cdp_data_valid(data): true)  &&  (store? cdp_store_valid(store): true));
 
     //CDP_0(record);
 
@@ -432,102 +1122,23 @@ void cdp_record_finalize(cdpRecord* record) {
 
 
 
+#define RECORD_FOLLOW_LINK_TO_STORE(record, store)                             \
+    assert(!cdp_record_is_void(record));                                       \
+                                                                               \
+    if (record->metarecord.type == CDP_TYPE_LINK)                              \
+        record = cdp_link(record);                                             \
+                                                                               \
+    cdpStore* store = record->store;                                           \
+    if (!store)                                                                \
+        return NULL
+
+
 /*
     Adds/inserts a *copy* of the specified record into another record
 */
 cdpRecord* cdp_record_add(cdpRecord* record, cdpRecord* child, cdpValue context) {
-    assert(cdp_record_has_store(record) && !cdp_record_is_void(child));
-
-    cdpRecord* newchd;
-    cdpStore* store = record->store;
-
-    switch (store->indexing) {
-      case CDP_INDEX_BY_INSERTION:
-      {
-        assert(store->chdCount >= context.size);
-
-        switch (store->storage) {
-          case CDP_STORAGE_LINKED_LIST: {
-            newchd = list_insert(store, child, context.size);
-            break;
-          }
-          case CDP_STORAGE_ARRAY: {
-            newchd = array_insert(store, record, child, context.size);
-            break;
-          }
-          case CDP_STORAGE_PACKED_QUEUE: {
-            newchd = packed_q_insert(store, record, child, context.size);
-            break;
-          }
-          default: {
-            assert(store->storage >= CDP_STORAGE_RED_BLACK_T);
-            return NULL;
-          }
-        }
-        break;
-      }
-
-      case CDP_INDEX_BY_NAME:
-      {
-        switch (store->storage) {
-          case CDP_STORAGE_LINKED_LIST: {
-            newchd = list_named_insert(store, child);
-            break;
-          }
-          case CDP_STORAGE_ARRAY: {
-            newchd = array_named_insert(store, record, child);
-            break;
-          }
-          case CDP_STORAGE_RED_BLACK_T: {
-            newchd = rb_tree_named_insert(store, record, child);
-            break;
-          }
-          default: {
-            assert(!cdp_record_is_dictionary(record));
-            return NULL;
-          }
-        }
-        break;
-      }
-
-      case CDP_INDEX_BY_FUNCTION:
-      case CDP_INDEX_BY_HASH:
-      {
-        switch (store->storage) {
-          case CDP_STORAGE_LINKED_LIST: {
-            newchd = list_sorted_insert(store, child, store->compare, context.pointer);
-            break;
-          }
-          case CDP_STORAGE_ARRAY: {
-            newchd = array_sorted_insert(store, record, prepend, child);
-            break;
-          }
-          case CDP_STORAGE_PACKED_QUEUE: {
-            assert(parent->store.storage != CDP_STORAGE_PACKED_QUEUE);
-            return NULL;
-          }
-          case CDP_STORAGE_RED_BLACK_T: {
-            newchd = rb_tree_sorted_insert(store, record, child);
-            break;
-          }
-          case CDP_STORAGE_OCTREE: {
-            newchd = octree_sorted_insert(store, record, child);
-            break;
-          }
-        }
-        break;
-      }
-    }
-
-    store_check_auto_id(store, newchd);
-
-    //cdp_record_transfer(child, newchd);
-    CDP_0(child);      // This avoids deleting children during move operations.
-
-    newchd->parent = 1store;
-    store->chdCount++;
-
-    return newchd;
+    RECORD_FOLLOW_LINK_TO_STORE(record, store);
+    return store_add_record(store, child, context);
 }
 
 
@@ -535,42 +1146,8 @@ cdpRecord* cdp_record_add(cdpRecord* record, cdpRecord* child, cdpValue context)
     Appends/prepends a copy of record into another
 */
 cdpRecord* cdp_record_append(cdpRecord* record, cdpRecord* child, bool prepend) {
-    assert(cdp_record_has_store(record) && !cdp_record_is_void(child));
-
-    cdpRecord* newchd;
-    cdpStore* store = record->store;
-
-    if (store->indexing != CDP_INDEX_BY_INSERTION)) {
-        assert(store->indexing == CDP_INDEX_BY_INSERTION);
-        return NULL;
-    }
-    switch (store->storage) {
-      case CDP_STORAGE_LINKED_LIST: {
-        newchd = list_append(store, child, prepend);
-        break;
-      }
-      case CDP_STORAGE_ARRAY: {
-        newchd = array_append(store, parent, child, prepend);
-        break;
-      }
-      case CDP_STORAGE_PACKED_QUEUE: {
-        newchd = packed_q_append(store, parent, child, prepend);
-        break;
-      }
-      default: {
-        assert(store->storage >= CDP_STORAGE_RED_BLACK_T);
-        return NULL;
-      }
-    }
-    store_check_auto_id(store, newchd);
-
-    //cdp_record_transfer(child, newchd);
-    CDP_0(child);
-
-    newchd->parent = store;
-    store->chdCount++;
-
-    return newchd;
+    RECORD_FOLLOW_LINK_TO_STORE(record, store);
+    return store_append_record(store, child, prepend);
 }
 
 
@@ -582,42 +1159,14 @@ cdpRecord* cdp_record_append(cdpRecord* record, cdpRecord* child, bool prepend) 
 void* cdp_record_data(const cdpRecord* record) {
     assert(!cdp_record_is_void(record));
 
-    switch (record->metarecord.type) {
-      case CDP_TYPE_NORMAL:
-      {
-        if (!record->data)
-            return NULL;
+    if (record->metarecord.type == CDP_TYPE_LINK)
+        record = cdp_link(record);
 
-        switch (record->data.datatype) {
-          case CDP_DATATYPE_VALUE: {
-            return record->data->value;
-          }
-
-          case CDP_DATATYPE_DATA: {
-            return record->data->data;
-          }
-
-          case CDP_DATATYPE_HANDLE:
-          case CDP_DATATYPE_STREAM: {
-            // ToDo: pending!
-            break;
-          }
-        }
-
+    cdpData* data = record->data;
+    if (!data)
         return NULL;
-      }
 
-      case CDP_TYPE_LINK: {
-        // ToDo: follow link.
-        break;
-      }
-
-      default: {
-        assert(record->metarecord.type == CDP_TYPE_NORMAL  ||  record->metarecord.type == CDP_TYPE_LINK);
-      }
-    }
-
-    return NULL;
+    return cdp_data(data);
 }
 
 
@@ -625,43 +1174,18 @@ void* cdp_record_data(const cdpRecord* record) {
    Updates the data of a record
 */
 void* cdp_record_update(cdpRecord* record, size_t size, size_t capacity, cdpValue value, bool swap) {
-    assert(cdp_record_has_data(record) && size && capacity);
+    assert(!cdp_record_is_void(record) && size && capacity);
+
+    if (record->metarecord.type == CDP_TYPE_LINK)
+        record = cdp_link(record);
 
     cdpData* data = record->data;
-    if (!data->writable)
+    if (!data) {
+        assert(data);
         return NULL;
-
-    switch (data.datatype) {
-      case CDP_DATATYPE_VALUE: {
-        assert(data->capacity == capacity);
-        data->value = value;
-        data->size = size;
-        return data->value;
-      }
-
-      case CDP_DATATYPE_DATA: {
-        assert(value.pointer);
-        if (swap) {
-            if (data->destructor)
-                data->destructor(data->data);
-            data->data = value.pointer;
-            data->capacity = capacity;
-        } else {
-            assert(data->capacity >= capacity);
-            memcpy(data->data, value.pointer, size);
-        }
-        data->size = size;
-        return data->data;
-      }
-
-      case CDP_DATATYPE_HANDLE:
-      case CDP_DATATYPE_STREAM: {
-        // ToDo: pending!
-        return NULL;
-      }
     }
 
-    return NULL;
+    return cdp_data_update(data, size, capacity, value, swap);;
 }
 
 
@@ -714,30 +1238,8 @@ bool cdp_record_path(const cdpRecord* record, cdpPath** path) {
     Gets the first child record
 */
 cdpRecord* cdp_record_first(const cdpRecord* record) {
-    if (!cdp_record_children(record))
-        return NULL;
-
-    cdpStore* store = record->store;
-
-    switch (store->storage) {
-      case CDP_STORAGE_LINKED_LIST: {
-        return list_first(store);
-      }
-      case CDP_STORAGE_ARRAY: {
-        return array_first(store);
-      }
-      case CDP_STORAGE_PACKED_QUEUE: {
-        return packed_q_first(store);
-      }
-      case CDP_STORAGE_RED_BLACK_T: {
-        return rb_tree_first(store);
-      }
-      case CDP_STORAGE_OCTREE: {
-        return octree_first(store);
-      }
-    }
-
-    return NULL;
+    RECORD_FOLLOW_LINK_TO_STORE(record, store);
+    return store_first_record(store);
 }
 
 
@@ -745,30 +1247,8 @@ cdpRecord* cdp_record_first(const cdpRecord* record) {
     Gets the last child record
 */
 cdpRecord* cdp_record_last(const cdpRecord* record) {
-    if (!cdp_record_children(record))
-        return NULL;
-
-    cdpStore* store = record->store;
-
-    switch (store->storage) {
-      case CDP_STORAGE_LINKED_LIST: {
-        return list_last(store);
-      }
-      case CDP_STORAGE_ARRAY: {
-        return array_last(store);
-      }
-      case CDP_STORAGE_PACKED_QUEUE: {
-        return packed_q_last(store);
-      }
-      case CDP_STORAGE_RED_BLACK_T: {
-        return rb_tree_last(store);
-      }
-      case CDP_STORAGE_OCTREE: {
-        return octree_last(store);
-      }
-   }
-
-    return NULL;
+    RECORD_FOLLOW_LINK_TO_STORE(record, store);
+    return store_last_record(store);
 }
 
 
@@ -776,98 +1256,26 @@ cdpRecord* cdp_record_last(const cdpRecord* record) {
     Retrieves a child record by its ID
 */
 cdpRecord* cdp_record_find_by_name(const cdpRecord* record, cdpID name) {
-    assert(cdp_id_valid(name));
-
-    if (!cdp_record_children(record))
-        return NULL;
-
-    cdpStore* store = record->store;
-
-    switch (store->storage) {
-      case CDP_STORAGE_LINKED_LIST: {
-        return list_find_by_name(store, name);
-      }
-      case CDP_STORAGE_ARRAY: {
-        return array_find_by_name(store, name, record);
-      }
-      case CDP_STORAGE_PACKED_QUEUE: {
-        return packed_q_find_by_name(store, name);
-      }
-      case CDP_STORAGE_RED_BLACK_T: {
-        return rb_tree_find_by_name(store, name, record);
-      }
-      case CDP_STORAGE_OCTREE: {
-        return octree_find_by_name(store, name, record);
-      }
-    }
-
-    return NULL;
+    RECORD_FOLLOW_LINK_TO_STORE(record, store);
+    return store_find_record_by_name(store, name);
 }
-
 
 
 /*
     Finds a child record based on specified key
 */
 cdpRecord* cdp_record_find_by_key(const cdpRecord* record, cdpRecord* key, cdpCompare compare, void* context) {
-    assert(!cdp_record_is_void(key) && compare);
-
-    if (!cdp_record_children(record))
-        return NULL;
-
-    cdpStore* store = record->store;
-
-    switch (store->storage) {
-      case CDP_STORAGE_LINKED_LIST: {
-        return list_find_by_key(store, key, compare, context);
-      }
-      case CDP_STORAGE_ARRAY: {
-        return array_find_by_key(store, key, compare, context);
-      }
-      case CDP_STORAGE_PACKED_QUEUE: {
-        assert(record->metarecord.storage == CDP_STORAGE_PACKED_QUEUE);   // Unsupported.
-        break;
-      }
-      case CDP_STORAGE_RED_BLACK_T: {
-        return rb_tree_find_by_key(store, key, compare, context);
-      }
-      case CDP_STORAGE_OCTREE: {
-        return octree_find_by_key(store, key, compare, context);
-      }
-    }
-
-    return NULL;
+    RECORD_FOLLOW_LINK_TO_STORE(record, store);
+    return store_find_record_by_key(store, key, compare, context);
 }
 
 
 /*
-    Gets the record at index position from book
+    Gets the record at index position in branch
 */
 cdpRecord* cdp_record_find_by_position(const cdpRecord* record, size_t position) {
-    if (position >= cdp_record_children(record))
-        return NULL;
-
-    cdpStore* store = record->store;
-
-    switch (store->storage) {
-      case CDP_STORAGE_LINKED_LIST: {
-        return list_find_by_position(store, position);
-      }
-      case CDP_STORAGE_ARRAY: {
-        return array_find_by_position(store, position);
-      }
-      case CDP_STORAGE_PACKED_QUEUE: {
-        return packed_q_find_by_position(store, position);
-      }
-      case CDP_STORAGE_RED_BLACK_T: {
-        return rb_tree_find_by_position(store, position, record);
-      }
-      case CDP_STORAGE_OCTREE: {
-        return octree_find_by_position(store, position, record);
-      }
-    }
-
-    return NULL;
+    RECORD_FOLLOW_LINK_TO_STORE(record, store);
+    return store_find_record_by_position(store, position);
 }
 
 
@@ -892,68 +1300,25 @@ cdpRecord* cdp_record_find_by_path(const cdpRecord* start, const cdpPath* path) 
 
 
 
-
 /*
     Retrieves the previous sibling of record
 */
-cdpRecord* cdp_record_prev(const cdpRecord* parent, cdpRecord* record) {
-    assert(!cdp_record_is_void(record));
-
-    if (!parent)
-        parent = cdp_record_parent(record);
-    cdpStore* store = parent->store;
-
-    switch (store->storage) {
-      case CDP_STORAGE_LINKED_LIST: {
-        return list_prev(record);
-      }
-      case CDP_STORAGE_ARRAY: {
-        return array_prev(store, record);
-      }
-      case CDP_STORAGE_PACKED_QUEUE: {
-        return packed_q_prev(store, record);
-      }
-      case CDP_STORAGE_RED_BLACK_T: {
-        return rb_tree_prev(record);
-      }
-      case CDP_STORAGE_OCTREE: {
-        return octree_prev(record);
-      }
-    }
-
-    return NULL;
+cdpRecord* cdp_record_prev(const cdpRecord* record, cdpRecord* child) {
+    if (!record)
+        record = cdp_record_parent(child);
+    RECORD_FOLLOW_LINK_TO_STORE(record, store);
+    return store_prev_record(store, child);
 }
 
 
 /*
     Retrieves the next sibling of record (sorted or unsorted)
 */
-cdpRecord* cdp_record_next(const cdpRecord* parent, cdpRecord* record) {
-    assert(!cdp_record_is_void(record));
-
-    if (!parent)
-        parent = cdp_record_parent(record);
-    cdpStore* store = parent->store;
-
-    switch (store->storage) {
-      case CDP_STORAGE_LINKED_LIST: {
-        return list_next(record);
-      }
-      case CDP_STORAGE_ARRAY: {
-        return array_next(store, record);
-      }
-      case CDP_STORAGE_PACKED_QUEUE: {
-        return packed_q_next(store, record);
-      }
-      case CDP_STORAGE_RED_BLACK_T: {
-        return rb_tree_next(record);
-      }
-      case CDP_STORAGE_OCTREE: {
-        return octree_next(record);
-      }
-    }
-
-    return NULL;
+cdpRecord* cdp_record_next(const cdpRecord* record, cdpRecord* child) {
+    if (!record)
+        record = cdp_record_parent(child);
+    RECORD_FOLLOW_LINK_TO_STORE(record, store);
+    return store_next_record(store, child);
 }
 
 
@@ -963,37 +1328,8 @@ cdpRecord* cdp_record_next(const cdpRecord* parent, cdpRecord* record) {
     Retrieves the first/next child record by its ID
 */
 cdpRecord* cdp_record_find_next_by_name(const cdpRecord* record, cdpID id, uintptr_t* childIdx) {
-    assert(cdp_id_valid(id));
-
-    if (!cdp_record_children(record))
-        return NULL;
-
-    if (cdp_record_is_dictionary(record) || !childIdx) {
-        CDP_PTR_SEC_SET(childIdx, 0);
-        return cdp_record_find_by_name(record, id);
-    }
-
-    cdpStore* store = record->store;
-
-    switch (store->storage) {
-      case CDP_STORAGE_LINKED_LIST: {
-        return list_next_by_name(store, id, (cdpListNode**)childIdx);
-      }
-      case CDP_STORAGE_ARRAY: {
-        return array_next_by_name(store, id, childIdx);
-      }
-      case CDP_STORAGE_PACKED_QUEUE: {
-        return packed_q_next_by_name(store, id, (cdpPackedQNode**)childIdx);
-      }
-      case CDP_STORAGE_RED_BLACK_T: {    // Unused.
-        break;
-      }
-      case CDP_STORAGE_OCTREE: {
-        return octree_next_by_name(store, id, (cdpListNode**)childIdx);
-      }
-    }
-
-    return NULL;
+    RECORD_FOLLOW_LINK_TO_STORE(record, store);
+    return store_find_next_record_by_name(store, id, childIdx);
 }
 
 
@@ -1021,37 +1357,8 @@ cdpRecord* cdp_record_find_next_by_path(const cdpRecord* start, cdpPath* path, u
     Traverses the children of a record, applying a function to each one
 */
 bool cdp_record_traverse(cdpRecord* record, cdpTraverse func, void* context, cdpEntry* entry) {
-    assert(!cdp_record_is_void(record) && func);
-
-    size_t children = cdp_record_children(record);
-    if (!children)
-        return true;
-
-    if (!entry)
-        entry = cdp_alloca(sizeof(cdpEntry));
-    CDP_0(entry);
-
-    cdpStore* store = record->store;
-
-    switch (store->storage) {
-      case CDP_STORAGE_LINKED_LIST: {
-        return list_traverse(store, record, func, context, entry);
-      }
-      case CDP_STORAGE_ARRAY: {
-        return array_traverse(store, record, func, context, entry);
-      }
-      case CDP_STORAGE_PACKED_QUEUE: {
-        return packed_q_traverse(store, record, func, context, entry);
-      }
-      case CDP_STORAGE_RED_BLACK_T: {
-        return rb_tree_traverse(store, record, cdp_bitson(children) + 2, func, context, entry);
-      }
-      case CDP_STORAGE_OCTREE: {
-        return octree_traverse(store, record, children, func, context, entry);
-      }
-    }
-
-    return true;
+    RECORD_FOLLOW_LINK_TO_STORE(record, store);
+    return store_traverse(store, func, context, entry);
 }
 
 
@@ -1161,39 +1468,8 @@ bool cdp_record_deep_traverse(cdpRecord* record, cdpTraverse func, cdpTraverse e
     Converts an unsorted record into a dictionary
 */
 void cdp_record_to_dictionary(cdpRecord* record) {
-    assert(cdp_record_has_store(record));
-
-    cdpStore* store = record->store;
-
-    if (store->storage == CDP_INDEX_BY_NAME)
-        return;
-    else
-        store->storage = CDP_INDEX_BY_NAME;
-
-    if (store->chdCount <= 1)
-        return;
-
-    switch (store->storage) {
-      case CDP_STORAGE_LINKED_LIST: {
-        list_sort(store, record_compare_by_name, NULL);
-        break;
-      }
-      case CDP_STORAGE_ARRAY: {
-        array_sort(store, record_compare_by_name, NULL);
-        break;
-      }
-      case CDP_STORAGE_PACKED_QUEUE: {
-        assert(record->metarecord.storage != CDP_STORAGE_PACKED_QUEUE);    // Unsupported.
-        break;
-      }
-      case CDP_STORAGE_RED_BLACK_T: {    // Unneeded.
-        break;
-      }
-      case CDP_STORAGE_OCTREE: {
-        assert(record->metarecord.storage != CDP_STORAGE_OCTREE);    // Unsupported.
-        break;
-      }
-    }
+    RECORD_FOLLOW_LINK_TO_STORE(record, store);
+    store_to_dictionary(store);
 }
 
 
@@ -1201,43 +1477,8 @@ void cdp_record_to_dictionary(cdpRecord* record) {
     Sorts unsorted records according to user defined function
 */
 void cdp_record_sort(cdpRecord* record, cdpCompare compare, void* context) {
-    assert(cdp_record_has_store(record) && compare);
-
-    cdpStore* store = record->store;
-    store->compare = compare;
-
-    if (store->storage == CDP_INDEX_BY_FUNCTION)
-        return;
-    else
-        store->storage = CDP_INDEX_BY_FUNCTION;     // FixMe: by hash?
-
-    if (store->chdCount <= 1)
-        return;
-
-    switch (store->storage) {
-      case CDP_STORAGE_LINKED_LIST: {
-        list_sort(store, compare, context);
-        break;
-      }
-      case CDP_STORAGE_ARRAY: {
-        array_sort(store, compare, context);
-        break;
-      }
-      case CDP_STORAGE_PACKED_QUEUE: {
-        assert(record->metarecord.storage == CDP_STORAGE_PACKED_QUEUE);    // Unsupported.
-        break;
-      }
-      case CDP_STORAGE_RED_BLACK_T: {
-        // ToDo: re-sort RB-tree.
-        assert(record->metarecord.storage != CDP_STORAGE_RED_BLACK_T);
-        break;
-      }
-      case CDP_STORAGE_OCTREE: {
-        // ToDo: re-sort RB-tree.
-        assert(record->metarecord.storage != CDP_STORAGE_OCTREE);
-        break;
-      }
-    }
+    RECORD_FOLLOW_LINK_TO_STORE(record, store);
+    store_sort(store, compare, context);
 }
 
 
@@ -1247,39 +1488,8 @@ void cdp_record_sort(cdpRecord* record, cdpCompare compare, void* context) {
     Removes last child from record
 */
 bool cdp_record_child_take(cdpRecord* record, cdpRecord* target) {
-    assert(!cdp_record_is_void(record) && target);
-
-    cdpStore* store = record->store;
-    if (!store->chdCount)
-        return false;
-
-    // Remove this record from its parent (re-organizing siblings).
-    switch (store->storage) {
-      case CDP_STORAGE_LINKED_LIST: {
-        list_take(store, target);
-        break;
-      }
-      case CDP_STORAGE_ARRAY: {
-        array_take(store, target);
-        break;
-      }
-      case CDP_STORAGE_PACKED_QUEUE: {
-        packed_q_take(store, target);
-        break;
-      }
-      case CDP_STORAGE_RED_BLACK_T: {
-        rb_tree_take(store, target);
-        break;
-      }
-      case CDP_STORAGE_OCTREE: {
-        octree_take(store, target);
-        break;
-      }
-    }
-
-    store->chdCount--;
-
-    return true;
+    RECORD_FOLLOW_LINK_TO_STORE(record, store);
+    return store_take_record(store, target);
 }
 
 
@@ -1287,39 +1497,8 @@ bool cdp_record_child_take(cdpRecord* record, cdpRecord* target) {
     Removes first child from record.
 */
 bool cdp_record_child_pop(cdpRecord* record, cdpRecord* target) {
-    assert(!cdp_record_is_void(record) && target);
-
-    cdpStore* store = record->store;
-    if (!store->chdCount)
-        return false;
-
-    // Remove this record from its parent (re-organizing siblings).
-    switch (store->storage) {
-      case CDP_STORAGE_LINKED_LIST: {
-        list_pop(store, target);
-        break;
-      }
-      case CDP_STORAGE_ARRAY: {
-        array_pop(store, target);
-        break;
-      }
-      case CDP_STORAGE_PACKED_QUEUE: {
-        packed_q_pop(store, target);
-        break;
-      }
-      case CDP_STORAGE_RED_BLACK_T: {
-        rb_tree_pop(store, target);
-        break;
-      }
-      case CDP_STORAGE_OCTREE: {
-        octree_pop(store, target);
-        break;
-      }
-    }
-
-    store->chdCount--;
-
-    return true;
+    RECORD_FOLLOW_LINK_TO_STORE(record, store);
+    return store_pop_record(store, target);
 }
 
 
@@ -1327,41 +1506,9 @@ bool cdp_record_child_pop(cdpRecord* record, cdpRecord* target) {
     Deletes a record and all its children re-organizing (sibling) storage
 */
 void cdp_record_remove(cdpRecord* record, cdpRecord* target) {
-    assert(record && !cdp_record_is_shadowed(record) && record != &CDP_ROOT);
-
-    cdpStore*  store  = record->store;
-    cdpRecord* parent = store->owner;
-
-    if (target)
-        cdp_record_transfer(record, target);  // Save record.
-    else
-        cdp_record_finalize(record);          // Delete record (along children, if any).
-
-    // Remove this record from its parent (re-organizing siblings).
-    switch (store->storage) {
-      case CDP_STORAGE_LINKED_LIST: {
-        list_remove_record(parent->children, record);
-        break;
-      }
-      case CDP_STORAGE_ARRAY: {
-        array_remove_record(parent->children, record);
-        break;
-      }
-      case CDP_STORAGE_PACKED_QUEUE: {
-        packed_q_remove_record(parent->children, record);
-        break;
-      }
-      case CDP_STORAGE_RED_BLACK_T: {
-        rb_tree_remove_record(parent->children, record);
-        break;
-      }
-      case CDP_STORAGE_OCTREE: {
-        octree_remove_record(parent->children, record);
-        break;
-      }
-    }
-
-    store->chdCount--;
+    assert(record && record != &CDP_ROOT);
+    RECORD_FOLLOW_LINK_TO_STORE(record, store);
+    store_remove_record(store, record, target);
 }
 
 
