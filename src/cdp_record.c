@@ -294,12 +294,12 @@ static inline void* cdp_data_update(cdpData* data, size_t size, size_t capacity,
 /*
     Creates a new children store for records
 */
-cdpStore* cdp_store_new(  cdpID domain, cdpID tag,
-                          unsigned storage, unsigned indexing, size_t capacity
-                          cdpCompare compare  ) {
+cdpStore* cdp_store_new(cdpID domain, cdpID tag, unsigned storage, unsigned indexing, ...) {
     assert(cdp_id_text_valid(domain) && cdp_id_text_valid(tag) && (storage < CDP_STORAGE_COUNT) && (indexing < CDP_INDEX_COUNT));
 
     cdpStore* store;
+    va_list  args;
+    va_start(args, indexing);
 
     switch (storage) {
       case CDP_STORAGE_LINKED_LIST: {
@@ -307,11 +307,13 @@ cdpStore* cdp_store_new(  cdpID domain, cdpID tag,
         break;
       }
       case CDP_STORAGE_ARRAY: {
+        size_t capacity = va_arg(args, size_t);
         assert(capacity);
         store = array_new(capacity);
         break;
       }
       case CDP_STORAGE_PACKED_QUEUE: {
+        size_t capacity = va_arg(args, size_t);
         assert(capacity  &&  (indexing == CDP_INDEX_BY_INSERTION));
         store = packed_q_new(capacity);
         break;
@@ -322,23 +324,28 @@ cdpStore* cdp_store_new(  cdpID domain, cdpID tag,
         break;
       }
       case CDP_STORAGE_OCTREE: {
+        float* center  = va_arg(args, float*);
+        float  subwide = va_arg(args, float);
         assert(indexing == CDP_INDEX_BY_FUNCTION);
-        store = octree_new();
+        store = octree_new(center, subwide);
         break;
       }
     }
+
+    if (indexing == CDP_INDEX_BY_FUNCTION
+     || indexing == CDP_INDEX_BY_HASH) {
+        cdpCompare compare = va_arg(compare, cdpCompare);
+        assert(compare);
+        store->compare = compare;
+    }
+
+    va_end(args);
 
     store->domain   = domain;
     store->tag      = tag;
     store->storage  = storage;
     store->indexing = indexing;
     store->autoid   = 1;
-
-    if (indexing == CDP_INDEX_BY_FUNCTION
-     || indexing == CDP_INDEX_BY_HASH) {
-        assert(compare);
-        store->compare = compare;
-    }
 
     return store;
 }
@@ -427,7 +434,7 @@ static inline void store_check_auto_id(cdpStore* store, cdpRecord* child) {
 /*
     Adds/inserts a *copy* of the specified record into a store
 */
-static inline cdpRecord* store_add_record(cdpStore* store, cdpRecord* child, cdpValue context) {
+static inline cdpRecord* store_add_child(cdpStore* store, cdpRecord* child, cdpValue context) {
     assert(cdp_store_valid(store) && !cdp_record_is_void(child));
 
     if (!store->writable)
@@ -528,7 +535,7 @@ static inline cdpRecord* store_add_record(cdpStore* store, cdpRecord* child, cdp
 /*
     Appends/prepends a copy of record into store
 */
-static inline cdpRecord* store_append_record(cdpStore* store, cdpRecord* child, bool prepend) {
+static inline cdpRecord* store_append_child(cdpStore* store, cdpRecord* child, bool prepend) {
     assert(cdp_store_valid(store) && !cdp_record_is_void(child));
 
     if (!store->writable)
@@ -574,7 +581,7 @@ static inline cdpRecord* store_append_record(cdpStore* store, cdpRecord* child, 
 /*
     Gets the first child record from store
 */
-static inline cdpRecord* store_first_record(const cdpStore* store) {
+static inline cdpRecord* store_first_child(const cdpStore* store) {
     assert(cdp_store_valid(store));
 
     if (!store->chdCount)
@@ -604,7 +611,7 @@ static inline cdpRecord* store_first_record(const cdpStore* store) {
 /*
     Gets the last child record from store
 */
-static inline cdpRecord* store_last_record(const cdpStore* store) {
+static inline cdpRecord* store_last_child(const cdpStore* store) {
     assert(cdp_store_valid(store));
 
     if (!store->chdCount)
@@ -634,7 +641,7 @@ static inline cdpRecord* store_last_record(const cdpStore* store) {
 /*
     Retrieves a child record by its ID
 */
-static inline cdpRecord* store_find_record_by_name(const cdpStore* store, cdpID name) {
+static inline cdpRecord* store_find_child_by_name(const cdpStore* store, cdpID name) {
     assert(cdp_store_valid(store) && cdp_id_valid(name));
 
     if (!store->chdCount)
@@ -665,7 +672,7 @@ static inline cdpRecord* store_find_record_by_name(const cdpStore* store, cdpID 
 /*
     Finds a child record based on specified key
 */
-static inline cdpRecord* store_find_record_by_key(const cdpStore* store, cdpRecord* key, cdpCompare compare, void* context) {
+static inline cdpRecord* store_find_child_by_key(const cdpStore* store, cdpRecord* key, cdpCompare compare, void* context) {
     assert(cdp_store_valid(store) && !cdp_record_is_void(key) && compare);
 
     if (!store->chdCount)
@@ -696,7 +703,7 @@ static inline cdpRecord* store_find_record_by_key(const cdpStore* store, cdpReco
 /*
     Gets the record at index position from store
 */
-static inline cdpRecord* store_find_record_by_position(const cdpStore* store, size_t position) {
+static inline cdpRecord* store_find_child_by_position(const cdpStore* store, size_t position) {
     assert(cdp_store_valid(store));
 
     if (store->chdCount <= position)
@@ -726,7 +733,7 @@ static inline cdpRecord* store_find_record_by_position(const cdpStore* store, si
 /*
     Retrieves the previous sibling of record
 */
-static inline cdpRecord* store_prev_record(const cdpStore* store, cdpRecord* child) {
+static inline cdpRecord* store_prev_child(const cdpStore* store, cdpRecord* child) {
     assert(!cdp_record_is_void(child));
 
     switch (store->storage) {
@@ -753,7 +760,7 @@ static inline cdpRecord* store_prev_record(const cdpStore* store, cdpRecord* chi
 /*
     Retrieves the next sibling of record (sorted or unsorted)
 */
-static inline cdpRecord* store_next_record(const cdpStore* store, cdpRecord* child) {
+static inline cdpRecord* store_next_child(const cdpStore* store, cdpRecord* child) {
     assert(!cdp_record_is_void(child));
 
     switch (store->storage) {
@@ -782,7 +789,7 @@ static inline cdpRecord* store_next_record(const cdpStore* store, cdpRecord* chi
 /*
     Retrieves the first/next child record by its ID
 */
-static inline cdpRecord* store_find_next_record_by_name(const cdpStore* store, cdpID id, uintptr_t* childIdx) {
+static inline cdpRecord* store_find_next_child_by_name(const cdpStore* store, cdpID id, uintptr_t* childIdx) {
     assert(cdp_store_valid(store) && cdp_id_valid(id));
 
     if (!store->chdCount)
@@ -790,7 +797,7 @@ static inline cdpRecord* store_find_next_record_by_name(const cdpStore* store, c
 
     if (store->indexing == CDP_INDEX_BY_NAME  ||  !childIdx) {
         CDP_PTR_SEC_SET(childIdx, 0);
-        return store_find_record_by_name(store, id);
+        return store_find_child_by_name(store, id);
     }
 
     switch (store->storage) {
@@ -972,7 +979,7 @@ static inline bool store_take_record(cdpStore* store, cdpRecord* target) {
 /*
     Removes first child from store (re-organizing siblings)
 */
-static inline bool store_pop_record(cdpStore* store, cdpRecord* target) {
+static inline bool store_pop_child(cdpStore* store, cdpRecord* target) {
     assert(cdp_store_valid(store) && target);
 
     if (!store->chdCount || !store->writable)
@@ -1010,7 +1017,7 @@ static inline bool store_pop_record(cdpStore* store, cdpRecord* target) {
 /*
     Deletes a record and all its children re-organizing (sibling) storage
 */
-static inline void store_remove_record(cdpStore* store, cdpRecord* record, cdpRecord* target) {
+static inline void store_remove_child(cdpStore* store, cdpRecord* record, cdpRecord* target) {
     assert(cdp_store_valid(store) && store->chdCount);
 
     if (target)
@@ -1138,7 +1145,7 @@ void cdp_record_finalize(cdpRecord* record) {
 */
 cdpRecord* cdp_record_add(cdpRecord* record, cdpRecord* child, cdpValue context) {
     RECORD_FOLLOW_LINK_TO_STORE(record, store);
-    return store_add_record(store, child, context);
+    return store_add_child(store, child, context);
 }
 
 
@@ -1147,7 +1154,7 @@ cdpRecord* cdp_record_add(cdpRecord* record, cdpRecord* child, cdpValue context)
 */
 cdpRecord* cdp_record_append(cdpRecord* record, cdpRecord* child, bool prepend) {
     RECORD_FOLLOW_LINK_TO_STORE(record, store);
-    return store_append_record(store, child, prepend);
+    return store_append_child(store, child, prepend);
 }
 
 
@@ -1239,7 +1246,7 @@ bool cdp_record_path(const cdpRecord* record, cdpPath** path) {
 */
 cdpRecord* cdp_record_first(const cdpRecord* record) {
     RECORD_FOLLOW_LINK_TO_STORE(record, store);
-    return store_first_record(store);
+    return store_first_child(store);
 }
 
 
@@ -1248,7 +1255,7 @@ cdpRecord* cdp_record_first(const cdpRecord* record) {
 */
 cdpRecord* cdp_record_last(const cdpRecord* record) {
     RECORD_FOLLOW_LINK_TO_STORE(record, store);
-    return store_last_record(store);
+    return store_last_child(store);
 }
 
 
@@ -1257,7 +1264,7 @@ cdpRecord* cdp_record_last(const cdpRecord* record) {
 */
 cdpRecord* cdp_record_find_by_name(const cdpRecord* record, cdpID name) {
     RECORD_FOLLOW_LINK_TO_STORE(record, store);
-    return store_find_record_by_name(store, name);
+    return store_find_child_by_name(store, name);
 }
 
 
@@ -1266,7 +1273,7 @@ cdpRecord* cdp_record_find_by_name(const cdpRecord* record, cdpID name) {
 */
 cdpRecord* cdp_record_find_by_key(const cdpRecord* record, cdpRecord* key, cdpCompare compare, void* context) {
     RECORD_FOLLOW_LINK_TO_STORE(record, store);
-    return store_find_record_by_key(store, key, compare, context);
+    return store_find_child_by_key(store, key, compare, context);
 }
 
 
@@ -1275,7 +1282,7 @@ cdpRecord* cdp_record_find_by_key(const cdpRecord* record, cdpRecord* key, cdpCo
 */
 cdpRecord* cdp_record_find_by_position(const cdpRecord* record, size_t position) {
     RECORD_FOLLOW_LINK_TO_STORE(record, store);
-    return store_find_record_by_position(store, position);
+    return store_find_child_by_position(store, position);
 }
 
 
@@ -1307,7 +1314,7 @@ cdpRecord* cdp_record_prev(const cdpRecord* record, cdpRecord* child) {
     if (!record)
         record = cdp_record_parent(child);
     RECORD_FOLLOW_LINK_TO_STORE(record, store);
-    return store_prev_record(store, child);
+    return store_prev_child(store, child);
 }
 
 
@@ -1318,7 +1325,7 @@ cdpRecord* cdp_record_next(const cdpRecord* record, cdpRecord* child) {
     if (!record)
         record = cdp_record_parent(child);
     RECORD_FOLLOW_LINK_TO_STORE(record, store);
-    return store_next_record(store, child);
+    return store_next_child(store, child);
 }
 
 
@@ -1329,7 +1336,7 @@ cdpRecord* cdp_record_next(const cdpRecord* record, cdpRecord* child) {
 */
 cdpRecord* cdp_record_find_next_by_name(const cdpRecord* record, cdpID id, uintptr_t* childIdx) {
     RECORD_FOLLOW_LINK_TO_STORE(record, store);
-    return store_find_next_record_by_name(store, id, childIdx);
+    return store_find_next_child_by_name(store, id, childIdx);
 }
 
 
@@ -1498,7 +1505,7 @@ bool cdp_record_child_take(cdpRecord* record, cdpRecord* target) {
 */
 bool cdp_record_child_pop(cdpRecord* record, cdpRecord* target) {
     RECORD_FOLLOW_LINK_TO_STORE(record, store);
-    return store_pop_record(store, target);
+    return store_pop_child(store, target);
 }
 
 
@@ -1508,7 +1515,7 @@ bool cdp_record_child_pop(cdpRecord* record, cdpRecord* target) {
 void cdp_record_remove(cdpRecord* record, cdpRecord* target) {
     assert(record && record != &CDP_ROOT);
     RECORD_FOLLOW_LINK_TO_STORE(record, store);
-    store_remove_record(store, record, target);
+    store_remove_child(store, record, target);
 }
 
 

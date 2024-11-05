@@ -33,7 +33,7 @@ struct _cdpPackedQNode {
 typedef struct {
     cdpChdStore     store;      // Parent info.
     //
-    size_t          pSize;      // Pack size in bytes.
+    size_t          pSize;      // Pack (node) size in bytes.
     cdpPackedQNode* pHead;      // Head of the buffer list.
     cdpPackedQNode* pTail;      // Tail of the buffer list.
 } cdpPackedQ;

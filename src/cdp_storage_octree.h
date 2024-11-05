@@ -19,21 +19,31 @@
  */
 
 
+typedef struct _cdpOctreeList   cdpOctreeList;
 typedef struct _cdpOctreeNode   cdpOctreeNode;
+
+struct _cdpOctreeList {
+    cdpOctreeList*  next;           // Next child in current sector.
+    //cdpOctreeList*  self;           // Next self in other sectors.
+    //
+    cdpRecord       record;         // Child record.
+};
 
 struct _cdpOctreeNode {
     cdpOctreeNode*  children[8];    // Pointers to child nodes.
-    float           center[3];      // Center of the node space.
-    float           halfDimension;  // Half the width/height/depth of the node space.
-    //
-    cdpRecord       record;         // Child record.
+    float           center[3];      // Center of the node space (XYZ coords).
+    float           subwide;        // Half the width/height/depth of the node space.
+    cdpOctreeList*  list;           // List of records in this node.
 };
 
 typedef struct {
     cdpChdStore     store;        // Parent info.
     //
-    cdpOctreeNode*  root;         // The root node.
+    cdpOctreeNode   root;         // The root node.
 } cdpOctree;
+
+
+#define EPSILON     (1e-10)
 
 
 
@@ -42,8 +52,20 @@ typedef struct {
     Red-black tree implementation
 */
 
-#define octree_new()     cdp_new(cdpOctree)
-#define octree_del       cdp_free
+static inline cdpOctree* octree_new(float center[3], float subwide) {
+    CDP_NEW(cdpOctree, octree);
+    assert(fabs(subwide) > EPSILON);
+    memcpy(octree->root.center, center, sizeof(center));
+    octree->subwide = subwide;
+    return octree;
+}
+
+
+static inline void octree_del(cdpOctree* octree){
+    // ToDo: del all nodes!
+
+    cdp_free(octree);
+}
 
 
 static inline cdpOctreeNode* octree_node_new(cdpRecord* record) {

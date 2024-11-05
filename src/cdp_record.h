@@ -348,9 +348,7 @@ enum _cdpRecordIndexing {
 };
 
 
-cdpStore* cdp_store_new(  cdpID domain, cdpID tag,
-                          unsigned storage, unsigned indexing, size_t capacity
-                          cdpCompare compare  );
+cdpStore* cdp_store_new(cdpID domain, cdpID tag, unsigned storage, unsigned indexing, ...);
 void      cdp_store_del(cdpStore* store);
 void      cdp_store_delete_children(cdpStore* store);
 #define   cdp_store_valid(s)      ((s) && cdp_id_text_valid((s)->domain) && cdp_id_text_valid((s)->tag))
@@ -424,8 +422,9 @@ void cdp_record_finalize(cdpRecord* record);
 #define cdp_record_initialize_value(r, name, domain, tag, attrib, value, size, capacity)              cdp_record_initialize(r, CDP_TYPE_NORMAL, name, cdp_data_new(domain, tag, attrib, CDP_DATATYPE_VALUE, true, NULL, CDP_VALUE(value), size, capacity), NULL)
 #define cdp_record_initialize_data(r, name, domain, tag, attrib, data, size, capacity, destructor)    cdp_record_initialize(r, CDP_TYPE_NORMAL, name, cdp_data_new(domain, tag, attrib, CDP_DATATYPE_DATA, true, NULL, CDP_VALUE(data), size, capacity, destructor), NULL)
 
-#define cdp_record_initialize_branch(r, name, domain, tag, storage, capacity)                         cdp_record_initialize(r, CDP_TYPE_NORMAL, name, NULL, cdp_store_new(domain, tag, storage, CDP_INDEX_BY_INSERTION, capacity, NULL))
-#define cdp_record_initialize_dictionary(r, name, domain, tag, storage, capacity)                     cdp_record_initialize(r, CDP_TYPE_NORMAL, name, NULL, cdp_store_new(domain, tag, storage, CDP_INDEX_BY_NAME, capacity, NULL))
+#define cdp_record_initialize_branch(r, name, domain, tag, storage, ...)                cdp_record_initialize(r, CDP_TYPE_NORMAL, name, NULL, cdp_store_new(domain, tag, storage, CDP_INDEX_BY_INSERTION, ##__VA_ARGS__))
+#define cdp_record_initialize_dictionary(r, name, domain, tag, storage, ...)            cdp_record_initialize(r, CDP_TYPE_NORMAL, name, NULL, cdp_store_new(domain, tag, storage, CDP_INDEX_BY_NAME, ##__VA_ARGS__))
+#define cdp_record_initialize_spatial(r, name, domain, tag, center, subwide, compare)   cdp_record_initialize(r, CDP_TYPE_NORMAL, name, NULL, cdp_store_new(domain, tag, CDP_STORAGE_OCTREE, CDP_INDEX_BY_FUNCTION, center, subwide, compare))
 
 #define cdp_record_initialize_link(r, name, source)                     cdp_record_initialize(r, CDP_TYPE_LINK,  name, CDP_P(source), NULL)
 #define cdp_record_initialize_agent(r, name, agent)                     cdp_record_initialize(r, CDP_TYPE_AGENT, name, CDP_P(agent),  NULL)
