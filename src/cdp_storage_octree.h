@@ -52,11 +52,13 @@ typedef struct {
     Red-black tree implementation
 */
 
-static inline cdpOctree* octree_new(float center[3], float subwide) {
-    CDP_NEW(cdpOctree, octree);
+static inline cdpOctree* octree_new(float* center, float subwide) {
     assert(fabs(subwide) > EPSILON);
-    memcpy(octree->root.center, center, sizeof(center));
+
+    CDP_NEW(cdpOctree, octree);
     octree->subwide = subwide;
+    memcpy(octree->root.center, center, sizeof((cdpOctreeNode){}.center));
+
     return octree;
 }
 
@@ -335,9 +337,6 @@ static inline void octree_del_all_children_recursively(cdpOctreeNode* tnode) {
     cdp_free(tnode);
 }
 
-static inline void octree_del_all_children(cdpOctree* tree) {
-    if (tree->root) {
-        octree_del_all_children_recursively(tree->root);
-        tree->root = NULL;
-    }
+static inline void octree_del_all_children(cdpOctree* octree) {
+
 }

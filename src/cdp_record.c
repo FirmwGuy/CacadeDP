@@ -326,7 +326,7 @@ cdpStore* cdp_store_new(cdpID domain, cdpID tag, unsigned storage, unsigned inde
       case CDP_STORAGE_OCTREE: {
         float* center  = va_arg(args, float*);
         float  subwide = va_arg(args, float);
-        assert(indexing == CDP_INDEX_BY_FUNCTION);
+        assert(center  &&  (indexing == CDP_INDEX_BY_FUNCTION));
         store = octree_new(center, subwide);
         break;
       }
@@ -353,6 +353,8 @@ cdpStore* cdp_store_new(cdpID domain, cdpID tag, unsigned storage, unsigned inde
 
 void cdp_store_del(cdpStore* store) {
     assert(cdp_store_valid(store));
+
+    // ToDo: cleanup shadows.
 
     switch (store->storage) {
       case CDP_STORAGE_LINKED_LIST: {
