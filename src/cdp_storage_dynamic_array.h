@@ -20,7 +20,7 @@
 
 
 typedef struct {
-    cdpChdStore store;          // Parent info.
+    cdpStore    store;          // Parent info.
     //
     size_t      capacity;       // Total capacity of the array to manage allocations
     //
@@ -105,12 +105,52 @@ static inline cdpRecord* array_sorted_insert_record(cdpArray* array, const cdpRe
 }
 
 
-static inline cdpRecord* array_sorted_insert(cdpArray* array, cdpRecord* record, cdpCompare compare, void* context) {
-    // Increase array space if necessary
+static inline cdpRecord* array_insert(cdpArray* array, cdpRecord* record, size_t position) {
     if (array->capacity == array->store.chdCount)
         array_grow(array);
 
-    // Insert
+    cdpRecord* child;
+
+    if (array->store.chdCount) {
+        child = &array->record[position];
+        size_t tomove = array->store.chdCount - position;
+        if (tomove) {
+            memmove(child + 1, child, tomove * sizeof(cdpRecord));
+            array_update_children_parent_ptr(child + 1,  &array->record[array->store.chdCount]);
+        }
+        CDP_0(child);
+    } else {
+        child = array->record;
+    }
+
+    cdp_record_transfer(record, child);
+
+    return child;
+}
+
+
+static inline cdpRecord* array_named_insert(cdpArray* array, cdpRecord* record) {
+    if (array->capacity == array->store.chdCount)
+        array_grow(array);
+
+    cdpRecord* child;
+
+    if (array->store.chdCount) {
+        child = array_sorted_insert_record(array, record, record_compare_by_name, NULL);
+    } else {
+        child = array->record;
+    }
+
+    cdp_record_transfer(record, child);
+
+    return child;
+}
+
+
+static inline cdpRecord* array_sorted_insert(cdpArray* array, cdpRecord* record, cdpCompare compare, void* context) {
+    if (array->capacity == array->store.chdCount)
+        array_grow(array);
+
     cdpRecord* child;
 
     if (array->store.chdCount)
@@ -124,29 +164,25 @@ static inline cdpRecord* array_sorted_insert(cdpArray* array, cdpRecord* record,
 }
 
 
-static inline cdpRecord* array_add(cdpArray* array, cdpRecord* parent, bool prepend, cdpRecord* record) {
-    // Increase array space if necessary
+static inline cdpRecord* array_append(cdpArray* array, cdpRecord* record, bool prepend) {
     if (array->capacity == array->store.chdCount)
         array_grow(array);
 
-    // Insert
     cdpRecord* child;
+
     if (array->store.chdCount) {
-        if (cdp_record_is_dictionary(parent)) {
-            child = array_sorted_insert_record(array, record, record_compare_by_name, NULL);
-        } else if (prepend) {
-            // Prepend
+        if (prepend) {
             child = array->record;
             memmove(child + 1, child, array->store.chdCount * sizeof(cdpRecord));
             array_update_children_parent_ptr(child + 1, &array->record[array->store.chdCount]);
             CDP_0(child);
         } else {
-            // Append
             child = &array->record[array->store.chdCount];
         }
     } else {
         child = array->record;
     }
+
     cdp_record_transfer(record, child);
 
     return child;
@@ -163,8 +199,8 @@ static inline cdpRecord* array_last(cdpArray* array) {
 }
 
 
-static inline cdpRecord* array_find_by_name(cdpArray* array, cdpID name, const cdpRecord* parent) {
-    if (cdp_record_is_dictionary(parent)) {
+static inline cdpRecord* array_find_by_name(cdpArray* array, cdpID name) {
+    if (cdp_store_is_dictionary(&array->store)) {
         cdpRecord key = {.metarecord.name = name};
         return array_search(array, &key, record_compare_by_name, NULL, NULL);
     } else {
@@ -184,7 +220,6 @@ static inline cdpRecord* array_find_by_key(cdpArray* array, cdpRecord* key, cdpC
 
 
 static inline cdpRecord* array_find_by_position(cdpArray* array, size_t position) {
-    assert(position < array->store.chdCount);
     return &array->record[position];
 }
 
@@ -209,9 +244,9 @@ static inline cdpRecord* array_next_by_name(cdpArray* array, cdpID name, uintptr
     return NULL;
 }
 
-static inline bool array_traverse(cdpArray* array, cdpRecord* parent, cdpTraverse func, void* context, cdpEntry* entry) {
+static inline bool array_traverse(cdpArray* array, cdpTraverse func, void* context, cdpEntry* entry) {
     assert(array && array->capacity >= array->store.chdCount);
-    entry->parent = parent;
+    entry->parent = array->store.owner;
     entry->depth  = 0;
     entry->next   = array->record;
     cdpRecord* last = &array->record[array->store.chdCount - 1];

@@ -19,6 +19,9 @@
  */
 
 
+#include <math.h>
+
+
 typedef struct _cdpOctreeList   cdpOctreeList;
 typedef struct _cdpOctreeNode   cdpOctreeNode;
 
@@ -37,7 +40,7 @@ struct _cdpOctreeNode {
 };
 
 typedef struct {
-    cdpChdStore     store;        // Parent info.
+    cdpStore        store;        // Parent info.
     //
     cdpOctreeNode   root;         // The root node.
 } cdpOctree;
@@ -49,14 +52,14 @@ typedef struct {
 
 
 /*
-    Red-black tree implementation
+    Octree implementation
 */
 
 static inline cdpOctree* octree_new(float* center, float subwide) {
     assert(fabs(subwide) > EPSILON);
 
     CDP_NEW(cdpOctree, octree);
-    octree->subwide = subwide;
+    octree->root.subwide = subwide;
     memcpy(octree->root.center, center, sizeof((cdpOctreeNode){}.center));
 
     return octree;
@@ -72,19 +75,20 @@ static inline void octree_del(cdpOctree* octree){
 
 static inline cdpOctreeNode* octree_node_new(cdpRecord* record) {
     CDP_NEW(cdpOctreeNode, tnode);
-    tnode->isRed = true;
-    cdp_record_transfer(record, &tnode->record);
+    //cdp_record_transfer(record, &tnode->record);
     return tnode;
 }
 
 
 static inline cdpOctreeNode* octree_node_from_record(cdpRecord* record) {
-    return cdp_ptr_dif(record, offsetof(cdpOctreeNode, record));
+    // return cdp_ptr_dif(record, offsetof(cdpOctreeNode, record));
+    return NULL;
 }
 
 
 
 static inline void octree_sorted_insert_tnode(cdpOctree* tree, cdpOctreeNode* tnode, cdpCompare compare, void* context) {
+        /*
     if (tree->root) {
         cdpOctreeNode* x = tree->root, *y;
         do {
@@ -108,52 +112,59 @@ static inline void octree_sorted_insert_tnode(cdpOctree* tree, cdpOctreeNode* tn
     } else {
         tree->root = tnode;
     }
-    octree_fix_insert(tree, tnode);
+        */
 }
 
 
 static inline cdpRecord* octree_sorted_insert(cdpOctree* tree, cdpRecord* record, cdpCompare compare, void* context) {
     cdpOctreeNode* tnode = octree_node_new(record);
     octree_sorted_insert_tnode(tree, tnode, compare, context);
-    return &tnode->record;
+    //return &tnode->record;
+    return NULL;
 }
 
 
 static inline cdpRecord* octree_add(cdpOctree* tree, cdpRecord* parent, cdpRecord* record) {
-    assert(cdp_record_is_dictionary(parent));
     cdpOctreeNode* tnode = octree_node_new(record);
     octree_sorted_insert_tnode(tree, tnode, record_compare_by_name, NULL);
-    return &tnode->record;
+    //return &tnode->record;
+    return NULL;
 }
 
 
 static inline cdpRecord* octree_add_property(cdpOctree* tree, cdpRecord* record) {
     cdpOctreeNode* tnode = octree_node_new(record);
     octree_sorted_insert_tnode(tree, tnode, record_compare_by_name, NULL);
-    return &tnode->record;
+    //return &tnode->record;
+    return NULL;
 }
 
 
 static inline cdpRecord* octree_first(cdpOctree* tree) {
-    cdpOctreeNode* tnode = tree->root;
-    while (tnode->left)   tnode = tnode->left;
-    return &tnode->record;
+    //cdpOctreeNode* tnode = tree->root;
+
+    // pending...
+
+    return NULL;
 }
 
 
 static inline cdpRecord* octree_last(cdpOctree* tree) {
-    cdpOctreeNode* tnode = tree->root;
-    while (tnode->right)  tnode = tnode->right;
-    return &tnode->record;
+    //cdpOctreeNode* tnode = tree->root;
+
+    // pending...
+
+    return NULL;
 }
 
 
-static inline bool octree_traverse(cdpOctree* tree, cdpRecord* parent, unsigned maxDepth, cdpTraverse func, void* context, cdpEntry* entry) {
+static inline bool octree_traverse(cdpOctree* tree, unsigned maxDepth, cdpTraverse func, void* context, cdpEntry* entry) {
+  /*
   cdpOctreeNode* tnode = tree->root, *tnodePrev = NULL;
   cdpOctreeNode* stack[maxDepth];
   int top = -1;  // Stack index initialized to empty.
 
-  entry->parent = parent;
+  entry->parent = octree->store.owner;
   entry->depth  = 0;
   do {
       if (tnode) {
@@ -178,15 +189,14 @@ static inline bool octree_traverse(cdpOctree* tree, cdpRecord* parent, unsigned 
   entry->next = NULL;
   entry->record = &tnodePrev->record;
   return func(entry, context);
-}
+  */
 
-
-static inline int rb_traverse_func_break_at_name(cdpEntry* entry, uintptr_t name) {
-    return (entry->record->metarecord.name != name);
+  return false;
 }
 
 
 static inline cdpRecord* octree_find_by_id(cdpOctree* tree, cdpID name) {
+    /*
     cdpRecord key = {.metarecord.name = name};
     cdpOctreeNode* tnode = tree->root;
     do {
@@ -199,16 +209,17 @@ static inline cdpRecord* octree_find_by_id(cdpOctree* tree, cdpID name) {
             return &tnode->record;
         }
     } while (tnode);
+    */
     return NULL;
 }
 
 
-static inline cdpRecord* octree_find_by_name(cdpOctree* tree, cdpID id, const cdpRecord* parent) {
-    if (cdp_record_is_dictionary(parent)) {
+static inline cdpRecord* octree_find_by_name(cdpOctree* tree, cdpID id) {
+    if (cdp_store_is_dictionary(&tree->store)) {
         return octree_find_by_id(tree, id);
     } else {
         cdpEntry entry = {0};
-        if (!octree_traverse(tree, CDP_P(parent), cdp_bitson(tree->store.chdCount) + 2, (cdpFunc) rb_traverse_func_break_at_name, cdp_v2p(id), &entry))
+        if (!octree_traverse(tree, cdp_bitson(tree->store.chdCount) + 2, (cdpFunc) rb_traverse_func_break_at_name, cdp_v2p(id), &entry))
             return entry.record;
     }
     return NULL;
@@ -216,96 +227,45 @@ static inline cdpRecord* octree_find_by_name(cdpOctree* tree, cdpID id, const cd
 
 
 static inline cdpRecord* octree_find_by_key(cdpOctree* tree, cdpRecord* key, cdpCompare compare, void* context) {
-    cdpOctreeNode* tnode = tree->root;
-    do {
-        int cmp = compare(key, &tnode->record, context);
-        if (0 > cmp) {
-            tnode = tnode->left;
-        } else if (0 < cmp) {
-            tnode = tnode->right;
-        } else {
-            return &tnode->record;
-        }
-    } while (tnode);
+    //cdpOctreeNode* tnode = tree->root;
+
+    // pending...
+
     return NULL;
 }
 
 
-static inline int rb_traverse_func_break_at_position(cdpEntry* entry, uintptr_t position) {
-    return (entry->position != position);
-}
-
 static inline cdpRecord* octree_find_by_position(cdpOctree* tree, size_t position, const cdpRecord* parent) {
     cdpEntry entry = {0};
-    if (!octree_traverse(tree, CDP_P(parent), cdp_bitson(tree->store.chdCount) + 2, (void*) rb_traverse_func_break_at_position, cdp_v2p(position), &entry))
+    if (!octree_traverse(tree, cdp_bitson(tree->store.chdCount) + 2, (void*) rb_traverse_func_break_at_position, cdp_v2p(position), &entry))
         return entry.record;
     return NULL;
 }
 
 
 static inline cdpRecord* octree_prev(cdpRecord* record) {
-    cdpOctreeNode* tnode = octree_node_from_record(record);
-    if (tnode->left) {
-        tnode = tnode->left;
-        while (tnode->right) tnode = tnode->right;
-        return &tnode->record;
-    }
-    cdpOctreeNode* tParent = tnode->tParent;
-    while (tParent && tnode == tParent->left) {
-        tnode = tParent;
-        tParent = tParent->tParent;
-    }
-    return tParent? &tParent->record: NULL;
+    //cdpOctreeNode* tnode = octree_node_from_record(record);
+
+    // pending...
+
+    return NULL;
 }
 
 
 static inline cdpRecord* octree_next(cdpRecord* record) {
-    cdpOctreeNode* tnode = octree_node_from_record(record);
-    if (tnode->right) {
-        tnode = tnode->right;
-        while (tnode->left) tnode = tnode->left;
-        return &tnode->record;
-    }
-    cdpOctreeNode* tParent = tnode->tParent;
-    while (tParent && tnode == tParent->right) {
-        tnode = tParent;
-        tParent = tParent->tParent;
-    }
-    return tParent? &tParent->record: NULL;
+    //cdpOctreeNode* tnode = octree_node_from_record(record);
+
+    // pending...
+
+    return NULL;
 }
 
 
 
 static inline void octree_remove_record(cdpOctree* tree, cdpRecord* record) {
     cdpOctreeNode* tnode = octree_node_from_record(record);
-    cdpOctreeNode* y = tnode, *x;
-    bool wasRed = tnode->isRed;
 
-    if (!tnode->left) {
-        x = tnode->right;
-        octree_transplant(tree, tnode, x);
-    } else if (!tnode->right) {
-        x = tnode->left;
-        octree_transplant(tree, tnode, x);
-    } else {
-        for (y = tnode->right;  y->left;  y = y->left);
-        wasRed = y->isRed;
-        x = y->right;
-
-        if (y->tParent == tnode) {
-            if (x)  x->tParent = y;
-        } else {
-            octree_transplant(tree, y, x);
-            y->right = tnode->right;
-            y->right->tParent = y;
-        }
-        octree_transplant(tree, tnode, y);
-        y->left = tnode->left;
-        y->left->tParent = y;
-        y->isRed = tnode->isRed;
-    }
-    if (x && !wasRed)
-        octree_fixremove_node(tree, x);
+    // pending...
 
     cdp_free(tnode);
 }
@@ -326,6 +286,7 @@ static inline void octree_pop(cdpOctree* tree, cdpRecord* target) {
 
 
 static inline void octree_del_all_children_recursively(cdpOctreeNode* tnode) {
+    /*
     if (tnode->left)
         octree_del_all_children_recursively(tnode->left);
 
@@ -334,6 +295,7 @@ static inline void octree_del_all_children_recursively(cdpOctreeNode* tnode) {
     if (tnode->right)
         octree_del_all_children_recursively(tnode->right);
 
+    */
     cdp_free(tnode);
 }
 

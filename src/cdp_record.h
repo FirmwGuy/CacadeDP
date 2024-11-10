@@ -196,7 +196,7 @@ enum _cdpRecordNaming {
 #define CDP_AUTOID_USE                  CDP_AUTOID_MAXVAL
 #define CDP_AUTOID                      cdp_id_to_numeric(CDP_AUTOID_USE)
 
-#define cdp_id_is_auto(name)            (((name) == CDP_AUTOID)
+#define cdp_id_is_auto(name)            ((name) == CDP_AUTOID)
 #define cdp_id_is_word(name)            ((CDP_NAMING_MASK & (name)) == cdp_id_from_naming(CDP_NAMING_WORD))
 #define cdp_id_is_acronysm(name)        ((CDP_NAMING_MASK & (name)) == cdp_id_from_naming(CDP_NAMING_ACRONYSM))
 #define cdp_id_is_reference(name)       ((CDP_NAMING_MASK & (name)) == cdp_id_from_naming(CDP_NAMING_REFERENCE))
@@ -243,7 +243,7 @@ typedef union {
 #define CDP_VALUE(v)    ((cdpValue)(v))
 
 
-typedef struct _cdpData {
+struct _cdpData {
     struct {
         cdpID           datatype:   2,  // Type of data (see _cdpDataType).
                         _unused:    4,
@@ -289,7 +289,7 @@ enum _cdpDataType {
 
 
 cdpData* cdp_data_new(  cdpID domain, cdpID tag,
-                        cdpValue attribute, unsigned datatype, bool writable,
+                        cdpID attribute, unsigned datatype, bool writable,
                         void** dataloc, cdpValue value, ...  );
 void     cdp_data_del(cdpData* data);
 void*    cdp_data(const cdpData* data);
@@ -300,7 +300,14 @@ void*    cdp_data(const cdpData* data);
     Record Storage (for children)
 */
 
-typedef struct _cdpStore {
+typedef struct {
+    unsigned        count;      // Number of record pointers.
+    unsigned        capacity;   // Capacity of array.
+    cdpRecord*      record[];   // Array of records shadowing this one.
+} cdpShadow;
+
+
+struct _cdpStore {
     struct {
         cdpID       storage:    3,              // Data structure for children storage (array, linked-list, etc).
                     indexing:   2,              // Indexing (sorting) criteria for children.
@@ -353,6 +360,12 @@ void      cdp_store_del(cdpStore* store);
 void      cdp_store_delete_children(cdpStore* store);
 #define   cdp_store_valid(s)      ((s) && cdp_id_text_valid((s)->domain) && cdp_id_text_valid((s)->tag))
 
+static inline bool cdp_store_is_insertable(cdpStore* store)   {assert(cdp_store_valid(store));  return (store->indexing == CDP_INDEX_BY_INSERTION);}
+static inline bool cdp_store_is_dictionary(cdpStore* store)   {assert(cdp_store_valid(store));  return (store->indexing == CDP_INDEX_BY_NAME);}
+static inline bool cdp_store_is_f_sorted(cdpStore* store)     {assert(cdp_store_valid(store));  return (store->indexing == CDP_INDEX_BY_FUNCTION  ||  store->indexing == CDP_INDEX_BY_HASH);}
+static inline bool cdp_store_is_sorted(cdpStore* store)       {assert(cdp_store_valid(store));  return (store->indexing != CDP_INDEX_BY_INSERTION);}
+static inline bool cdp_store_is_empty(cdpStore* store)        {assert(cdp_store_valid(store));  return !store->chdCount;}
+
 
 /*
     Record
@@ -363,13 +376,6 @@ typedef struct {
     unsigned        capacity;
     cdpID           id[];
 } cdpPath;
-
-
-typedef struct {
-    unsigned        count;      // Number of record pointers.
-    unsigned        capacity;   // Capacity of array.
-    cdpRecord*      record[];   // Array of records shadowing this one.
-} cdpShadow;
 
 
 struct _cdpRecord {
@@ -443,23 +449,17 @@ static inline cdpID cdp_record_get_name(const cdpRecord* record)        {assert(
 #define cdp_record_is_private(r)    ((r)->metarecord.priv)
 #define cdp_record_is_system(r)     ((r)->metarecord.system)
 
-static inline bool cdp_record_has_data(cdpRecord* record)     {assert(cdp_record_is_normal(record));  return record->data;}
-static inline bool cdp_record_has_store(cdpRecord* record)    {assert(cdp_record_is_normal(record));  return record->store;}
+static inline bool cdp_record_has_data(const cdpRecord* record)     {assert(cdp_record_is_normal(record));  return record->data;}
+static inline bool cdp_record_has_store(const cdpRecord* record)    {assert(cdp_record_is_normal(record));  return record->store;}
 
 static inline void cdp_record_set_data(cdpRecord* record, cdpData* data)      {assert(!cdp_record_has_data(record) && cdp_data_valid(data));   record->data = data;}
 static inline void cdp_record_set_store(cdpRecord* record, cdpStore* store)   {assert(!cdp_record_has_store(record));  record->store = store;}
-
-static inline bool cdp_record_is_insertable(cdpRecord* record)  {assert(cdp_record_has_store(record));  return cdp_record_has_store(record)? (record->store.indexing == CDP_INDEX_BY_INSERTION): false;}
-static inline bool cdp_record_is_dictionary(cdpRecord* record)  {assert(cdp_record_is_normal(record));  return cdp_record_has_store(record)? (record->store.indexing == CDP_INDEX_BY_NAME): false;}
-static inline bool cdp_record_is_f_sorted(cdpRecord* record)    {assert(cdp_record_is_normal(record));  return cdp_record_has_store(record)? (record->store.indexing == CDP_INDEX_BY_FUNCTION  ||  record->store.indexing == CDP_INDEX_BY_HASH): false;}
-static inline bool cdp_record_is_sorted(cdpRecord* record)      {assert(cdp_record_is_normal(record));  return cdp_record_has_store(record)? (record->store.indexing != CDP_INDEX_BY_INSERTION): false;}
-static inline bool cdp_record_is_empty(cdpRecord* record)       {assert(cdp_record_is_normal(record));  return (!record->data && !cdp_record_children(record));}
 
 static inline cdpRecord* cdp_record_parent  (const cdpRecord* record)   {assert(record);  return CDP_EXPECT_PTR(record->parent)? record->parent->owner: NULL;}
 static inline size_t     cdp_record_siblings(const cdpRecord* record)   {assert(record);  return CDP_EXPECT_PTR(record->parent)? record->parent->chdCount: 0;}
 static inline size_t     cdp_record_children(const cdpRecord* record)   {assert(record);  return cdp_record_has_store(record)? record->store->chdCount: 0;}
 
-#define cdp_record_id_is_pending(r) cdp_id_is_auto((r)->metarecord.name)
+#define cdp_record_id_is_pending(r)   cdp_id_is_auto((r)->metarecord.name)
 static inline void  cdp_record_set_autoid(const cdpRecord* record, cdpID id)  {assert(cdp_record_has_store(record) && (record->store->autoid < id)  &&  (id <= CDP_AUTOID_MAX)); record->store->autoid = id;}
 static inline cdpID cdp_record_get_autoid(const cdpRecord* record)            {assert(cdp_record_has_store(record));  return record->store->autoid;}
 
@@ -480,6 +480,14 @@ static inline void cdp_record_replace(cdpRecord* oldr, cdpRecord* newr) {
     cdp_record_finalize(oldr);
     cdp_record_transfer(newr, oldr);
 }
+
+static inline cdpRecord* cdp_link(cdpRecord* record)  {assert(cdp_record_is_link(record));  while (cdp_record_is_link(record)) {record = record->link;}  return record;}
+
+static inline bool cdp_record_is_insertable(cdpRecord* record)  {assert(cdp_record_has_store(record));  return record->store? cdp_store_is_insertable(record->store): false;}
+static inline bool cdp_record_is_dictionary(cdpRecord* record)  {assert(cdp_record_is_normal(record));  return record->store? cdp_store_is_dictionary(record->store): false;}
+static inline bool cdp_record_is_f_sorted(cdpRecord* record)    {assert(cdp_record_is_normal(record));  return record->store? cdp_store_is_f_sorted(record->store): false;}
+static inline bool cdp_record_is_sorted(cdpRecord* record)      {assert(cdp_record_is_normal(record));  return record->store? cdp_store_is_sorted(record->store): false;}
+static inline bool cdp_record_is_empty(cdpRecord* record)       {assert(cdp_record_is_normal(record));  return (!record->data && !cdp_record_children(record));}
 
 
 // Appends/prepends or inserts a (copy of) record into another record

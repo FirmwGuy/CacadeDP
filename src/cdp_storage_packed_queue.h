@@ -31,7 +31,7 @@ struct _cdpPackedQNode {
 };
 
 typedef struct {
-    cdpChdStore     store;      // Parent info.
+    cdpStore        store;      // Parent info.
     //
     size_t          pSize;      // Pack (node) size in bytes.
     cdpPackedQNode* pHead;      // Head of the buffer list.
@@ -66,13 +66,11 @@ static inline cdpPackedQNode* packed_q_node_from_record(cdpPackedQ* pkdq, cdpRec
 }
 
 
-static inline cdpRecord* packed_q_add(cdpPackedQ* pkdq, cdpRecord* parent, bool prepend, cdpRecord* record) {
-    assert(cdp_record_has_store(parent));
-
+static inline cdpRecord* packed_q_append(cdpPackedQ* pkdq, cdpRecord* record, bool prepend) {
     cdpRecord* child;
+
     if (pkdq->store.chdCount) {
         if (prepend) {
-            // Prepend
             if (pkdq->pHead->first > pkdq->pHead->record) {
                 pkdq->pHead->first--;
             } else {
@@ -84,7 +82,6 @@ static inline cdpRecord* packed_q_add(cdpPackedQ* pkdq, cdpRecord* parent, bool 
             }
             child = pkdq->pHead->first;
         } else {
-            // Append
             if (pkdq->pTail->last < (cdpRecord*)cdp_ptr_off(pkdq->pTail->record, pkdq->pSize - sizeof(cdpRecord))) {
                 pkdq->pTail->last++;
             } else {
@@ -103,6 +100,7 @@ static inline cdpRecord* packed_q_add(cdpPackedQ* pkdq, cdpRecord* parent, bool 
         pkdq->pTail = pkdq->pHead = pNode;
         child = pNode->last;
     }
+
     cdp_record_transfer(record, child);
 
     return child;
@@ -172,8 +170,8 @@ static inline cdpRecord* packed_q_next_by_name(cdpPackedQ* pkdq, cdpID name, cdp
 }
 
 
-static inline bool packed_q_traverse(cdpPackedQ* pkdq, cdpRecord* parent, cdpTraverse func, void* context, cdpEntry* entry) {
-    entry->parent = parent;
+static inline bool packed_q_traverse(cdpPackedQ* pkdq, cdpTraverse func, void* context, cdpEntry* entry) {
+    entry->parent = pkdq->store.owner;
     entry->depth  = 0;
     cdpPackedQNode* pNode = pkdq->pHead;
     do {

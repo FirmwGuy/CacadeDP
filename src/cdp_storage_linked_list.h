@@ -29,7 +29,7 @@ struct _cdpListNode {
 };
 
 typedef struct {
-    cdpChdStore   store;        // Parent info.
+    cdpStore      store;        // Parent info.
     //
     cdpListNode*  head;         // Head of the doubly linked list
     cdpListNode*  tail;         // Tail of the doubly linked list for quick append
@@ -44,6 +44,15 @@ typedef struct {
 
 #define list_new()      cdp_new(cdpList)
 #define list_del        cdp_free
+
+
+static inline cdpListNode* list_node_new(cdpRecord* record) {
+    CDP_NEW(cdpListNode, node);
+    cdp_record_transfer(record, &node->record);
+    return node;
+}
+
+#define list_node_del   cdp_free
 
 
 static inline cdpListNode* list_node_from_record(const cdpRecord* record) {
@@ -86,9 +95,7 @@ static inline void list_insert_node_before_next(cdpList* list, cdpListNode* node
 
 
 static inline cdpRecord* list_insert(cdpList* list, cdpRecord* record, size_t position) {
-    CDP_NEW(cdpListNode, node);
-    cdp_record_transfer(record, &node->record);
-
+    cdpListNode* node = list_node_new(record);
     size_t n = 0;
     cdpListNode* next;
     for (next = list->head;  next;  next = next->next, n++) {
@@ -105,9 +112,7 @@ static inline cdpRecord* list_insert(cdpList* list, cdpRecord* record, size_t po
 
 
 static inline cdpRecord* list_named_insert(cdpList* list, cdpRecord* record) {
-    CDP_NEW(cdpListNode, node);
-    cdp_record_transfer(record, &node->record);
-
+    cdpListNode* node = list_node_new(record);
     cdpListNode* next;
     for (next = list->head;  next;  next = next->next) {
         int cmp = record_compare_by_name(&node->record, &next->record, NULL);
@@ -125,9 +130,7 @@ static inline cdpRecord* list_named_insert(cdpList* list, cdpRecord* record) {
 
 
 static inline cdpRecord* list_sorted_insert(cdpList* list, cdpRecord* record, cdpCompare compare, void* context) {
-    CDP_NEW(cdpListNode, node);
-    cdp_record_transfer(record, &node->record);
-
+    cdpListNode* node = list_node_new(record);
     cdpListNode* next;
     for (next = list->head;  next;  next = next->next) {
         int cmp = compare(&node->record, &next->record, context);
@@ -145,8 +148,7 @@ static inline cdpRecord* list_sorted_insert(cdpList* list, cdpRecord* record, cd
 
 
 static inline cdpRecord* list_append(cdpList* list, cdpRecord* record, bool prepend) {
-    CDP_NEW(cdpListNode, node);
-    cdp_record_transfer(record, &node->record);
+    cdpListNode* node = list_node_new(record);
 
     if (list->store.chdCount) {
         if (prepend)
@@ -297,7 +299,7 @@ static inline void list_take(cdpList* list, cdpRecord* target) {
         list->head = NULL;
 
     cdp_record_transfer(&node->record, target);
-    cdp_free(node);
+    list_node_del(node);
 }
 
 
@@ -314,7 +316,7 @@ static inline void list_pop(cdpList* list, cdpRecord* target) {
         list->tail = NULL;
 
     cdp_record_transfer(&node->record, target);
-    cdp_free(node);
+    list_node_del(node);
 }
 
 
@@ -330,7 +332,7 @@ static inline void list_remove_record(cdpList* list, cdpRecord* record) {
     if (prev) prev->next = next;
     else      list->head = next;
 
-    cdp_free(node);
+    list_node_del(node);
 }
 
 
@@ -341,7 +343,7 @@ static inline void list_del_all_children(cdpList* list) {
             cdp_record_finalize(&node->record);
             toDel = node;
             node = node->next;
-            cdp_free(toDel);
+            list_node_del(toDel);
         } while (node);
         list->head = list->tail = NULL;
     }
