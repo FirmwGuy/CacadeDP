@@ -70,7 +70,7 @@ cdpRecord CDP_ROOT;   // The root record.
     Initiates the record system
 */
 void cdp_record_system_initiate(void) {
-    cdp_record_initialize_dictionary(&CDP_ROOT, cdp_id_to_word(CDP_WORD_ROOT), cdp_id_to_word(CDP_WORD_ROOT), cdp_id_to_word(CDP_WORD_ROOT), CDP_STORAGE_RED_BLACK_T);   // The root dictionary is the same as "/" in text paths.
+    cdp_record_initialize_dictionary(&CDP_ROOT, CDP_WORD_ROOT, CDP_WORD_ROOT, CDP_WORD_ROOT, CDP_STORAGE_RED_BLACK_T);   // The root dictionary is the same as "/" in text paths.
 }
 
 
@@ -431,7 +431,7 @@ static inline void store_check_auto_id(cdpStore* store, cdpRecord* child) {
 /*
     Adds/inserts a *copy* of the specified record into a store
 */
-static inline cdpRecord* store_add_child(cdpStore* store, cdpRecord* child, cdpValue context) {
+static inline cdpRecord* store_add_child(cdpStore* store, cdpValue context, cdpRecord* child) {
     assert(cdp_store_valid(store) && !cdp_record_is_void(child));
 
     if (!store->writable)
@@ -528,7 +528,7 @@ static inline cdpRecord* store_add_child(cdpStore* store, cdpRecord* child, cdpV
 /*
     Appends/prepends a copy of record into store
 */
-static inline cdpRecord* store_append_child(cdpStore* store, cdpRecord* child, bool prepend) {
+static inline cdpRecord* store_append_child(cdpStore* store, bool prepend, cdpRecord* child) {
     assert(cdp_store_valid(store) && !cdp_record_is_void(child));
 
     if (!store->writable)
@@ -1141,18 +1141,18 @@ void cdp_record_finalize(cdpRecord* record) {
 /*
     Adds/inserts a *copy* of the specified record into another record
 */
-cdpRecord* cdp_record_add(cdpRecord* record, cdpRecord* child, cdpValue context) {
+cdpRecord* cdp_record_add(cdpRecord* record, cdpValue context, cdpRecord* child) {
     RECORD_FOLLOW_LINK_TO_STORE(record, store, NULL);
-    return store_add_child(store, child, context);
+    return store_add_child(store, context, child);
 }
 
 
 /*
     Appends/prepends a copy of record into another
 */
-cdpRecord* cdp_record_append(cdpRecord* record, cdpRecord* child, bool prepend) {
+cdpRecord* cdp_record_append(cdpRecord* record, bool prepend, cdpRecord* child) {
     RECORD_FOLLOW_LINK_TO_STORE(record, store, NULL);
-    return store_append_child(store, child, prepend);
+    return store_append_child(store, prepend, child);
 }
 
 
@@ -1625,8 +1625,9 @@ cdpID cdp_text_to_word(const char *s) {
 }
 
 
-size_t cdp_word_to_text(cdpID coded, char s[12]) {
-    assert(cdp_id_text_valid(coded));
+size_t cdp_word_to_text(cdpID word, char s[12]) {
+    assert(cdp_id_text_valid(word));
+    cdpID coded = cdp_id(word);
 
     const char* translation_table = ":_-./";    // Reverse translation table for values 27-31.
     unsigned length;

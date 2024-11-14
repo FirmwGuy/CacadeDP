@@ -135,7 +135,7 @@ bool stdout_agent_update(cdpRecord* instance, cdpTask* signal) {
 
 
 
-void* test_agents_setup(const MunitParameter params[], void* user_data) {
+void* test_wordacron_setup(const MunitParameter params[], void* user_data) {
 #if 0
     cdpID linkID = CDP_TAG_LINK;
     AGENT_STDIN = cdp_system_set_agent("stdin", 0, 1, &linkID, 1, stdin_agent_initiate, NULL);
@@ -157,14 +157,14 @@ void* test_agents_setup(const MunitParameter params[], void* user_data) {
 
 
 
-void test_agents_tear_down(void* fixture) {
+void test_wordacron_tear_down(void* fixture) {
 #if 0
     cdp_system_shutdown();
 #endif
 }
 
 
-MunitResult test_agents(const MunitParameter params[], void* user_data_or_fixture) {
+MunitResult test_wordacron(const MunitParameter params[], void* user_data_or_fixture) {
 #if 0
     extern cdpRecord* TEMP;
 
