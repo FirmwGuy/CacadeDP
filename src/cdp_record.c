@@ -345,6 +345,7 @@ cdpStore* cdp_store_new(cdpID domain, cdpID tag, unsigned storage, unsigned inde
     store->tag      = tag;
     store->storage  = storage;
     store->indexing = indexing;
+    store->writable = true;
     store->autoid   = 1;
 
     return store;
@@ -1512,7 +1513,7 @@ bool cdp_record_child_pop(cdpRecord* record, cdpRecord* target) {
 */
 void cdp_record_remove(cdpRecord* record, cdpRecord* target) {
     assert(record && record != &CDP_ROOT);
-    RECORD_FOLLOW_LINK_TO_STORE(record, store);
+    cdpStore* store = record->parent;
     store_remove_child(store, record, target);
 }
 
