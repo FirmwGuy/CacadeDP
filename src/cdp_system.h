@@ -263,37 +263,34 @@
 
 
 // Core directories
-#define CDP_WORD_DATA       CDP_ID(0x0000000000000045)      /* "data"        */
-#define CDP_WORD_NETWORK    CDP_ID(0x0000000000000055)      /* "network"     */
-#define CDP_WORD_PUBLIC     CDP_ID(0x0000000000000065)      /* "public"      */
-#define CDP_WORD_PRIVATE    CDP_ID(0x0000000000000075)      /* "private"     */
-#define CDP_WORD_TEMPORAL   CDP_ID(0x0000000000000085)      /* "temporal"    */
-#define CDP_WORD_SYSTEM     CDP_ID(0x0000000000000095)      /* "system"      */
-#define CDP_WORD_USER       CDP_ID(0x00000000000000A5)      /* "user"        */
+#define CDP_WORD_DATA       CDP_WORD(0x0000000000000045)    /* "data"        */
+#define CDP_WORD_NETWORK    CDP_WORD(0x0000000000000055)    /* "network"     */
+#define CDP_WORD_PUBLIC     CDP_WORD(0x0000000000000065)    /* "public"      */
+#define CDP_WORD_PRIVATE    CDP_WORD(0x0000000000000075)    /* "private"     */
+#define CDP_WORD_TEMPORAL   CDP_WORD(0x0000000000000085)    /* "temporal"    */
+#define CDP_WORD_SYSTEM     CDP_WORD(0x0000000000000095)    /* "system"      */
+#define CDP_WORD_USER       CDP_WORD(0x00000000000000A5)    /* "user"        */
 
 
 // Core sub-dirs
-#define CDP_WORD_AGENT      CDP_ID(0x0000000000000155)      /* "agent"       */
-#define CDP_WORD_AGENCY     CDP_ID(0x0000000000000165)      /* "agency"      */
-#define CDP_WORD_DOMAIN     CDP_ID(0x0000000000000175)      /* "domain"      */
-#define CDP_WORD_LIBRARY    CDP_ID(0x0000000000000185)      /* "library"     */
-#define CDP_WORD_TASK       CDP_ID(0x0000000000000195)      /* "task"        */
+#define CDP_WORD_AGENT      CDP_WORD(0x0000000000000155)    /* "agent"       */
+#define CDP_WORD_AGENCY     CDP_WORD(0x0000000000000165)    /* "agency"      */
+#define CDP_WORD_DOMAIN     CDP_WORD(0x0000000000000175)    /* "domain"      */
+#define CDP_WORD_LIBRARY    CDP_WORD(0x0000000000000185)    /* "library"     */
+#define CDP_WORD_TASK       CDP_WORD(0x0000000000000195)    /* "task"        */
 
 
 // Basic fields
-#define CDP_WORD_PENDING    CDP_ID(0x0000000000000255)      /* "pending"     */
-#define CDP_WORD_WORKING    CDP_ID(0x0000000000000265)      /* "working"     */
-#define CDP_WORD_COMPLETED  CDP_ID(0x0000000000000275)      /* "completed"   */
-#define CDP_WORD_FAILED     CDP_ID(0x0000000000000285)      /* "failed"      */
+#define CDP_WORD_PENDING    CDP_WORD(0x0000000000000255)    /* "pending"     */
+#define CDP_WORD_WORKING    CDP_WORD(0x0000000000000265)    /* "working"     */
+#define CDP_WORD_COMPLETED  CDP_WORD(0x0000000000000275)    /* "completed"   */
+#define CDP_WORD_FAILED     CDP_WORD(0x0000000000000285)    /* "failed"      */
 
 // Events
-#define CDP_WORD_DEBUG      CDP_ID(0x0000000000000355)      /* "debug"       */
-#define CDP_WORD_WARNING    CDP_ID(0x0000000000000365)      /* "warning"     */
-#define CDP_WORD_ERROR      CDP_ID(0x0000000000000375)      /* "error"       */
-#define CDP_WORD_FATAL      CDP_ID(0x0000000000000385)      /* "fatal"       */
-
-
-#define CDP_TAG_SYSTEM_COUNT   (CDP_TAG_ID_SYSTEM_COUNT - CDP_TAG_SYSTEM)
+#define CDP_WORD_DEBUG      CDP_WORD(0x0000000000000355)    /* "debug"       */
+#define CDP_WORD_WARNING    CDP_WORD(0x0000000000000365)    /* "warning"     */
+#define CDP_WORD_ERROR      CDP_WORD(0x0000000000000375)    /* "error"       */
+#define CDP_WORD_FATAL      CDP_WORD(0x0000000000000385)    /* "fatal"       */
 
 
 typedef struct {

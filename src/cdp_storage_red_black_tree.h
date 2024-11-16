@@ -192,36 +192,45 @@ static inline cdpRecord* rb_tree_last(cdpRbTree* tree) {
 }
 
 
+#define RB_TREE_MIN_DEPTH   64
+
 static inline bool rb_tree_traverse(cdpRbTree* tree, unsigned maxDepth, cdpTraverse func, void* context, cdpEntry* entry) {
-  cdpRbTreeNode* tnode = tree->root, *tnodePrev = NULL;
-  cdpRbTreeNode* stack[maxDepth];
-  int top = -1;  // Stack index initialized to empty.
+    cdpRbTreeNode* tnode = tree->root, *tnodePrev = NULL;
+    size_t stackSize = sizeof(void*) * maxDepth;
+    cdpRbTreeNode* stack = (maxDepth > RB_TREE_MIN_DEPTH)?  cdp_malloc(stackSize):  cdp_alloca(stackSize);
+    int top = -1;  // Stack index initialized to empty.
 
-  entry->parent = tree->store.owner;
-  entry->depth  = 0;
-  do {
-      if (tnode) {
-          assert(top < ((int)maxDepth - 1));
-          stack[++top] = tnode;
-          tnode = tnode->left;
-      } else {
-          tnode = stack[top--];
-          if (tnodePrev) {
-              entry->next = &tnode->record;
-              entry->record = &tnodePrev->record;
-              if (!func(entry, context))
-                  return false;
-              entry->position++;
-              entry->prev = entry->record;
-          }
-          tnodePrev = tnode;
-          tnode = tnode->right;
-      }
-  } while (top != -1 || tnode);
+    entry->parent = tree->store.owner;
+    entry->depth  = 0;
+    do {
+        if (tnode) {
+            assert(top < ((int)maxDepth - 1));
+            stack[++top] = tnode;
+            tnode = tnode->left;
+        } else {
+            tnode = stack[top--];
+            if (tnodePrev) {
+                entry->next   = &tnode->record;
+                entry->record = &tnodePrev->record;
+                if (!func(entry, context)) {
+                    if (maxDepth > RB_TREE_MIN_DEPTH)
+                        cdp_free(stack);
+                    return false;
+                }
+                entry->position++;
+                entry->prev = entry->record;
+            }
+            tnodePrev = tnode;
+            tnode = tnode->right;
+        }
+    } while (top != -1 || tnode);
 
-  entry->next = NULL;
-  entry->record = &tnodePrev->record;
-  return func(entry, context);
+    if (maxDepth > RB_TREE_MIN_DEPTH)
+        cdp_free(stack);
+
+    entry->next   = NULL;
+    entry->record = &tnodePrev->record;
+    return func(entry, context);
 }
 
 
