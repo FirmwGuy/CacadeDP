@@ -134,25 +134,25 @@ static void test_records_nested_one_item_ops(cdpRecord* cat, cdpID name, cdpReco
 
 
 
-static void test_records_tech_branch(unsigned storage) {
-    cdpRecord* parent = cdp_record_add_branch(cdp_root(), CDP_NAME_TEMP, 0, CDP_NAME_TEMP, CDP_NAME_TEMP, storage, 20);
+static void test_records_tech_list(unsigned storage) {
+    cdpRecord* list = cdp_record_add_list(cdp_root(), CDP_NAME_TEMP, 0, CDP_NAME_TEMP, CDP_NAME_TEMP, storage, 20);
 
     /* One item operations */
 
     // Append, lookups and delete
-    test_records_zero_item_ops(parent);
+    test_records_zero_item_ops(list);
     cdpValue  value = (cdpValue){.uint32 = 1};
-    cdpRecord* item = cdp_record_add_value(parent, CDP_NAME_ENUMERATION, 0, CDP_NAME_ENUMERATION, CDP_NAME_ENUMERATION, (cdpID)0, value, sizeof(uint32_t), sizeof(uint32_t));
+    cdpRecord* item = cdp_record_append_value(list, CDP_NAME_ENUMERATION, CDP_NAME_ENUMERATION, CDP_NAME_ENUMERATION, CDP_ID(0), value, sizeof(uint32_t), sizeof(uint32_t));
     test_records_value(item, value);
-    test_records_one_item_ops(parent, item);
+    test_records_one_item_ops(list, item);
     cdp_record_delete(item);
 
     // Push and lookups
-    test_records_zero_item_ops(parent);
+    test_records_zero_item_ops(list);
     value.uint32 = 1;
-    item = cdp_record_prepend_value(parent, CDP_NAME_ENUMERATION, CDP_NAME_ENUMERATION, CDP_NAME_ENUMERATION, (cdpID)0, value, sizeof(uint32_t), sizeof(uint32_t));
+    item = cdp_record_prepend_value(list, CDP_NAME_ENUMERATION, CDP_NAME_ENUMERATION, CDP_NAME_ENUMERATION, CDP_ID(0), value, sizeof(uint32_t), sizeof(uint32_t));
     test_records_value(item, value);
-    test_records_one_item_ops(parent, item);
+    test_records_one_item_ops(list, item);
 
     // Multi-item ops
     cdpPath* path = cdp_alloca(sizeof(cdpPath) + (1 * sizeof(cdpID)));
@@ -163,16 +163,16 @@ static void test_records_tech_branch(unsigned storage) {
     size_t index;
 
     for (unsigned n = 1; n < 10;  n++) {
-        if (cdp_record_children(parent) > 2) {
+        if (cdp_record_children(list) > 2) {
             switch (munit_rand_int_range(0, 2)) {
               case 1:
-                cdp_record_delete(cdp_record_first(parent));
-                found = cdp_record_first(parent);
+                cdp_record_delete(cdp_record_first(list));
+                found = cdp_record_first(list);
                 first = cdp_record_value(found).uint32;
                 break;
               case 2:
-                cdp_record_delete(cdp_record_last(parent));
-                found = cdp_record_last(parent);
+                cdp_record_delete(cdp_record_last(list));
+                found = cdp_record_last(list);
                 last  = cdp_record_value(found).uint32;
                 break;
             }
@@ -180,64 +180,64 @@ static void test_records_tech_branch(unsigned storage) {
 
         value = (cdpValue) (n + 1);
         if (munit_rand_uint32() & 1) {
-            index = cdp_record_children(parent);
+            index = cdp_record_children(list);
 
-            item = cdp_record_add_value(parent, CDP_NAME_Z_COUNT+n, 0, CDP_NAME_Z_COUNT+n, CDP_NAME_Z_COUNT+n, (cdpID)0, value, sizeof(uint32_t), sizeof(uint32_t));
+            item = cdp_record_append_value(list, CDP_NAME_Z_COUNT+n, CDP_NAME_Z_COUNT+n, CDP_NAME_Z_COUNT+n, CDP_ID(0), value, sizeof(uint32_t), sizeof(uint32_t));
             test_records_value(item, value);
 
-            found = cdp_record_first(parent);
+            found = cdp_record_first(list);
             test_records_value(found, (cdpValue)first);
-            found = cdp_record_last(parent);
+            found = cdp_record_last(list);
             test_records_value(found, value);
 
             last = value.uint32;
         } else {
             index = 0;
 
-            item = cdp_record_prepend_value(parent, CDP_NAME_Z_COUNT+n, (cdpID)0, CDP_NAME_Z_COUNT+n, CDP_NAME_Z_COUNT+n, value, sizeof(uint32_t), sizeof(uint32_t));
+            item = cdp_record_prepend_value(list, CDP_NAME_Z_COUNT+n, CDP_NAME_Z_COUNT+n, CDP_NAME_Z_COUNT+n, CDP_ID(0), value, sizeof(uint32_t), sizeof(uint32_t));
             test_records_value(item, value);
 
-            found = cdp_record_first(parent);
+            found = cdp_record_first(list);
             test_records_value(found, value);
-            found = cdp_record_last(parent);
+            found = cdp_record_last(list);
             test_records_value(found, (cdpValue)last);
 
             first = value.uint32;
         }
 
-        found = cdp_record_find_by_name(parent, cdp_record_get_name(item));
+        found = cdp_record_find_by_name(list, cdp_record_get_name(item));
         assert_ptr_equal(found, item);
 
-        found = cdp_record_find_by_position(parent, index);
+        found = cdp_record_find_by_position(list, index);
         assert_ptr_equal(found, item);
 
         path->id[0] = cdp_record_get_name(item);
-        found = cdp_record_find_by_path(parent, path);
+        found = cdp_record_find_by_path(list, path);
         assert_ptr_equal(found, item);
 
-        assert_true(cdp_record_traverse(parent, print_values, NULL, NULL));
+        assert_true(cdp_record_traverse(list, print_values, NULL, NULL));
     }
 
     /* Nested record */
 
-    cdpRecord* child = cdp_record_add_branch(parent, CDP_NAME_TEMP, (cdpID)0, CDP_NAME_TEMP, CDP_NAME_TEMP, storage, 20);
-    item = cdp_record_prepend_value(child, CDP_NAME_Z_COUNT+30, (cdpID)0, CDP_NAME_Z_COUNT+30, CDP_NAME_Z_COUNT+30, value, sizeof(uint32_t), sizeof(uint32_t));
+    cdpRecord* child = cdp_record_append_list(list, CDP_NAME_TEMP, CDP_NAME_TEMP, CDP_NAME_TEMP, storage, 20);
+    item = cdp_record_prepend_value(child, CDP_NAME_Z_COUNT+30, CDP_NAME_Z_COUNT+30, CDP_NAME_Z_COUNT+30, CDP_ID(0), value, sizeof(uint32_t), sizeof(uint32_t));
     test_records_value(item, value);
-    assert_true(cdp_record_deep_traverse(parent, print_values, NULL, NULL, NULL));
+    assert_true(cdp_record_deep_traverse(list, print_values, NULL, NULL, NULL));
 
-    cdp_record_delete(parent);
+    cdp_record_delete(list);
 }
 
 
 static void test_records_tech_dictionary(unsigned storage) {
-    cdpRecord* dict = cdp_record_add_dictionary(cdp_root(), CDP_NAME_TEMP, (cdpID)0, CDP_NAME_TEMP, CDP_NAME_TEMP, storage, 20);
+    cdpRecord* dict = cdp_record_add_dictionary(cdp_root(), CDP_NAME_TEMP, 0, CDP_NAME_TEMP, CDP_NAME_TEMP, storage, 20);
 
     /* One item operations */
 
     // Isert, lookups and delete
     test_records_zero_item_ops(dict);
     cdpValue  value = (cdpValue){.uint32 = 1};
-    cdpRecord* item = cdp_record_add_value(dict, CDP_NAME_ENUMERATION, (cdpID)0, CDP_NAME_ENUMERATION, CDP_NAME_ENUMERATION, (cdpID)0, value, sizeof(uint32_t), sizeof(uint32_t));
+    cdpRecord* item = cdp_record_add_value(dict, CDP_NAME_ENUMERATION, 0, CDP_NAME_ENUMERATION, CDP_NAME_ENUMERATION, CDP_ID(0), value, sizeof(uint32_t), sizeof(uint32_t));
     test_records_value(item, value);
     test_records_one_item_ops(dict, item);
     cdp_record_delete(item);
@@ -274,7 +274,7 @@ static void test_records_tech_dictionary(unsigned storage) {
         if (value.uint32 < vmin)   vmin = value.uint32;
         if (value.uint32 > vmax)   vmax = value.uint32;
 
-        item = cdp_record_add_value(dict, name, (cdpID)0, name, name, (cdpID)0, value, sizeof(uint32_t), sizeof(uint32_t));
+        item = cdp_record_add_value(dict, name, 0, name, name, CDP_ID(0), value, sizeof(uint32_t), sizeof(uint32_t));
         test_records_value(item, value);
 
         found = cdp_record_find_by_name(dict, cdp_record_get_name(item));
@@ -301,8 +301,8 @@ static void test_records_tech_dictionary(unsigned storage) {
 
     /* Nested record */
 
-    cdpRecord* child = cdp_record_add_dictionary(dict, CDP_NAME_TEMP+2000, (cdpID)0, CDP_NAME_TEMP+2000, CDP_NAME_TEMP+2000, storage, 20);
-    item = cdp_record_add_value(child, CDP_NAME_ENUMERATION, (cdpID)0, CDP_NAME_ENUMERATION, CDP_NAME_ENUMERATION, (cdpID)0, value, sizeof(uint32_t), sizeof(uint32_t));
+    cdpRecord* child = cdp_record_add_dictionary(dict, CDP_NAME_TEMP+2000, 0, CDP_NAME_TEMP+2000, CDP_NAME_TEMP+2000, storage, 20);
+    item = cdp_record_add_value(child, CDP_NAME_ENUMERATION, 0, CDP_NAME_ENUMERATION, CDP_NAME_ENUMERATION, CDP_ID(0), value, sizeof(uint32_t), sizeof(uint32_t));
     test_records_value(item, value);
     assert_true(cdp_record_deep_traverse(dict, print_values, NULL, NULL, NULL));
 
@@ -314,7 +314,7 @@ static cdpRecord* tech_catalog_create_structure(cdpID name, cdpValue value) {
     static cdpRecord record;
     CDP_0(&record);
     cdp_record_initialize_dictionary(&record, name, name, name, CDP_STORAGE_ARRAY, 2);
-    cdpRecord* item = cdp_record_add_value(&record, CDP_NAME_ENUMERATION, (cdpID)0, CDP_NAME_ENUMERATION, CDP_NAME_ENUMERATION, (cdpID)0, value, sizeof(uint32_t), sizeof(uint32_t));
+    cdpRecord* item = cdp_record_add_value(&record, CDP_NAME_ENUMERATION, 0, CDP_NAME_ENUMERATION, CDP_NAME_ENUMERATION, CDP_ID(0), value, sizeof(uint32_t), sizeof(uint32_t));
     test_records_value(item, value);
     return &record;
 }
@@ -327,7 +327,12 @@ static int tech_catalog_compare(const cdpRecord* key, const cdpRecord* record, v
 }
 
 static void test_records_tech_catalog(unsigned storage) {
-    cdpRecord* cat = cdp_record_add_catalog(cdp_root(), CDP_NAME_TEMP, (cdpID)0, CDP_NAME_TEMP, CDP_NAME_TEMP, storage, 20, tech_catalog_compare);
+    cdpRecord* cat;
+    if (storage == CDP_STORAGE_ARRAY) {
+        cat = cdp_record_add_catalog(cdp_root(), CDP_NAME_TEMP, 0, CDP_NAME_TEMP, CDP_NAME_TEMP, storage, 20, tech_catalog_compare);
+    } else {
+        cat = cdp_record_add_catalog(cdp_root(), CDP_NAME_TEMP, 0, CDP_NAME_TEMP, CDP_NAME_TEMP, storage, tech_catalog_compare);
+    }
 
     /* One item operations */
 
@@ -383,19 +388,19 @@ static void test_records_tech_catalog(unsigned storage) {
 
         record = cdp_record_first(cat);
         found  = cdp_record_find_by_name(record, CDP_NAME_ENUMERATION);
-        test_records_value(found, (cdpValue)vmin);
+        test_records_value(found, CDP_V(vmin));
 
         record = cdp_record_find_by_position(cat, 0);
         found  = cdp_record_find_by_name(record, CDP_NAME_ENUMERATION);
-        test_records_value(found, (cdpValue)vmin);
+        test_records_value(found, CDP_V(vmin));
 
         record = cdp_record_last(cat);
         found  = cdp_record_find_by_name(record, CDP_NAME_ENUMERATION);
-        test_records_value(found, (cdpValue)vmax);
+        test_records_value(found, CDP_V(vmax));
 
         record = cdp_record_find_by_position(cat, cdp_record_children(cat) - 1);
         found  = cdp_record_find_by_name(record, CDP_NAME_ENUMERATION);
-        test_records_value(found, (cdpValue)vmax);
+        test_records_value(found, CDP_V(vmax));
 
         path->id[0] = name;
         record = cdp_record_find_by_path(cat, path);
@@ -414,11 +419,11 @@ static void test_records_tech_catalog(unsigned storage) {
 
 
 
-static void test_records_tech_sequencing_branch(void) {
+static void test_records_tech_sequencing_list(void) {
     size_t maxItems = munit_rand_int_range(2, 100);
 
-    cdpRecord* bookL = cdp_record_add_branch(cdp_root(), CDP_NAME_TEMP+1, (cdpID)0, CDP_NAME_TEMP+1, CDP_NAME_TEMP+1, CDP_STORAGE_LINKED_LIST);
-    cdpRecord* bookA = cdp_record_add_branch(cdp_root(), CDP_NAME_TEMP+2, (cdpID)0, CDP_NAME_TEMP+2, CDP_NAME_TEMP+2, CDP_STORAGE_ARRAY, maxItems);
+    cdpRecord* bookL = cdp_record_add_list(cdp_root(), CDP_NAME_TEMP+1, 0, CDP_NAME_TEMP+1, CDP_NAME_TEMP+1, CDP_STORAGE_LINKED_LIST);
+    cdpRecord* bookA = cdp_record_add_list(cdp_root(), CDP_NAME_TEMP+2, 0, CDP_NAME_TEMP+2, CDP_NAME_TEMP+2, CDP_STORAGE_ARRAY, maxItems);
 
     cdpRecord* foundL, *foundA;
 
@@ -443,8 +448,8 @@ static void test_records_tech_sequencing_branch(void) {
             }
         }
 
-        cdp_record_add_value(bookL, name, (cdpID)0, name, name, (cdpID)0, value, sizeof(uint32_t), sizeof(uint32_t));
-        cdp_record_add_value(bookA, name, (cdpID)0, name, name, (cdpID)0, value, sizeof(uint32_t), sizeof(uint32_t));
+        cdp_record_add_value(bookL, name, 0, name, name, CDP_ID(0), value, sizeof(uint32_t), sizeof(uint32_t));
+        cdp_record_add_value(bookA, name, 0, name, name, CDP_ID(0), value, sizeof(uint32_t), sizeof(uint32_t));
 
         cdpRecord* recordL = cdp_record_first(bookL);
         cdpRecord* recordA = cdp_record_first(bookA);
@@ -468,9 +473,9 @@ static void test_records_tech_sequencing_branch(void) {
 static void test_records_tech_sequencing_dictionary(void) {
     size_t maxItems = munit_rand_int_range(2, 100);
 
-    cdpRecord* dictL = cdp_record_add_dictionary(cdp_root(), CDP_NAME_TEMP+1, (cdpID)0, CDP_NAME_TEMP+1, CDP_NAME_TEMP+1, CDP_STORAGE_LINKED_LIST);
-    cdpRecord* dictA = cdp_record_add_dictionary(cdp_root(), CDP_NAME_TEMP+2, (cdpID)0, CDP_NAME_TEMP+2, CDP_NAME_TEMP+2, CDP_STORAGE_ARRAY, maxItems);
-    cdpRecord* dictT = cdp_record_add_dictionary(cdp_root(), CDP_NAME_TEMP+3, (cdpID)0, CDP_NAME_TEMP+3, CDP_NAME_TEMP+3, CDP_STORAGE_RED_BLACK_T);
+    cdpRecord* dictL = cdp_record_add_dictionary(cdp_root(), CDP_NAME_TEMP+1, 0, CDP_NAME_TEMP+1, CDP_NAME_TEMP+1, CDP_STORAGE_LINKED_LIST);
+    cdpRecord* dictA = cdp_record_add_dictionary(cdp_root(), CDP_NAME_TEMP+2, 0, CDP_NAME_TEMP+2, CDP_NAME_TEMP+2, CDP_STORAGE_ARRAY, maxItems);
+    cdpRecord* dictT = cdp_record_add_dictionary(cdp_root(), CDP_NAME_TEMP+3, 0, CDP_NAME_TEMP+3, CDP_NAME_TEMP+3, CDP_STORAGE_RED_BLACK_T);
 
     cdpRecord* foundL, *foundA, *foundT;
 
@@ -498,9 +503,9 @@ static void test_records_tech_sequencing_dictionary(void) {
             }
         }
 
-        cdp_record_add_value(dictL, name, (cdpID)0, name, name, (cdpID)0, value, sizeof(uint32_t), sizeof(uint32_t));
-        cdp_record_add_value(dictA, name, (cdpID)0, name, name, (cdpID)0, value, sizeof(uint32_t), sizeof(uint32_t));
-        cdp_record_add_value(dictT, name, (cdpID)0, name, name, (cdpID)0, value, sizeof(uint32_t), sizeof(uint32_t));
+        cdp_record_add_value(dictL, name, 0, name, name, CDP_ID(0), value, sizeof(uint32_t), sizeof(uint32_t));
+        cdp_record_add_value(dictA, name, 0, name, name, CDP_ID(0), value, sizeof(uint32_t), sizeof(uint32_t));
+        cdp_record_add_value(dictT, name, 0, name, name, CDP_ID(0), value, sizeof(uint32_t), sizeof(uint32_t));
 
         cdpRecord* recordL = cdp_record_first(dictL);
         cdpRecord* recordA = cdp_record_first(dictA);
@@ -528,9 +533,9 @@ static void test_records_tech_sequencing_dictionary(void) {
 static void test_records_tech_sequencing_catalog(void) {
     size_t maxItems = munit_rand_int_range(2, 100);
 
-    cdpRecord* catL = cdp_record_add_catalog(cdp_root(), CDP_NAME_TEMP+1, (cdpID)0, CDP_NAME_TEMP+1, CDP_NAME_TEMP+1, CDP_STORAGE_LINKED_LIST, tech_catalog_compare);
-    cdpRecord* catA = cdp_record_add_catalog(cdp_root(), CDP_NAME_TEMP+2, (cdpID)0, CDP_NAME_TEMP+2, CDP_NAME_TEMP+2, CDP_STORAGE_ARRAY, maxItems, tech_catalog_compare);
-    cdpRecord* catT = cdp_record_add_catalog(cdp_root(), CDP_NAME_TEMP+3, (cdpID)0, CDP_NAME_TEMP+3, CDP_NAME_TEMP+3, CDP_STORAGE_RED_BLACK_T, tech_catalog_compare);
+    cdpRecord* catL = cdp_record_add_catalog(cdp_root(), CDP_NAME_TEMP+1, 0, CDP_NAME_TEMP+1, CDP_NAME_TEMP+1, CDP_STORAGE_LINKED_LIST, tech_catalog_compare);
+    cdpRecord* catA = cdp_record_add_catalog(cdp_root(), CDP_NAME_TEMP+2, 0, CDP_NAME_TEMP+2, CDP_NAME_TEMP+2, CDP_STORAGE_ARRAY, maxItems, tech_catalog_compare);
+    cdpRecord* catT = cdp_record_add_catalog(cdp_root(), CDP_NAME_TEMP+3, 0, CDP_NAME_TEMP+3, CDP_NAME_TEMP+3, CDP_STORAGE_RED_BLACK_T, tech_catalog_compare);
 
     cdpRecord* foundL, *foundA, *foundT;
     cdpRecord  key = *tech_catalog_create_structure(CDP_NAME_TEMP, (cdpValue)0);
@@ -539,7 +544,7 @@ static void test_records_tech_sequencing_catalog(void) {
     for (unsigned n = 0; n < maxItems;  n++) {
         cdpValue value = {.int32 = 1 + (munit_rand_uint32() % (maxItems>>1))};
         cdpID name = CDP_NAME_ENUMERATION + value.int32;
-        cdp_record_update_value(item, value);
+        cdp_record_update_value(item, sizeof(int32_t), value);
 
         if ((foundL = cdp_record_find_by_key(catL, &key, tech_catalog_compare, NULL)))    cdp_record_delete(foundL);
         if ((foundA = cdp_record_find_by_key(catA, &key, tech_catalog_compare, NULL)))    cdp_record_delete(foundA);
@@ -596,20 +601,19 @@ static void test_records_tech_sequencing_catalog(void) {
 MunitResult test_records(const MunitParameter params[], void* user_data_or_fixture) {
     cdp_record_system_initiate();
 
-    test_records_tech_branch(CDP_STORAGE_LINKED_LIST);
-    test_records_tech_branch(CDP_STORAGE_ARRAY);
-    test_records_tech_branch(CDP_STORAGE_PACKED_QUEUE);
+    test_records_tech_list(CDP_STORAGE_LINKED_LIST);
+    test_records_tech_list(CDP_STORAGE_ARRAY);
+    test_records_tech_list(CDP_STORAGE_PACKED_QUEUE);
+    test_records_tech_sequencing_list();
 
     test_records_tech_dictionary(CDP_STORAGE_LINKED_LIST);
     test_records_tech_dictionary(CDP_STORAGE_ARRAY);
     test_records_tech_dictionary(CDP_STORAGE_RED_BLACK_T);
+    test_records_tech_sequencing_dictionary();
 
     test_records_tech_catalog(CDP_STORAGE_LINKED_LIST);
     test_records_tech_catalog(CDP_STORAGE_ARRAY);
     test_records_tech_catalog(CDP_STORAGE_RED_BLACK_T);
-
-    test_records_tech_sequencing_branch();
-    test_records_tech_sequencing_dictionary();
     test_records_tech_sequencing_catalog();
 
     cdp_record_system_shutdown();

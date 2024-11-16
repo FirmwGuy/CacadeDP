@@ -257,7 +257,7 @@ static inline void* cdp_data_update(cdpData* data, size_t size, size_t capacity,
 
     switch (data->datatype) {
       case CDP_DATATYPE_VALUE: {
-        assert(data->capacity == capacity);
+        assert(data->capacity >= capacity);
         data->value[0] = value;
         data->size = size;
         return data->value;
@@ -1191,7 +1191,7 @@ void* cdp_record_update(cdpRecord* record, size_t size, size_t capacity, cdpValu
         return NULL;
     }
 
-    return cdp_data_update(data, size, capacity, value, swap);;
+    return cdp_data_update(data, size, capacity, value, swap);
 }
 
 

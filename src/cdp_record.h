@@ -431,8 +431,9 @@ void cdp_record_finalize(cdpRecord* record);
 #define cdp_record_initialize_value(r, name, domain, tag, attrib, value, size, capacity)              cdp_record_initialize(r, CDP_TYPE_NORMAL, name, cdp_data_new(domain, tag, attrib, CDP_DATATYPE_VALUE, true, NULL, CDP_V(value), size, capacity), NULL)
 #define cdp_record_initialize_data(r, name, domain, tag, attrib, data, size, capacity, destructor)    cdp_record_initialize(r, CDP_TYPE_NORMAL, name, cdp_data_new(domain, tag, attrib, CDP_DATATYPE_DATA, true, NULL, CDP_V(data), size, capacity, destructor), NULL)
 
-#define cdp_record_initialize_branch(r, name, domain, tag, storage, ...)                cdp_record_initialize(r, CDP_TYPE_NORMAL, name, NULL, cdp_store_new(domain, tag, storage, CDP_INDEX_BY_INSERTION, ##__VA_ARGS__))
+#define cdp_record_initialize_list(r, name, domain, tag, storage, ...)                  cdp_record_initialize(r, CDP_TYPE_NORMAL, name, NULL, cdp_store_new(domain, tag, storage, CDP_INDEX_BY_INSERTION, ##__VA_ARGS__))
 #define cdp_record_initialize_dictionary(r, name, domain, tag, storage, ...)            cdp_record_initialize(r, CDP_TYPE_NORMAL, name, NULL, cdp_store_new(domain, tag, storage, CDP_INDEX_BY_NAME, ##__VA_ARGS__))
+#define cdp_record_initialize_catalog(r, name, domain, tag, storage, ...)               cdp_record_initialize(r, CDP_TYPE_NORMAL, name, NULL, cdp_store_new(domain, tag, storage, CDP_INDEX_BY_FUNCTION, ##__VA_ARGS__))
 #define cdp_record_initialize_spatial(r, name, domain, tag, center, subwide, compare)   cdp_record_initialize(r, CDP_TYPE_NORMAL, name, NULL, cdp_store_new(domain, tag, CDP_STORAGE_OCTREE, CDP_INDEX_BY_FUNCTION, center, subwide, compare))
 
 #define cdp_record_initialize_link(r, name, source)                     cdp_record_initialize(r, CDP_TYPE_LINK,  name, CDP_P(source), NULL)
@@ -503,30 +504,32 @@ cdpRecord* cdp_record_append(cdpRecord* record, bool prepend, cdpRecord* child);
 #define cdp_record_add_value(record, name, context, domain, tag, attrib, value, size, capacity)             cdp_record_add_child(record, CDP_TYPE_NORMAL, name, CDP_V(context), cdp_data_new(domain, tag, attrib, CDP_DATATYPE_VALUE, true, NULL, CDP_V(value), size, capacity), NULL)
 #define cdp_record_add_data(record, name, context, domain, tag, attrib, data, size, capacity, destructor)   cdp_record_add_child(record, CDP_TYPE_NORMAL, name, CDP_V(context), cdp_data_new(domain, tag, attrib, CDP_DATATYPE_DATA, true, NULL, CDP_V(data), size, capacity, destructor), NULL)
 
-#define cdp_record_add_branch(record, name, context, domain, tag, storage, ...)             cdp_record_add_child(record, CDP_TYPE_NORMAL, name, CDP_V(context), NULL, cdp_store_new(domain, tag, storage, CDP_INDEX_BY_INSERTION, ##__VA_ARGS__))
-#define cdp_record_add_dictionary(record, name, context, domain, tag, storage, ...)         cdp_record_add_child(record, CDP_TYPE_NORMAL, name, CDP_V(context), NULL, cdp_store_new(domain, tag, storage, CDP_INDEX_BY_NAME, ##__VA_ARGS__))
-#define cdp_record_add_catalog(record, name, context, domain, tag, storage, ...)             cdp_record_add_child(record, CDP_TYPE_NORMAL, name, CDP_V(context), NULL, cdp_store_new(domain, tag, storage, CDP_INDEX_BY_FUNCTION, ##__VA_ARGS__))
+#define cdp_record_add_list(record, name, context, domain, tag, storage, ...)                               cdp_record_add_child(record, CDP_TYPE_NORMAL, name, CDP_V(context), NULL, cdp_store_new(domain, tag, storage, CDP_INDEX_BY_INSERTION, ##__VA_ARGS__))
+#define cdp_record_add_dictionary(record, name, context, domain, tag, storage, ...)                         cdp_record_add_child(record, CDP_TYPE_NORMAL, name, CDP_V(context), NULL, cdp_store_new(domain, tag, storage, CDP_INDEX_BY_NAME, ##__VA_ARGS__))
+#define cdp_record_add_catalog(record, name, context, domain, tag, storage, ...)                            cdp_record_add_child(record, CDP_TYPE_NORMAL, name, CDP_V(context), NULL, cdp_store_new(domain, tag, storage, CDP_INDEX_BY_FUNCTION, ##__VA_ARGS__))
 
-#define cdp_record_add_link(record, name, context, source)      cdp_record_add_child(record, CDP_TYPE_LINK,  name, CDP_V(context), CDP_P(source), NULL)
-#define cdp_record_add_agent(record, name, context, agent)      cdp_record_add_child(record, CDP_TYPE_AGENT, name, CDP_V(context), CDP_P(agent),  NULL)
+#define cdp_record_add_link(record, name, context, source)                                                  cdp_record_add_child(record, CDP_TYPE_LINK,  name, CDP_V(context), CDP_P(source), NULL)
+#define cdp_record_add_agent(record, name, context, agent)                                                  cdp_record_add_child(record, CDP_TYPE_AGENT, name, CDP_V(context), CDP_P(agent),  NULL)
 
 #define cdp_record_append_child(record, type, name, prepend, data, store)      \
     ({cdpRecord child__={0}; cdp_record_initialize(&child__, type, name, data, store); cdp_record_append(record, prepend, &child__);})
 
-#define cdp_record_append_value(record, name, domain, tag, attrib, value, size, capacity)               cdp_record_append_child(record, CDP_TYPE_NORMAL, name, false, cdp_data_new(domain, tag, attrib, CDP_DATATYPE_VALUE, true, NULL, CDP_V(value), size, capacity), NULL)
-#define cdp_record_append_data(record, name, domain, tag, attrib, data, size, capacity, destructor)     cdp_record_append_child(record, CDP_TYPE_NORMAL, name, false, cdp_data_new(domain, tag, attrib, CDP_DATATYPE_DATA, true, NULL, CDP_V(data), size, capacity, destructor), NULL)
+#define cdp_record_append_value(record, name, domain, tag, attrib, value, size, capacity)                   cdp_record_append_child(record, CDP_TYPE_NORMAL, name, false, cdp_data_new(domain, tag, attrib, CDP_DATATYPE_VALUE, true, NULL, CDP_V(value), size, capacity), NULL)
+#define cdp_record_append_data(record, name, domain, tag, attrib, data, size, capacity, destructor)         cdp_record_append_child(record, CDP_TYPE_NORMAL, name, false, cdp_data_new(domain, tag, attrib, CDP_DATATYPE_DATA, true, NULL, CDP_V(data), size, capacity, destructor), NULL)
 
-#define cdp_record_append_branch(record, name, domain, tag, storage, ...)           cdp_record_append_child(record, CDP_TYPE_NORMAL, name, false, NULL, cdp_store_new(domain, tag, storage, CDP_INDEX_BY_INSERTION, ##__VA_ARGS__))
-#define cdp_record_append_dictionary(record, name, domain, tag, storage, ...)       cdp_record_append_child(record, CDP_TYPE_NORMAL, name, false, NULL, cdp_store_new(domain, tag, storage, CDP_INDEX_BY_NAME, ##__VA_ARGS__))
+#define cdp_record_append_list(record, name, domain, tag, storage, ...)                                     cdp_record_append_child(record, CDP_TYPE_NORMAL, name, false, NULL, cdp_store_new(domain, tag, storage, CDP_INDEX_BY_INSERTION, ##__VA_ARGS__))
+#define cdp_record_append_dictionary(record, name, domain, tag, storage, ...)                               cdp_record_append_child(record, CDP_TYPE_NORMAL, name, false, NULL, cdp_store_new(domain, tag, storage, CDP_INDEX_BY_NAME, ##__VA_ARGS__))
+#define cdp_record_append_catalog(record, name, domain, tag, storage, ...)                                  cdp_record_append_child(record, CDP_TYPE_NORMAL, name, false, NULL, cdp_store_new(domain, tag, storage, CDP_INDEX_BY_FUNCTION, ##__VA_ARGS__))
 
-#define cdp_record_append_link(record, name, source)    cdp_record_append_child(record, CDP_TYPE_LINK,  name, false, CDP_P(source), NULL)
-#define cdp_record_append_agent(record, name, agent)    cdp_record_append_child(record, CDP_TYPE_AGENT, name, false, CDP_P(agent),  NULL)
+#define cdp_record_append_link(record, name, source)                                                        cdp_record_append_child(record, CDP_TYPE_LINK,  name, false, CDP_P(source), NULL)
+#define cdp_record_append_agent(record, name, agent)                                                        cdp_record_append_child(record, CDP_TYPE_AGENT, name, false, CDP_P(agent),  NULL)
 
-#define cdp_record_prepend_value(record, name, domain, tag, attrib, value, size, capacity)              cdp_record_append_child(record, CDP_TYPE_NORMAL, name, true, cdp_data_new(domain, tag, attrib, CDP_DATATYPE_VALUE, true, NULL, CDP_V(value), size, capacity), NULL)
-#define cdp_record_prepend_data(record, name, domain, tag, attrib, data, size, capacity, destructor)    cdp_record_append_child(record, CDP_TYPE_NORMAL, name, true, cdp_data_new(domain, tag, attrib, CDP_DATATYPE_DATA, true, NULL, CDP_V(data), size, capacity, destructor), NULL)
+#define cdp_record_prepend_value(record, name, domain, tag, attrib, value, size, capacity)                  cdp_record_append_child(record, CDP_TYPE_NORMAL, name, true, cdp_data_new(domain, tag, attrib, CDP_DATATYPE_VALUE, true, NULL, CDP_V(value), size, capacity), NULL)
+#define cdp_record_prepend_data(record, name, domain, tag, attrib, data, size, capacity, destructor)        cdp_record_append_child(record, CDP_TYPE_NORMAL, name, true, cdp_data_new(domain, tag, attrib, CDP_DATATYPE_DATA, true, NULL, CDP_V(data), size, capacity, destructor), NULL)
 
-#define cdp_record_prepend_branch(record, name, domain, tag, storage, ...)          cdp_record_append_child(record, CDP_TYPE_NORMAL, name, true, NULL, cdp_store_new(domain, tag, storage, CDP_INDEX_BY_INSERTION, ##__VA_ARGS__))
-#define cdp_record_prepend_dictionary(record, name, domain, tag, storage, ...)      cdp_record_append_child(record, CDP_TYPE_NORMAL, name, true, NULL, cdp_store_new(domain, tag, storage, CDP_INDEX_BY_NAME, ##__VA_ARGS__))
+#define cdp_record_prepend_list(record, name, domain, tag, storage, ...)                                    cdp_record_append_child(record, CDP_TYPE_NORMAL, name, true, NULL, cdp_store_new(domain, tag, storage, CDP_INDEX_BY_INSERTION, ##__VA_ARGS__))
+#define cdp_record_prepend_dictionary(record, name, domain, tag, storage, ...)                              cdp_record_append_child(record, CDP_TYPE_NORMAL, name, true, NULL, cdp_store_new(domain, tag, storage, CDP_INDEX_BY_NAME, ##__VA_ARGS__))
+#define cdp_record_prepend_catalog(record, name, domain, tag, storage, ...)                                 cdp_record_append_child(record, CDP_TYPE_NORMAL, name, true, NULL, cdp_store_new(domain, tag, storage, CDP_INDEX_BY_FUNCTION, ##__VA_ARGS__))
 
 #define cdp_record_prepend_link(record, name, source)   cdp_record_append_child(record, CDP_TYPE_LINK,  name, true, CDP_P(source), NULL)
 #define cdp_record_prepend_agent(record, name, agent)   cdp_record_append_child(record, CDP_TYPE_AGENT, name, true, CDP_P(agent),  NULL)
@@ -537,7 +540,7 @@ void*    cdp_record_data(const cdpRecord* record);
 #define  cdp_record_value(r)       (*(cdpValue*)cdp_record_data(r))
 
 void* cdp_record_update(cdpRecord* record, size_t size, size_t capacity, cdpValue value, bool swap);
-#define cdp_record_update_value(r, v)       cdp_record_update(r, sizeof(cdpValue), sizeof(cdpValue), CDP_V(v), false)
+#define cdp_record_update_value(r, z, v)    cdp_record_update(r, (z), sizeof(cdpValue), CDP_V(v), false)
 #define cdp_record_update_attribute(r, a)   do{ assert(cdp_record_has_data(r);  (r)->data.attribute = (a); }while(0)
 
 static inline void cdp_record_delete_data(cdpRecord* record)        {if (cdp_record_has_data(record))  {cdp_data_del(record->data);   record->data  = NULL;}}
