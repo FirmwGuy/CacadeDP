@@ -196,7 +196,7 @@ static inline cdpRecord* rb_tree_last(cdpRbTree* tree) {
 
 static inline bool rb_tree_traverse(cdpRbTree* tree, unsigned maxDepth, cdpTraverse func, void* context, cdpEntry* entry) {
     cdpRbTreeNode*  tnode = tree->root, *tnodePrev = NULL;
-    size_t      stackSize = sizeof(void*) * maxDepth;
+    size_t      stackSize = maxDepth * sizeof(void*);
     cdpRbTreeNode** stack = (maxDepth > RB_TREE_MIN_DEPTH)?  cdp_malloc(stackSize):  cdp_alloca(stackSize);
     int top = -1;  // Stack index initialized to empty.
 

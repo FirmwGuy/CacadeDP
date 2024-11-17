@@ -327,7 +327,10 @@ cdpStore* cdp_store_new(cdpID domain, cdpID tag, unsigned storage, unsigned inde
         float*   center  = va_arg(args, float*);
         cdpValue subwide = va_arg(args, cdpValue);
         assert(center  &&  (indexing == CDP_INDEX_BY_FUNCTION));
-        store = (cdpStore*) octree_new(center, subwide.float32);
+        cdpOctreeBound bound;
+        bound.subwide = subwide.float32;
+        memcpy(&bound.center, center, sizeof(bound.center));
+        store = (cdpStore*) octree_new(&bound);
         break;
       }
     }

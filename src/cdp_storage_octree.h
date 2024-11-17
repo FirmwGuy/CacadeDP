@@ -71,7 +71,9 @@ static inline cdpOctreeNode* octree_node_new(cdpOctreeNode* parent, cdpOctreeBou
 }
 
 
-void octree_node_clean(cdpOctreeNode* onode) {
+static inline void octree_node_del(cdpOctreeNode* onode);
+
+static inline void octree_node_clean(cdpOctreeNode* onode) {
     for (unsigned n = 0;  n < 8;  n++) {
         if (onode->children[n])
             octree_node_del(onode->children[n]);
@@ -86,7 +88,7 @@ void octree_node_clean(cdpOctreeNode* onode) {
 }
 
 
-void octree_node_del(cdpOctreeNode* onode) {
+static inline void octree_node_del(cdpOctreeNode* onode) {
     octree_node_clean(onode);
     cdp_free(onode);
 }
@@ -109,7 +111,7 @@ static inline void octree_del(cdpOctree* octree){
 
 
 
-static inline cdpOctreeNode* octree_list_from_record(cdpRecord* record) {
+static inline cdpOctreeList* octree_list_from_record(cdpRecord* record) {
     return cdp_ptr_dif(record, offsetof(cdpOctreeList, record));
 }
 
@@ -132,14 +134,14 @@ static inline cdpRecord* octree_sorted_insert(cdpOctree* octree, cdpRecord* reco
     do {
         for (n = 0;  n < 8;  n++) {
             if (onode->children[n]) {
-                if (0 < compare(list->record, context, &onode->children[n]->bound)) {
+                if (0 < compare(&list->record, context, &onode->children[n]->bound)) {
                     onode = onode->children[n];
                     depth++;
                     break;
                 }
             } else {
                 cdpOctreeBound bound;
-                bound.subwide = onode->subwide / 2.0f;
+                bound.subwide = onode->bound.subwide / 2.0f;
                 assert(bound.subwide > EPSILON);
 
                 switch (n) {
@@ -153,7 +155,7 @@ static inline cdpRecord* octree_sorted_insert(cdpOctree* octree, cdpRecord* reco
                   case 7:   BOUND_CENTER_QUADRANT(bound, onode, -, +, -);   break;
                 }
 
-                if (0 < compare(list->record, context, &bound)) {
+                if (0 < compare(&list->record, context, &bound)) {
                     onode->children[n] = octree_node_new(onode, &bound, n);
                     onode = onode->children[n];
                     depth++;
@@ -284,7 +286,7 @@ static inline bool octree_traverse(cdpOctree* octree, cdpTraverse func, void* co
 
 static inline cdpRecord* octree_find_by_name(cdpOctree* octree, cdpID id) {
     cdpEntry entry = {0};
-    if (!octree_traverse(octree, octree->store.chdCount, (cdpFunc) rb_traverse_func_break_at_name, cdp_v2p(id), &entry))
+    if (!octree_traverse(octree, (cdpFunc) rb_traverse_func_break_at_name, cdp_v2p(id), &entry))
         return entry.record;
     return NULL;
 }
@@ -292,7 +294,7 @@ static inline cdpRecord* octree_find_by_name(cdpOctree* octree, cdpID id) {
 
 static inline cdpRecord* octree_find_by_key(cdpOctree* octree, cdpRecord* key, cdpCompare compare, void* context) {
     cdpEntry entry = {0};
-    if (!octree_traverse(octree, octree->store.chdCount, (cdpFunc) compare, key, &entry))
+    if (!octree_traverse(octree, (cdpFunc) compare, key, &entry))
         return entry.record;
     return NULL;
 }
@@ -300,7 +302,7 @@ static inline cdpRecord* octree_find_by_key(cdpOctree* octree, cdpRecord* key, c
 
 static inline cdpRecord* octree_find_by_position(cdpOctree* octree, size_t position) {
     cdpEntry entry = {0};
-    if (!octree_traverse(octree, octree->store.chdCount, (void*) rb_traverse_func_break_at_position, cdp_v2p(position), &entry))
+    if (!octree_traverse(octree, (void*) rb_traverse_func_break_at_position, cdp_v2p(position), &entry))
         return entry.record;
     return NULL;
 }
@@ -369,8 +371,8 @@ static inline cdpRecord* octree_next(cdpRecord* record) {
 
                     bool hasChildren = false;
                     for (unsigned m = 0;  m < 8;  m++) {
-                        if (nextNode->children[m]) {
-                            nextNode = nextNode->children[m];
+                        if (next->children[m]) {
+                            next = next->children[m];
                             hasChildren = true;
                             break;
                         }
