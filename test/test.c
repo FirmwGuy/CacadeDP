@@ -28,18 +28,21 @@ MunitTest tests[] = {
     {
         "/records",
         test_records,
-        NULL,                     // setup
-        NULL,                     // tear_down
+        NULL,                     // Setup.
+        NULL,                     // Tear_down.
         MUNIT_TEST_OPTION_NONE,
-        NULL                      // parameters
+        NULL                      // Parameters.
     },
     {
         "/wordacron",
         test_wordacron,
-        NULL,                     // setup
-        NULL,                     // tear_down
+        NULL,                     // Setup
+        NULL,                     // Tear_down
         MUNIT_TEST_OPTION_NONE,
-        NULL                      // parameters
+        (MunitParameter[]) {
+            {"text", NULL},       // Text to convert to ID value.
+            {NULL, NULL}
+        }
     },
     {
         "/agents",
@@ -47,7 +50,7 @@ MunitTest tests[] = {
         test_agents_setup,
         test_agents_tear_down,
         MUNIT_TEST_OPTION_NONE,
-        NULL                      // parameters
+        NULL                      // Parameters.
     },
 
     {NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL}  // EOL
@@ -57,8 +60,8 @@ MunitTest tests[] = {
 const MunitSuite testSuite = {
     "/CascadeDP",
     tests,
-    NULL,                     // suites
-    1,                        // iterations
+    NULL,                     // Suites.
+    1,                        // Iterations.
     MUNIT_SUITE_OPTION_NONE
 };
 

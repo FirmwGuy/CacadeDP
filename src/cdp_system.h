@@ -302,15 +302,6 @@ typedef struct {
 
 static inline cdpRecord* cdp_void(void)  {extern cdpRecord* CDP_VOID; assert(CDP_VOID);  return CDP_VOID;}
 
-void       cdp_tag_id_static_destructor(void* text);
-
-cdpID      cdp_tag_id_add_generic(const char* text, size_t length, cdpDel destructor);
-#define    cdp_tag_id_add(s, destructor)    cdp_tag_id_add_generic(s, strlen(s), destructor)
-#define    cdp_tag_id_add_static(s)         cdp_tag_id_add_generic(s, strlen(s), cdp_tag_id_static_destructor)
-
-cdpRecord* cdp_tag_id_text(cdpID tag);
-#define cdp_tag_id_text_from_name(name)     cdp_tag_id_text(cdp_id(name))
-
 
 cdpRecord* cdp_system_agency_add(cdpTag domain, cdpTag agency, cdpTag tag, cdpAgent agent);
 bool       cdp_system_startup(void);

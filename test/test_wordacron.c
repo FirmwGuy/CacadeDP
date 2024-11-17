@@ -20,173 +20,99 @@
 
 
 #include "test.h"
-
-#if 0
-
-#include "cdp_agent.h"
-#include "cdp_signal.h"
-#include <stdio.h>      // getc()
-#include <ctype.h>      // isdigit()
+#include "cdp_record.h"
 
 
-
-bool DONE;
-
-
-
-
-cdpID AGENT_STDIN;
-
-
-static bool stdin_agent_initiate(cdpRecord* instance, cdpTask* signal) {
-    cdpID nameID = cdp_dict_get_id(&signal->input, CDP_NAME_NAME);
-
-    cdp_record_initialize_register(instance, nameID, AGENT_STDIN, false, NULL, sizeof(uint32_t));
-
-    return true;
+static void test_wordacron_text(const char* text) {
 }
 
 
-static bool stdin_agent_step(cdpRecord* instance, cdpTask* signal) {
-  #ifdef _WIN32
-    int c = getchar();
-  #elif __linux__
-    int c = getc_unlocked(stdin);
-  #endif
-    if (EOF != c) {
-        if (isdigit(c)) {
-            char s[] = {(char) c, 0};
-            uint32_t value = (unsigned)atoi(s);
-            cdp_update(instance, &value, sizeof(value));
-        } else if ('q' == tolower(c)) {
-            DONE = true;
+static inline size_t get_trimmed_length(const char* s) {
+    while (*s == ' ')   s++;
+    size_t len = strlen(s);
+    while (len > 0  &&  s[len - 1] == ' ') {
+        len--;
+    }
+    return len;
+}
+
+#define CODABLE_MIN     2
+#define PRINTABLE_MIN   5
+
+static void test_wordacron_coding(void) {
+    const char* acronysm_tests[] = {
+        " ",
+        "TOOLONGNAMEEXCEEDS",
+
+        " TEST",
+        "SPACE X   ",
+        "TRIMMED   ",
+
+        "HELLO",
+        "WORLD!",
+        "?",
+        "ACRONYS()",
+        "LONGNAME+"
+    };
+    const char* word_tests[] = {
+        " ",
+        "toolongtoencodeproperly",
+
+        " with space",
+        "trailing     ",
+        "    trimthis   ",
+
+        "hello",
+        "world.",
+        ":",
+        "valid_word",
+        "punctu-ated"
+    };
+
+    char   decoded[12];
+    cdpID  encoded;
+    size_t decoded_length;
+
+    for (size_t i = 0;  i < cdp_lengthof(acronysm_tests);  i++) {
+        encoded = cdp_text_to_acronysm(acronysm_tests[i]);
+        if (encoded) {
+            decoded_length = cdp_acronysm_to_text(encoded, decoded);
+
+            assert_size(decoded_length, ==, get_trimmed_length(acronysm_tests[i]));
+            if (i < PRINTABLE_MIN)
+                assert_string_not_equal(decoded, acronysm_tests[i]);
+            else
+                assert_string_equal(decoded, acronysm_tests[i]);
+        } else {
+            assert_size(i, <=, CODABLE_MIN);
         }
     }
-    return true;
-}
 
+    for (size_t i = 0;  i < cdp_lengthof(word_tests);  i++) {
+        encoded = cdp_text_to_word(word_tests[i]);
+        if (encoded) {
+            decoded_length = cdp_word_to_text(encoded, decoded);
 
-
-
-cdpID AGENT_ADDER;
-cdpID ADDER_OP1;
-cdpID ADDER_OP2;
-cdpID ADDER_ANS;
-
-
-bool adder_agent_initiate(cdpRecord* instance, cdpTask* signal) {
-    ADDER_OP1 = cdp_tag_id_add_static("op1");
-    ADDER_OP2 = cdp_tag_id_add_static("op2");
-    ADDER_ANS = cdp_tag_id_add_static("ans");
-
-    cdpID nameID = cdp_dict_get_id(&signal->input, CDP_NAME_NAME);
-
-    // FixMe: define dictionary types by flag instead of agent.
-    cdp_record_initialize(instance, CDP_ROLE_BOOK, 0, nameID, AGENT_ADDER, CDP_STORAGE_ARRAY, 3);
-
-    cdp_book_add_uint32(instance, ADDER_OP1, 5);
-
-    cdpRecord* regOp2 = cdp_book_add_uint32(instance, ADDER_OP2, 0);
-    CDP_RECORD_SET_ATTRIB(regOp2, CDP_ATTRIB_BABY);
-
-    return true;
-}
-
-
-bool adder_agent_update(cdpRecord* instance, cdpTask* signal) {
-    cdpRecord* ansLink = cdp_record_find_by_name(instance, ADDER_ANS);
-    assert(ansLink);
-
-    uint32_t op2 = cdp_dict_get_uint32(&signal->input, ADDER_OP2);
-    cdpRecord* regOp2 = cdp_record_find_by_name(instance, ADDER_OP2);
-    cdp_register_update_uint32(regOp2, op2);
-
-    uint32_t op1 = cdp_dict_get_uint32(instance, ADDER_OP1);
-    uint32_t ans = op1 + op2;
-    cdp_update(ansLink, &ans, sizeof(ans));
-
-    return true;
-}
-
-
-
-
-cdpID AGENT_STDOUT;
-
-
-bool stdout_agent_initiate(cdpRecord* instance, cdpTask* signal) {
-    cdpID nameID = cdp_dict_get_id(&signal->input, CDP_NAME_NAME);
-
-    cdp_record_initialize_register(instance, nameID, AGENT_STDOUT, false, NULL, sizeof(uint32_t));
-
-    return true;
-}
-
-
-bool stdout_agent_update(cdpRecord* instance, cdpTask* signal) {
-    uint32_t value = cdp_dict_get_uint32(&signal->input, CDP_TAG_REGISTER);
-    cdp_register_update_uint32(instance, value);
-    printf("%u\n", value);
-    return true;
-}
-
-#endif
-
-
-
-
-void* test_wordacron_setup(const MunitParameter params[], void* user_data) {
-#if 0
-    cdpID linkID = CDP_TAG_LINK;
-    AGENT_STDIN = cdp_system_set_agent("stdin", 0, 1, &linkID, 1, stdin_agent_initiate, NULL);
-    cdp_system_set_action(AGENT_STDIN, "step", stdin_agent_step);
-
-    cdpID bookID = CDP_TAG_BOOK;
-    AGENT_ADDER = cdp_system_set_agent("adder", 0, 1, &bookID, 1, adder_agent_initiate, NULL);
-    cdp_system_set_action(AGENT_ADDER, "update", stdin_agent_step);
-
-    cdpID uint32ID = CDP_TAG_UINT32;
-    AGENT_STDOUT = cdp_system_set_agent("stdout", sizeof(uint32_t), 1, &uint32ID, 1, stdout_agent_initiate, NULL);
-    cdp_system_set_action(AGENT_STDOUT, "update", stdout_agent_update);
-
-    cdp_system_startup();
-#endif
-
-    return NULL;
-}
-
-
-
-void test_wordacron_tear_down(void* fixture) {
-#if 0
-    cdp_system_shutdown();
-#endif
+            assert_size(decoded_length, ==, get_trimmed_length(word_tests[i]));
+            if (i < PRINTABLE_MIN)
+                assert_string_not_equal(decoded, word_tests[i]);
+            else
+                assert_string_equal(decoded, word_tests[i]);
+        } else {
+            assert_size(i, <=, CODABLE_MIN);
+        }
+    }
 }
 
 
 MunitResult test_wordacron(const MunitParameter params[], void* user_data_or_fixture) {
-#if 0
-    extern cdpRecord* TEMP;
-
-    // Instance initiation
-    cdpRecord* cascade = cdp_book_add_dictionary(TEMP, CDP_AUTOID, CDP_STORAGE_ARRAY, 3);
-    cdpRecord* stdInp = cdp_book_add_instance(cascade, CDP_ID("stdin"), NULL);
-    cdpRecord* adderI = cdp_book_add_instance(cascade, CDP_ID("adder"), NULL);
-    cdpRecord* stdOut = cdp_book_add_instance(cascade, CDP_ID("stdout"), NULL);
-
-    // Connect pipeline (from downstreaam to upstream)
-    cdp_system_connect(adderI, CDP_ID("ans"), stdOut);
-
-    cdpRecord* adder_op2 = cdp_record_find_by_name(adderI, CDP_ID("op2"));
-    cdp_system_connect(stdInp, cdp_record_get_id(stdInp), adder_op2);
-
-    // Execute pipeline
-    while (!DONE) {
-        cdp_system_step();
+    const char* param_value = munit_parameters_get(params, "text");
+    if (param_value) {
+        test_wordacron_text(param_value);
+    } else {
+        test_wordacron_coding();
     }
 
-    cdp_book_delete(cascade);
-#endif
     return MUNIT_OK;
 }
 

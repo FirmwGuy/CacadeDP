@@ -53,63 +53,6 @@ cdpTag cdp_system_domain_add(const char* text, unsigned basez) {
 }
 
 
-/*
- *   String interning routines
- */
-
-
-void cdp_tag_id_static_destructor(void* text) {}
-
-
-struct NID {const char* text; size_t length; cdpID id;};
-
-
-static bool interned_traverse_find_text(cdpEntry* entry, struct NID* nid) {
-    if (cdp_record_domain(entry->record) == CDP_DOMAIN_TEXT) {
-        size_t length;
-        const char* text = cdp_record_read(entry->record, NULL, &length, NULL);
-        if (length == nid->length  &&  0 == memcmp(text, nid->text, length)) {
-            nid->id = cdp_record_get_id(entry->record);
-            return false;
-        }
-    }
-    return true;
-}
-
-
-cdpID cdp_tag_id_add_generic(const char* text, size_t length, cdpDel destructor) {
-    assert(text && *text && length && destructor);
-    if (!SYSTEM)
-        system_initiate();
-
-    // Find previous
-    struct NID nid = {text, length};
-    if (!cdp_record_traverse(INTERNED, (cdpTraverse)interned_traverse_find_text, &nid, NULL)) {
-        return nid.id;
-    }
-
-    // Add new tag
-    cdpRecord* r = cdp_record_add_data(INTERNED, CDP_AUTOID, cdp_text_metadata_word(), length, length, text, destructor);
-
-    // ToDo: check overflow.
-
-    return cdp_record_get_id(r);
-}
-
-
-cdpRecord* cdp_tag_text(cdpTag domain, cdpID tag) {
-    assert(cdp_domain_valid(domain) && (tag < CDP_TAG_MAXVAL));     // FixMe: tag limits.
-
-    cdpRecord* perdomain = cdp_record_find_by_name(DOMAIN, cdp_id_to_property(domain));
-    assert(perdomain);
-    cdpRecord* interned = cdp_record_find_by_name(perdomain, cdp_id_to_tag(CDP_TAG_INTERNED));
-    assert(inerned);
-
-    //return cdp_record_find_by_position(perdomain, cdp_id(tagID));     // FixMe: check if entry is disabled.
-    return cdp_record_find_by_name(perdomain, cdp_id_to_numeric(tag));
-}
-
-
 
 
 /* System related routines */
@@ -140,92 +83,6 @@ cdpRecord* cdp_system_add_agent(cdpTag domain, cdpTag agency, cdpTag tag, cdpAge
 }
 
 
-static void system_initiate_tags(void) {
-
-    /**** WARNING: this must be done in the same order as the _cdpTagID enumeration in "cdp_record.h". ****/
-
-    // Core tags
-    cdp_book_add_static_text(TAG, CDP_AUTOID, "void");
-    cdp_book_add_static_text(TAG, CDP_AUTOID, "record");
-    cdp_book_add_static_text(TAG, CDP_AUTOID, "book");
-    cdp_book_add_static_text(TAG, CDP_AUTOID, "register");
-    cdp_book_add_static_text(TAG, CDP_AUTOID, "link");
-
-    // Book tags
-    cdp_book_add_static_text(TAG, CDP_AUTOID, "dictionary");
-    cdp_book_add_static_text(TAG, CDP_AUTOID, "list");
-    cdp_book_add_static_text(TAG, CDP_AUTOID, "queue");
-    cdp_book_add_static_text(TAG, CDP_AUTOID, "stack");
-
-    // Register tags
-    cdp_book_add_static_text(TAG, CDP_AUTOID, "byte");
-    cdp_book_add_static_text(TAG, CDP_AUTOID, "uint16");
-    cdp_book_add_static_text(TAG, CDP_AUTOID, "uint32");
-    cdp_book_add_static_text(TAG, CDP_AUTOID, "uint64");
-    cdp_book_add_static_text(TAG, CDP_AUTOID, "int16");
-    cdp_book_add_static_text(TAG, CDP_AUTOID, "int32");
-    cdp_book_add_static_text(TAG, CDP_AUTOID, "int64");
-    cdp_book_add_static_text(TAG, CDP_AUTOID, "float32");
-    cdp_book_add_static_text(TAG, CDP_AUTOID, "float64");
-
-    cdp_book_add_static_text(TAG, CDP_AUTOID, "tag");
-    cdp_book_add_static_text(TAG, CDP_AUTOID, "id");
-    cdp_book_add_static_text(TAG, CDP_AUTOID, "utf8");
-    cdp_book_add_static_text(TAG, CDP_AUTOID, "patch");
-
-    cdp_book_add_static_text(TAG, CDP_AUTOID, "boolean");
-    cdp_book_add_static_text(TAG, CDP_AUTOID, "interned");
-    cdp_book_add_static_text(TAG, CDP_AUTOID, "agent");
-
-    // Final check
-    assert(cdp_record_children(TAG) == CDP_TAG_COUNT  &&  cdp_record_get_autoid(TAG) == CDP_TAG_COUNT);
-}
-
-
-static void system_initiate_names(void) {
-    cdp_record_set_autoid(NAME, CDP_NPOS_MINVAL);
-
-    /**** WARNING: this must be done in the same order as the _cdpNameID enumeration in "cdp_record.h" and "cdp_agent.h". ****/
-
-    cdp_book_add_static_text(NAME, CDP_AUTOID,       "/");   // The root book.
-
-    cdp_book_add_static_text(NAME, CDP_AUTOID,  "system");
-    cdp_book_add_static_text(NAME, CDP_AUTOID,    "user");
-    cdp_book_add_static_text(NAME, CDP_AUTOID,  "public");
-    cdp_book_add_static_text(NAME, CDP_AUTOID,    "data");
-    cdp_book_add_static_text(NAME, CDP_AUTOID, "network");
-    cdp_book_add_static_text(NAME, CDP_AUTOID,    "temp");
-
-    cdp_book_add_static_text(NAME, CDP_AUTOID,    "name");
-    cdp_book_add_static_text(NAME, CDP_AUTOID,  "agency");
-    cdp_book_add_static_text(NAME, CDP_AUTOID, "cascade");
-    cdp_book_add_static_text(NAME, CDP_AUTOID, "private");
-
-    cdp_book_add_static_text(NAME, CDP_AUTOID,    "call");
-    cdp_book_add_static_text(NAME, CDP_AUTOID,    "done");
-    cdp_book_add_static_text(NAME, CDP_AUTOID,    "work");
-
-    cdp_book_add_static_text(NAME, CDP_AUTOID,  "parent");
-    cdp_book_add_static_text(NAME, CDP_AUTOID,    "baby");
-    cdp_book_add_static_text(NAME, CDP_AUTOID,"instance");
-    cdp_book_add_static_text(NAME, CDP_AUTOID,    "size");
-
-    cdp_book_add_static_text(NAME, CDP_AUTOID,   "input");
-    cdp_book_add_static_text(NAME, CDP_AUTOID,  "output");
-    cdp_book_add_static_text(NAME, CDP_AUTOID,  "status");
-
-    cdp_book_add_static_text(NAME, CDP_AUTOID,   "debug");
-    cdp_book_add_static_text(NAME, CDP_AUTOID, "warning");
-    cdp_book_add_static_text(NAME, CDP_AUTOID,   "error");
-    cdp_book_add_static_text(NAME, CDP_AUTOID,   "fatal");
-
-    assert(cdp_record_get_autoid(NAME) == CDP_NAME_ID_SYSTEM_COUNT);
-}
-
-
-static_assert((CDP_NAME_ID_ACTION_COUNT - CDP_NAME_ID_INITIAL_COUNT) == (CDP_NAME_SYSTEM_COUNT + CDP_TASK_COUNT + CDP_ACTION_COUNT));
-
-
 static void system_initiate(void) {
     cdp_record_system_initiate();
 
@@ -242,13 +99,6 @@ static void system_initiate(void) {
     NAME    = cdp_book_add_book(&SYSTEM, CDP_NAME_NAME, CDP_TAG_STACK, CDP_STORAGE_PACKED_QUEUE, CDP_TAG_COUNT + CDP_NAME_SYSTEM_COUNT + CDP_TASK_COUNT + CDP_ACTION_COUNT);
     AGENCY  = cdp_book_add_dictionary(&SYSTEM, CDP_NAME_AGENCY, CDP_TAG_DICTIONARY, CDP_STORAGE_RED_BLACK_T);
     CASCADE = cdp_book_add_dictionary(&SYSTEM, CDP_NAME_CASCADE, CDP_TAG_DICTIONARY, CDP_STORAGE_RED_BLACK_T);
-
-    /* Initiate tags, names, task names and agent fields (in that order).
-    */
-    system_initiate_tags();
-    system_initiate_names();
-    cdp_system_initiate_task_names();
-    cdp_system_initiate_agent_fields();
 
     /* Initiage tasks
     */

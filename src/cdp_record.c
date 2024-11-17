@@ -599,7 +599,7 @@ static inline cdpRecord* store_first_child(const cdpStore* store) {
         return rb_tree_first((cdpRbTree*) store);
       }
       case CDP_STORAGE_OCTREE: {
-        //return octree_first(store);
+        return octree_first((cdpOctree*) store);
       }
     }
     return NULL;
@@ -629,7 +629,7 @@ static inline cdpRecord* store_last_child(const cdpStore* store) {
         return rb_tree_last((cdpRbTree*) store);
       }
       case CDP_STORAGE_OCTREE: {
-        //return octree_last(store);
+        return octree_last((cdpOctree*) store);
       }
     }
     return NULL;
@@ -659,7 +659,7 @@ static inline cdpRecord* store_find_child_by_name(const cdpStore* store, cdpID n
         return rb_tree_find_by_name((cdpRbTree*) store, name);
       }
       case CDP_STORAGE_OCTREE: {
-        //return octree_find_by_name(store, name);
+        return octree_find_by_name((cdpOctree*) store, name);
       }
     }
     return NULL;
@@ -691,7 +691,7 @@ static inline cdpRecord* store_find_child_by_key(const cdpStore* store, cdpRecor
         return rb_tree_find_by_key((cdpRbTree*) store, key, compare, context);
       }
       case CDP_STORAGE_OCTREE: {
-        //return octree_find_by_key(store, key, compare, context);
+        return octree_find_by_key((cdpOctree*) store, key, compare, context);
       }
     }
     return NULL;
@@ -721,7 +721,7 @@ static inline cdpRecord* store_find_child_by_position(const cdpStore* store, siz
         return rb_tree_find_by_position((cdpRbTree*) store, position);
       }
       case CDP_STORAGE_OCTREE: {
-        //return octree_find_by_position(store, position);
+        return octree_find_by_position((cdpOctree*) store, position);
       }
     }
 
@@ -851,7 +851,7 @@ static inline bool store_traverse(cdpStore* store, cdpTraverse func, void* conte
         return rb_tree_traverse((cdpRbTree*) store, cdp_bitson(children) + 2, func, context, entry);
       }
       case CDP_STORAGE_OCTREE: {
-        //return octree_traverse(store, children, func, context, entry);
+        return octree_traverse((cdpOctree*) store, func, context, entry);
       }
     }
 
@@ -932,7 +932,7 @@ static inline void store_sort(cdpStore* store, cdpCompare compare, void* context
         break;
       }
       case CDP_STORAGE_OCTREE: {
-        // ToDo: re-sort RB-tree.
+        // ToDo: re-sort Octree.
         assert(store->storage != CDP_STORAGE_OCTREE);
         break;
       }
@@ -967,7 +967,7 @@ static inline bool store_take_record(cdpStore* store, cdpRecord* target) {
         break;
       }
       case CDP_STORAGE_OCTREE: {
-        //octree_take(store, target);
+        octree_take((cdpOctree*) store, target);
         break;
       }
     }
@@ -1005,7 +1005,7 @@ static inline bool store_pop_child(cdpStore* store, cdpRecord* target) {
         break;
       }
       case CDP_STORAGE_OCTREE: {
-        //octree_pop(store, target);
+        octree_pop((cdpOctree*) store, target);
         break;
       }
     }
