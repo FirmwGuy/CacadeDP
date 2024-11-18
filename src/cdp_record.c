@@ -70,7 +70,7 @@ cdpRecord CDP_ROOT;   // The root record.
     Initiates the record system
 */
 void cdp_record_system_initiate(void) {
-    cdp_record_initialize_dictionary(&CDP_ROOT, CDP_WORD_ROOT, CDP_WORD_ROOT, CDP_WORD_ROOT, CDP_STORAGE_RED_BLACK_T);   // The root dictionary is the same as "/" in text paths.
+    cdp_record_initialize_dictionary(&CDP_ROOT, CDP_WORD_ROOT, CDP_ACRON_CDP, CDP_WORD_ROOT, CDP_STORAGE_RED_BLACK_T);   // The root dictionary is the same as "/" in text paths.
 }
 
 

@@ -212,11 +212,14 @@ cdpID  cdp_text_to_word(const char *s);
 size_t cdp_acronysm_to_text(cdpID acro, char s[10]);
 size_t cdp_word_to_text(cdpID coded, char s[12]);
 
-#define CDP_ID              UINT64_C
-#define CDP_WORD(v)         cdp_id_to_word(CDP_ID(v))
-#define CDP_ACRON(v)        cdp_id_to_acronysm(CDP_ID(v))
+#define CDP_ID                  UINT64_C
 
-#define CDP_WORD_ROOT       CDP_WORD(0x0000000000000005)    /* "/"           */
+#define CDP_WORD_ROOT           CDP_ID(0x010F000000000000)      /* "/"           */
+#define CDP_WORD_LIST           CDP_ID(0x003133A000000000)      /* "list"        */
+#define CDP_WORD_DICTIONARY     CDP_ID(0x001123A25EE0CB20)      /* "dictionary"  */
+#define CDP_WORD_CATALOG        CDP_ID(0x000C340B1E700000)      /* "catalog"     */
+
+#define CDP_ACRON_CDP           CDP_ID(0x0123930000000000)      /* "CDP"         */
 
 
 /*

@@ -22,8 +22,51 @@
 #include "test.h"
 #include "cdp_record.h"
 
+#include <stdio.h>      // printf()
+#include <ctype.h>      // islower()
 
-static void test_wordacron_text(const char* text) {
+
+static int test_wordacron_text(const char* text) {
+    size_t acronLen = 0;
+    size_t wordLen  = 0;
+
+    for (const char* p = text;  *p;  p++) {
+        char c = *p;
+
+        if (c >= 0x20  &&  c <= 0x5F) {
+            if (!wordLen) {
+                acronLen++;
+                continue;
+            }
+        } else if (islower(c) || c == ' ' || c == ':' || c == '_' || c == '-' || c == '.' || c == '/') {
+            if (!acronLen) {
+                wordLen++;
+                continue;
+            }
+        }
+
+        return MUNIT_ERROR;
+    }
+
+    char decoded[12];
+
+    if (acronLen) {
+        cdpID encoded = cdp_text_to_acronysm(text);
+        size_t decoded_length = cdp_acronysm_to_text(encoded, decoded);
+        assert_size(decoded_length, ==, strlen(text));
+        assert_string_equal(text, decoded);
+
+        printf("ACRON (%zu): \"%s\" = 0x%016"PRIX64"\n", acronLen, text, encoded);
+    } else {
+        cdpID encoded = cdp_text_to_word(text);
+        size_t decoded_length = cdp_word_to_text(encoded, decoded);
+        assert_size(decoded_length, ==, strlen(text));
+        assert_string_equal(text, decoded);
+
+        printf("WORD  (%zu): \"%s\" = 0x%016"PRIX64"\n", wordLen, text, encoded);
+    }
+
+    return MUNIT_OK;
 }
 
 
@@ -108,7 +151,7 @@ static void test_wordacron_coding(void) {
 MunitResult test_wordacron(const MunitParameter params[], void* user_data_or_fixture) {
     const char* param_value = munit_parameters_get(params, "text");
     if (param_value) {
-        test_wordacron_text(param_value);
+        return test_wordacron_text(param_value);
     } else {
         test_wordacron_coding();
     }

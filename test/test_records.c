@@ -42,9 +42,9 @@ static void test_records_print(cdpRecord* record, char *sval) {
     if (!record) {
         strcpy(sval, "Void");
     } else if (cdp_record_is_dictionary(record)) {
-        sprintf(sval, "{%llu}", cdp_record_get_name(record));
+        sprintf(sval, "{%"PRIX64"}", cdp_record_get_name(record));
     } else if (cdp_record_children(record)) {
-        sprintf(sval, "[%llu]", cdp_record_get_name(record));
+        sprintf(sval, "[%"PRIX64"]", cdp_record_get_name(record));
     } else if (cdp_record_has_data(record)) {
         cdpValue val = cdp_record_value(record);
         sprintf(sval, "%u", val.uint32);

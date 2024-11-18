@@ -39,7 +39,7 @@ MunitTest tests[] = {
         NULL,                     // Setup
         NULL,                     // Tear_down
         MUNIT_TEST_OPTION_NONE,
-        (MunitParameter[]) {
+        (MunitParameterEnum[]) {
             {"text", NULL},       // Text to convert to ID value.
             {NULL, NULL}
         }
