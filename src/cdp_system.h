@@ -101,38 +101,35 @@
       /system/
           domain/
               binary/
-                  name: "binary"
-                  interned/
-                  agency/ (dictionary)
-                      add/ (agency)
-                          int/ (agent): add_int()
-                              call/ (queue)
-                                  101/ (task)
-                                      parent -> /system/agency/sum/int/task/10/
-                                      instance -> /system/cascade/pipeline01/agent001/adder
-                              working/ (queue)
-                                  100/ (task)
-                                      parent -> /system/agency/sum/int/task/10/
-                                      instance -> /system/cascade/pipeline01/agent001/adder01
-                                      baby -> /system/cascade/pipeline01/agent001/adder01/op02
-                                      input/
-                                          op1: 5
-                                      status/
-                                          completion: 99
-                              done/ (queue)
-                                  99/ (task)
-                                      parent -> /system/agency/sum/int/task/10/
-                                      instance -> /system/cascade/pipeline01/agent001/adder01
-                                      baby -> /system/cascade/pipeline01/agent001/adder01/op02
-                                      input/
-                                          op1: 1
-                                      output/
-                                          ans: 5
-                                      status/
-                                          completion: 100
-                              failed/
-                          float/ (tag)
-                              agent: add_float()
+                  add/ (agency)
+                      int/ (tag): add_int()
+                          call/ (queue)
+                              101/ (task)
+                                  parent -> /system/agency/sum/int/task/10/
+                                  instance -> /system/cascade/pipeline01/agent001/adder
+                          working/ (queue)
+                              100/ (task)
+                                  parent -> /system/agency/sum/int/task/10/
+                                  instance -> /system/cascade/pipeline01/agent001/adder01
+                                  baby -> /system/cascade/pipeline01/agent001/adder01/op02
+                                  input/
+                                      op1: 5
+                                  status/
+                                      completion: 99
+                          done/ (queue)
+                              99/ (task)
+                                  parent -> /system/agency/sum/int/task/10/
+                                  instance -> /system/cascade/pipeline01/agent001/adder01
+                                  baby -> /system/cascade/pipeline01/agent001/adder01/op02
+                                  input/
+                                      op1: 1
+                                  output/
+                                      ans: 5
+                                  status/
+                                      completion: 100
+                          failed/
+                      float/ (tag)
+                          agent: add_float()
               multiply/
                   int/ (tag)
                       agent: mul_int()
@@ -275,8 +272,9 @@
 // Core sub-dirs
 #define CDP_WORD_AGENT      CDP_ID(0x0004E57500000000)      /* "agent"       */
 #define CDP_WORD_AGENCY     CDP_ID(0x0004E570F2000000)      /* "agency"      */
+#define CDP_WORD_CASCADE    CDP_ID(0x000C331848500000)      /* "cascade"     */
 #define CDP_WORD_DOMAIN     CDP_ID(0x0011ED0A5C000000)      /* "domain"      */
-//#define CDP_WORD_LIBRARY    CDP_ID(0x0000000000000185)      /* "library"     */
+#define CDP_WORD_LIBRARY    CDP_ID(0x0031229065900000)      /* "library"     */
 //#define CDP_WORD_TASK       CDP_ID(0x0000000000000195)      /* "task"        */
 
 
@@ -303,17 +301,17 @@ typedef struct {
 static inline cdpRecord* cdp_void(void)  {extern cdpRecord* CDP_VOID; assert(CDP_VOID);  return CDP_VOID;}
 
 
-cdpRecord* cdp_system_agency_add(cdpTag domain, cdpTag agency, cdpTag tag, cdpAgent agent);
-bool       cdp_system_startup(void);
-bool       cdp_system_step(void);
-void       cdp_system_shutdown(void);
+cdpRecord* cdp_task_set_agent(cdpID domain, cdpID agency, cdpID tag, cdpAgent agent);
 
-
-cdpRecord* cdp_task_begin(  cdpTask* task, cdpTag domain, cdpRecord* agency, cdpRecord* instance,
+cdpRecord* cdp_task_begin(  cdpTask* task, cdpID domain, cdpRecord* agency, cdpRecord* instance,
                             cdpRecord* parentTask, cdpRecord* baby,
                             int numInput, int numOutput );
 cdpRecord* cdp_task_commit(cdpTask* task);
 void       cdp_task_end(cdpTask* task);
+
+bool       cdp_system_startup(void);
+bool       cdp_system_step(void);
+void       cdp_system_shutdown(void);
 
 
 #endif

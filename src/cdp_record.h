@@ -175,7 +175,7 @@ enum _cdpRecordShadowing {
 enum _cdpRecordNaming {
     CDP_NAMING_WORD,            // Lowercase text value, 11 chars max (it must be the first in this enum!).
     CDP_NAMING_ACRONYSM,        // Uppercase/numeric text, 9 characters maximum.
-    CDP_NAMING_REFERENCE,       // Numerical reference to text record (this should be a pointer in 32bit systems).
+    CDP_NAMING_REFERENCE,       // Numerical reference to text record (a pointer in 32bit systems).
     CDP_NAMING_NUMERIC,         // Per-parent numerical ID.
 
     CDP_NAMING_COUNT
@@ -513,6 +513,14 @@ cdpRecord* cdp_record_append(cdpRecord* record, bool prepend, cdpRecord* child);
 
 #define cdp_record_add_link(record, name, context, source)                                                  cdp_record_add_child(record, CDP_TYPE_LINK,  name, CDP_V(context), CDP_P(source), NULL)
 #define cdp_record_add_agent(record, name, context, agent)                                                  cdp_record_add_child(record, CDP_TYPE_AGENT, name, CDP_V(context), CDP_P(agent),  NULL)
+
+#define cdp_dict_add_value(r, n, ...)           cdp_record_add_value(r, n, 0, __VA_ARGS__)
+#define cdp_dict_add_data(r, n, ...)            cdp_record_add_data(r, n, 0, __VA_ARGS__)
+#define cdp_dict_add_list(r, n, ...)            cdp_record_add_list(r, n, 0, __VA_ARGS__)
+#define cdp_dict_add_dictionary(r, n, ...)      cdp_record_add_dictionary(r, n, 0, __VA_ARGS__)
+#define cdp_dict_add_catalog(r, n, ...)         cdp_record_add_catalog(r, n, 0, __VA_ARGS__)
+#define cdp_dict_add_link(r, n, ...)            cdp_record_add_link(r, n, 0, __VA_ARGS__)
+#define cdp_dict_add_agent(r, n, ...)           cdp_record_add_agent(r, n, 0, __VA_ARGS__)
 
 #define cdp_record_append_child(record, type, name, prepend, data, store)      \
     ({cdpRecord child__={0}; cdp_record_initialize(&child__, type, name, data, store); cdp_record_append(record, prepend, &child__);})
