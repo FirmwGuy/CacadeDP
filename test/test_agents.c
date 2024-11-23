@@ -21,16 +21,18 @@
 
 #include "test.h"
 
-#if 0
 
-#include "cdp_agent.h"
-#include "cdp_signal.h"
+#include "cdp_system.h"
 #include <stdio.h>      // getc()
 #include <ctype.h>      // isdigit()
 
 
 
 bool DONE;
+
+#define CDP_WORD_STDIN      CDP_ID(0x004E844B80000000)      /* "stdin"       */
+#define CDP_WORD_ADDER      CDP_ID(0x0004842C80000000)      /* "adder"       */
+#define CDP_WORD_STDOUT     CDP_ID(0x004E847D68000000)      /* "stdout"      */
 
 
 
@@ -136,21 +138,11 @@ bool stdout_agent_update(cdpRecord* instance, cdpTask* signal) {
 
 
 void* test_agents_setup(const MunitParameter params[], void* user_data) {
-#if 0
-    cdpID linkID = CDP_TAG_LINK;
-    AGENT_STDIN = cdp_system_set_agent("stdin", 0, 1, &linkID, 1, stdin_agent_initiate, NULL);
-    cdp_system_set_action(AGENT_STDIN, "step", stdin_agent_step);
-
-    cdpID bookID = CDP_TAG_BOOK;
-    AGENT_ADDER = cdp_system_set_agent("adder", 0, 1, &bookID, 1, adder_agent_initiate, NULL);
-    cdp_system_set_action(AGENT_ADDER, "update", stdin_agent_step);
-
-    cdpID uint32ID = CDP_TAG_UINT32;
-    AGENT_STDOUT = cdp_system_set_agent("stdout", sizeof(uint32_t), 1, &uint32ID, 1, stdout_agent_initiate, NULL);
-    cdp_system_set_action(AGENT_STDOUT, "update", stdout_agent_update);
+    cdp_system_set_agent(CDP_ACRON_CDP, CDP_WORD_STDIN,  agent_stdin);
+    cdp_system_set_agent(CDP_ACRON_CDP, CDP_WORD_ADDER,  agent_adder);
+    cdp_system_set_agent(CDP_ACRON_CDP, CDP_WORD_STDOUT, agent_stdout);
 
     cdp_system_startup();
-#endif
 
     return NULL;
 }
@@ -158,21 +150,21 @@ void* test_agents_setup(const MunitParameter params[], void* user_data) {
 
 
 void test_agents_tear_down(void* fixture) {
-#if 0
     cdp_system_shutdown();
-#endif
 }
 
 
 MunitResult test_agents(const MunitParameter params[], void* user_data_or_fixture) {
-#if 0
-    extern cdpRecord* TEMP;
+    extern cdpRecord* CASCADE;
 
     // Instance initiation
-    cdpRecord* cascade = cdp_book_add_dictionary(TEMP, CDP_AUTOID, CDP_STORAGE_ARRAY, 3);
-    cdpRecord* stdInp = cdp_book_add_instance(cascade, CDP_ID("stdin"), NULL);
-    cdpRecord* adderI = cdp_book_add_instance(cascade, CDP_ID("adder"), NULL);
-    cdpRecord* stdOut = cdp_book_add_instance(cascade, CDP_ID("stdout"), NULL);
+    cdpRecord* pipeline = cdp_dict_add_list(CASCADE, CDP_AUTOID, CDP_ACRON_CDP, CDP_WORD_LIST, CDP_STORAGE_ARRAY, 3);
+
+    cdpRecord* stdin = cdp_record_append(pipeline, false, CDP_ID("stdin"), NULL);
+    cdp_cascade_store_new(cdp_root(), stdin);
+
+    cdpRecord* adderI = cdp_book_add_instance(pipeline, CDP_ID("adder"), NULL);
+    cdpRecord* stdOut = cdp_book_add_instance(pipeline, CDP_ID("stdout"), NULL);
 
     // Connect pipeline (from downstreaam to upstream)
     cdp_system_connect(adderI, CDP_ID("ans"), stdOut);
@@ -186,7 +178,7 @@ MunitResult test_agents(const MunitParameter params[], void* user_data_or_fixtur
     }
 
     cdp_book_delete(cascade);
-#endif
+
     return MUNIT_OK;
 }
 
