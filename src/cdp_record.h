@@ -121,12 +121,13 @@ static_assert(sizeof(void*) == sizeof(uint64_t), "32 bit is unsupported yet!");
 */
 
 
-typedef struct _cdpData     cdpData;
-typedef struct _cdpStore    cdpStore;
-typedef struct _cdpRecord   cdpRecord;
+typedef struct _cdpData       cdpData;
+typedef struct _cdpStore      cdpStore;
+typedef struct _cdpRecord     cdpRecord;
+typedef struct _cdpAgentList  cdpAgentList;
 
 typedef int  (*cdpCompare)(const cdpRecord* restrict, const cdpRecord* restrict, void*);
-typedef bool (*cdpAgent)  (cdpRecord* task);
+typedef bool (*cdpAgent)  (cdpRecord* client, cdpRecord* subject, unsigned verb, void* object);
 
 
 /*
@@ -160,8 +161,8 @@ typedef struct {
 enum _cdpRecordType {
     CDP_TYPE_VOID,              // A void (uninitialized) record.
     CDP_TYPE_NORMAL,            // Regular record.
+    CDP_TYPE_FLEX,              // A single record that can automatically expand to a list.
     CDP_TYPE_LINK,              // Link to another record.
-    CDP_TYPE_AGENT,             // Agent function.
     //
     CDP_TYPE_COUNT
 };
@@ -214,12 +215,37 @@ size_t cdp_word_to_text(cdpID coded, char s[12]);
 
 #define CDP_ID                  UINT64_C
 
-#define CDP_WORD_ROOT           CDP_ID(0x010F000000000000)      /* "/"           */
+#define CDP_WORD_ROOT           CDP_ID(0x007C000000000000)      /* "/"           */
 #define CDP_WORD_LIST           CDP_ID(0x003133A000000000)      /* "list"        */
 #define CDP_WORD_DICTIONARY     CDP_ID(0x001123A25EE0CB20)      /* "dictionary"  */
 #define CDP_WORD_CATALOG        CDP_ID(0x000C340B1E700000)      /* "catalog"     */
 
 #define CDP_ACRON_CDP           CDP_ID(0x0123930000000000)      /* "CDP"         */
+
+
+struct _cdpAgentList {
+    cdpAgentList*   next;
+    cdpAgent        agent;
+    struct {
+        cdpID       _unused:    6,
+                    domain:     CDP_NAME_BITS;
+        cdpID       _reserved:  6,
+                    tag:        CDP_NAME_BITS;
+    };
+};
+
+static inline cdpAgentList* cdp_agent_list_new(cdpID domain, cdpID tag, cdpAgent agent) {
+    assert(cdp_id_text_valid(domain) && cdp_id_text_valid(tag) && agent);
+
+    CDP_NEW(cdpAgentList, list);
+    list->domain = domain;
+    list->tag    = tag;
+    list->agent  = agent;
+
+    return list;
+}
+
+#define cdp_agent_list_del    cdp_free
 
 
 /*
@@ -265,9 +291,11 @@ struct _cdpData {
     cdpID               attribute;      // Data attributes (it depends on domain).
     size_t              size;           // Data size in bytes.
     size_t              capacity;       // Buffer capacity in bytes.
-    cdpData*            next;           // Pointer to next data representation (if available).
 
-    uintptr_t           hash;           // Hash value of content.
+    cdpData*            next;           // Pointer to next data representation (if available).
+    cdpAgentList*       agent;          // List of agents to be run on data modification.
+
+    cdpValue            hash;           // Hash value of content.
     union {
         struct {
             void*       data;           // Points to container of data value.
@@ -332,7 +360,9 @@ struct _cdpStore {
         cdpRecord*  linked;     // A linked shadow record (when children, see in cdpRecord otherwise).
         cdpShadow*  shadow;     // Shadow structure (if record has children).
     };
+
     //cdpStore*       next;       // Next index/storage (requires hard links).
+    cdpAgentList*   agent;      // List of agents to be run on child updates.
 
     size_t          chdCount;   // Number of child records.
     cdpCompare      compare;    // Compare function for indexing children.
@@ -421,6 +451,21 @@ typedef bool (*cdpTraverse)(cdpEntry*, void*);
  * Record Operations
  */
 
+enum _cdpOperation {
+    CDP_OP_DATA_NEW,
+    CDP_OP_DATA_READ,
+    CDP_OP_DATA_UPDATE,
+    CDP_OP_DATA_DELETE,
+    //
+    CDP_OP_STORE_NEW,
+    CDP_OP_STORE_READ,
+    CDP_OP_STORE_UPDATE,
+    CDP_OP_STORE_DELETE,
+
+    CDP_OP_COUNT
+};
+
+
 // Initiate and shutdown record system
 void cdp_record_system_initiate(void);
 void cdp_record_system_shutdown(void);
@@ -440,7 +485,6 @@ void cdp_record_finalize(cdpRecord* record);
 #define cdp_record_initialize_spatial(r, name, domain, tag, center, subwide, compare)   cdp_record_initialize(r, CDP_TYPE_NORMAL, name, NULL, cdp_store_new(domain, tag, CDP_STORAGE_OCTREE, CDP_INDEX_BY_FUNCTION, center, subwide, compare))
 
 #define cdp_record_initialize_link(r, name, source)                     cdp_record_initialize(r, CDP_TYPE_LINK,  name, CDP_P(source), NULL)
-#define cdp_record_initialize_agent(r, name, agent)                     cdp_record_initialize(r, CDP_TYPE_AGENT, name, CDP_P(agent),  NULL)
 
 static inline void  cdp_record_set_id(cdpRecord* record, cdpID id)      {assert(record && cdp_id_valid(id));  CDP_ID_SET(record->metarecord.name, id);}
 static inline void  cdp_record_set_name(cdpRecord* record, cdpID name)  {assert(record && cdp_id_text_valid(name));  record->metarecord.name = name;}    // FixMe: mask 'name' before assignation.
@@ -449,8 +493,8 @@ static inline cdpID cdp_record_get_name(const cdpRecord* record)        {assert(
 
 #define cdp_record_is_void(r)       (((r)->metarecord.type == CDP_TYPE_VOID) || !cdp_id_valid((r)->metarecord.name))
 #define cdp_record_is_normal(r)     ((r)->metarecord.type == CDP_TYPE_NORMAL)
+#define cdp_record_is_flex(r)       ((r)->metarecord.type == CDP_TYPE_FLEX)
 #define cdp_record_is_link(r)       ((r)->metarecord.type == CDP_TYPE_LINK)
-#define cdp_record_is_agent(r)      ((r)->metarecord.type == CDP_TYPE_AGENT)
 
 #define cdp_record_is_shadowed(r)   ((r)->metarecord.shadowing)
 #define cdp_record_is_private(r)    ((r)->metarecord.priv)
@@ -462,6 +506,22 @@ static inline bool cdp_record_has_store(const cdpRecord* record)    {assert(cdp_
 static inline void cdp_record_set_data(cdpRecord* record, cdpData* data)      {assert(!cdp_record_has_data(record) && cdp_data_valid(data));   record->data = data;}
 static inline void cdp_record_set_store(cdpRecord* record, cdpStore* store)   {assert(!cdp_record_has_store(record));  record->store = store;}
 
+static inline void cdp_record_add_data_agent(cdpRecord* record, cdpID domain, cdpID tag, cdpAgent agent) {
+    assert(cdp_record_has_data(record));
+    cdpAgentList* list = cdp_agent_list_new(domain, tag, agent);
+    if (record->data->agent)
+        list->next = record->data->agent;
+    record->data->agent = list;
+}
+
+static inline bool cdp_record_add_store_agent(cdpRecord* record, cdpID domain, cdpID tag, cdpAgent agent) {
+    assert(cdp_record_has_store(record));
+    cdpAgentList* list = cdp_agent_list_new(domain, tag, agent);
+    if (record->store->agent)
+        list->next = record->store->agent;
+    record->store->agent = list;
+}
+
 static inline cdpRecord* cdp_record_parent  (const cdpRecord* record)   {assert(record);  return CDP_EXPECT_PTR(record->parent)? record->parent->owner: NULL;}
 static inline size_t     cdp_record_siblings(const cdpRecord* record)   {assert(record);  return CDP_EXPECT_PTR(record->parent)? record->parent->chdCount: 0;}
 static inline size_t     cdp_record_children(const cdpRecord* record)   {assert(record);  return cdp_record_has_store(record)? record->store->chdCount: 0;}
@@ -469,6 +529,7 @@ static inline size_t     cdp_record_children(const cdpRecord* record)   {assert(
 #define cdp_record_id_is_pending(r)   cdp_id_is_auto((r)->metarecord.name)
 static inline void  cdp_record_set_autoid(const cdpRecord* record, cdpID id)  {assert(cdp_record_has_store(record) && (record->store->autoid < id)  &&  (id <= CDP_AUTOID_MAX)); record->store->autoid = id;}
 static inline cdpID cdp_record_get_autoid(const cdpRecord* record)            {assert(cdp_record_has_store(record));  return record->store->autoid;}
+
 
 static inline void cdp_record_relink_storage(cdpRecord* record)     {assert(cdp_record_has_store(record));  record->store->owner = record;}     // Re-link record with its own children storage.
 
@@ -512,7 +573,6 @@ cdpRecord* cdp_record_append(cdpRecord* record, bool prepend, cdpRecord* child);
 #define cdp_record_add_catalog(record, name, context, domain, tag, storage, ...)                            cdp_record_add_child(record, CDP_TYPE_NORMAL, name, CDP_V(context), NULL, cdp_store_new(domain, tag, storage, CDP_INDEX_BY_FUNCTION, ##__VA_ARGS__))
 
 #define cdp_record_add_link(record, name, context, source)                                                  cdp_record_add_child(record, CDP_TYPE_LINK,  name, CDP_V(context), CDP_P(source), NULL)
-#define cdp_record_add_agent(record, name, context, agent)                                                  cdp_record_add_child(record, CDP_TYPE_AGENT, name, CDP_V(context), CDP_P(agent),  NULL)
 
 #define cdp_dict_add_value(r, n, ...)           cdp_record_add_value(r, n, 0, __VA_ARGS__)
 #define cdp_dict_add_data(r, n, ...)            cdp_record_add_data(r, n, 0, __VA_ARGS__)
@@ -520,7 +580,6 @@ cdpRecord* cdp_record_append(cdpRecord* record, bool prepend, cdpRecord* child);
 #define cdp_dict_add_dictionary(r, n, ...)      cdp_record_add_dictionary(r, n, 0, __VA_ARGS__)
 #define cdp_dict_add_catalog(r, n, ...)         cdp_record_add_catalog(r, n, 0, __VA_ARGS__)
 #define cdp_dict_add_link(r, n, ...)            cdp_record_add_link(r, n, 0, __VA_ARGS__)
-#define cdp_dict_add_agent(r, n, ...)           cdp_record_add_agent(r, n, 0, __VA_ARGS__)
 
 #define cdp_record_append_child(record, type, name, prepend, data, store)      \
     ({cdpRecord child__={0}; cdp_record_initialize(&child__, type, name, data, store); cdp_record_append(record, prepend, &child__);})
@@ -533,7 +592,6 @@ cdpRecord* cdp_record_append(cdpRecord* record, bool prepend, cdpRecord* child);
 #define cdp_record_append_catalog(record, name, domain, tag, storage, ...)                                  cdp_record_append_child(record, CDP_TYPE_NORMAL, name, false, NULL, cdp_store_new(domain, tag, storage, CDP_INDEX_BY_FUNCTION, ##__VA_ARGS__))
 
 #define cdp_record_append_link(record, name, source)                                                        cdp_record_append_child(record, CDP_TYPE_LINK,  name, false, CDP_P(source), NULL)
-#define cdp_record_append_agent(record, name, agent)                                                        cdp_record_append_child(record, CDP_TYPE_AGENT, name, false, CDP_P(agent),  NULL)
 
 #define cdp_record_prepend_value(record, name, domain, tag, attrib, value, size, capacity)                  cdp_record_append_child(record, CDP_TYPE_NORMAL, name, true, cdp_data_new(domain, tag, attrib, CDP_DATATYPE_VALUE, true, NULL, CDP_V(value), size, capacity), NULL)
 #define cdp_record_prepend_data(record, name, domain, tag, attrib, data, size, capacity, destructor)        cdp_record_append_child(record, CDP_TYPE_NORMAL, name, true, cdp_data_new(domain, tag, attrib, CDP_DATATYPE_DATA, true, NULL, CDP_V(data), size, capacity, destructor), NULL)
@@ -542,8 +600,7 @@ cdpRecord* cdp_record_append(cdpRecord* record, bool prepend, cdpRecord* child);
 #define cdp_record_prepend_dictionary(record, name, domain, tag, storage, ...)                              cdp_record_append_child(record, CDP_TYPE_NORMAL, name, true, NULL, cdp_store_new(domain, tag, storage, CDP_INDEX_BY_NAME, ##__VA_ARGS__))
 #define cdp_record_prepend_catalog(record, name, domain, tag, storage, ...)                                 cdp_record_append_child(record, CDP_TYPE_NORMAL, name, true, NULL, cdp_store_new(domain, tag, storage, CDP_INDEX_BY_FUNCTION, ##__VA_ARGS__))
 
-#define cdp_record_prepend_link(record, name, source)   cdp_record_append_child(record, CDP_TYPE_LINK,  name, true, CDP_P(source), NULL)
-#define cdp_record_prepend_agent(record, name, agent)   cdp_record_append_child(record, CDP_TYPE_AGENT, name, true, CDP_P(agent),  NULL)
+#define cdp_record_prepend_link(record, name, source)                                                       cdp_record_append_child(record, CDP_TYPE_LINK,  name, true, CDP_P(source), NULL)
 
 
 // Accessing data

@@ -27,43 +27,26 @@
 
 
 static int test_wordacron_text(const char* text) {
-    size_t acronLen = 0;
-    size_t wordLen  = 0;
+    cdpID word  = cdp_text_to_word(text);
+    cdpID acron = cdp_text_to_acronysm(text);
 
-    for (const char* p = text;  *p;  p++) {
-        char c = *p;
-
-        if (c >= 0x20  &&  c <= 0x5F) {
-            if (!wordLen) {
-                acronLen++;
-                continue;
-            }
-        } else if (islower(c) || c == ' ' || c == ':' || c == '_' || c == '-' || c == '.' || c == '/') {
-            if (!acronLen) {
-                wordLen++;
-                continue;
-            }
-        }
-
+    if (!word && !acron)
         return MUNIT_ERROR;
-    }
 
     char decoded[12];
 
-    if (acronLen) {
-        cdpID encoded = cdp_text_to_acronysm(text);
-        size_t decoded_length = cdp_acronysm_to_text(encoded, decoded);
+    if (word) {
+        size_t decoded_length = cdp_word_to_text(word, decoded);
         assert_size(decoded_length, ==, strlen(text));
         assert_string_equal(text, decoded);
 
-        printf("ACRON (%zu): \"%s\" = 0x%016"PRIX64"\n", acronLen, text, encoded);
+        printf("WORD  (%zu): \"%s\" = 0x%016"PRIX64"\n", decoded_length, text, word);
     } else {
-        cdpID encoded = cdp_text_to_word(text);
-        size_t decoded_length = cdp_word_to_text(encoded, decoded);
+        size_t decoded_length = cdp_acronysm_to_text(acron, decoded);
         assert_size(decoded_length, ==, strlen(text));
         assert_string_equal(text, decoded);
 
-        printf("WORD  (%zu): \"%s\" = 0x%016"PRIX64"\n", wordLen, text, encoded);
+        printf("ACRON (%zu): \"%s\" = 0x%016"PRIX64"\n", decoded_length, text, acron);
     }
 
     return MUNIT_OK;

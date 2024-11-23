@@ -92,70 +92,6 @@
               2: "loaded"
       ```
 
-    #### 2. ** /system/agency/ **
-    The `agency/` dictionary (inside /system/) stores internal
-    information needed for tasking (calling) agents. It classifies
-    them by tag and task.
-    - **Example Structure**:
-      ```
-      /system/
-          domain/
-              binary/
-                  add/ (agency)
-                      int/ (tag): add_int()
-                          call/ (queue)
-                              101/ (task)
-                                  parent -> /system/agency/sum/int/task/10/
-                                  instance -> /system/cascade/pipeline01/agent001/adder
-                          working/ (queue)
-                              100/ (task)
-                                  parent -> /system/agency/sum/int/task/10/
-                                  instance -> /system/cascade/pipeline01/agent001/adder01
-                                  baby -> /system/cascade/pipeline01/agent001/adder01/op02
-                                  input/
-                                      op1: 5
-                                  status/
-                                      completion: 99
-                          done/ (queue)
-                              99/ (task)
-                                  parent -> /system/agency/sum/int/task/10/
-                                  instance -> /system/cascade/pipeline01/agent001/adder01
-                                  baby -> /system/cascade/pipeline01/agent001/adder01/op02
-                                  input/
-                                      op1: 1
-                                  output/
-                                      ans: 5
-                                  status/
-                                      completion: 100
-                          failed/
-                      float/ (tag)
-                          agent: add_float()
-              multiply/
-                  int/ (tag)
-                      agent: mul_int()
-                  float/ (tag)
-                      agent: mul_float()
-      ```
-
-    #### 3. ** /system/cascade/ **
-    The `cascade/` dictionary (inside /system/) is used for storing connection
-    and link instructions between agents. It contains blueprints for creating
-    agent cascades.
-    - **Example Structure**:
-      ```
-      /system/
-          /cascade/
-              pipeline01/
-                  agent001/
-                      input/
-                          arg/
-                      output/
-                          result -> /system/agent002/input/arg
-                  agent002/
-                      output/
-                          result -> /system/agent003/input/arg
-      ```
-
     #### 4. ** /user/ **
     This record serves as the personal space for user-specific
     configurations and data. Each user or administrative entity
@@ -271,7 +207,7 @@
 
 // Core sub-dirs
 #define CDP_WORD_AGENT      CDP_ID(0x0004E57500000000)      /* "agent"       */
-#define CDP_WORD_AGENCY     CDP_ID(0x0004E570F2000000)      /* "agency"      */
+//#define CDP_WORD_AGENCY     CDP_ID(0x0004E570F2000000)      /* "agency"      */
 #define CDP_WORD_CASCADE    CDP_ID(0x000C331848500000)      /* "cascade"     */
 #define CDP_WORD_DOMAIN     CDP_ID(0x0011ED0A5C000000)      /* "domain"      */
 #define CDP_WORD_LIBRARY    CDP_ID(0x0031229065900000)      /* "library"     */
@@ -291,27 +227,128 @@
 //#define CDP_WORD_FATAL      CDP_ID(0x0000000000000385)      /* "fatal"       */
 
 
-typedef struct {
-    cdpRecord*  agTag;
-    cdpRecord*  task;
-    cdpRecord*  input;
-} cdpTask;
-
-
 static inline cdpRecord* cdp_void(void)  {extern cdpRecord* CDP_VOID; assert(CDP_VOID);  return CDP_VOID;}
 
+void      cdp_system_set_agent(cdpID domain, cdpID tag, cdpAgent agent);
+cdpAgent  cdp_system_agent(cdpID domain, cdpID tag);
 
-cdpRecord* cdp_task_set_agent(cdpID domain, cdpID agency, cdpID tag, cdpAgent agent);
+bool      cdp_system_startup(void);
+bool      cdp_system_step(void);
+void      cdp_system_shutdown(void);
 
-cdpRecord* cdp_task_begin(  cdpTask* task, cdpID domain, cdpRecord* agency, cdpRecord* instance,
-                            cdpRecord* parentTask, cdpRecord* baby,
-                            int numInput, int numOutput );
-cdpRecord* cdp_task_commit(cdpTask* task);
-void       cdp_task_end(cdpTask* task);
 
-bool       cdp_system_startup(void);
-bool       cdp_system_step(void);
-void       cdp_system_shutdown(void);
+static inline bool cdp_cascade_data_new(cdpRecord* client, cdpRecord* subject, cdpID domain, cdpID tag) {
+    assert(!cdp_record_is_void(client) && !cdp_record_has_data(subject));
+
+    cdpAgent agent = cdp_system_agent(domain, tag);
+
+    if (!agent || !agent(client, subject, CDP_OP_DATA_NEW, NULL))
+        return false;
+
+    cdp_record_add_data_agent(subject, domain, tag, agent);
+
+    return true;
+}
+
+
+static inline bool cdp_cascade_data_update(cdpRecord* client, cdpRecord* subject, size_t size, size_t capacity, cdpValue data) {
+    assert(!cdp_record_is_void(client) && cdp_record_has_data(subject));
+
+    cdp_record_update(subject, size, capacity, data, false);
+
+    for (cdpAgentList* list = subject->data->agent;  list;  list = list->next) {
+        if (!list->agent(client, subject, CDP_OP_DATA_UPDATE, NULL))
+            return false;
+    }
+
+    return true;
+}
+
+
+static inline bool cdp_cascade_data_dalete(cdpRecord* client, cdpRecord* subject) {
+    assert(!cdp_record_is_void(client) && !cdp_record_is_void(subject));
+
+    cdpAgentList* list;
+
+    if (cdp_record_has_data(subject)) {
+        list = subject->data->agent;
+        subject->data->agent = NULL;
+
+        cdp_record_delete_data(subject);
+    } else {
+        list = NULL;
+    }
+
+    bool ok = true;
+
+    while (list) {
+        cdpAgentList* next = list->next;
+        if (ok && !list->agent(client, subject, CDP_OP_DATA_DELETE, NULL))
+            ok = false;
+
+        cdp_agent_list_del(list);
+        list = next;
+    }
+
+    return ok;
+}
+
+
+static inline bool cdp_cascade_store_update(cdpRecord* client, cdpRecord* subject, cdpRecord* child, cdpValue context) {
+    assert(!cdp_record_is_void(client) && cdp_record_has_store(subject) && !cdp_record_is_void(child));
+
+    cdpRecord* r = cdp_record_add(subject, context, child);
+
+    for (cdpAgentList* list = subject->store->agent;  list;  list = list->next) {
+        if (!list->agent(client, subject, CDP_OP_STORE_UPDATE, r))
+            return false;
+    }
+
+    return true;
+}
+
+
+static inline bool cdp_cascade_store_new(cdpRecord* client, cdpRecord* subject, cdpID domain, cdpID tag) {
+    assert(!cdp_record_is_void(client) && !cdp_record_has_store(subject));
+
+    cdpAgent agent = cdp_system_agent(domain, tag);
+
+    if (!agent || !agent(client, subject, CDP_OP_STORE_NEW, NULL))
+        return false;
+
+    cdp_record_add_store_agent(subject, domain, tag, agent);
+
+    return true;
+}
+
+
+static inline bool cdp_cascade_store_delete(cdpRecord* client, cdpRecord* subject) {
+    assert(!cdp_record_is_void(client) && !cdp_record_is_void(subject));
+
+    cdpAgentList* list;
+
+    if (cdp_record_has_store(subject)) {
+        list = subject->store->agent;
+        subject->store->agent = NULL;
+
+        cdp_record_delete_store(subject);
+    } else {
+        list = NULL;
+    }
+
+    bool ok = true;
+
+    while (list) {
+        cdpAgentList* next = list->next;
+        if (ok && !list->agent(client, subject, CDP_OP_STORE_DELETE, NULL))
+            ok = false;
+
+        cdp_agent_list_del(list);
+        list = next;
+    }
+
+    return ok;
+}
 
 
 #endif
