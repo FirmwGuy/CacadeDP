@@ -125,9 +125,10 @@ typedef struct _cdpData       cdpData;
 typedef struct _cdpStore      cdpStore;
 typedef struct _cdpRecord     cdpRecord;
 typedef struct _cdpAgentList  cdpAgentList;
+typedef enum   _cdpOperation  cdpOperation;
 
 typedef int  (*cdpCompare)(const cdpRecord* restrict, const cdpRecord* restrict, void*);
-typedef bool (*cdpAgent)  (cdpRecord* client, cdpRecord* subject, unsigned verb, void* object);
+typedef bool (*cdpAgent)  (cdpRecord* client, cdpRecord* subject, cdpOperation verb, cdpRecord* object);
 
 
 /*
@@ -329,6 +330,15 @@ void     cdp_data_del(cdpData* data);
 void*    cdp_data(const cdpData* data);
 #define  cdp_data_valid(d)      ((d) && (d)->capacity && cdp_id_text_valid((d)->domain) && cdp_id_text_valid((d)->tag))
 
+static inline void cdp_data_add_agent(cdpData* data, cdpID domain, cdpID tag, cdpAgent agent) {
+    assert(cdp_data_valid(data));
+
+    cdpAgentList* list = cdp_agent_list_new(domain, tag, agent);
+    if (data->agent)
+        list->next = data->agent;
+    data->agent = list;
+}
+
 
 /*
     Record Storage (for children)
@@ -402,6 +412,14 @@ static inline bool cdp_store_is_f_sorted(cdpStore* store)     {assert(cdp_store_
 static inline bool cdp_store_is_sorted(cdpStore* store)       {assert(cdp_store_valid(store));  return (store->indexing != CDP_INDEX_BY_INSERTION);}
 static inline bool cdp_store_is_empty(cdpStore* store)        {assert(cdp_store_valid(store));  return !store->chdCount;}
 
+static inline void cdp_store_add_agent(cdpStore* store, cdpID domain, cdpID tag, cdpAgent agent) {
+    assert(cdp_store_valid(store));
+    cdpAgentList* list = cdp_agent_list_new(domain, tag, agent);
+    if (store->agent)
+        list->next = store->agent;
+    store->agent = list;
+}
+
 
 /*
     Record
@@ -420,8 +438,8 @@ struct _cdpRecord {
 
     union {
         cdpData*    data;       // Address of cdpData structure.
+
         cdpRecord*  link;       // Link to another record.
-        cdpAgent    agent;      // Address of an agent function (which may have chilren).
     };
 
     union {
@@ -453,7 +471,6 @@ typedef bool (*cdpTraverse)(cdpEntry*, void*);
 
 enum _cdpOperation {
     CDP_OP_DATA_NEW,
-    CDP_OP_DATA_READ,
     CDP_OP_DATA_UPDATE,
     CDP_OP_DATA_DELETE,
     //
@@ -477,19 +494,17 @@ void cdp_record_initialize_clone(cdpRecord* newClone, cdpID nameID, cdpRecord* r
 void cdp_record_finalize(cdpRecord* record);
 
 #define cdp_record_initialize_value(r, name, domain, tag, attrib, value, size, capacity)              cdp_record_initialize(r, CDP_TYPE_NORMAL, name, cdp_data_new(domain, tag, attrib, CDP_DATATYPE_VALUE, true, NULL, CDP_V(value), size, capacity), NULL)
-#define cdp_record_initialize_data(r, name, domain, tag, attrib, data, size, capacity, destructor)    cdp_record_initialize(r, CDP_TYPE_NORMAL, name, cdp_data_new(domain, tag, attrib, CDP_DATATYPE_DATA, true, NULL, CDP_V(data), size, capacity, destructor), NULL)
+#define cdp_record_initialize_data(r, name, domain, tag, attrib, data, size, capacity, destructor)    cdp_record_initialize(r, CDP_TYPE_NORMAL, name, cdp_data_new(domain, tag, attrib, CDP_DATATYPE_DATA,  true, NULL, CDP_V(data),  size, capacity, destructor), NULL)
 
 #define cdp_record_initialize_list(r, name, domain, tag, storage, ...)                  cdp_record_initialize(r, CDP_TYPE_NORMAL, name, NULL, cdp_store_new(domain, tag, storage, CDP_INDEX_BY_INSERTION, ##__VA_ARGS__))
 #define cdp_record_initialize_dictionary(r, name, domain, tag, storage, ...)            cdp_record_initialize(r, CDP_TYPE_NORMAL, name, NULL, cdp_store_new(domain, tag, storage, CDP_INDEX_BY_NAME, ##__VA_ARGS__))
 #define cdp_record_initialize_catalog(r, name, domain, tag, storage, ...)               cdp_record_initialize(r, CDP_TYPE_NORMAL, name, NULL, cdp_store_new(domain, tag, storage, CDP_INDEX_BY_FUNCTION, ##__VA_ARGS__))
 #define cdp_record_initialize_spatial(r, name, domain, tag, center, subwide, compare)   cdp_record_initialize(r, CDP_TYPE_NORMAL, name, NULL, cdp_store_new(domain, tag, CDP_STORAGE_OCTREE, CDP_INDEX_BY_FUNCTION, center, subwide, compare))
 
-#define cdp_record_initialize_link(r, name, source)                     cdp_record_initialize(r, CDP_TYPE_LINK,  name, CDP_P(source), NULL)
-
 static inline void  cdp_record_set_id(cdpRecord* record, cdpID id)      {assert(record && cdp_id_valid(id));  CDP_ID_SET(record->metarecord.name, id);}
 static inline void  cdp_record_set_name(cdpRecord* record, cdpID name)  {assert(record && cdp_id_text_valid(name));  record->metarecord.name = name;}    // FixMe: mask 'name' before assignation.
 static inline cdpID cdp_record_get_name(const cdpRecord* record)        {assert(record);  return record->metarecord.name;}
-#define cdp_record_get_id(r)  cdp_id(cdp_record_get_name(r))
+#define cdp_record_get_id(r)    cdp_id(cdp_record_get_name(r))
 
 #define cdp_record_is_void(r)       (((r)->metarecord.type == CDP_TYPE_VOID) || !cdp_id_valid((r)->metarecord.name))
 #define cdp_record_is_normal(r)     ((r)->metarecord.type == CDP_TYPE_NORMAL)
@@ -505,22 +520,6 @@ static inline bool cdp_record_has_store(const cdpRecord* record)    {assert(cdp_
 
 static inline void cdp_record_set_data(cdpRecord* record, cdpData* data)      {assert(!cdp_record_has_data(record) && cdp_data_valid(data));   record->data = data;}
 static inline void cdp_record_set_store(cdpRecord* record, cdpStore* store)   {assert(!cdp_record_has_store(record));  record->store = store;}
-
-static inline void cdp_record_add_data_agent(cdpRecord* record, cdpID domain, cdpID tag, cdpAgent agent) {
-    assert(cdp_record_has_data(record));
-    cdpAgentList* list = cdp_agent_list_new(domain, tag, agent);
-    if (record->data->agent)
-        list->next = record->data->agent;
-    record->data->agent = list;
-}
-
-static inline bool cdp_record_add_store_agent(cdpRecord* record, cdpID domain, cdpID tag, cdpAgent agent) {
-    assert(cdp_record_has_store(record));
-    cdpAgentList* list = cdp_agent_list_new(domain, tag, agent);
-    if (record->store->agent)
-        list->next = record->store->agent;
-    record->store->agent = list;
-}
 
 static inline cdpRecord* cdp_record_parent  (const cdpRecord* record)   {assert(record);  return CDP_EXPECT_PTR(record->parent)? record->parent->owner: NULL;}
 static inline size_t     cdp_record_siblings(const cdpRecord* record)   {assert(record);  return CDP_EXPECT_PTR(record->parent)? record->parent->chdCount: 0;}
@@ -549,7 +548,28 @@ static inline void cdp_record_replace(cdpRecord* oldr, cdpRecord* newr) {
     cdp_record_transfer(newr, oldr);
 }
 
-static inline cdpRecord* cdp_link(cdpRecord* record)  {assert(cdp_record_is_link(record));  while (cdp_record_is_link(record)) {record = record->link;}  return record;}
+
+static inline void cdp_link_set(cdpRecord* link, cdpRecord* target) {
+    assert(link && cdp_record_is_link(link));
+    assert(target && !cdp_record_is_void(target) && cdp_record_parent(target));     // Links to "root" aren't allowed for now.
+    link->link = target;
+    // ToDo: remove link from target's shadows.
+}
+
+static inline void cdp_link_initialize(cdpRecord* link, cdpID name, cdpRecord* target) {
+    assert(link);
+    cdp_record_initialize(link, CDP_TYPE_LINK, name, NULL, NULL);
+    if (target)
+        cdp_link_set(link, target);
+}
+
+static inline cdpRecord* cdp_link(cdpRecord* link) {
+    assert(link && cdp_record_is_link(link));
+    while (cdp_record_is_link(link)) {
+        link = link->link;
+    }
+    return link;
+}
 
 static inline bool cdp_record_is_insertable(cdpRecord* record)  {assert(cdp_record_has_store(record));  return record->store? cdp_store_is_insertable(record->store): false;}
 static inline bool cdp_record_is_dictionary(cdpRecord* record)  {assert(cdp_record_is_normal(record));  return record->store? cdp_store_is_dictionary(record->store): false;}

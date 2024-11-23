@@ -28,16 +28,13 @@
 
 
 
-bool DONE;
-
 #define CDP_WORD_STDIN      CDP_ID(0x004E844B80000000)      /* "stdin"       */
 #define CDP_WORD_ADDER      CDP_ID(0x0004842C80000000)      /* "adder"       */
 #define CDP_WORD_STDOUT     CDP_ID(0x004E847D68000000)      /* "stdout"      */
 
+bool DONE;
 
 
-
-cdpID AGENT_STDIN;
 
 
 static bool stdin_agent_initiate(cdpRecord* instance, cdpTask* signal) {
@@ -113,10 +110,10 @@ bool adder_agent_update(cdpRecord* instance, cdpTask* signal) {
 
 
 
-cdpID AGENT_STDOUT;
-
-
-bool stdout_agent_initiate(cdpRecord* instance, cdpTask* signal) {
+bool agent_stdout(cdpRecord* client, cdpRecord* subject, cdpOperation verb, cdpRecord* object) {
+    switch (verb) {
+      default:  return true;
+    }
     cdpID nameID = cdp_dict_get_id(&signal->input, CDP_NAME_NAME);
 
     cdp_record_initialize_register(instance, nameID, AGENT_STDOUT, false, NULL, sizeof(uint32_t));
@@ -131,8 +128,6 @@ bool stdout_agent_update(cdpRecord* instance, cdpTask* signal) {
     printf("%u\n", value);
     return true;
 }
-
-#endif
 
 
 
@@ -160,24 +155,26 @@ MunitResult test_agents(const MunitParameter params[], void* user_data_or_fixtur
     // Instance initiation
     cdpRecord* pipeline = cdp_dict_add_list(CASCADE, CDP_AUTOID, CDP_ACRON_CDP, CDP_WORD_LIST, CDP_STORAGE_ARRAY, 3);
 
-    cdpRecord* stdin = cdp_record_append(pipeline, false, CDP_ID("stdin"), NULL);
-    cdp_cascade_store_new(cdp_root(), stdin);
+    cdpRecord  child  = {0};
+    cdpRecord* stdin  = cdp_record_append(pipeline, false, cdp_cascade_record_new(cdp_root(), &child, CDP_WORD_STDIN,  CDP_ACRON_CDP, CDP_WORD_STDIN,  NULL, NULL);
+    cdpRecord* adder  = cdp_record_append(pipeline, false, cdp_cascade_record_new(cdp_root(), &child, CDP_WORD_ADDER,  CDP_ACRON_CDP, CDP_WORD_ADDER,  NULL, NULL);
+    cdpRecord* stdout = cdp_record_append(pipeline, false, cdp_cascade_record_new(cdp_root(), &child, CDP_WORD_STDOUT, CDP_ACRON_CDP, CDP_WORD_STDOUT, NULL, NULL);
 
-    cdpRecord* adderI = cdp_book_add_instance(pipeline, CDP_ID("adder"), NULL);
-    cdpRecord* stdOut = cdp_book_add_instance(pipeline, CDP_ID("stdout"), NULL);
+    // Link pipeline
+    cdpRecord* inp = cdp_record_find_by_name(stdin,  cdp_text_to_word("inp"));      assert_not_null(inp);
+    cdpRecord* op1 = cdp_record_find_by_name(adder,  cdp_text_to_word("op1"));      assert_not_null(op1);
+    cdpRecord* ans = cdp_record_find_by_name(adder,  cdp_text_to_word("ans"));      assert_not_null(ans);
+    cdpRecord* out = cdp_record_find_by_name(stdout, cdp_text_to_word("out"));      assert_not_null(out);
 
-    // Connect pipeline (from downstreaam to upstream)
-    cdp_system_connect(adderI, CDP_ID("ans"), stdOut);
-
-    cdpRecord* adder_op2 = cdp_record_find_by_name(adderI, CDP_ID("op2"));
-    cdp_system_connect(stdInp, cdp_record_get_id(stdInp), adder_op2);
+    cdp_link_set(inp, op1);
+    cdp_link_set(ans, out);
 
     // Execute pipeline
     while (!DONE) {
         cdp_system_step();
     }
 
-    cdp_book_delete(cascade);
+    cdp_record_remove(pipeline);
 
     return MUNIT_OK;
 }

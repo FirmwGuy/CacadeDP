@@ -237,17 +237,17 @@ bool      cdp_system_step(void);
 void      cdp_system_shutdown(void);
 
 
-static inline cdpData* cdp_cascade_data_new(cdpRecord* client, cdpRecord* subject, cdpID domain, cdpID tag) {
+static inline bool cdp_cascade_data_new(cdpRecord* client, cdpRecord* subject, cdpID domain, cdpID tag, cdpRecord* params) {
     assert(!cdp_record_is_void(client) && !cdp_record_has_data(subject));
 
     cdpAgent agent = cdp_system_agent(domain, tag);
 
-    if (!agent || !agent(client, subject, CDP_OP_DATA_NEW, NULL))
-        return NULL;
+    if (!agent || !agent(client, subject, CDP_OP_DATA_NEW, params))
+        return false;
 
-    cdp_record_add_data_agent(subject, domain, tag, agent);
+    cdp_data_add_agent(subject->data, domain, tag, agent);
 
-    return data;
+    return true;
 }
 
 
@@ -294,15 +294,15 @@ static inline bool cdp_cascade_data_dalete(cdpRecord* client, cdpRecord* subject
 }
 
 
-static inline bool cdp_cascade_store_new(cdpRecord* client, cdpRecord* subject, cdpID domain, cdpID tag) {
+static inline bool cdp_cascade_store_new(cdpRecord* client, cdpRecord* subject, cdpID domain, cdpID tag, cdpRecord* params) {
     assert(!cdp_record_is_void(client) && !cdp_record_has_store(subject));
 
     cdpAgent agent = cdp_system_agent(domain, tag);
 
-    if (!agent || !agent(client, subject, CDP_OP_STORE_NEW, NULL))
+    if (!agent || !agent(client, subject, CDP_OP_STORE_NEW, params))
         return false;
 
-    cdp_record_add_store_agent(subject, domain, tag, agent);
+    cdp_store_add_agent(subject->store, domain, tag, agent);
 
     return true;
 }
@@ -366,6 +366,23 @@ static inline bool cdp_cascade_store_delete(cdpRecord* client, cdpRecord* subjec
     }
 
     return ok;
+}
+
+
+static inline cdpRecord* cdp_cascade_record_new(   cdpRecord* client, cdpRecord* subject,
+                                            cdpID name, cdpID domain, cdpID tag,
+                                            cdpRecord* dataParam, cdpRecord* storeParam  ) {
+    assert(!cdp_record_is_void(client) && cdp_record_is_void(subject));
+
+    cdp_record_initialize(subject, CDP_TYPE_NORMAL, name, NULL, NULL);
+
+    if (!cdp_cascade_data_new (client, subject, domain, tag, dataParam)
+     || !cdp_cascade_store_new(client, subject, domain, tag, storeParam)) {
+        cdp_record_finalize(subject);
+        return NULL;
+    }
+
+    return subject;
 }
 
 
