@@ -121,14 +121,15 @@ static_assert(sizeof(void*) == sizeof(uint64_t), "32 bit is unsupported yet!");
 */
 
 
+typedef union  _cdpValue      cdpValue;
 typedef struct _cdpData       cdpData;
 typedef struct _cdpStore      cdpStore;
 typedef struct _cdpRecord     cdpRecord;
 typedef struct _cdpAgentList  cdpAgentList;
-typedef enum   _cdpOperation  cdpOperation;
+typedef enum   _cdpAction     cdpAction;
 
-typedef int  (*cdpCompare)(const cdpRecord* restrict, const cdpRecord* restrict, void*);
-typedef bool (*cdpAgent)  (cdpRecord* client, cdpRecord* subject, cdpOperation verb, cdpRecord* object);
+typedef int   (*cdpCompare)(const cdpRecord* restrict, const cdpRecord* restrict, void*);
+typedef void* (*cdpAgent)  (cdpRecord* client, cdpRecord* subject, cdpAction verb, cdpRecord* object, cdpValue value);
 
 
 /*
@@ -253,9 +254,7 @@ static inline cdpAgentList* cdp_agent_list_new(cdpID domain, cdpID tag, cdpAgent
     Record Data
 */
 
-typedef union {
-    void*       pointer;
-    size_t      size;
+union _cdpValue {
     uint8_t     byte;
     uint8_t     _byte[8];
     uint64_t    uint64;
@@ -263,15 +262,23 @@ typedef union {
     uint32_t    _uint32[2];
     uint16_t    uint16;
     uint16_t    _uint16[4];
+
     int64_t     int64;
     int32_t     int32;
     int32_t     _int32[2];
     int16_t     int16;
     int16_t     _int16[4];
+
     float       float32;
     float       _float32[2];
     double      float64;
-} cdpValue;
+
+    size_t      size;
+    void*       pointer;
+
+    cdpID       id;
+    cdpRecord*  record;
+};
 
 #define CDP_V(v)    ((cdpValue)(v))
 
@@ -328,7 +335,8 @@ cdpData* cdp_data_new(  cdpID domain, cdpID tag,
                         void** dataloc, cdpValue value, ...  );
 void     cdp_data_del(cdpData* data);
 void*    cdp_data(const cdpData* data);
-#define  cdp_data_valid(d)      ((d) && (d)->capacity && cdp_id_text_valid((d)->domain) && cdp_id_text_valid((d)->tag))
+#define  cdp_data_valid(d)                      ((d) && (d)->capacity && cdp_id_text_valid((d)->domain) && cdp_id_text_valid((d)->tag))
+#define  cdp_data_new_value(d, t, a, value)     cdp_data_new(d, t, a, CDP_DATATYPE_VALUE, true, NULL, CDP_V(value))
 
 static inline void cdp_data_add_agent(cdpData* data, cdpID domain, cdpID tag, cdpAgent agent) {
     assert(cdp_data_valid(data));
@@ -469,17 +477,19 @@ typedef bool (*cdpTraverse)(cdpEntry*, void*);
  * Record Operations
  */
 
-enum _cdpOperation {
-    CDP_OP_DATA_NEW,
-    CDP_OP_DATA_UPDATE,
-    CDP_OP_DATA_DELETE,
+enum _cdpAction {
+    CDP_ACTION_INPUT,
+    CDP_ACTION_OUTPUT,
     //
-    CDP_OP_STORE_NEW,
-    CDP_OP_STORE_ADD_ITEM,
-    CDP_OP_STORE_REMOVE_ITEM,
-    CDP_OP_STORE_DELETE,
-
-    CDP_OP_COUNT
+    CDP_ACTION_DATA_NEW,
+    CDP_ACTION_DATA_ATTRIBUTE,
+    CDP_ACTION_DATA_UPDATE,
+    CDP_ACTION_DATA_DELETE,
+    //
+    CDP_ACTION_STORE_NEW,
+    CDP_ACTION_STORE_ADD_ITEM,
+    CDP_ACTION_STORE_REMOVE_ITEM,
+    CDP_ACTION_STORE_DELETE
 };
 
 
@@ -549,6 +559,11 @@ static inline void cdp_record_replace(cdpRecord* oldr, cdpRecord* newr) {
 }
 
 
+// Root dictionary
+static inline cdpRecord* cdp_root(void)  {extern cdpRecord CDP_ROOT; assert(!cdp_record_is_void(&CDP_ROOT));  return &CDP_ROOT;}
+
+
+// Links
 static inline void cdp_link_set(cdpRecord* link, cdpRecord* target) {
     assert(link && cdp_record_is_link(link));
     assert(target && !cdp_record_is_void(target) && cdp_record_parent(target));     // Links to "root" aren't allowed for now.
@@ -575,7 +590,9 @@ static inline bool cdp_record_is_insertable(cdpRecord* record)  {assert(cdp_reco
 static inline bool cdp_record_is_dictionary(cdpRecord* record)  {assert(cdp_record_is_normal(record));  return record->store? cdp_store_is_dictionary(record->store): false;}
 static inline bool cdp_record_is_f_sorted(cdpRecord* record)    {assert(cdp_record_is_normal(record));  return record->store? cdp_store_is_f_sorted(record->store): false;}
 static inline bool cdp_record_is_sorted(cdpRecord* record)      {assert(cdp_record_is_normal(record));  return record->store? cdp_store_is_sorted(record->store): false;}
+
 static inline bool cdp_record_is_empty(cdpRecord* record)       {assert(cdp_record_is_normal(record));  return (!record->data && !cdp_record_children(record));}
+static inline bool cdp_record_is_floating(cdpRecord* record)    {assert(cdp_record_is_normal(record));  return (cdp_record_is_void(record)  ||  (!cdp_record_parent(record) && (record != cdp_root())));}
 
 
 // Appends/prepends or inserts a (copy of) record into another record
@@ -639,10 +656,6 @@ static inline void cdp_record_delete_children(cdpRecord* record)    {assert(cdp_
 
 // Constructs the full path (sequence of ids) for a given record, returning the depth
 bool cdp_record_path(const cdpRecord* record, cdpPath** path);
-
-
-// Root dictionary
-static inline cdpRecord* cdp_root(void)  {extern cdpRecord CDP_ROOT; assert(!cdp_record_is_void(&CDP_ROOT));  return &CDP_ROOT;}
 
 
 // Accessing branched records
