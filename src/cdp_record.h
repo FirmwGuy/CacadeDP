@@ -126,10 +126,9 @@ typedef struct _cdpData       cdpData;
 typedef struct _cdpStore      cdpStore;
 typedef struct _cdpRecord     cdpRecord;
 typedef struct _cdpAgentList  cdpAgentList;
-typedef enum   _cdpAction     cdpAction;
 
 typedef int   (*cdpCompare)(const cdpRecord* restrict, const cdpRecord* restrict, void*);
-typedef void* (*cdpAgent)  (cdpRecord* client, cdpRecord* subject, cdpAction verb, cdpRecord* object, cdpValue value);
+typedef void* (*cdpAgent)  (cdpRecord* client, cdpRecord* subject, unsigned verb, cdpRecord* object, cdpValue value);
 
 
 /*
@@ -478,8 +477,9 @@ typedef bool (*cdpTraverse)(cdpEntry*, void*);
  */
 
 enum _cdpAction {
-    CDP_ACTION_INPUT,
-    CDP_ACTION_OUTPUT,
+    CDP_ACTION_GET_JACK,
+    CDP_ACTION_CONNECT,
+    CDP_ACTION_DISCONNECT,
     //
     CDP_ACTION_DATA_NEW,
     CDP_ACTION_DATA_ATTRIBUTE,
@@ -489,7 +489,9 @@ enum _cdpAction {
     CDP_ACTION_STORE_NEW,
     CDP_ACTION_STORE_ADD_ITEM,
     CDP_ACTION_STORE_REMOVE_ITEM,
-    CDP_ACTION_STORE_DELETE
+    CDP_ACTION_STORE_DELETE,
+
+    CDP_ACTION_COUNT
 };
 
 
@@ -611,6 +613,7 @@ cdpRecord* cdp_record_append(cdpRecord* record, bool prepend, cdpRecord* child);
 
 #define cdp_record_add_link(record, name, context, source)                                                  cdp_record_add_child(record, CDP_TYPE_LINK,  name, CDP_V(context), CDP_P(source), NULL)
 
+#define cdp_dict_add(r, c)                      cdp_record_add(r, CDP_V(0), c)
 #define cdp_dict_add_value(r, n, ...)           cdp_record_add_value(r, n, 0, __VA_ARGS__)
 #define cdp_dict_add_data(r, n, ...)            cdp_record_add_data(r, n, 0, __VA_ARGS__)
 #define cdp_dict_add_list(r, n, ...)            cdp_record_add_list(r, n, 0, __VA_ARGS__)
