@@ -1150,10 +1150,7 @@ void cdp_record_finalize(cdpRecord* record) {
 
 #define RECORD_FOLLOW_LINK_TO_STORE(record, store, ...)                        \
     assert(!cdp_record_is_void(record));                                       \
-                                                                               \
-    if (record->metarecord.type == CDP_TYPE_LINK)                              \
-        record = cdp_link(CDP_P(record));                                      \
-                                                                               \
+    record = cdp_link_pull(CDP_P(record));                                          \
     cdpStore* store = record->store;                                           \
     if (!store)                                                                \
         return __VA_ARGS__
@@ -1185,8 +1182,7 @@ cdpRecord* cdp_record_append(cdpRecord* record, bool prepend, cdpRecord* child) 
 void* cdp_record_data(const cdpRecord* record) {
     assert(!cdp_record_is_void(record));
 
-    if (record->metarecord.type == CDP_TYPE_LINK)
-        record = cdp_link(CDP_P(record));
+    record = cdp_link_pull(CDP_P(record));
 
     cdpData* data = record->data;
     if (!data)
@@ -1202,8 +1198,7 @@ void* cdp_record_data(const cdpRecord* record) {
 void* cdp_record_update(cdpRecord* record, size_t size, size_t capacity, cdpValue value, bool swap) {
     assert(!cdp_record_is_void(record) && size && capacity);
 
-    if (record->metarecord.type == CDP_TYPE_LINK)
-        record = cdp_link(record);
+    record = cdp_link_pull(record);
 
     cdpData* data = record->data;
     if (!data) {

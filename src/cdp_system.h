@@ -229,8 +229,6 @@
 //#define CDP_WORD_FATAL      CDP_ID(0x0000000000000000)      /* "fatal"       */
 
 
-static inline cdpRecord* cdp_void(void)  {extern cdpRecord* CDP_VOID; assert(CDP_VOID);  return CDP_VOID;}
-
 void      cdp_system_set_agent(cdpID domain, cdpID tag, cdpAgent agent);
 cdpAgent  cdp_system_agent(cdpID domain, cdpID tag);
 
@@ -239,13 +237,18 @@ bool      cdp_system_step(void);
 void      cdp_system_shutdown(void);
 
 
-static inline cdpRecord* cdp_cascade_get_input(cdpRecord* client, cdpRecord* subject, cdpID input) {
-    assert(!cdp_record_is_void(client) && !cdp_record_is_empty(subject) && cdp_id_text_valid(input));
+static inline cdpRecord* cdp_void(void)  {extern cdpRecord* CDP_VOID; assert(CDP_VOID);  return CDP_VOID;}
+
+static inline cdpRecord* cdp_agent_step(void)  {extern cdpRecord* CDP_STEP; assert(CDP_STEP);  return CDP_STEP;}
+
+
+static inline cdpRecord* cdp_cascade_get_inlet(cdpRecord* client, cdpRecord* subject, cdpID inlet) {
+    assert(!cdp_record_is_void(client) && !cdp_record_is_empty(subject) && cdp_id_text_valid(inlet));
     cdpRecord* found;
 
     if (cdp_record_has_data(subject)) {
         for (cdpAgentList* list = subject->data->agent;  list;  list = list->next) {
-            found = list->agent(client, subject, CDP_ACTION_GET_JACK, NULL, CDP_V(input));
+            found = list->agent(client, subject, CDP_ACTION_GET_INLET, NULL, CDP_V(inlet));
             if (found)
                 return found;
         }
@@ -253,7 +256,7 @@ static inline cdpRecord* cdp_cascade_get_input(cdpRecord* client, cdpRecord* sub
 
     if (cdp_record_has_store(subject)) {
         for (cdpAgentList* list = subject->store->agent;  list;  list = list->next) {
-            found = list->agent(client, subject, CDP_ACTION_GET_JACK,  NULL, CDP_V(input));
+            found = list->agent(client, subject, CDP_ACTION_GET_INLET,  NULL, CDP_V(inlet));
             if (found)
                 return found;
         }
@@ -263,13 +266,13 @@ static inline cdpRecord* cdp_cascade_get_input(cdpRecord* client, cdpRecord* sub
 }
 
 
-static inline cdpRecord* cdp_cascade_connect(cdpRecord* client, cdpRecord* subject, cdpRecord* target, cdpID output) {
-    assert(!cdp_record_is_void(client) && !cdp_record_is_empty(subject) && cdp_id_text_valid(output) && !cdp_record_is_floating(target));
+static inline cdpRecord* cdp_cascade_connect(cdpRecord* client, cdpRecord* subject, cdpID output, cdpRecord* inlet) {
+    assert(!cdp_record_is_void(client) && !cdp_record_is_empty(subject) && cdp_id_text_valid(output) && !cdp_record_is_floating(inlet));
     cdpRecord* found;
 
     if (cdp_record_has_data(subject)) {
         for (cdpAgentList* list = subject->data->agent;  list;  list = list->next) {
-            found = list->agent(client, subject, CDP_ACTION_GET_JACK, target, CDP_V(output));
+            found = list->agent(client, subject, CDP_ACTION_CONNECT, inlet, CDP_V(output));
             if (found)
                 return found;
         }
@@ -277,7 +280,31 @@ static inline cdpRecord* cdp_cascade_connect(cdpRecord* client, cdpRecord* subje
 
     if (cdp_record_has_store(subject)) {
         for (cdpAgentList* list = subject->store->agent;  list;  list = list->next) {
-            found = list->agent(client, subject, CDP_ACTION_GET_JACK, target, CDP_V(output));
+            found = list->agent(client, subject, CDP_ACTION_CONNECT, inlet, CDP_V(output));
+            if (found)
+                return found;
+        }
+    }
+
+    return NULL;
+}
+
+
+static inline cdpRecord* cdp_cascade_unplug(cdpRecord* client, cdpRecord* subject, cdpRecord* output) {
+    assert(!cdp_record_is_void(client) && !cdp_record_is_empty(subject) && !cdp_record_is_floating(output));
+    cdpRecord* found;
+
+    if (cdp_record_has_data(subject)) {
+        for (cdpAgentList* list = subject->data->agent;  list;  list = list->next) {
+            found = list->agent(client, subject, CDP_ACTION_UNPLUG, output, CDP_V(0));
+            if (found)
+                return found;
+        }
+    }
+
+    if (cdp_record_has_store(subject)) {
+        for (cdpAgentList* list = subject->store->agent;  list;  list = list->next) {
+            found = list->agent(client, subject, CDP_ACTION_UNPLUG, output, CDP_V(0));
             if (found)
                 return found;
         }
@@ -288,6 +315,7 @@ static inline cdpRecord* cdp_cascade_connect(cdpRecord* client, cdpRecord* subje
 
 
 static inline cdpData* cdp_cascade_data_new(cdpRecord* client, cdpRecord* subject, cdpID domain, cdpID tag, cdpRecord* params, cdpValue value) {
+    subject = cdp_link_pull(subject);
     assert(!cdp_record_is_void(client) && !cdp_record_has_data(subject));
 
     cdpAgent agent = cdp_system_agent(domain, tag);
@@ -302,6 +330,7 @@ static inline cdpData* cdp_cascade_data_new(cdpRecord* client, cdpRecord* subjec
 
 
 static inline cdpData* cdp_cascade_data_update(cdpRecord* client, cdpRecord* subject, size_t size, size_t capacity, cdpValue data) {
+    subject = cdp_link_pull(subject);
     assert(!cdp_record_is_void(client) && cdp_record_has_data(subject));
 
     cdp_record_update(subject, size, capacity, data, false);
@@ -316,6 +345,7 @@ static inline cdpData* cdp_cascade_data_update(cdpRecord* client, cdpRecord* sub
 
 
 static inline bool cdp_cascade_data_dalete(cdpRecord* client, cdpRecord* subject) {
+    subject = cdp_link_pull(subject);
     assert(!cdp_record_is_void(client) && !cdp_record_is_void(subject));
 
     cdpAgentList* list;
@@ -345,6 +375,7 @@ static inline bool cdp_cascade_data_dalete(cdpRecord* client, cdpRecord* subject
 
 
 static inline cdpStore* cdp_cascade_store_new(cdpRecord* client, cdpRecord* subject, cdpID domain, cdpID tag, cdpRecord* params, cdpValue value) {
+    subject = cdp_link_pull(subject);
     assert(!cdp_record_is_void(client) && !cdp_record_has_store(subject));
 
     cdpAgent agent = cdp_system_agent(domain, tag);
@@ -359,6 +390,8 @@ static inline cdpStore* cdp_cascade_store_new(cdpRecord* client, cdpRecord* subj
 
 
 static inline cdpRecord* cdp_cascade_store_add_item(cdpRecord* client, cdpRecord* subject, cdpRecord* child, cdpValue context) {
+    subject = cdp_link_pull(subject);
+    child   = cdp_link_pull(child);
     assert(!cdp_record_is_void(client) && cdp_record_has_store(subject) && !cdp_record_is_void(child));
 
     cdpRecord* r = cdp_record_add(subject, context, child);
@@ -391,6 +424,7 @@ static inline bool cdp_cascade_store_remove_item(cdpRecord* client, cdpRecord* s
 
 
 static inline bool cdp_cascade_store_delete(cdpRecord* client, cdpRecord* subject) {
+    subject = cdp_link_pull(subject);
     assert(!cdp_record_is_void(client) && !cdp_record_is_void(subject));
 
     cdpAgentList* list;

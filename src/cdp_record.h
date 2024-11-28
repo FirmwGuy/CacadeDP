@@ -477,9 +477,9 @@ typedef bool (*cdpTraverse)(cdpEntry*, void*);
  */
 
 enum _cdpAction {
-    CDP_ACTION_GET_JACK,
+    CDP_ACTION_GET_INLET,
     CDP_ACTION_CONNECT,
-    CDP_ACTION_DISCONNECT,
+    CDP_ACTION_UNPLUG,
     //
     CDP_ACTION_DATA_NEW,
     CDP_ACTION_DATA_ATTRIBUTE,
@@ -580,8 +580,8 @@ static inline void cdp_link_initialize(cdpRecord* link, cdpID name, cdpRecord* t
         cdp_link_set(link, target);
 }
 
-static inline cdpRecord* cdp_link(cdpRecord* link) {
-    assert(link && cdp_record_is_link(link));
+static inline cdpRecord* cdp_link_pull(cdpRecord* link) {
+    assert(link);
     while (cdp_record_is_link(link)) {
         link = link->link;
     }
