@@ -443,7 +443,7 @@ void cdp_store_delete_children(cdpStore* store) {
 */
 static inline void store_check_auto_id(cdpStore* store, cdpRecord* child) {
     if (cdp_record_id_is_pending(child)) {
-        cdp_record_set_name(child, cdp_id_to_numeric(store->autoid++));
+        child->metarecord.name = cdp_id_to_numeric(store->autoid++);
     }
     // FixMe: if otherwise.
 }
@@ -1078,8 +1078,9 @@ static inline void store_remove_child(cdpStore* store, cdpRecord* record, cdpRec
     Initiates a record structure
 */
 void cdp_record_initialize(cdpRecord* record, unsigned type, cdpID name, cdpData* data, cdpStore* store) {
-    assert(record && cdp_id_valid(name) && (type < CDP_TYPE_COUNT));
-    assert((data? cdp_data_valid(data): true)  &&  (store? cdp_store_valid(store): true));
+    assert(record && cdp_id_valid(name) && (type && type < CDP_TYPE_COUNT));
+    bool isLink = (type == CDP_TYPE_LINK);
+    assert(isLink?  true:  ((data? cdp_data_valid(data): true)  &&  (store? cdp_store_valid(store): true)));
 
     //CDP_0(record);
 
@@ -1087,6 +1088,8 @@ void cdp_record_initialize(cdpRecord* record, unsigned type, cdpID name, cdpData
     record->metarecord.name = name;
     record->data  = data;
     record->store = store;
+    if (!isLink && store)
+        store->owner = record;
 }
 
 
@@ -1150,7 +1153,7 @@ void cdp_record_finalize(cdpRecord* record) {
 
 #define RECORD_FOLLOW_LINK_TO_STORE(record, store, ...)                        \
     assert(!cdp_record_is_void(record));                                       \
-    record = cdp_link_pull(CDP_P(record));                                          \
+    record = cdp_link_pull(CDP_P(record));                                     \
     cdpStore* store = record->store;                                           \
     if (!store)                                                                \
         return __VA_ARGS__

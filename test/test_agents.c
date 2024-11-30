@@ -37,33 +37,33 @@ bool DONE;
 
 
 
-static void* agent_stdin(cdpRecord* client, cdpRecord* subject, unsigned verb, cdpRecord* object, cdpValue value) {
-    assert(client && subject);
+static void* agent_stdin(cdpRecord* client, cdpRecord* self, unsigned action, cdpRecord* record, cdpValue value) {
+    assert(client && self);
     static cdpRecord* inp;
 
-    switch (verb) {
+    switch (action) {
       case CDP_ACTION_DATA_NEW: {
-        cdp_record_set_data(subject, cdp_data_new_value(CDP_ACRON_CDP, cdp_text_to_acronysm("FLOAT64"), (cdpID)0, 0.0));
-        return subject->data;
+        cdp_record_set_data(self, cdp_data_new_value(CDP_ACRON_CDP, cdp_text_to_acronysm("FLOAT64"), (cdpID)0, sizeof(double), 0.0));
+        return self->data;
       }
       case CDP_ACTION_STORE_NEW: {
-        cdp_record_set_store(subject, cdp_store_new(CDP_ACRON_CDP, CDP_WORD_LIST, CDP_STORAGE_LINKED_LIST, CDP_INDEX_BY_NAME));
-        return subject->store;
+        cdp_record_set_store(self, cdp_store_new(CDP_ACRON_CDP, CDP_WORD_LIST, CDP_STORAGE_LINKED_LIST, CDP_INDEX_BY_NAME));
+        return self->store;
       }
 
       case CDP_ACTION_GET_INLET: {
         assert_uint64(value.id, ==, cdp_text_to_word("tic"));
-        return subject;
+        return self;
       }
       case CDP_ACTION_CONNECT: {
         assert_uint64(value.id, ==, cdp_text_to_word("inp"));
-        inp = cdp_dict_add_link(subject, value.id, object);
+        inp = cdp_dict_add_link(self, value.id, record);
         return inp;
       }
       case CDP_ACTION_UNPLUG: {
-        cdp_record_delete_children(subject);
+        cdp_record_delete_children(self);
         inp = NULL;
-        return subject;
+        return self;
       }
 
       case CDP_ACTION_DATA_UPDATE: {
@@ -81,7 +81,7 @@ static void* agent_stdin(cdpRecord* client, cdpRecord* subject, unsigned verb, c
                 DONE = true;
             }
         }
-        return subject;
+        return self;
       }
     }
 
@@ -90,46 +90,50 @@ static void* agent_stdin(cdpRecord* client, cdpRecord* subject, unsigned verb, c
 
 
 
+static void* agent_adder(cdpRecord* client, cdpRecord* self, unsigned action, cdpRecord* record, cdpValue value) {
+    assert(client && self);
 
-static void* agent_adder(cdpRecord* client, cdpRecord* subject, unsigned verb, cdpRecord* object, cdpValue value) {
-    assert(client && subject);
     static cdpRecord* num;
     static cdpRecord* ans;
 
-    switch (verb) {
+    switch (action) {
       case CDP_ACTION_DATA_NEW: {
-        cdp_record_set_data(subject, cdp_data_new_value(CDP_ACRON_CDP, cdp_text_to_acronysm("FLOAT64"), (cdpID)0, 0.0));
-        return subject->data;
+        cdp_record_set_data(self, cdp_data_new_value(CDP_ACRON_CDP, cdp_text_to_acronysm("FLOAT64"), (cdpID)0, sizeof(double), 0.0));
+        return self->data;
       }
       case CDP_ACTION_STORE_NEW: {
-        cdp_record_set_store(subject, cdp_store_new(CDP_ACRON_CDP, CDP_WORD_LIST, CDP_STORAGE_ARRAY, CDP_INDEX_BY_NAME, 2));
-        return subject->store;
+        // FixMe! FixMe! FixMe!
+        //cdp_record_set_store(self, cdp_store_new(CDP_ACRON_CDP, CDP_WORD_LIST, CDP_STORAGE_ARRAY, CDP_INDEX_BY_NAME, 2));
+        cdp_record_set_store(self, cdp_store_new(CDP_ACRON_CDP, CDP_WORD_LIST, CDP_STORAGE_LINKED_LIST, CDP_INDEX_BY_NAME));
+        return self->store;
       }
 
       case CDP_ACTION_GET_INLET: {
         assert_uint64(value.id, ==, cdp_text_to_word("num"));
-        num = cdp_dict_add_value(subject, value.id, CDP_ACRON_CDP, CDP_WORD_ADDER, (cdpID)0, 0.0, sizeof(double), sizeof(double));
+        num = cdp_dict_add_value(self, value.id, CDP_ACRON_CDP, CDP_WORD_ADDER, (cdpID)0, 0.0, sizeof(double), sizeof(double));
+        cdp_data_add_agent(num->data, CDP_ACRON_CDP, CDP_WORD_ADDER, cdp_system_agent(CDP_ACRON_CDP, CDP_WORD_ADDER));
         return num;
       }
       case CDP_ACTION_CONNECT: {
         assert_uint64(value.id, ==, cdp_text_to_word("ans"));
-        ans = cdp_dict_add_link(subject, value.id, object);
+        ans = cdp_dict_add_link(self, value.id, record);
         return ans;
       }
       case CDP_ACTION_UNPLUG: {
         cdp_record_remove(num, NULL);
         num = NULL;
-        return subject;
+        return self;
       }
 
       case CDP_ACTION_DATA_UPDATE: {
+        cdpRecord* adder = cdp_record_parent(self);
         cdp_record_update_value(num, sizeof(double), value);
 
-        double d = value.float64 + cdp_record_value(subject).float64;
+        double d = value.float64 + cdp_record_value(adder).float64;
 
-        cdp_record_update_value(subject, sizeof(d), CDP_V(d));
+        cdp_record_update_value(adder, sizeof(d), CDP_V(d));
         cdp_cascade_data_update(client, ans, sizeof(d), sizeof(d), CDP_V(d));
-        return subject;
+        return self;
       }
     }
 
@@ -139,23 +143,24 @@ static void* agent_adder(cdpRecord* client, cdpRecord* subject, unsigned verb, c
 
 
 
-static void* agent_stdout(cdpRecord* client, cdpRecord* subject, unsigned verb, cdpRecord* object, cdpValue value) {
-    assert(client && subject);
+static void* agent_stdout(cdpRecord* client, cdpRecord* self, unsigned action, cdpRecord* record, cdpValue value) {
+    assert(client && self);
 
-    switch (verb) {
+    switch (action) {
       case CDP_ACTION_DATA_NEW: {
-        cdp_record_set_data(subject, cdp_data_new_value(CDP_ACRON_CDP, cdp_text_to_acronysm("FLOAT64"), (cdpID)0, 0.0));
-        return subject->data;
+        cdp_record_set_data(self, cdp_data_new_value(CDP_ACRON_CDP, cdp_text_to_acronysm("FLOAT64"), sizeof(double), (cdpID)0, 0.0));
+        return self->data;
       }
 
       case CDP_ACTION_GET_INLET: {
-        return subject;
+        assert_uint64(value.id, ==, cdp_text_to_acronysm("IN1"));
+        return self;
       }
 
       case CDP_ACTION_DATA_UPDATE: {
-        cdp_record_update_value(subject, sizeof(value), value);
+        cdp_record_update_value(self, sizeof(value), value);
         printf("%f\n", value.float64);
-        return subject;
+        return self;
       }
     }
 
@@ -166,15 +171,14 @@ static void* agent_stdout(cdpRecord* client, cdpRecord* subject, unsigned verb, 
 
 
 void* test_agents_setup(const MunitParameter params[], void* user_data) {
-    cdp_system_set_agent(CDP_ACRON_CDP, CDP_WORD_STDIN,  agent_stdin);
-    cdp_system_set_agent(CDP_ACRON_CDP, CDP_WORD_ADDER,  agent_adder);
-    cdp_system_set_agent(CDP_ACRON_CDP, CDP_WORD_STDOUT, agent_stdout);
+    cdp_system_register_agent(CDP_ACRON_CDP, CDP_WORD_STDIN,  agent_stdin);
+    cdp_system_register_agent(CDP_ACRON_CDP, CDP_WORD_ADDER,  agent_adder);
+    cdp_system_register_agent(CDP_ACRON_CDP, CDP_WORD_STDOUT, agent_stdout);
 
     cdp_system_startup();
 
     return NULL;
 }
-
 
 
 void test_agents_tear_down(void* fixture) {
@@ -186,7 +190,7 @@ MunitResult test_agents(const MunitParameter params[], void* user_data_or_fixtur
     extern cdpRecord* CASCADE;
 
     // Instance initiation
-    cdpRecord* pipeline = cdp_dict_add_list(CASCADE, CDP_AUTOID, CDP_ACRON_CDP, CDP_WORD_LIST, CDP_STORAGE_ARRAY, 3);   assert_not_null(pipeline);
+    cdpRecord* pipeline = cdp_dict_add_list(CASCADE, CDP_AUTOID, CDP_ACRON_CDP, CDP_WORD_LIST, CDP_STORAGE_LINKED_LIST);   assert_not_null(pipeline);
 
     cdpRecord  child  = {0};
     cdpRecord* stdin  = cdp_record_append(pipeline, false, cdp_cascade_record_new(cdp_root(), &child, CDP_WORD_STDIN,  CDP_ACRON_CDP, CDP_WORD_STDIN,  NULL, CDP_V(0), NULL, CDP_V(0)));  assert_not_null(stdin);  assert_false(cdp_record_is_empty(stdin));
@@ -194,7 +198,7 @@ MunitResult test_agents(const MunitParameter params[], void* user_data_or_fixtur
     cdpRecord* stdout = cdp_record_append(pipeline, false, cdp_cascade_record_new(cdp_root(), &child, CDP_WORD_STDOUT, CDP_ACRON_CDP, CDP_WORD_STDOUT, NULL, CDP_V(0), NULL, CDP_V(0)));  assert_not_null(stdout); assert_false(cdp_record_is_empty(stdout));
 
     // Link pipeline in reverse (upstream) order
-    cdpRecord* in1 = cdp_cascade_get_inlet(cdp_root(), stdout, cdp_text_to_word("in1"));                assert_not_null(in1);
+    cdpRecord* in1 = cdp_cascade_get_inlet(cdp_root(), stdout, cdp_text_to_acronysm("IN1"));            assert_not_null(in1);
     cdpRecord* num = cdp_cascade_get_inlet(cdp_root(), adder,  cdp_text_to_word("num"));                assert_not_null(num);
     cdpRecord* tic = cdp_cascade_get_inlet(cdp_root(), stdin,  cdp_text_to_word("tic"));                assert_not_null(tic);
 

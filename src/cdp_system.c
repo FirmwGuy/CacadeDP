@@ -50,31 +50,35 @@ static inline bool agent_step_on_each_output(cdpEntry* entry, struct _step* step
     return false;
 }
 
-static void* agent_system_step(cdpRecord* client, cdpRecord* subject, unsigned verb, cdpRecord* object, cdpValue value) {
-    assert(client && subject && (verb < CDP_ACTION_COUNT));
+static void* agent_system_step(cdpRecord* client, cdpRecord* self, unsigned action, cdpRecord* record, cdpValue value) {
+    assert(client && self && (action < CDP_ACTION_COUNT));
 
-    switch (verb) {
+    switch (action) {
+      case CDP_ACTION_DATA_NEW: {
+        cdp_record_set_data(self, cdp_data_new_value(CDP_ACRON_CDP, cdp_text_to_acronysm("UINT64"), (cdpID)0, sizeof(uint64_t), 0));
+        return self->data;
+      }
       case CDP_ACTION_STORE_NEW: {
-        cdp_record_set_store(subject, cdp_store_new(CDP_ACRON_CDP, CDP_WORD_LIST, CDP_STORAGE_LINKED_LIST, CDP_INDEX_BY_INSERTION));
-        return subject->store;
+        cdp_record_set_store(self, cdp_store_new(CDP_ACRON_CDP, CDP_WORD_LIST, CDP_STORAGE_LINKED_LIST, CDP_INDEX_BY_INSERTION));
+        return self->store;
       }
 
       case CDP_ACTION_CONNECT: {
-        return cdp_record_append_link(subject, CDP_AUTOID, object);
+        return cdp_record_append_link(self, CDP_AUTOID, record);
       }
 
       case CDP_ACTION_UNPLUG: {
-        assert(subject == cdp_record_parent(object));
-        cdp_record_remove(object, NULL);
-        return object;
+        assert(self == cdp_record_parent(record));
+        cdp_record_remove(record, NULL);
+        return self;
       }
 
       case CDP_ACTION_DATA_UPDATE: {
-        struct _step step = {.client = subject, .tic = value};
+        struct _step step = {.client = self, .tic = value};
         cdpEntry entry = {0};
-        if (true == cdp_record_traverse(subject, (cdpTraverse) agent_step_on_each_output, &step, &entry))
+        if (true == cdp_record_traverse(self, (cdpTraverse) agent_step_on_each_output, &step, &entry))
             return NULL;
-        return subject;
+        return self;
       }
     }
 
@@ -102,6 +106,9 @@ static void system_initiate(void) {
     CASCADE = cdp_dict_add_dictionary(system, CDP_WORD_CASCADE, CDP_ACRON_CDP, CDP_WORD_DICTIONARY, CDP_STORAGE_RED_BLACK_T);
     //LIBRARY = cdp_dict_add_dictionary(system, CDP_WORD_LIBRARY, CDP_ACRON_CDP, CDP_WORD_DICTIONARY, CDP_STORAGE_RED_BLACK_T);
 
+    // Add system agents
+    cdp_system_register_agent(CDP_ACRON_CDP, CDP_WORD_STEP, agent_system_step);
+
     // Initiate global records.
     cdpRecord step = {0};
     cdp_cascade_record_new(cdp_root(), &step, CDP_WORD_STEP, CDP_ACRON_CDP, CDP_WORD_STEP, NULL, CDP_V(0), NULL, CDP_V(0));
@@ -109,13 +116,10 @@ static void system_initiate(void) {
 
     //CDP_VOID = cdp_record_append_value(TEMP, CDP_WORD_VOID, CDP_ACRON_CDP, CDP_WORD_VOID, 0, 0, sizeof(bool), sizeof(bool));
     //CDP_VOID->data->writable = false;
-
-    // Add system agents
-    cdp_system_set_agent(CDP_ACRON_CDP, CDP_WORD_STEP, agent_system_step);
 }
 
 
-void cdp_system_set_agent(cdpID domain, cdpID tag, cdpAgent agent) {
+void cdp_system_register_agent(cdpID domain, cdpID tag, cdpAgent agent) {
     if (!CASCADE)
         system_initiate();
 
