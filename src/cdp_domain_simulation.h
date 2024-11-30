@@ -25,12 +25,12 @@
 #include "cdp_record.h"
 
 
-CDP_METADATA_STRUCT(cdpSimulation,
-    cdpAttribute    role:       3,
-                    element:    4,  // Distinguishes types of structures (e.g., wall, character).
-                    interaction:3,  // Type of interaction.
+CDP_CHARACTER_STRUCT( cdpSimulation,
+    role:           3,
+    element:        4,          // Distinguishes types of structures (e.g., wall, character).
+    interaction:    3,          // Type of interaction.
 
-                    _reserved:  22;
+    _reserved:      56
 );
 
 
@@ -59,10 +59,6 @@ enum _cdpSimulationInteraction {
     CDP_SIM_INTERACT_OPEN,      //
     CDP_SIM_INTERACT_CLOSE,     //
     CDP_SIM_INTERACT_ACTIVATE,  //
-};
-
-enum _cdpSimulationTag {
-
 };
 
 

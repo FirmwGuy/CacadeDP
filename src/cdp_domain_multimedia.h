@@ -25,17 +25,19 @@
 #include "cdp_record.h"
 
 
-CDP_METADATA_STRUCT(cdpMultimedia,
-    cdpAttribute    container:    4,  // Container for data (file format).
-                    audio:        4,  // Codec for audio data.
-                    soundq:       3,  // Sound quality in audio/video.
-                    sampling:     3,  // Audio sampling frequency.
-                    video:        4,  // Codec for video data.
-                    imageq:       3,  // Image/video quality.
-                    icspace:      3,  // Image/video color space.
-                    framerate:    3,  // Animation/video frames per second.
-                    projection:   3,  // Projection for 360 image/video.
-                    subtitle:     2;  // Subtitles encoding if available.
+CDP_CHARACTER_STRUCT( cdpMultimedia,
+    container:      4,          // Container for data (file format).
+    audio:          4,          // Codec for audio data.
+    soundq:         3,          // Sound quality in audio/video.
+    sampling:       3,          // Audio sampling frequency.
+    video:          4,          // Codec for video data.
+    imageq:         3,          // Image/video quality.
+    icspace:        3,          // Image/video color space.
+    framerate:      3,          // Animation/video frames per second.
+    projection:     3,          // Projection for 360 image/video.
+    subtitle:       2,          // Subtitles encoding if available.
+
+    _reserved:      32
 );
 
 
@@ -75,13 +77,13 @@ enum _cdpMultimediaAudio {
 enum _cdpMultimediaSoundQ {
     CDP_MM_SQ_NONE,             // No audio.
 
-    CDP_MM_SQ_MONO,             // Mono 16 BPSp.
+    CDP_MM_SQ_MONO,             // Mono 16 BPSam.
 
-    CDP_MM_SQ_STEREO,           // Stereo (signed) 16 BPSp.
-    CDP_MM_SQ_STEREO24,         // Stereo (signed) 24 BPSp.
-    CDP_MM_SQ_STEREO32F,        // Stereo (float) 32 BPSp.
+    CDP_MM_SQ_STEREO,           // Stereo (signed) 16 BPSam.
+    CDP_MM_SQ_STEREO24,         // Stereo (signed) 24 BPSam.
+    CDP_MM_SQ_STEREO32F,        // Stereo (float) 32 BPSam.
 
-    CDP_MM_SQ_SORROUND,         // 5.1 surround audio 16 BPSp.
+    CDP_MM_SQ_SORROUND,         // 5.1 surround audio 16 BPSam.
 
     CDP_MM_SQ_OTHER = 7
 };
@@ -90,7 +92,7 @@ enum _cdpMultimediaASample {
     CDP_MM_ASAMP_44K,           // The standard.
     CDP_MM_ASAMP_48K,           // HQ sampling.
     CDP_MM_ASAMP_32K,           // LQ sampling.
-    CDP_MM_ASAMP_22K            // Legacy freq.
+    CDP_MM_ASAMP_22K,           // Legacy freq.
 
     CDP_MM_ASAMP_OTHER = 7
 };
@@ -129,19 +131,19 @@ enum _cdpMultimediaColorSpace {
     CDP_MM_COLSPA_RGB,          // Computer RGB colorspace.
     CDP_MM_COLSPA_RGBA,         // RGB with Alpha (transparency) channel.
     CDP_MM_COLSPA_YUV,          // Video YUV color shceme.
-    CDP_MM_COLSPA_INDEX         // Image uses a palette of 256 (or less) colors.
+    CDP_MM_COLSPA_INDEX,        // Image uses a palette of 256 (or less) colors.
 
     CDP_MM_COLSPA_OTHER = 7
 };
 
 enum _cdpMultimediaFramerate {
     CDP_MM_FR_NONE,             // Static image.
-    CDP_MM_FR_10,
-    CDP_MM_FR_20,
-    CDP_MM_FR_24,
-    CDP_MM_FR_30,               // Standard framerate.
-    CDP_MM_FR_60,
-    CDP_MM_FR_120,
+    CDP_MM_FR_6,                // Used for animations.
+    CDP_MM_FR_12,               // Used for smoother animations.
+    CDP_MM_FR_24,               // Typical for old movies.
+    CDP_MM_FR_30,               // Console framerate.
+    CDP_MM_FR_60,               // Standard framerate.
+    CDP_MM_FR_120,              // High framerate.
 
     CDP_MM_FR_OTHER = 7
 };
@@ -164,68 +166,74 @@ enum _cdpMultimediaSubtitle {
 };
 
 
-enum _cdpMultimediaTag {
-    // Uses
-    CDP_MM_TAG_AUDIO,       // Pure audio.
-    CDP_MM_TAG_IMAGE,       // Static image.
-    CDP_MM_TAG_ANIMATION,   // Animated image.
-    CDP_MM_TAG_VIDEO,       // Pure video.
-    CDP_MM_TAG_CAPTION,     // Textual overlay or subtitle.
+// Domain
+#define CDP_WORD_MULTIMEDIA   CDP_ID(0x0036ACA25A522420)      /* "multimedia"_ */
 
-    CDP_MM_TAG_ICON,
-    CDP_MM_TAG_THUMBNAIL,
-    CDP_MM_TAG_PREVIEW,
-    CDP_MM_TAG_BACKGROUND,
-    CDP_MM_TAG_SCREENSHOT,
+// Uses
+#define CDP_WORD_AUDIO        CDP_ID(0x0006A44BC0000000)      /* "audio"______ */
+#define CDP_WORD_IMAGE        CDP_ID(0x0025A13940000000)      /* "image"______ */
+#define CDP_WORD_ANIMATION    CDP_ID(0x0005C9686897B800)      /* "animation"__ */
+#define CDP_WORD_VIDEO        CDP_ID(0x0059242BC0000000)      /* "video"______ */
 
-    CDP_MM_TAG_SOUND_EFFECT,
-    CDP_MM_TAG_DIALOG,
-    CDP_MM_TAG_MUSIC,
-    CDP_MM_TAG_LOOP,
-    CDP_MM_TAG_A_RECORDING,
+    //CDP_MM_TAG_CAPTION,     // Textual overlay or subtitle.
 
-    CDP_MM_TAG_MOVIE,
-    CDP_MM_TAG_CLIP,
-    CDP_MM_TAG_SCREEN_VCAP,
+    //CDP_MM_TAG_ICON,
+    //CDP_MM_TAG_THUMBNAIL,
+    //CDP_MM_TAG_PREVIEW,
+    //CDP_MM_TAG_BACKGROUND,
+    //CDP_MM_TAG_SCREENSHOT,
 
-    CDP_MM_TAG_ANIMATION,
-    CDP_MM_TAG_SPRITE_ACTION,
-    CDP_MM_TAG_SPRITE_IDLE,
+    //CDP_MM_TAG_SOUND_EFFECT,
+    //CDP_MM_TAG_DIALOG,
+    //CDP_MM_TAG_MUSIC,
+    //CDP_MM_TAG_LOOP,
+    //CDP_MM_TAG_A_RECORDING,
 
-    // Children
-    CDP_MM_TAG_RESOLUTION,      // Image/video width in pixels.
+    //CDP_MM_TAG_MOVIE,
+    //CDP_MM_TAG_CLIP,
+    //CDP_MM_TAG_SCREEN_VCAP,
 
-    CDP_MM_TAG_DURATION,        // Duration in milliseconds.
-    CDP_MM_TAG_FRAMES,          // Duration in frames.
-    CDP_MM_TAG_SAMPLES,         // Duration in audio samples.
+    //CDP_MM_TAG_SPRITE_ACTION,
+    //CDP_MM_TAG_SPRITE_IDLE,
 
-    CDP_MM_TAG_ANIM_NAME,       // Name/id of animations.
-    CDP_MM_TAG_ANIM_INDEX,      // Index of animation.
+// Children
+#define CDP_WORD_RESOLUTION   CDP_ID(0x0048B37B2B44BDC0)      /* "resolution"_ */
+#define CDP_WORD_DURATION     CDP_ID(0x0012B20D12F70000)      /* "duration"___ */
+#define CDP_WORD_FRAMES       CDP_ID(0x001A416966000000)      /* "frames"_____ */
+#define CDP_WORD_SAMPLES      CDP_ID(0x004C2D830B300000)      /* "samples"____ */
 
-    CDP_MM_TAG_METADATA         // Anex information related to media (eg, copywrite, license, etc).
+    //CDP_MM_TAG_ANIM_NAME,       // Name/id of animations.
+    //CDP_MM_TAG_ANIM_INDEX,      // Index of animation.
 
-    CDP_MM_TAG_LANGUAGE,        // A list of per-language audio tracks.
-    CDP_MM_TAG_SUBTITLE,        // A list of per-language subtitle tracks.
+    //CDP_MM_TAG_METADATA         // Anex information related to media (eg, copywrite, license, etc).
+
+    //CDP_MM_TAG_LANGUAGE,        // A list of per-language audio tracks.
+    //CDP_MM_TAG_SUBTITLE,        // A list of per-language subtitle tracks.
 
 
-    // Agencies
-    CDP_MM_TAG_LOAD,
-    CDP_MM_TAG_UNLOAD,
-    CDP_MM_TAG_NEXT_PIXBUF,
-    CDP_MM_TAG_NEXT_AUDIOFRAME,
-    CDP_MM_TAG_PLAY,
-    CDP_MM_TAG_PAUSE,
-    CDP_MM_TAG_CAN_REWIND,
-    CDP_MM_TAG_REWIND,
-    CDP_MM_TAG_FORWARD,
-    CDP_MM_TAG_STOP,
+// Agencies
+#define CDP_WORD_PLAYER       CDP_ID(0x004181C964000000)      /* "player"_____ */
+#define CDP_WORD_MIXER        CDP_ID(0x0035382C80000000)      /* "mixer"______ */
+#define CDP_WORD_FILTER       CDP_ID(0x00192CA164000000)      /* "filter"_____ */
+#define CDP_WORD_BLENDER      CDP_ID(0x000985710B200000)      /* "blender"____ */
+#define CDP_WORD_SCALER       CDP_ID(0x004C616164000000)      /* "scaler"_____ */
 
-    // Events
-    CDP_MM_TAG_END              // End of media was reached.
+// Selectors
 
-    //
-    CDP_MM_TAG_INI_COUNT
-};
+    //CDP_MM_TAG_LOAD,
+    //CDP_MM_TAG_UNLOAD,
+    //CDP_MM_TAG_NEXT_PIXBUF,
+    //CDP_MM_TAG_NEXT_AUDIOFRAME,
+    //CDP_MM_TAG_CAN_REWIND,
+
+#define CDP_WORD_PLAY         CDP_ID(0x004181C800000000)      /* "play"_______ */
+#define CDP_WORD_PAUSE        CDP_ID(0x0040359940000000)      /* "pause"______ */
+#define CDP_WORD_REWIND       CDP_ID(0x0048B74B88000000)      /* "rewind"_____ */
+#define CDP_WORD_FORWARD      CDP_ID(0x0019F2B864400000)      /* "forward"____ */
+#define CDP_WORD_STOP         CDP_ID(0x004E8F8000000000)      /* "stop"_______ */
+
+// Events
+#define CDP_WORD_END          CDP_ID(0x0015C40000000000)      /* "end"________ */
 
 
 #endif

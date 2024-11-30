@@ -95,7 +95,7 @@ void cdp_record_system_shutdown(void) {
 #define DATA_HEAD_SIZE      (sizeof(cdpData) - VALUE_CAP_MIN)
 
 cdpData* cdp_data_new(  cdpID domain, cdpID tag,
-                        cdpID attribute, unsigned datatype, bool writable,
+                        cdpID character, unsigned datatype, bool writable,
                         void** dataloc, cdpValue value, ...  ) {
     assert(cdp_id_text_valid(domain) && cdp_id_text_valid(tag) && (datatype < CDP_DATATYPE_COUNT));
 
@@ -193,7 +193,7 @@ cdpData* cdp_data_new(  cdpID domain, cdpID tag,
 
     data->domain    = domain;
     data->tag       = tag;
-    data->attribute = attribute;
+    data->character = character;
     data->datatype  = datatype;
     data->writable  = writable;
 

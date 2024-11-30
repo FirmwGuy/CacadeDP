@@ -216,12 +216,12 @@ size_t cdp_word_to_text(cdpID coded, char s[12]);
 
 #define CDP_ID                  UINT64_C
 
-#define CDP_WORD_ROOT           CDP_ID(0x007C000000000000)      /* "/"           */
-#define CDP_WORD_LIST           CDP_ID(0x003133A000000000)      /* "list"        */
-#define CDP_WORD_DICTIONARY     CDP_ID(0x001123A25EE0CB20)      /* "dictionary"  */
-#define CDP_WORD_CATALOG        CDP_ID(0x000C340B1E700000)      /* "catalog"     */
+#define CDP_WORD_ROOT           CDP_ID(0x007C000000000000)      /* "/"__________ */
+#define CDP_WORD_LIST           CDP_ID(0x003133A000000000)      /* "list"_______ */
+#define CDP_WORD_DICTIONARY     CDP_ID(0x001123A25EE0CB20)      /* "dictionary"_ */
+#define CDP_WORD_CATALOG        CDP_ID(0x000C340B1E700000)      /* "catalog"____ */
 
-#define CDP_ACRON_CDP           CDP_ID(0x0123930000000000)      /* "CDP"         */
+#define CDP_ACRON_CDP           CDP_ID(0x0123930000000000)      /* "CDP"------ */
 
 
 struct _cdpAgentList {
@@ -256,17 +256,17 @@ static inline cdpAgentList* cdp_agent_list_new(cdpID domain, cdpID tag, cdpAgent
 union _cdpValue {
     uint8_t     byte;
     uint8_t     _byte[8];
-    uint64_t    uint64;
-    uint32_t    uint32;
-    uint32_t    _uint32[2];
     uint16_t    uint16;
     uint16_t    _uint16[4];
+    uint32_t    uint32;
+    uint32_t    _uint32[2];
+    uint64_t    uint64;
 
-    int64_t     int64;
-    int32_t     int32;
-    int32_t     _int32[2];
     int16_t     int16;
     int16_t     _int16[4];
+    int32_t     int32;
+    int32_t     _int32[2];
+    int64_t     int64;
 
     float       float32;
     float       _float32[2];
@@ -295,7 +295,7 @@ struct _cdpData {
                         tag:        CDP_NAME_BITS;  // Data tag.
     };
 
-    cdpID               attribute;      // Data attributes (it depends on domain).
+    cdpID               character;      // Data characteristics (it depends on domain).
     size_t              size;           // Data size in bytes.
     size_t              capacity;       // Buffer capacity in bytes.
 
@@ -330,12 +330,12 @@ enum _cdpDataType {
 
 
 cdpData* cdp_data_new(  cdpID domain, cdpID tag,
-                        cdpID attribute, unsigned datatype, bool writable,
+                        cdpID character, unsigned datatype, bool writable,
                         void** dataloc, cdpValue value, ...  );
 void     cdp_data_del(cdpData* data);
 void*    cdp_data(const cdpData* data);
 #define  cdp_data_valid(d)                      ((d) && (d)->capacity && cdp_id_text_valid((d)->domain) && cdp_id_text_valid((d)->tag))
-#define  cdp_data_new_value(d, t, a, z, value)  cdp_data_new(d, t, a, CDP_DATATYPE_VALUE, true, NULL, CDP_V(value), z, sizeof(cdpValue))
+#define  cdp_data_new_value(d, t, c, z, value)  cdp_data_new(d, t, c, CDP_DATATYPE_VALUE, true, NULL, CDP_V(value), z, sizeof(cdpValue))
 
 static inline void cdp_data_add_agent(cdpData* data, cdpID domain, cdpID tag, cdpAgent agent) {
     assert(cdp_data_valid(data));
@@ -345,6 +345,10 @@ static inline void cdp_data_add_agent(cdpData* data, cdpID domain, cdpID tag, cd
         list->next = data->agent;
     data->agent = list;
 }
+
+
+#define CDP_CHARACTER_STRUCT(type, ...)  typedef struct {cdpID __VA_ARGS__;} type; static_assert(sizeof(type) <= sizeof(cdpID))
+
 
 
 /*
@@ -654,7 +658,7 @@ void*    cdp_record_data(const cdpRecord* record);
 
 void* cdp_record_update(cdpRecord* record, size_t size, size_t capacity, cdpValue value, bool swap);
 #define cdp_record_update_value(r, z, v)    cdp_record_update(r, (z), sizeof(cdpValue), CDP_V(v), false)
-#define cdp_record_update_attribute(r, a)   do{ assert(cdp_record_has_data(r);  (r)->data.attribute = (a); }while(0)
+#define cdp_record_update_character(r, c)   do{ assert(cdp_record_has_data(r);  (r)->data.character = (c); }while(0)
 
 static inline void cdp_record_delete_data(cdpRecord* record)        {if (cdp_record_has_data(record))  {cdp_data_del(record->data);   record->data  = NULL;}}
 static inline void cdp_record_delete_store(cdpRecord* record)       {if (cdp_record_has_store(record)) {cdp_store_del(record->store); record->store = NULL;}}

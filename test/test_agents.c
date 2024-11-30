@@ -187,6 +187,10 @@ void test_agents_tear_down(void* fixture) {
 
 
 MunitResult test_agents(const MunitParameter params[], void* user_data_or_fixture) {
+    const char* param_value = munit_parameters_get(params, "stdio");
+    if (!param_value)
+        DONE = true;
+
     extern cdpRecord* CASCADE;
 
     // Instance initiation

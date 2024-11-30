@@ -51,7 +51,7 @@ static inline bool agent_step_on_each_output(cdpEntry* entry, struct _step* step
 }
 
 static void* agent_system_step(cdpRecord* client, cdpRecord* self, unsigned action, cdpRecord* record, cdpValue value) {
-    assert(client && self && (action < CDP_ACTION_COUNT));
+    assert(client && self);
 
     switch (action) {
       case CDP_ACTION_DATA_NEW: {
@@ -82,7 +82,7 @@ static void* agent_system_step(cdpRecord* client, cdpRecord* self, unsigned acti
       }
     }
 
-    return NULL;
+    return self;
 }
 
 

@@ -196,24 +196,22 @@
 
 
 // Core directories
-#define CDP_WORD_DATA       CDP_ID(0x0010340800000000)      /* "data"        */
-#define CDP_WORD_NETWORK    CDP_ID(0x0038B4BBE4B00000)      /* "network"     */
-#define CDP_WORD_PUBLIC     CDP_ID(0x0042A26246000000)      /* "public"      */
-#define CDP_WORD_PRIVATE    CDP_ID(0x004249B068500000)      /* "private"     */
-#define CDP_WORD_SYSTEM     CDP_ID(0x004F33A15A000000)      /* "system"      */
-#define CDP_WORD_TEMP       CDP_ID(0x0050AD8000000000)      /* "temp"        */
-#define CDP_WORD_USER       CDP_ID(0x0056659000000000)      /* "user"        */
+#define CDP_WORD_DATA       CDP_ID(0x0010340800000000)      /* "data"_______ */
+#define CDP_WORD_NETWORK    CDP_ID(0x0038B4BBE4B00000)      /* "network"____ */
+#define CDP_WORD_PUBLIC     CDP_ID(0x0042A26246000000)      /* "public"_____ */
+#define CDP_WORD_PRIVATE    CDP_ID(0x004249B068500000)      /* "private"____ */
+#define CDP_WORD_SYSTEM     CDP_ID(0x004F33A15A000000)      /* "system"_____ */
+#define CDP_WORD_TEMP       CDP_ID(0x0050AD8000000000)      /* "temp"_______ */
+#define CDP_WORD_USER       CDP_ID(0x0056659000000000)      /* "user"_______ */
 
 
 // Core sub-dirs
-#define CDP_WORD_AGENT      CDP_ID(0x0004E57500000000)      /* "agent"       */
-//#define CDP_WORD_AGENCY     CDP_ID(0x0004E570F2000000)      /* "agency"      */
-#define CDP_WORD_CASCADE    CDP_ID(0x000C331848500000)      /* "cascade"     */
-#define CDP_WORD_DOMAIN     CDP_ID(0x0011ED0A5C000000)      /* "domain"      */
-#define CDP_WORD_LIBRARY    CDP_ID(0x0031229065900000)      /* "library"     */
+#define CDP_WORD_AGENT      CDP_ID(0x0004E57500000000)      /* "agent"______ */
+#define CDP_WORD_CASCADE    CDP_ID(0x000C331848500000)      /* "cascade"____ */
+#define CDP_WORD_DOMAIN     CDP_ID(0x0011ED0A5C000000)      /* "domain"_____ */
+#define CDP_WORD_LIBRARY    CDP_ID(0x0031229065900000)      /* "library"____ */
 
-#define CDP_WORD_STEP       CDP_ID(0x004E858000000000)      /* "step"        */
-//#define CDP_WORD_TASK       CDP_ID(0x0000000000000000)      /* "task"        */
+#define CDP_WORD_STEP       CDP_ID(0x004E858000000000)      /* "step"_______ */
 
 
 // Basic fields

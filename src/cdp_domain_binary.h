@@ -25,19 +25,39 @@
 #include "cdp_record.h"
 
 
-CDP_METADATA_STRUCT(cdpBinary,
-    cdpAttribute    pow2:       4,  // Power of 2 exponent describing the element scalar size (in bytes).
-                    sign:       1,  // Is it signed (1) or unsigned (0)?
-                    exponent:   1,  // True (1) if not an integer.
-                    dimension:  3,  // Dimensions of data.
+CDP_CHARACTER_STRUCT( cdpBinary,
+    pow2:           4,          // Power of 2 floating describing the element scalar size (in bytes).
+    sign:           1,          // Is it signed (1) or unsigned (0)?
+    floating:       2,          // Floating point type.
+    dimension:      3,          // Dimensions of data.
 
-                    endianess:  1,  // Little endian (0) is the norm.
-                    abi:        3,  // Binary representation of content.
-                    compression:3,  // Type of compression used to pack content.
-                    encryption: 3,  // Encryption method.
+    endianess:      1,          // Little endian (0) is the norm.
+    compression:    3,          // Type of compression used to pack content.
+    encryption:     3,          // Encryption method.
 
-                    _reserved:  13; // ToDo: expand to streams and communication related stuff.
+    _reserved:      47          // ToDo: expand to streams and communication related stuff.
 );
+
+
+enum _cdpBinaryPow2 {
+    CDP_BIN_POW2_BYTE1,         // Scalar size is 8 bits.
+    CDP_BIN_POW2_BYTE2,         // Scalar is 16 bits.
+    CDP_BIN_POW2_BYTE4,         // 32 bits.
+    CDP_BIN_POW2_BYTE8,         // 64 bits.
+    CDP_BIN_POW2_BYTE16,        // 128 bits.
+    CDP_BIN_POW2_BYTE32,        // 256 bits.
+    CDP_BIN_POW2_BYTE64,        // 512 bits.
+
+    CDP_BIN_POW2_OTHER = 15
+};
+
+
+enum _cdpBinaryFloating {
+    CDP_BIN_FLOAT_NONE,         // Integer.
+    CDP_BIN_FLOAT_DECIMAL,      // Decimal floating point.
+    CDP_BIN_FLOAT_BINARY,       // Binary floating point.
+    CDP_BIN_FLOAT_COMPLEX       // Binary with imaginary part.
+};
 
 
 enum _cdpBinaryDimension {
@@ -52,33 +72,6 @@ enum _cdpBinaryDimension {
     CDP_BIN_DIM_OTHER = 7
 };
 
-enum _cdpBinaryPow2 {
-    CDP_BIN_POW2_BYTE1,         // Scalar size is 8 bits.
-    CDP_BIN_POW2_BYTE2,         // Scalar is 16 bits.
-    CDP_BIN_POW2_BYTE4,         // 32 bits.
-    CDP_BIN_POW2_BYTE8,         // 64.
-    CDP_BIN_POW2_BYTE16,        // 128.
-
-    CDP_BIN_POW2_OTHER = 15
-};
-
-
-enum _cdpBinaryABI {            // Aplication Binary Interface:
-    CDP_BIN_ENC_BYTE,           // Content is an opaque sequence of bytes.
-    CDP_BIN_ENC_UNSIGNED,       // All GCC-supported unsigned sizes.
-    CDP_BIN_ENC_INTEGER,        // All GCC-supported signed integer sizes.
-    //CDP_BIN_ENC_GMP,            // LGPL GMP (bignum) library.
-    CDP_BIN_ENC_FLOAT,          // IEEE binary representation of floats.
-    //CDP_BIN_ENC_MPFR,           // LGPL MPFR (bigfloat) library.
-    CDP_BIN_ENC_DECIMAL,        // GCC decimal representation.
-    //CDP_BIN_ENC_MPDECIMAL,      // BSD MPDecimal library.
-    CDP_BIN_ENC_COMPLEX,        // GCC representation of complex floats.
-    //CDP_BIN_ENC_MPC,            // LGPL MPC (bigcomplex) library.
-    CDP_BIN_ENC_MATRIX,         // CDP representation of vector/matrices.
-    //CDP_BIN_ENC_ARRAYFIRE,      // BSD Arrayfire tensor library.
-
-    CDP_BIN_ENC_OTHER = 7
-};
 
 enum _cdpBinaryCompression {
     CDP_BIN_COMPRESS_NONE,      // Uncompressed content.
@@ -116,159 +109,178 @@ enum _cdpBinaryEncryption {
 //~ };
 
 
-enum _cdpBinaryTag {
-    // Uses
-    CDP_BIN_TAG_LINK,           // Link to other record.
-    CDP_BIN_TAG_AGENT,          // Address of agent function.
-    CDP_BIN_TAG_TAG,
-    CDP_BIN_TAG_NAME,
-    CDP_BIN_TAG_PATCH,
+// Domain
+#define CDP_WORD_BINARY       CDP_ID(0x00092E0CB2000000)      /* "binary"_____ */
 
-    CDP_BIN_TAG_BYTE,           // Opaque binary representation.
-    CDP_BIN_TAG_VALUE,
-    CDP_BIN_TAG_INDEX,
-    CDP_BIN_TAG_BOOLEAN,
-    CDP_BIN_TAG_BITWISE,        // Bitwise/bitmask.
-    CDP_BIN_TAG_ADDRESS,        // Local memory/size/offset.
+// Uses
+#define CDP_WORD_BYTE         CDP_ID(0x000B342800000000)      /* "byte"_______ */
+#define CDP_WORD_BOOLEAN      CDP_ID(0x0009EF6142E00000)      /* "boolean"____ */
+#define CDP_WORD_ADDRESS      CDP_ID(0x0004849167300000)      /* "address"____ */
 
-    CDP_BIN_TAG_CRC,
-    CDP_BIN_TAG_HASH,
+#define CDP_ACRON_UINT16      CDP_ID(0x0135A6ED11580000)      /* "UINT16"--- */
+#define CDP_ACRON_UINT32      CDP_ID(0x0135A6ED13480000)      /* "UINT32"--- */
+#define CDP_ACRON_UINT64      CDP_ID(0x0135A6ED16500000)      /* "UINT64"--- */
 
-    // Children
-    CDP_BIN_TAG_LENGTH,         // Arbitrary length of a vector.
-    CDP_BIN_TAG_LENGTH2D,       // Arbitrary length of a matrix.
-    CDP_BIN_TAG_LENGTH3D,
-    CDP_BIN_TAG_LENGTH4D,
+#define CDP_ACRON_INT16       CDP_ID(0x0129BB4456000000)      /* "INT16"---- */
+#define CDP_ACRON_INT32       CDP_ID(0x0129BB44D2000000)      /* "INT32"---- */
+#define CDP_ACRON_INT64       CDP_ID(0x0129BB4594000000)      /* "INT64"---- */
 
-    CDP_BIN_TAG_TENSOR_ORD,     // Tensor order (if over 4 dimensions).
-    CDP_BIN_TAG_TENSOR_LEN,     // A vector with arbitrary dimension lengths for a tensor.
+#define CDP_ACRON_FLOAT32     CDP_ID(0x0126B2F8744D2000)      /* "FLOAT32"-- */
+#define CDP_ACRON_FLOAT64     CDP_ID(0x0126B2F874594000)      /* "FLOAT64"-- */
 
-    // Agencies
-    CDP_BIN_TAG_AND,
-    CDP_BIN_TAG_OR,
-    CDP_BIN_TAG_NOT,
+#define CDP_ACRON_VECTOR2D    CDP_ID(0x0136963D2FC92900)      /* "VECTOR2D"- */
+#define CDP_ACRON_VECTOR3D    CDP_ID(0x0136963D2FC93900)      /* "VECTOR3D"- */
+#define CDP_ACRON_VECTOR4D    CDP_ID(0x0136963D2FC94900)      /* "VECTOR4D"- */
 
-    CDP_BIN_TAG_EQUAL,
-    CDP_BIN_TAG_GREATER,
-    CDP_BIN_TAG_LESSER,
+#define CDP_ACRON_MATRIX2D    CDP_ID(0x012D874CA9E12900)      /* "MATRIX2D"- */
+#define CDP_ACRON_MATRIX3D    CDP_ID(0x012D874CA9E13900)      /* "MATRIX3D"- */
+#define CDP_ACRON_MATRIX4D    CDP_ID(0x012D874CA9E14900)      /* "MATRIX4D"- */
 
-    CDP_BIN_TAG_ADD,
-    CDP_BIN_TAG_SUBSTRACT,
-    CDP_BIN_TAG_MULTIPLY,
-    CDP_BIN_TAG_DIVIDE,
+// Children
+#define CDP_ACRON_LENGTH1D    CDP_ID(0x012C96E9F4A11900)      /* "LENGTH1D"- */
+#define CDP_ACRON_LENGTH2D    CDP_ID(0x012C96E9F4A12900)      /* "LENGTH2D"- */
+#define CDP_ACRON_LENGTH3D    CDP_ID(0x012C96E9F4A13900)      /* "LENGTH3D"- */
 
-    //
-    CDP_BIN_TAG_INI_COUNT
-};
+// Agents
+#define CDP_WORD_LOGIC        CDP_ID(0x0031E748C0000000)      /* "logic"______ */
+#define CDP_WORD_BITWISE      CDP_ID(0x000934BA66500000)      /* "bitwise"____ */
+#define CDP_WORD_ARITHMETIC   CDP_ID(0x000649A21A5A2460)      /* "arithmetic"_ */
+#define CDP_WORD_MATHEMATIC   CDP_ID(0x003434415A1A2460)      /* "mathematic"_ */
+
+// Selectors
+#define CDP_WORD_AND          CDP_ID(0x0005C40000000000)      /* "and"________ */
+#define CDP_WORD_OR           CDP_ID(0x003E400000000000)      /* "or"_________ */
+#define CDP_WORD_NOT          CDP_ID(0x0039F40000000000)      /* "not"________ */
+#define CDP_WORD_XOR          CDP_ID(0x0061F20000000000)      /* "xor"________ */
+
+#define CDP_WORD_EQUAL        CDP_ID(0x0016350B00000000)      /* "equal"______ */
+#define CDP_ACRON_GT          CDP_ID(0x0127D00000000000)      /* "GT"------- */
+#define CDP_ACRON_EGT         CDP_ID(0x01259F4000000000)      /* "EGT"------ */
+#define CDP_ACRON_LT          CDP_ID(0x012CD00000000000)      /* "LT"------- */
+#define CDP_ACRON_ELT         CDP_ID(0x0125B34000000000)      /* "ELT"------ */
+
+#define CDP_WORD_ADD          CDP_ID(0x0004840000000000)      /* "add"________ */
+#define CDP_WORD_SUBTRACT     CDP_ID(0x004EA2A4823A0000)      /* "subtract"___ */
+#define CDP_WORD_MULTIPLY     CDP_ID(0x0036ACA260CC8000)      /* "multiply"___ */
+#define CDP_WORD_DIVIDE       CDP_ID(0x001136490A000000)      /* "divide"_____ */
 
 
-#define cdp_binary_metadata_link()                                             \
+// Characters
+
+#define CDP_BINARY_BOOLEAN                                                     \
     ((cdpBinary) {                                                             \
-        .domain   = CDP_DOMAIN_BINARY,                                         \
-        .tag      = CDP_BIN_TAG_LINK,                                          \
-        .pow2     = cdp_ctz(sizeof(void*)), /* Same as log2(sizeof(void*)). */ \
-        .encoding = CDP_BIN_ENC_UNSIGNED                                       \
+        .domain     = CDP_WORD_BINARY,                                         \
+        .tag        = CDP_WORD_BOOLEAN,                                        \
+        .pow2       = CDP_BIN_POW2_BYTE1                                       \
     })
 
-#define cdp_binary_metadata_agent()                                            \
+#define CDP_BINARY_UINT32                                                      \
     ((cdpBinary) {                                                             \
-        .domain   = CDP_DOMAIN_BINARY,                                         \
-        .tag      = CDP_BIN_TAG_AGENT,                                         \
-        .pow2     = cdp_ctz(sizeof(cdpAgent)),                                 \
-        .encoding = CDP_BIN_ENC_UNSIGNED                                       \
+        .domain     = CDP_WORD_BINARY,                                         \
+        .tag        = CDP_ACRON_UINT32,                                        \
+        .pow2       = cdp_ctz(sizeof(uint32_t))                                \
     })
 
-#define cdp_binary_metadata_boolean()                                          \
+#define CDP_BINARY_UINT64                                                      \
     ((cdpBinary) {                                                             \
-        .domain   = CDP_DOMAIN_BINARY,                                         \
-        .tag      = CDP_BIN_TAG_BOOLEAN,                                       \
-        .pow2     = CDP_BIN_POW2_BYTE1,                                        \
-        .encoding = CDP_BIN_ENC_BYTE                                           \
+        .domain     = CDP_WORD_BINARY,                                         \
+        .tag        = CDP_ACRON_UINT64,                                        \
+        .pow2       = cdp_ctz(sizeof(uint64_t))                                \
     })
 
-#define cdp_binary_metadata_uint32()                                           \
+#define CDP_BINARY_INT32                                                       \
     ((cdpBinary) {                                                             \
-        .domain   = CDP_DOMAIN_BINARY,                                         \
-        .tag      = CDP_BIN_TAG_VALUE,                                         \
-        .pow2     = cdp_ctz(sizeof(uint32_t)),                                 \
-        .encoding = CDP_BIN_ENC_UNSIGNED                                       \
+        .domain     = CDP_WORD_BINARY,                                         \
+        .tag        = CDP_ACRON_INT32,                                         \
+        .pow2       = cdp_ctz(sizeof(int32_t)),                                \
+        .sign       = 1                                                        \
     })
 
-#define cdp_binary_metadata_uint64()                                           \
+#define CDP_BINARY_INT64                                                       \
     ((cdpBinary) {                                                             \
-        .domain   = CDP_DOMAIN_BINARY,                                         \
-        .tag      = CDP_BIN_TAG_VALUE,                                         \
-        .pow2     = cdp_ctz(sizeof(uint64_t)),                                 \
-        .encoding = CDP_BIN_ENC_UNSIGNED                                       \
+        .domain     = CDP_WORD_BINARY,                                         \
+        .tag        = CDP_ACRON_INT64,                                         \
+        .pow2       = cdp_ctz(sizeof(int64_t)),                                \
+        .sign       = 1                                                        \
     })
 
-#define cdp_binary_metadata_int32()                                            \
+#define CDP_BINARY_FLOAT32                                                     \
     ((cdpBinary) {                                                             \
-        .domain   = CDP_DOMAIN_BINARY,                                         \
-        .tag      = CDP_BIN_TAG_VALUE,                                         \
-        .pow2     = cdp_ctz(sizeof(int32_t)),                                  \
-        .sign     = 1,                                                         \
-        .encoding = CDP_BIN_ENC_INTEGER                                        \
+        .domain     = CDP_WORD_BINARY,                                         \
+        .tag        = CDP_ACRON_FLOAT32,                                       \
+        .pow2       = cdp_ctz(sizeof(float)),                                  \
+        .sign       = 1,                                                       \
+        .floating   = CDP_BIN_FLOAT_BINARY                                     \
     })
 
-#define cdp_binary_metadata_int64()                                            \
+#define CDP_BINARY_FLOAT64                                                     \
     ((cdpBinary) {                                                             \
-        .domain   = CDP_DOMAIN_BINARY,                                         \
-        .tag      = CDP_BIN_TAG_VALUE,                                         \
-        .pow2     = cdp_ctz(sizeof(int64_t)),                                  \
-        .sign     = 1,                                                         \
-        .encoding = CDP_BIN_ENC_INTEGER                                        \
+        .domain     = CDP_WORD_BINARY,                                         \
+        .tag        = CDP_ACRON_FLOAT64,                                       \
+        .pow2       = cdp_ctz(sizeof(double)),                                 \
+        .sign       = 1,                                                       \
+        .floating   = CDP_BIN_FLOAT_BINARY                                     \
     })
 
-#define cdp_binary_metadata_float32()                                          \
+#define CDP_BINARY_VECTOR2D                                                    \
     ((cdpBinary) {                                                             \
-        .domain   = CDP_DOMAIN_BINARY,                                         \
-        .tag      = CDP_BIN_TAG_VALUE,                                         \
-        .pow2     = cdp_ctz(sizeof(float)),                                    \
-        .sign     = 1,                                                         \
-        .exponent = 1,                                                         \
-        .encoding = CDP_BIN_ENC_FLOAT                                          \
+        .domain     = CDP_WORD_BINARY,                                         \
+        .tag        = CDP_ACRON_VECTOR2D,                                      \
+        .pow2       = cdp_ctz(sizeof(float)),                                  \
+        .sign       = 1,                                                       \
+        .floating   = CDP_BIN_FLOAT_BINARY,                                    \
+        .dimension  = CDP_BIN_DIM_VECTOR2D                                     \
     })
 
-#define cdp_binary_metadata_float64()                                          \
+#define CDP_BINARY_VECTOR3D                                                    \
     ((cdpBinary) {                                                             \
-        .domain   = CDP_DOMAIN_BINARY,                                         \
-        .tag      = CDP_BIN_TAG_VALUE,                                         \
-        .pow2     = cdp_ctz(sizeof(double)),                                   \
-        .sign     = 1,                                                         \
-        .exponent = 1,                                                         \
-        .encoding = CDP_BIN_ENC_FLOAT                                          \
+        .domain     = CDP_WORD_BINARY,                                         \
+        .tag        = CDP_ACRON_VECTOR3D,                                      \
+        .pow2       = cdp_ctz(sizeof(float)),                                  \
+        .sign       = 1,                                                       \
+        .floating   = 1,                                                       \
+        .dimension  = CDP_BIN_DIM_VECTOR3D                                     \
     })
 
+#define CDP_BINARY_VECTOR4D                                                    \
+    ((cdpBinary) {                                                             \
+        .domain     = CDP_WORD_BINARY,                                         \
+        .tag        = CDP_ACRON_VECTOR4D,                                      \
+        .pow2       = cdp_ctz(sizeof(float)),                                  \
+        .sign       = 1,                                                       \
+        .floating   = CDP_BIN_FLOAT_BINARY,                                    \
+        .dimension  = CDP_BIN_DIM_VECTOR4D                                     \
+    })
 
-void cdp_binary_system_initiate(void);
+#define CDP_BINARY_MATRIX2D                                                    \
+    ((cdpBinary) {                                                             \
+        .domain     = CDP_WORD_BINARY,                                         \
+        .tag        = CDP_ACRON_MATRIX2D,                                      \
+        .pow2       = cdp_ctz(sizeof(float)),                                  \
+        .sign       = 1,                                                       \
+        .floating   = CDP_BIN_FLOAT_BINARY,                                    \
+        .dimension  = CDP_BIN_DIM_MATRIX2D                                     \
+    })
 
+#define CDP_BINARY_MATRIX3D                                                    \
+    ((cdpBinary) {                                                             \
+        .domain     = CDP_WORD_BINARY,                                         \
+        .tag        = CDP_ACRON_MATRIX3D,                                      \
+        .pow2       = cdp_ctz(sizeof(float)),                                  \
+        .sign       = 1,                                                       \
+        .floating   = CDP_BIN_FLOAT_BINARY,                                    \
+        .dimension  = CDP_BIN_DIM_MATRIX3D                                     \
+    })
 
-static inline size_t cdp_binary_size(cdpRecord* record) {
-    assert(!cdp_record_is_void(record));
-
-    static const void* const _recData[] = {&&NONE, &&NEAR, &&DATA, &&FAR};
-    goto *_recData[(record)->metadata.recdata];
-    {
-      NONE: {
-        assert(cdp_record_has_data(record));  // This shouldn't happen.
-        return 0;
-      }
-      NEAR: {
-        cdpBinary* binary = (cdpBinary*) &record->metadata;
-        assert(binary->dimension <= CDP_BIN_DIM_VECTOR4D);
-        size_t entries = 1 + binary->dimension;
-        size_t bsize = (1 << binary->pow2);
-        return (entries * bsize);
-      }
-      DATA:;
-      FAR: {
-        return record->data->size;
-      }
-    }
-
-    return 0;
-}
+#define CDP_BINARY_MATRIX4D                                                    \
+    ((cdpBinary) {                                                             \
+        .domain     = CDP_WORD_BINARY,                                         \
+        .tag        = CDP_ACRON_MATRIX4D,                                      \
+        .pow2       = cdp_ctz(sizeof(float)),                                  \
+        .sign       = 1,                                                       \
+        .floating   = CDP_BIN_FLOAT_BINARY,                                    \
+        .dimension  = CDP_BIN_DIM_MATRIX4D                                     \
+    })
 
 
 #endif

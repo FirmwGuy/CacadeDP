@@ -50,7 +50,10 @@ MunitTest tests[] = {
         test_agents_setup,
         test_agents_tear_down,
         MUNIT_TEST_OPTION_NONE,
-        NULL                      // Parameters.
+        (MunitParameterEnum[]) {
+            {"stdio", NULL},      // Text to convert to ID value.
+            {NULL, NULL}
+        }
     },
 
     {NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL}  // EOL

@@ -25,30 +25,32 @@
 #include "cdp_record.h"
 
 
-CDP_METADATA_STRUCT(cdpText,
-    cdpAttribute    encoding:   3,  // Text encoding (UTF8, Unicode, Latin1, etc).
-                    heading:    3,  // Heading level value for titles (H1, H2, etc).
-                    listing:    2,  // Type of listing for table/list (enumerated, definition, etc).
-                    formating:  3,  // Text format (bold, italic, etc).
-                    font:       3,  // Recommended font family to use for rendering.
-                    alignment:  2,  // Recommended horizontal text alignment (left, center, etc).
-                    language:   6,  // Language of content (including programming language for scripts).
-                    media:      3,  // Embedded media type (image, video, etc).
+CDP_CHARACTER_STRUCT( cdpText,
+    encoding:       4,          // Text encoding (UTF8, Unicode, Latin1, etc).
+    heading:        3,          // Heading level value for titles (H1, H2, etc).
+    listing:        2,          // Type of listing for table/list (enumerated, definition, etc).
+    formating:      3,          // Text format (bold, italic, etc).
+    font:           3,          // Recommended font family to use for rendering.
+    alignment:      2,          // Recommended horizontal text alignment (left, center, etc).
+    language:       6,          // Language of content (including programming language for scripts).
+    media:          3,          // Embedded media type (image, video, etc).
 
-                    _reserved:  7;  // ToDO: expand to include DOM things?
+    _reserved:      38          // ToDO: expand to include DOM things?
 );
 
 
 enum _cdpTextEncoding {
     CDP_TXT_ENCOD_UTF8,         // The standard.
+    CDP_TXT_ENCOD_ASCII,        // Full ASCII text.
+    CDP_TXT_ENCOD_WORD,         // ASCII lowercase only word (length up to 11).
+    CDP_TXT_ENCOD_ACRONYSM,     // ASCII uppercase, numbers and symbols (length up to 9).
     CDP_TXT_ENCOD_UNICODE,      // A 2-byte wide C string.
     CDP_TXT_ENCOD_ISO8859,      // European (aka Latin1).
     CDP_TXT_ENCOD_SHIFT_JIS,    // Japanse.
     CDP_TXT_ENCOD_BIG5,         // Cantonese chinese.
     CDP_TXT_ENCOD_GB18030,      // Simplified chinese.
-    CDP_TXT_ENCOD_ASCII64,      // A subset of ASCII (range 32-95).
 
-    CDP_TXT_ENCOD_OTHER = 7
+    CDP_TXT_ENCOD_OTHER = 15
 };
 
 enum _cdpTextHeding {
@@ -97,7 +99,7 @@ enum _cdpTextAlignment {
 };
 
 enum _cdpTextLanguage {
-    CDP_TXT_LANG_ENGLISH,       // The lingua franca.
+    CDP_TXT_LANG_ENGLISH,       // The "lingua-franca".
     CDP_TXT_LANG_SPANISH,
     CDP_TXT_LANG_FRENCH,
     CDP_TXT_LANG_GERMAN,
@@ -126,65 +128,67 @@ enum _cdpTextMedia {
 };
 
 
-enum _cdpTextTag {
-    // Uses
-    CDP_TXT_TAG_URL,
-    CDP_TXT_TAG_METADATA,      // Used for defining metadata, comments, or annotations within the text (e.g., <meta>, comments in markdown).
-    CDP_TXT_TAG_MEDIA,         // Represents media elements like images, videos, and embedded content (e.g., <img>, <iframe>).
-    CDP_TXT_TAG_SCRIPT,        // The (executable) code part of this document.
+// Domain
+#define CDP_WORD_TEXT         CDP_ID(0x0050B8A000000000)      /* "text"_______ */
 
-    CDP_TXT_TAG_CHARACTER,
-    CDP_TXT_TAG_WORD,
-    CDP_TXT_TAG_LINE,
-    CDP_TXT_TAG_PARAGRAPH,
-    CDP_TXT_TAG_TABLE,
-    CDP_TXT_TAG_FORMULA,
-    CDP_TXT_TAG_FOOTNOTE,
-    CDP_TXT_TAG_HEADER,
+// Uses
+#define CDP_ACRON_URL         CDP_ID(0x0135CAC000000000)      /* "URL"------ */
 
-    CDP_TXT_TAG_TITLE,
-    CDP_TXT_TAG_ABSTRACT,
-    CDP_TXT_TAG_BODY,
-    CDP_TXT_TAG_TOC,
-    CDP_TXT_TAG_CHAPTER,
-    CDP_TXT_TAG_SECTION,
-    CDP_TXT_TAG_CONCLUSION,
-    CDP_TXT_TAG_AKNOWLEDGMENT,
-    CDP_TXT_TAG_APPENDICE,
-    CDP_TXT_TAG_GLOSSARY,
+    //CDP_TXT_TAG_METADATA,      // Used for defining metadata, comments, or annotations within the text (e.g., <meta>, comments in markdown).
+    //CDP_TXT_TAG_MEDIA,         // Represents media elements like images, videos, and embedded content (e.g., <img>, <iframe>).
+    //CDP_TXT_TAG_SCRIPT,        // The (executable) code part of this document.
 
-    CDP_TXT_TAG_AUTHOR,
-    CDP_TXT_TAG_DATE,
-    CDP_TXT_TAG_VERSION,
-    CDP_TXT_TAG_COPYRIGHT,
-    CDP_TXT_TAG_LICENSE,
+#define CDP_WORD_CHARACTER    CDP_ID(0x000D01904742C800)      /* "character"__ */
+#define CDP_WORD_WORD         CDP_ID(0x005DF22000000000)      /* "word"_______ */
+#define CDP_WORD_LINE         CDP_ID(0x00312E2800000000)      /* "line"_______ */
+#define CDP_WORD_PARAGRAPH    CDP_ID(0x00403209E4182000)      /* "paragraph"__ */
 
-    // Children
-    CDP_TXT_TAG_LENGTH,     // Non-ASCII text length in characters (NOT in bytes).
-    CDP_TXT_TAG_HASH,       // Hash value of text content.
+    //CDP_TXT_TAG_TABLE,
+    //CDP_TXT_TAG_FORMULA,
+    //CDP_TXT_TAG_FOOTNOTE,
+    //CDP_TXT_TAG_HEADER,
 
-    // Agencies
-    CDP_TXT_TAG_UPPERCASE,
-    CDP_TXT_TAG_LOWERCASE,
-    CDP_TXT_TAG_CAPITALIZE,
-    CDP_TXT_TAG_TRIM,
+#define CDP_WORD_TITLE        CDP_ID(0x0051346140000000)      /* "title"______ */
 
-    //
-    CDP_TAG_TEXT_INI_COUNT
-};
+    //CDP_TXT_TAG_ABSTRACT,
+    //CDP_TXT_TAG_BODY,
+    //CDP_TXT_TAG_TOC,
+    //CDP_TXT_TAG_CHAPTER,
+    //CDP_TXT_TAG_SECTION,
+    //CDP_TXT_TAG_CONCLUSION,
+    //CDP_TXT_TAG_AKNOWLEDGMENT,
+    //CDP_TXT_TAG_APPENDICE,
+    //CDP_TXT_TAG_GLOSSARY,
+
+    //CDP_TXT_TAG_AUTHOR,
+    //CDP_TXT_TAG_DATE,
+    //CDP_TXT_TAG_VERSION,
+    //CDP_TXT_TAG_COPYRIGHT,
+    //CDP_TXT_TAG_LICENSE,
+
+// Agencies
+#define CDP_WORD_TRANSFORM    CDP_ID(0x00524174CCF93400)      /* "transform"__ */
+
+// Selectors
+#define CDP_WORD_TRIM         CDP_ID(0x0052496800000000)      /* "trim"_______ */
+#define CDP_WORD_UPPERCASE    CDP_ID(0x0056102C86199400)      /* "uppercase"__ */
+#define CDP_WORD_LOWERCASE    CDP_ID(0x0031F72C86199400)      /* "lowercase"__ */
+#define CDP_WORD_CAPITALIZE   CDP_ID(0x000C304D02C4E8A0)      /* "capitalize"_ */
 
 
-#define cdp_text_metadata_word()                                               \
+// Characters
+
+#define CDP_TEXT_LINE                                                          \
     ((cdpText) {                                                               \
-        .domain   = CDP_DOMAIN_TEXT,                                           \
-        .tag      = CDP_TXT_TAG_WORD                                           \
+        .domain   = CDP_WORD_TEXT,                                             \
+        .tag      = CDP_WORD_LINE                                              \
     })
 
 
-#define cdp_text_metadata_paragraph()                                          \
+#define CDP_TEXT_PARAGRAPH                                                     \
     ((cdpText) {                                                               \
-        .domain   = CDP_DOMAIN_TEXT,                                           \
-        .tag      = CDP_TXT_TAG_PARAGRAPH                                      \
+        .domain   = CDP_WORD_TEXT,                                             \
+        .tag      = CDP_WORD_PARAGRAPH                                         \
     })
 
 
