@@ -196,19 +196,19 @@ MunitResult test_agents(const MunitParameter params[], void* user_data_or_fixtur
     // Instance initiation
     cdpRecord* pipeline = cdp_dict_add_list(CASCADE, CDP_AUTOID, CDP_ACRON_CDP, CDP_WORD_LIST, CDP_STORAGE_LINKED_LIST);   assert_not_null(pipeline);
 
-    cdpRecord  child  = {0};
-    cdpRecord* stdin  = cdp_record_append(pipeline, false, cdp_cascade_record_new(cdp_root(), &child, CDP_WORD_STDIN,  CDP_ACRON_CDP, CDP_WORD_STDIN,  NULL, CDP_V(0), NULL, CDP_V(0)));  assert_not_null(stdin);  assert_false(cdp_record_is_empty(stdin));
-    cdpRecord* adder  = cdp_record_append(pipeline, false, cdp_cascade_record_new(cdp_root(), &child, CDP_WORD_ADDER,  CDP_ACRON_CDP, CDP_WORD_ADDER,  NULL, CDP_V(0), NULL, CDP_V(0)));  assert_not_null(adder);  assert_false(cdp_record_is_empty(adder));
-    cdpRecord* stdout = cdp_record_append(pipeline, false, cdp_cascade_record_new(cdp_root(), &child, CDP_WORD_STDOUT, CDP_ACRON_CDP, CDP_WORD_STDOUT, NULL, CDP_V(0), NULL, CDP_V(0)));  assert_not_null(stdout); assert_false(cdp_record_is_empty(stdout));
+    cdpRecord  child   = {0};
+    cdpRecord* stdinp  = cdp_record_append(pipeline, false, cdp_cascade_record_new(cdp_root(), &child, CDP_WORD_STDIN,  CDP_ACRON_CDP, CDP_WORD_STDIN,  NULL, CDP_V(0), NULL, CDP_V(0)));  assert_not_null(stdinp);  assert_false(cdp_record_is_empty(stdinp));
+    cdpRecord* adder   = cdp_record_append(pipeline, false, cdp_cascade_record_new(cdp_root(), &child, CDP_WORD_ADDER,  CDP_ACRON_CDP, CDP_WORD_ADDER,  NULL, CDP_V(0), NULL, CDP_V(0)));  assert_not_null(adder);   assert_false(cdp_record_is_empty(adder));
+    cdpRecord* stdoutp = cdp_record_append(pipeline, false, cdp_cascade_record_new(cdp_root(), &child, CDP_WORD_STDOUT, CDP_ACRON_CDP, CDP_WORD_STDOUT, NULL, CDP_V(0), NULL, CDP_V(0)));  assert_not_null(stdoutp); assert_false(cdp_record_is_empty(stdoutp));
 
     // Link pipeline in reverse (upstream) order
-    cdpRecord* in1 = cdp_cascade_get_inlet(cdp_root(), stdout, cdp_text_to_acronysm("IN1"));            assert_not_null(in1);
-    cdpRecord* num = cdp_cascade_get_inlet(cdp_root(), adder,  cdp_text_to_word("num"));                assert_not_null(num);
-    cdpRecord* tic = cdp_cascade_get_inlet(cdp_root(), stdin,  cdp_text_to_word("tic"));                assert_not_null(tic);
+    cdpRecord* in1 = cdp_cascade_get_inlet(cdp_root(), stdoutp, cdp_text_to_acronysm("IN1"));           assert_not_null(in1);
+    cdpRecord* num = cdp_cascade_get_inlet(cdp_root(), adder,   cdp_text_to_word("num"));               assert_not_null(num);
+    cdpRecord* tic = cdp_cascade_get_inlet(cdp_root(), stdinp,  cdp_text_to_word("tic"));               assert_not_null(tic);
 
-    cdpRecord* ans = cdp_cascade_connect(cdp_root(), adder,            cdp_text_to_word("ans"), in1);   assert_not_null(ans);
-    cdpRecord* inp = cdp_cascade_connect(cdp_root(), stdin,            cdp_text_to_word("inp"), num);   assert_not_null(inp);
-    cdpRecord* stc = cdp_cascade_connect(cdp_root(), cdp_agent_step(), cdp_text_to_word("tic"), tic);   assert_not_null(stc);
+    cdpRecord* ans = cdp_cascade_connect(cdp_root(), adder,             cdp_text_to_word("ans"), in1);  assert_not_null(ans);
+    cdpRecord* inp = cdp_cascade_connect(cdp_root(), stdinp,            cdp_text_to_word("inp"), num);  assert_not_null(inp);
+    cdpRecord* stc = cdp_cascade_connect(cdp_root(), cdp_agent_step(),  cdp_text_to_word("tic"), tic);  assert_not_null(stc);
 
     // Execute pipeline
     while (!DONE) {
@@ -216,7 +216,7 @@ MunitResult test_agents(const MunitParameter params[], void* user_data_or_fixtur
     }
 
     cdp_cascade_unplug(cdp_root(), cdp_agent_step(), stc);
-    cdp_cascade_unplug(cdp_root(), stdin, inp);
+    cdp_cascade_unplug(cdp_root(), stdinp, inp);
     cdp_cascade_unplug(cdp_root(), adder, ans);
 
     cdp_record_remove(pipeline, NULL);

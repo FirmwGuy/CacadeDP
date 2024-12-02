@@ -35,7 +35,7 @@ CDP_CHARACTER_STRUCT( cdpBinary,
     compression:    3,          // Type of compression used to pack content.
     encryption:     3,          // Encryption method.
 
-    _reserved:      47          // ToDo: expand to streams and communication related stuff.
+    _reserved:      47          // ToDo: expand to streams and library structs.
 );
 
 
