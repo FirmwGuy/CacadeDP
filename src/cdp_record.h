@@ -127,8 +127,8 @@ typedef struct _cdpStore      cdpStore;
 typedef struct _cdpRecord     cdpRecord;
 typedef struct _cdpAgentList  cdpAgentList;
 
-typedef int   (*cdpCompare)(const cdpRecord* restrict, const cdpRecord* restrict, void*);
-typedef void* (*cdpAgent)  (cdpRecord* client, cdpRecord* self, unsigned action, cdpRecord* record, cdpValue value);
+typedef int (*cdpCompare)(const cdpRecord* restrict, const cdpRecord* restrict, void*);
+typedef int (*cdpAgent)  (cdpRecord* client, void** returned, cdpRecord* self, unsigned action, cdpRecord* record, cdpValue value);
 
 
 /*
@@ -496,6 +496,14 @@ enum _cdpAction {
     CDP_ACTION_STORE_DELETE,
 
     CDP_ACTION_COUNT
+};
+
+enum _cdpStatus {
+    CDP_STATUS_FATAL = -2,
+    CDP_STATUS_FAIL,
+    CDP_STATUS_ERROR,
+    CDP_STATUS_OK,
+    CDP_STATUS_DONE
 };
 
 

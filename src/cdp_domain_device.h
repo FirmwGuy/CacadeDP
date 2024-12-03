@@ -73,10 +73,10 @@ enum _cdpDeviceAudioOutput {
 enum _cdpDeviceWindow {
     CDP_DEVICE_WINDOW_NONE,
     CDP_DEVICE_WINDOW_X11,
+    CDP_DEVICE_WINDOW_WAYLAND,
     CDP_DEVICE_WINDOW_WIN32,
     CDP_DEVICE_WINDOW_COCOA,
     CDP_DEVICE_WINDOW_BROWSER,
-    CDP_DEVICE_WINDOW_WAYLAND,
 
     CDP_DEVICE_WINDOW_OTHER = 7
 };
@@ -115,9 +115,15 @@ enum _cdpDeviceStatus {
 
 
 // Agents
+#define CDP_WORD_WINDOW       CDP_ID(0x005D2E23EE000000)      /* "window"_____ */
+#define CDP_ACRON_OS          CDP_ID(0x012FCC0000000000)      /* "OS"------- */
 
 
 // Selectors
+
+
+
+void cdp_device_system_initiate(void);
 
 
 #endif

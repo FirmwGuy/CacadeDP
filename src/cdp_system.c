@@ -50,7 +50,7 @@ static inline bool agent_step_on_each_output(cdpEntry* entry, struct _step* step
     return false;
 }
 
-static void* agent_system_step(cdpRecord* client, cdpRecord* self, unsigned action, cdpRecord* record, cdpValue value) {
+static void* agent_system_step(cdpRecord* client, void** returned, cdpRecord* self, unsigned action, cdpRecord* record, cdpValue value) {
     assert(client && self);
 
     switch (action) {

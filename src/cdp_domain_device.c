@@ -20,11 +20,27 @@
 
 
 #include "cdp_domain_device.h"
+#include "cdp_domain_binary.h"
+#include "cdp_domain_text.h"
+#include <raylib.h>
 
+
+
+void* agent_window(cdpRecord* client, void** returned, cdpRecord* self, unsigned action, cdpRecord* record, cdpValue value) {
+    switch (action) {
+      case CDP_ACTION_DATA_NEW: {
+        break;
+      }
+      case CDP_ACTION_STORE_NEW: {
+        break;
+      }
+    }
+
+    return self;
+}
 
 
 void cdp_device_system_initiate(void) {
-
-
+    cdp_system_register_agent(CDP_WORD_DEVICE, CDP_WORD_WINDOW, agent_window);
 }
 

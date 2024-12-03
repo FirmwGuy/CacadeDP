@@ -37,7 +37,7 @@ bool DONE;
 
 
 
-static void* agent_stdin(cdpRecord* client, cdpRecord* self, unsigned action, cdpRecord* record, cdpValue value) {
+static void* agent_stdin(cdpRecord* client, void** returned, cdpRecord* self, unsigned action, cdpRecord* record, cdpValue value) {
     assert(client && self);
     static cdpRecord* inp;
 
@@ -90,7 +90,7 @@ static void* agent_stdin(cdpRecord* client, cdpRecord* self, unsigned action, cd
 
 
 
-static void* agent_adder(cdpRecord* client, cdpRecord* self, unsigned action, cdpRecord* record, cdpValue value) {
+static void* agent_adder(cdpRecord* client, void** returned, cdpRecord* self, unsigned action, cdpRecord* record, cdpValue value) {
     assert(client && self);
 
     static cdpRecord* num;
@@ -143,7 +143,7 @@ static void* agent_adder(cdpRecord* client, cdpRecord* self, unsigned action, cd
 
 
 
-static void* agent_stdout(cdpRecord* client, cdpRecord* self, unsigned action, cdpRecord* record, cdpValue value) {
+static void* agent_stdout(cdpRecord* client, void** returned, cdpRecord* self, unsigned action, cdpRecord* record, cdpValue value) {
     assert(client && self);
 
     switch (action) {

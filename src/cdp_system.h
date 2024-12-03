@@ -240,94 +240,96 @@ static inline cdpRecord* cdp_void(void)  {extern cdpRecord* CDP_VOID; assert(CDP
 static inline cdpRecord* cdp_agent_step(void)  {extern cdpRecord* CDP_STEP; assert(CDP_STEP);  return CDP_STEP;}
 
 
-static inline cdpRecord* cdp_cascade_get_inlet(cdpRecord* client, cdpRecord* self, cdpID inlet) {
+static inline int cdp_cascade_get_inlet(cdpRecord* client, cdpRecord** returned, cdpRecord* self, cdpID inlet) {
     assert(!cdp_record_is_void(client) && !cdp_record_is_empty(self) && cdp_id_text_valid(inlet));
-    cdpRecord* found;
+    int status;
 
     if (cdp_record_has_data(self)) {
         for (cdpAgentList* list = self->data->agent;  list;  list = list->next) {
-            found = list->agent(client, self, CDP_ACTION_GET_INLET, NULL, CDP_V(inlet));
-            if (found)
-                return found;
+            status = list->agent(client, returned, self, CDP_ACTION_GET_INLET, NULL, CDP_V(inlet));
+            if (status != CDP_STATUS_OK)
+                return status;
         }
     }
 
     if (cdp_record_has_store(self)) {
         for (cdpAgentList* list = self->store->agent;  list;  list = list->next) {
-            found = list->agent(client, self, CDP_ACTION_GET_INLET,  NULL, CDP_V(inlet));
-            if (found)
-                return found;
+            status = list->agent(client, returned, self, CDP_ACTION_GET_INLET, NULL, CDP_V(inlet));
+            if (status != CDP_STATUS_OK)
+                return status;
         }
     }
 
-    return NULL;
+    return CDP_STATUS_ERROR;
 }
 
 
-static inline cdpRecord* cdp_cascade_connect(cdpRecord* client, cdpRecord* self, cdpID output, cdpRecord* inlet) {
+static inline int cdp_cascade_connect(cdpRecord* client, cdpRecord** returned, cdpRecord* self, cdpID output, cdpRecord* inlet) {
     assert(!cdp_record_is_void(client) && !cdp_record_is_unset(self) && cdp_id_text_valid(output) && !cdp_record_is_floating(inlet));
-    cdpRecord* found;
+    int status;
 
     if (cdp_record_has_data(self)) {
         for (cdpAgentList* list = self->data->agent;  list;  list = list->next) {
-            found = list->agent(client, self, CDP_ACTION_CONNECT, inlet, CDP_V(output));
-            if (found)
-                return found;
+            status = list->agent(client, returned, self, CDP_ACTION_CONNECT, inlet, CDP_V(output));
+            if (status != CDP_STATUS_OK)
+                return status;
         }
     }
 
     if (cdp_record_has_store(self)) {
         for (cdpAgentList* list = self->store->agent;  list;  list = list->next) {
-            found = list->agent(client, self, CDP_ACTION_CONNECT, inlet, CDP_V(output));
-            if (found)
-                return found;
+            status = list->agent(client, returned, self, CDP_ACTION_CONNECT, inlet, CDP_V(output));
+            if (status != CDP_STATUS_OK)
+                return status;
         }
     }
 
-    return NULL;
+    return CDP_STATUS_ERROR;
 }
 
 
-static inline cdpRecord* cdp_cascade_unplug(cdpRecord* client, cdpRecord* self, cdpRecord* output) {
+static inline int cdp_cascade_unplug(cdpRecord* client, cdpRecord* self, cdpRecord* output) {
     assert(!cdp_record_is_void(client) && !cdp_record_is_empty(self) && !cdp_record_is_floating(output));
-    cdpRecord* found;
+    int status;
 
     if (cdp_record_has_data(self)) {
         for (cdpAgentList* list = self->data->agent;  list;  list = list->next) {
-            found = list->agent(client, self, CDP_ACTION_UNPLUG, output, CDP_V(0));
-            if (found)
-                return found;
+            status = list->agent(client, NULL, self, CDP_ACTION_UNPLUG, output, CDP_V(0));
+            if (status != CDP_STATUS_OK)
+                return status;
         }
     }
 
     if (cdp_record_has_store(self)) {
         for (cdpAgentList* list = self->store->agent;  list;  list = list->next) {
-            found = list->agent(client, self, CDP_ACTION_UNPLUG, output, CDP_V(0));
-            if (found)
-                return found;
+            status = list->agent(client, NULL, self, CDP_ACTION_UNPLUG, output, CDP_V(0));
+            if (status != CDP_STATUS_OK)
+                return status;
         }
     }
 
-    return NULL;
+    return CDP_STATUS_ERROR;
 }
 
 
-static inline cdpData* cdp_cascade_data_new(cdpRecord* client, cdpRecord* self, cdpID domain, cdpID tag, cdpRecord* params, cdpValue value) {
+static inline int cdp_cascade_data_new(cdpRecord* client, cdpData** returned, cdpRecord* self, cdpID domain, cdpID tag, cdpRecord* params, cdpValue value) {
     self = cdp_link_pull(self);
     assert(!cdp_record_is_void(client) && !cdp_record_has_data(self));
 
     cdpAgent agent = cdp_system_agent(domain, tag);
 
-    if (!agent || !agent(client, self, CDP_ACTION_DATA_NEW, params, value))
-        return NULL;
+    if (!agent)
+        return CDP_STATUS_FAIL;
+
+    int status = agent(client, returned, self, CDP_ACTION_DATA_NEW, params, value);
 
     cdp_data_add_agent(self->data, domain, tag, agent);
 
-    return self->data;
+    return CDP_STATUS_DONE;
 }
 
 
-static inline cdpData* cdp_cascade_data_update(cdpRecord* client, cdpRecord* self, size_t size, size_t capacity, cdpValue data) {
+static inline cdpData* cdp_cascade_data_update(cdpRecord* client, void** returned, cdpRecord* self, size_t size, size_t capacity, cdpValue data) {
     self = cdp_link_pull(self);
     assert(!cdp_record_is_void(client) && cdp_record_has_data(self));
 
@@ -342,7 +344,7 @@ static inline cdpData* cdp_cascade_data_update(cdpRecord* client, cdpRecord* sel
 }
 
 
-static inline bool cdp_cascade_data_dalete(cdpRecord* client, cdpRecord* self) {
+static inline bool cdp_cascade_data_dalete(cdpRecord* client, void** returned, cdpRecord* self) {
     self = cdp_link_pull(self);
     assert(!cdp_record_is_void(client) && !cdp_record_is_void(self));
 
@@ -372,7 +374,7 @@ static inline bool cdp_cascade_data_dalete(cdpRecord* client, cdpRecord* self) {
 }
 
 
-static inline cdpStore* cdp_cascade_store_new(cdpRecord* client, cdpRecord* self, cdpID domain, cdpID tag, cdpRecord* params, cdpValue value) {
+static inline cdpStore* cdp_cascade_store_new(cdpRecord* client, void** returned, cdpRecord* self, cdpID domain, cdpID tag, cdpRecord* params, cdpValue value) {
     self = cdp_link_pull(self);
     assert(!cdp_record_is_void(client) && !cdp_record_has_store(self));
 
@@ -387,7 +389,7 @@ static inline cdpStore* cdp_cascade_store_new(cdpRecord* client, cdpRecord* self
 }
 
 
-static inline cdpRecord* cdp_cascade_store_add_item(cdpRecord* client, cdpRecord* self, cdpRecord* child, cdpValue context) {
+static inline cdpRecord* cdp_cascade_store_add_item(cdpRecord* client, void** returned, cdpRecord* self, cdpRecord* child, cdpValue context) {
     self = cdp_link_pull(self);
     child   = cdp_link_pull(child);
     assert(!cdp_record_is_void(client) && cdp_record_has_store(self) && !cdp_record_is_void(child));
@@ -403,7 +405,7 @@ static inline cdpRecord* cdp_cascade_store_add_item(cdpRecord* client, cdpRecord
 }
 
 
-static inline bool cdp_cascade_store_remove_item(cdpRecord* client, cdpRecord* self, cdpRecord* child) {
+static inline bool cdp_cascade_store_remove_item(cdpRecord* client, void** returned, cdpRecord* self, cdpRecord* child) {
     assert(!cdp_record_is_void(client) && !cdp_record_is_void(child));
 
     if (!self)
@@ -421,7 +423,7 @@ static inline bool cdp_cascade_store_remove_item(cdpRecord* client, cdpRecord* s
 }
 
 
-static inline bool cdp_cascade_store_delete(cdpRecord* client, cdpRecord* self) {
+static inline int cdp_cascade_store_delete(cdpRecord* client, cdpRecord* self) {
     self = cdp_link_pull(self);
     assert(!cdp_record_is_void(client) && !cdp_record_is_void(self));
 
@@ -451,7 +453,7 @@ static inline bool cdp_cascade_store_delete(cdpRecord* client, cdpRecord* self) 
 }
 
 
-static inline cdpRecord* cdp_cascade_record_new(  cdpRecord* client, cdpRecord* self,
+static inline cdpRecord* cdp_cascade_record_new(  cdpRecord* client, void** returned, cdpRecord* self,
                                                   cdpID name, cdpID domain, cdpID tag,
                                                   cdpRecord* dataParam, cdpValue dataValue,
                                                   cdpRecord* storeParam, cdpValue storeValue  ) {
