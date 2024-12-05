@@ -283,4 +283,7 @@ enum _cdpBinaryEncryption {
     })
 
 
+#define cdp_record_set_data_uint64(r, v)    cdp_record_set_data(r, cdp_data_new_value(CDP_WORD_BINARY, CDP_ACRON_UINT64, CDP_BINARY_UINT64, sizeof(uint64_t), CDP_V(v)));
+
+
 #endif

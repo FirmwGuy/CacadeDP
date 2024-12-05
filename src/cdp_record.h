@@ -423,6 +423,9 @@ static inline bool cdp_store_is_f_sorted(cdpStore* store)     {assert(cdp_store_
 static inline bool cdp_store_is_sorted(cdpStore* store)       {assert(cdp_store_valid(store));  return (store->indexing != CDP_INDEX_BY_INSERTION);}
 static inline bool cdp_store_is_empty(cdpStore* store)        {assert(cdp_store_valid(store));  return !store->chdCount;}
 
+cdpRecord* cdp_store_add_child(cdpStore* store, cdpValue context, cdpRecord* child);
+cdpRecord* cdp_store_append_child(cdpStore* store, bool prepend, cdpRecord* child);
+
 static inline void cdp_store_add_agent(cdpStore* store, cdpID domain, cdpID tag, cdpAgent agent) {
     assert(cdp_store_valid(store));
     cdpAgentList* list = cdp_agent_list_new(domain, tag, agent);
@@ -499,11 +502,11 @@ enum _cdpAction {
 };
 
 enum _cdpStatus {
-    CDP_STATUS_FATAL = -2,
-    CDP_STATUS_FAIL,
+    CDP_STATUS_FAIL = -2,
     CDP_STATUS_ERROR,
     CDP_STATUS_OK,
-    CDP_STATUS_DONE
+    CDP_STATUS_PROGRESS,
+    CDP_STATUS_SUCCESS
 };
 
 

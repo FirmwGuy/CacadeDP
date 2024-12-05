@@ -50,39 +50,43 @@ static inline bool agent_step_on_each_output(cdpEntry* entry, struct _step* step
     return false;
 }
 
-static void* agent_system_step(cdpRecord* client, void** returned, cdpRecord* self, unsigned action, cdpRecord* record, cdpValue value) {
+static int agent_system_step(cdpRecord* client, void** returned, cdpRecord* self, unsigned action, cdpRecord* record, cdpValue value) {
     assert(client && self);
 
     switch (action) {
       case CDP_ACTION_DATA_NEW: {
         cdp_record_set_data(self, cdp_data_new_value(CDP_ACRON_CDP, cdp_text_to_acronysm("UINT64"), (cdpID)0, sizeof(uint64_t), 0));
-        return self->data;
+        CDP_PTR_SEC_SET(returned, self->data);
+        return CDP_STATUS_PROGRESS;
       }
       case CDP_ACTION_STORE_NEW: {
         cdp_record_set_store(self, cdp_store_new(CDP_ACRON_CDP, CDP_WORD_LIST, CDP_STORAGE_LINKED_LIST, CDP_INDEX_BY_INSERTION));
-        return self->store;
+        CDP_PTR_SEC_SET(returned, self->store);
+        return CDP_STATUS_PROGRESS;
       }
 
       case CDP_ACTION_CONNECT: {
-        return cdp_record_append_link(self, CDP_AUTOID, record);
+        cdpRecord* link = cdp_record_append_link(self, CDP_AUTOID, record);
+        CDP_PTR_SEC_SET(returned, link);
+        return CDP_STATUS_SUCCESS;
       }
 
       case CDP_ACTION_UNPLUG: {
         assert(self == cdp_record_parent(record));
         cdp_record_remove(record, NULL);
-        return self;
+        return CDP_STATUS_SUCCESS;
       }
 
       case CDP_ACTION_DATA_UPDATE: {
         struct _step step = {.client = self, .tic = value};
         cdpEntry entry = {0};
         if (true == cdp_record_traverse(self, (cdpTraverse) agent_step_on_each_output, &step, &entry))
-            return NULL;
-        return self;
+            return CDP_STATUS_FAIL;
+        return CDP_STATUS_SUCCESS;
       }
     }
 
-    return self;
+    return CDP_STATUS_OK;
 }
 
 

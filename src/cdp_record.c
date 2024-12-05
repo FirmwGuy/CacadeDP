@@ -452,7 +452,7 @@ static inline void store_check_auto_id(cdpStore* store, cdpRecord* child) {
 /*
     Adds/inserts a *copy* of the specified record into a store
 */
-static inline cdpRecord* store_add_child(cdpStore* store, cdpValue context, cdpRecord* child) {
+cdpRecord* cdp_store_add_child(cdpStore* store, cdpValue context, cdpRecord* child) {
     assert(cdp_store_valid(store) && !cdp_record_is_void(child));
 
     if (!store->writable)
@@ -549,7 +549,7 @@ static inline cdpRecord* store_add_child(cdpStore* store, cdpValue context, cdpR
 /*
     Appends/prepends a copy of record into store
 */
-static inline cdpRecord* store_append_child(cdpStore* store, bool prepend, cdpRecord* child) {
+cdpRecord* cdp_store_append_child(cdpStore* store, bool prepend, cdpRecord* child) {
     assert(cdp_store_valid(store) && !cdp_record_is_void(child));
 
     if (!store->writable)
@@ -1164,7 +1164,7 @@ void cdp_record_finalize(cdpRecord* record) {
 */
 cdpRecord* cdp_record_add(cdpRecord* record, cdpValue context, cdpRecord* child) {
     RECORD_FOLLOW_LINK_TO_STORE(record, store, NULL);
-    return store_add_child(store, context, child);
+    return cdp_store_add_child(store, context, child);
 }
 
 
@@ -1173,7 +1173,7 @@ cdpRecord* cdp_record_add(cdpRecord* record, cdpValue context, cdpRecord* child)
 */
 cdpRecord* cdp_record_append(cdpRecord* record, bool prepend, cdpRecord* child) {
     RECORD_FOLLOW_LINK_TO_STORE(record, store, NULL);
-    return store_append_child(store, prepend, child);
+    return cdp_store_append_child(store, prepend, child);
 }
 
 

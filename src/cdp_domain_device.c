@@ -19,24 +19,59 @@
  */
 
 
-#include "cdp_domain_device.h"
 #include "cdp_domain_binary.h"
 #include "cdp_domain_text.h"
+#include "cdp_domain_device.h"
 #include <raylib.h>
 
 
 
-void* agent_window(cdpRecord* client, void** returned, cdpRecord* self, unsigned action, cdpRecord* record, cdpValue value) {
+int CREATED;
+
+
+int agent_window(cdpRecord* client, void** returned, cdpRecord* self, unsigned action, cdpRecord* record, cdpValue value) {
     switch (action) {
       case CDP_ACTION_DATA_NEW: {
-        break;
+        cdp_record_set_data_uint64(self, 0);
+        CDP_PTR_SEC_SET(returned, self->data);
+
+        if (!CREATED)
+            InitWindow(800, 600, "Test basic window");
+        CREATED++;
+
+        return CDP_STATUS_PROGRESS;
       }
       case CDP_ACTION_STORE_NEW: {
-        break;
+        cdp_record_set_store(self, cdp_store_new(CDP_ACRON_CDP, CDP_WORD_WINDOW, CDP_STORAGE_RED_BLACK_T, CDP_INDEX_BY_NAME));
+        CDP_PTR_SEC_SET(returned, self->store);
+
+        cdp_dict_add_value(self, cdp_text_to_word(""),
+
+        return CDP_STATUS_PROGRESS;
+      }
+
+      case CDP_ACTION_DATA_DELETE: {
+        CREATED--;
+        if (!CREATED)
+            CloseWindow();
+        return CDP_STATUS_PROGRESS;
+      }
+
+      case CDP_ACTION_DATA_UPDATE: {
+        if (!WindowShouldClose())
+            return CDP_STATUS_ERROR;
+
+        char counter[16];
+        sprintf(counter, "Testing Num: %u", (unsigned));
+        BeginDrawing(); {
+            ClearBackground(RAYWHITE);
+            DrawText(counter, 190, 200, 20, LIGHTGRAY);
+        } EndDrawing();
+        return CDP_STATUS_SUCCESS;
       }
     }
 
-    return self;
+    return CDP_STATUS_OK;
 }
 
 

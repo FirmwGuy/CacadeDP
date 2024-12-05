@@ -246,7 +246,7 @@ static inline int cdp_cascade_get_inlet(cdpRecord* client, cdpRecord** returned,
 
     if (cdp_record_has_data(self)) {
         for (cdpAgentList* list = self->data->agent;  list;  list = list->next) {
-            status = list->agent(client, returned, self, CDP_ACTION_GET_INLET, NULL, CDP_V(inlet));
+            status = list->agent(client, CDP_P(returned), self, CDP_ACTION_GET_INLET, NULL, CDP_V(inlet));
             if (status != CDP_STATUS_OK)
                 return status;
         }
@@ -254,7 +254,7 @@ static inline int cdp_cascade_get_inlet(cdpRecord* client, cdpRecord** returned,
 
     if (cdp_record_has_store(self)) {
         for (cdpAgentList* list = self->store->agent;  list;  list = list->next) {
-            status = list->agent(client, returned, self, CDP_ACTION_GET_INLET, NULL, CDP_V(inlet));
+            status = list->agent(client, CDP_P(returned), self, CDP_ACTION_GET_INLET, NULL, CDP_V(inlet));
             if (status != CDP_STATUS_OK)
                 return status;
         }
@@ -270,7 +270,7 @@ static inline int cdp_cascade_connect(cdpRecord* client, cdpRecord** returned, c
 
     if (cdp_record_has_data(self)) {
         for (cdpAgentList* list = self->data->agent;  list;  list = list->next) {
-            status = list->agent(client, returned, self, CDP_ACTION_CONNECT, inlet, CDP_V(output));
+            status = list->agent(client, CDP_P(returned), self, CDP_ACTION_CONNECT, inlet, CDP_V(output));
             if (status != CDP_STATUS_OK)
                 return status;
         }
@@ -278,7 +278,7 @@ static inline int cdp_cascade_connect(cdpRecord* client, cdpRecord** returned, c
 
     if (cdp_record_has_store(self)) {
         for (cdpAgentList* list = self->store->agent;  list;  list = list->next) {
-            status = list->agent(client, returned, self, CDP_ACTION_CONNECT, inlet, CDP_V(output));
+            status = list->agent(client, CDP_P(returned), self, CDP_ACTION_CONNECT, inlet, CDP_V(output));
             if (status != CDP_STATUS_OK)
                 return status;
         }
@@ -317,143 +317,126 @@ static inline int cdp_cascade_data_new(cdpRecord* client, cdpData** returned, cd
     assert(!cdp_record_is_void(client) && !cdp_record_has_data(self));
 
     cdpAgent agent = cdp_system_agent(domain, tag);
-
     if (!agent)
         return CDP_STATUS_FAIL;
 
-    int status = agent(client, returned, self, CDP_ACTION_DATA_NEW, params, value);
+    int status = agent(client, CDP_P(returned), self, CDP_ACTION_DATA_NEW, params, value);
+    if (status != CDP_STATUS_PROGRESS)
+        return status;
 
     cdp_data_add_agent(self->data, domain, tag, agent);
-
-    return CDP_STATUS_DONE;
+    return CDP_STATUS_SUCCESS;
 }
 
 
-static inline cdpData* cdp_cascade_data_update(cdpRecord* client, void** returned, cdpRecord* self, size_t size, size_t capacity, cdpValue data) {
+static inline int cdp_cascade_data_update(cdpRecord* client, cdpRecord* self, size_t size, size_t capacity, cdpValue data) {
     self = cdp_link_pull(self);
     assert(!cdp_record_is_void(client) && cdp_record_has_data(self));
+    int status;
 
     cdp_record_update(self, size, capacity, data, false);
 
     for (cdpAgentList* list = self->data->agent;  list;  list = list->next) {
-        if (!list->agent(client, self, CDP_ACTION_DATA_UPDATE, NULL, data))
-            return NULL;
+        status = list->agent(client, NULL, self, CDP_ACTION_DATA_UPDATE, NULL, data);
+        if (status < CDP_STATUS_OK)
+            return status;
     }
 
-    return self->data;
+    return CDP_STATUS_SUCCESS;
 }
 
 
-static inline bool cdp_cascade_data_dalete(cdpRecord* client, void** returned, cdpRecord* self) {
+static inline int cdp_cascade_data_dalete(cdpRecord* client, cdpRecord* self) {
     self = cdp_link_pull(self);
     assert(!cdp_record_is_void(client) && !cdp_record_is_void(self));
+    int status;
 
-    cdpAgentList* list;
-
-    if (cdp_record_has_data(self)) {
-        list = self->data->agent;
-        self->data->agent = NULL;
-
-        cdp_record_delete_data(self);
-    } else {
-        list = NULL;
+    for (cdpAgentList* list = self->data->agent;  list;  list = list->next) {
+        status = list->agent(client, NULL, self, CDP_ACTION_DATA_UPDATE, NULL, CDP_V(0));
+        if (status != CDP_STATUS_OK)
+            return status;
     }
 
-    bool ok = true;
+    cdp_record_delete_data(self);
 
-    while (list) {
-        cdpAgentList* next = list->next;
-        if (ok && !list->agent(client, self, CDP_ACTION_DATA_DELETE, NULL, CDP_V(0)))
-            ok = false;
-
-        cdp_agent_list_del(list);
-        list = next;
-    }
-
-    return ok;
+    return status;
 }
 
 
-static inline cdpStore* cdp_cascade_store_new(cdpRecord* client, void** returned, cdpRecord* self, cdpID domain, cdpID tag, cdpRecord* params, cdpValue value) {
+static inline int cdp_cascade_store_new(cdpRecord* client, cdpStore** returned, cdpRecord* self, cdpID domain, cdpID tag, cdpRecord* params, cdpValue value) {
     self = cdp_link_pull(self);
     assert(!cdp_record_is_void(client) && !cdp_record_has_store(self));
+    int status;
 
     cdpAgent agent = cdp_system_agent(domain, tag);
+    if (!agent)
+        return CDP_STATUS_FAIL;
 
-    if (!agent || !agent(client, self, CDP_ACTION_STORE_NEW, params, value))
-        return NULL;
+    status = agent(client, CDP_P(returned), self, CDP_ACTION_STORE_NEW, params, value);
+    if (status != CDP_STATUS_PROGRESS)
+        return status;
 
     cdp_store_add_agent(self->store, domain, tag, agent);
-
-    return self->store;
+    return CDP_STATUS_SUCCESS;
 }
 
 
-static inline cdpRecord* cdp_cascade_store_add_item(cdpRecord* client, void** returned, cdpRecord* self, cdpRecord* child, cdpValue context) {
-    self = cdp_link_pull(self);
-    child   = cdp_link_pull(child);
+static inline int cdp_cascade_store_add_item(cdpRecord* client, cdpRecord** returned, cdpRecord* self, cdpRecord* child, cdpValue context) {
+    self  = cdp_link_pull(self);
+    child = cdp_link_pull(child);
     assert(!cdp_record_is_void(client) && cdp_record_has_store(self) && !cdp_record_is_void(child));
+    int status;
 
     cdpRecord* r = cdp_record_add(self, context, child);
+    CDP_PTR_SEC_SET(returned, r);
 
     for (cdpAgentList* list = self->store->agent;  list;  list = list->next) {
-        if (!list->agent(client, self, CDP_ACTION_STORE_ADD_ITEM, r, CDP_V(0)))
-            return NULL;
+        status = list->agent(client, NULL, self, CDP_ACTION_STORE_ADD_ITEM, r, CDP_V(0));
+        if (status < CDP_STATUS_OK)
+            return status;
     }
 
-    return r;
+    return CDP_STATUS_SUCCESS;
 }
 
 
-static inline bool cdp_cascade_store_remove_item(cdpRecord* client, void** returned, cdpRecord* self, cdpRecord* child) {
+static inline int cdp_cascade_store_remove_item(cdpRecord* client, cdpRecord* self, cdpRecord* child) {
     assert(!cdp_record_is_void(client) && !cdp_record_is_void(child));
-
     if (!self)
         self = cdp_record_parent(child);
     assert(cdp_record_has_store(self));
+    int status;
 
     for (cdpAgentList* list = self->store->agent;  list;  list = list->next) {
-        if (!list->agent(client, self, CDP_ACTION_STORE_REMOVE_ITEM, child, CDP_V(0)))
-            return false;
+        status = list->agent(client, NULL, self, CDP_ACTION_STORE_REMOVE_ITEM, child, CDP_V(0));
+        if (status != CDP_STATUS_OK)
+            return status;
     }
 
     cdp_record_remove(child, NULL);
 
-    return true;
+    return CDP_STATUS_SUCCESS;
 }
 
 
 static inline int cdp_cascade_store_delete(cdpRecord* client, cdpRecord* self) {
     self = cdp_link_pull(self);
     assert(!cdp_record_is_void(client) && !cdp_record_is_void(self));
+    int status;
 
-    cdpAgentList* list;
-
-    if (cdp_record_has_store(self)) {
-        list = self->store->agent;
-        self->store->agent = NULL;
-
-        cdp_record_delete_store(self);
-    } else {
-        list = NULL;
+    for (cdpAgentList* list = self->data->agent;  list;  list = list->next) {
+        status = list->agent(client, NULL, self, CDP_ACTION_STORE_DELETE, NULL, CDP_V(0));
+        if (status != CDP_STATUS_OK)
+            return status;
     }
 
-    bool ok = true;
+    cdp_record_delete_store(self);
 
-    while (list) {
-        cdpAgentList* next = list->next;
-        if (ok && !list->agent(client, self, CDP_ACTION_STORE_DELETE, NULL, CDP_V(0)))
-            ok = false;
-
-        cdp_agent_list_del(list);
-        list = next;
-    }
-
-    return ok;
+    return status;
 }
 
 
-static inline cdpRecord* cdp_cascade_record_new(  cdpRecord* client, void** returned, cdpRecord* self,
+static inline cdpRecord* cdp_cascade_record_new(  cdpRecord* client, cdpRecord* self,
                                                   cdpID name, cdpID domain, cdpID tag,
                                                   cdpRecord* dataParam, cdpValue dataValue,
                                                   cdpRecord* storeParam, cdpValue storeValue  ) {
@@ -461,15 +444,23 @@ static inline cdpRecord* cdp_cascade_record_new(  cdpRecord* client, void** retu
 
     cdp_record_initialize(self, CDP_TYPE_NORMAL, name, NULL, NULL);
 
-    cdpData*  data  = cdp_cascade_data_new (client, self, domain, tag, dataParam,  dataValue);
-    cdpStore* store = cdp_cascade_store_new(client, self, domain, tag, storeParam, storeValue);
-    if (!data && !store) {
-        cdp_record_finalize(self);
-        return NULL;
+    int statusData  = cdp_cascade_data_new (client, NULL, self, domain, tag, dataParam,  dataValue);
+    int statusStore = cdp_cascade_store_new(client, NULL, self, domain, tag, storeParam, storeValue);
+
+    if (statusData == CDP_STATUS_SUCCESS) {
+        assert(self->data);
+        return self;
+    }
+    if (statusStore == CDP_STATUS_SUCCESS) {
+        assert(self->store);
+        return self;
     }
 
-    return self;
+    cdp_record_finalize(self);
+    return NULL;
 }
+
+#define cdp_cascade_record_new_simple(c, s, n, d, t)    cdp_cascade_record_new(c, s, n, d, t, NULL, CDP_V(0), NULL, CDP_V(0))
 
 
 #endif
