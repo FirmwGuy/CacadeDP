@@ -1,5 +1,6 @@
 /*
- *  Copyright (c) 2024 Victor M. Barrientos (https://github.com/FirmwGuy/CacadeDP)
+ *  Copyright (c) 2024-2025 Victor M. Barrientos
+ *  (https://github.com/FirmwGuy/CacadeDP)
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy of
  *  this software and associated documentation files (the "Software"), to deal in
@@ -95,7 +96,7 @@ void cdp_record_system_shutdown(void) {
 #define DATA_HEAD_SIZE      (sizeof(cdpData) - VALUE_CAP_MIN)
 
 cdpData* cdp_data_new(  cdpID domain, cdpID tag,
-                        cdpID character, unsigned datatype, bool writable,
+                        cdpID attribute, unsigned datatype, bool writable,
                         void** dataloc, cdpValue value, ...  ) {
     assert(cdp_id_text_valid(domain) && cdp_id_text_valid(tag) && (datatype < CDP_DATATYPE_COUNT));
 
@@ -193,9 +194,10 @@ cdpData* cdp_data_new(  cdpID domain, cdpID tag,
 
     data->domain    = domain;
     data->tag       = tag;
-    data->character = character;
     data->datatype  = datatype;
     data->writable  = writable;
+    
+    data->attribute._id = attribute;
 
     CDP_PTR_SEC_SET(dataloc, address);
 

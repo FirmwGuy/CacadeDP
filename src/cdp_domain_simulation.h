@@ -1,5 +1,6 @@
 /*
- *  Copyright (c) 2024 Victor M. Barrientos (https://github.com/FirmwGuy/CacadeDP)
+ *  Copyright (c) 2024-2025 Victor M. Barrientos
+ *  (https://github.com/FirmwGuy/CacadeDP)
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy of
  *  this software and associated documentation files (the "Software"), to deal in
@@ -25,12 +26,13 @@
 #include "cdp_record.h"
 
 
-CDP_CHARACTER_STRUCT( cdpSimulation,
-    role:           3,
-    element:        4,          // Distinguishes types of structures (e.g., wall, character).
-    interaction:    3,          // Type of interaction.
-
-    _reserved:      56
+CDP_ATTRIBUTE_STRUCT(
+    cdpSimulation,
+        role:         3,
+        element:      4,  // Distinguishes types of structures (e.g., wall, character).
+        interaction:  3,  // Type of interaction.
+                     
+        _reserved:   40
 );
 
 

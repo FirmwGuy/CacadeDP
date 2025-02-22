@@ -1,5 +1,6 @@
 /*
- *  Copyright (c) 2024 Victor M. Barrientos (https://github.com/FirmwGuy/CacadeDP)
+ *  Copyright (c) 2024-2025 Victor M. Barrientos
+ *  (https://github.com/FirmwGuy/CacadeDP)
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy of
  *  this software and associated documentation files (the "Software"), to deal in
@@ -25,19 +26,20 @@
 #include "cdp_record.h"
 
 
-CDP_CHARACTER_STRUCT( cdpMultimedia,
-    container:      4,          // Container for data (file format).
-    audio:          4,          // Codec for audio data.
-    soundq:         3,          // Sound quality in audio/video.
-    sampling:       3,          // Audio sampling frequency.
-    video:          4,          // Codec for video data.
-    imageq:         3,          // Image/video quality.
-    icspace:        3,          // Image/video color space.
-    framerate:      3,          // Animation/video frames per second.
-    projection:     3,          // Projection for 360 image/video.
-    subtitle:       2,          // Subtitles encoding if available.
-
-    _reserved:      32
+CDP_ATTRIBUTE_STRUCT(
+    cdpMultimedia,
+        container:    4,  // Container for data (file format).
+        audio:        4,  // Codec for audio data.
+        soundq:       3,  // Sound quality in audio/video.
+        sampling:     3,  // Audio sampling frequency.
+        video:        4,  // Codec for video data.
+        imageq:       3,  // Image/video quality.
+        icspace:      3,  // Image/video color space.
+        framerate:    3,  // Animation/video frames per second.
+        projection:   3,  // Projection for 360 image/video.
+        subtitle:     2,  // Subtitles encoding if available.
+        
+        _reserved:   18  
 );
 
 

@@ -1,5 +1,6 @@
 /*
- *  Copyright (c) 2024 Victor M. Barrientos (https://github.com/FirmwGuy/CacadeDP)
+ *  Copyright (c) 2024-2025 Victor M. Barrientos
+ *  (https://github.com/FirmwGuy/CacadeDP)
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy of
  *  this software and associated documentation files (the "Software"), to deal in
@@ -25,17 +26,18 @@
 #include "cdp_record.h"
 
 
-CDP_CHARACTER_STRUCT( cdpText,
-    encoding:       4,          // Text encoding (UTF8, Unicode, Latin1, etc).
-    heading:        3,          // Heading level value for titles (H1, H2, etc).
-    listing:        2,          // Type of listing for table/list (enumerated, definition, etc).
-    formating:      3,          // Text format (bold, italic, etc).
-    font:           3,          // Recommended font family to use for rendering.
-    alignment:      2,          // Recommended horizontal text alignment (left, center, etc).
-    language:       6,          // Language of content (including programming language for scripts).
-    media:          3,          // Embedded media type (image, video, etc).
+CDP_ATTRIBUTE_STRUCT(
+    cdpText,
+        encoding:   3,  // Text encoding (UTF8, Unicode, Latin1, etc).
+        heading:    3,  // Heading level value for titles (H1, H2, etc).
+        listing:    2,  // Type of listing for table/list (enumerated, definition, etc).
+        formating:  3,  // Text format (bold, italic, etc).
+        font:       3,  // Recommended font family to use for rendering.
+        alignment:  2,  // Recommended horizontal text alignment (left, center, etc).
+        language:   6,  // Language of content (including programming language for scripts).
+        media:      3,  // Embedded media type (image, video, etc).
 
-    _reserved:      38          // ToDO: expand to include DOM things?
+        _reserved: 25   // ToDO: expand to include DOM things?
 );
 
 

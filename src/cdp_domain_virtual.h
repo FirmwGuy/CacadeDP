@@ -1,5 +1,6 @@
 /*
- *  Copyright (c) 2024 Victor M. Barrientos (https://github.com/FirmwGuy/CacadeDP)
+ *  Copyright (c) 2024-2025 Victor M. Barrientos
+ *  (https://github.com/FirmwGuy/CacadeDP)
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy of
  *  this software and associated documentation files (the "Software"), to deal in
@@ -25,29 +26,30 @@
 #include "cdp_record.h"
 
 
-CDP_CHARACTER_STRUCT( cdpVirtual,
-    visible:        2,          // How virtual object may be seen.
-    audible:        2,          // How object may be heard.
-    tactil:         2,          // How object may be felt.
+CDP_ATTRIBUTE_STRUCT(
+    cdpVirtual,
+        visible:    2,  // How virtual object may be seen.
+        audible:    2,  // How object may be heard.
+        tactil:     2,  // How object may be felt.
 
-    group:          1,          // True if it has child objects.
-    anchor:         1,          // If its linked (anchored) to a parent object. Anchored to the world otherwise.
-    xalign:         2,          // Children horizontal (X) alignment.
-    yalign:         2,          // Children vertical (Y) alignment.
-    zalign:         2,          // Children dept (Z) alignment.
+    	group:          1,          // True if it has child objects.
+    	anchor:         1,          // If its linked (anchored) to a parent object (or to the world otherwise).
+    	xalign:         2,          // Children horizontal (X) alignment.
+    	yalign:         2,          // Children vertical (Y) alignment.
+    	zalign:         2,          // Children dept (Z) alignment.
 
-    bounding:       3,          // Type of bounding (used for collisions).
-    expand:         2,          // How (container) object may expand to accomodate children.
-    collision:      3,          // Collision rule (as a child).
+        bounding:   3,  // Type of bounding (used for collisions).
+        expand:     2,  // How (container) object may expand to accomodate children.
+        collision:  3,  // Collision rule (as a child).
 
-    iflook:         1,          // Object responds to be looked at (eg, in field of view).
-    ifpointed:      1,          // Object responds to be pointed at (eg, mouse pointer).
-    ifclick:        1,          // Object responds to device/virtual clicks.
-    ifread:         1,          // Object responds to written text.
-    ifhear:         1,          // Object responds to sounds/voice.
-    ifgesture:      1,          // Object responds to gestures.
+        iflook:     1,  // Object responds to be looked at (eg, in field of view).
+        ifpointed:  1,  // Object responds to be pointed at (eg, mouse pointer).
+        ifclick:    1,  // Object responds to device/virtual clicks.
+        ifread:     1,  // Object responds to written text.
+        ifhear:     1,  // Object responds to sounds/voice.
+        ifgesture:  1,  // Object responds to gestures.
 
-    _reserved:      36
+        _reserved: 22
 );
 
 

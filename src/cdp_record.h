@@ -1,5 +1,6 @@
 /*
- *  Copyright (c) 2024 Victor M. Barrientos (https://github.com/FirmwGuy/CacadeDP)
+ *  Copyright (c) 2024-2025 Victor M. Barrientos
+ *  (https://github.com/FirmwGuy/CacadeDP)
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy of
  *  this software and associated documentation files (the "Software"), to deal in
@@ -136,6 +137,8 @@ typedef int (*cdpAgent)  (cdpRecord* client, void** returned, cdpRecord* self, u
  */
 
 typedef uint64_t  cdpID;
+
+#define CDP_I(v)    ((cdpID)(v))
 
 #define CDP_NAME_BITS           58
 #define CDP_NAME_MAXVAL         (~(((cdpID)(-1)) << CDP_NAME_BITS))
@@ -282,6 +285,39 @@ union _cdpValue {
 #define CDP_V(v)    ((cdpValue)(v))
 
 
+#define CDP_ATTRIBUTE_STRUCT(name, ...)                                        \
+    typedef union {                                                            \
+        struct {                                                               \
+          cdpID                                                                \
+            _type:      2,      /* 0: Virtual,      1: Physical,    2: Conceptual,  3: Hybrid/Other. */\
+            _active:    1,      /* 0: Static,       1: Active/Alive/Operational. */\
+            _interact:  1,      /* 0: Passive,      1: Interactive.     */     \
+            _mutable:   1,      /* 0: Immutable,    1: Can change.      */     \
+            _relational:1,      /* 0: Isolated,     1: Relational.      */     \
+            _complex:   1,      /* 0: Simple,       1: Complex.         */     \
+            _infinite:  1,      /* 0: Finite,       1: Infinite.        */     \
+            _temporal:  1,      /* 0: Timeless,     1: Time-bound.      */     \
+            _mobile:    1,      /* 0: Stationary,   1: Mobile.          */     \
+            _natural:   1,      /* 0: Artificial.   1: Natural.         */     \
+            _incidental:1,      /* 0: Purposeful,   1: Incidental.      */     \
+            _autonomous:1,      /* 0: Dependent,    1: Autonomous.      */     \
+            _needenergy:1,      /* 0: No need,      1: Needs energy.    */     \
+            ##__VA_ARGS__                                                      \
+            ;                                                                  \
+        };                                                                     \
+        cdpID         _id;                                                     \
+    } name; static_assert(sizeof(name) <= sizeof(cdpID))
+
+enum _cdpThingType {
+    CDP_THING_TYPE_VIRTUAL,
+    CDP_THING_TYPE_PHYSICAL,
+    CDP_THING_TYPE_CONCEPTUAL,
+    CDP_THING_TYPE_OTHER = 3
+};
+
+CDP_ATTRIBUTE_STRUCT(cdpAttribute, _domain_flags: 50);
+
+
 struct _cdpData {
     struct {
         cdpID           datatype:   2,  // Type of data (see _cdpDataType).
@@ -295,7 +331,7 @@ struct _cdpData {
                         tag:        CDP_NAME_BITS;  // Data tag.
     };
 
-    cdpID               character;      // Data characteristics (it depends on domain).
+    cdpAttribute        attribute;      // Data attributes (it depends on domain).
     size_t              size;           // Data size in bytes.
     size_t              capacity;       // Buffer capacity in bytes.
 
@@ -330,12 +366,12 @@ enum _cdpDataType {
 
 
 cdpData* cdp_data_new(  cdpID domain, cdpID tag,
-                        cdpID character, unsigned datatype, bool writable,
+                        cdpID attribute, unsigned datatype, bool writable,
                         void** dataloc, cdpValue value, ...  );
 void     cdp_data_del(cdpData* data);
 void*    cdp_data(const cdpData* data);
 #define  cdp_data_valid(d)                      ((d) && (d)->capacity && cdp_id_text_valid((d)->domain) && cdp_id_text_valid((d)->tag))
-#define  cdp_data_new_value(d, t, c, z, value)  cdp_data_new(d, t, c, CDP_DATATYPE_VALUE, true, NULL, CDP_V(value), z, sizeof(cdpValue))
+#define  cdp_data_new_value(d, t, a, z, value)  cdp_data_new(d, t, CDP_I(a), CDP_DATATYPE_VALUE, true, NULL, CDP_V(value), z, sizeof(cdpValue))
 
 static inline void cdp_data_add_agent(cdpData* data, cdpID domain, cdpID tag, cdpAgent agent) {
     assert(cdp_data_valid(data));
@@ -345,10 +381,6 @@ static inline void cdp_data_add_agent(cdpData* data, cdpID domain, cdpID tag, cd
         list->next = data->agent;
     data->agent = list;
 }
-
-
-#define CDP_CHARACTER_STRUCT(type, ...)  typedef struct {cdpID __VA_ARGS__;} type; static_assert(sizeof(type) <= sizeof(cdpID))
-
 
 
 /*
@@ -669,7 +701,7 @@ void*    cdp_record_data(const cdpRecord* record);
 
 void* cdp_record_update(cdpRecord* record, size_t size, size_t capacity, cdpValue value, bool swap);
 #define cdp_record_update_value(r, z, v)    cdp_record_update(r, (z), sizeof(cdpValue), CDP_V(v), false)
-#define cdp_record_update_character(r, c)   do{ assert(cdp_record_has_data(r);  (r)->data.character = (c); }while(0)
+#define cdp_record_update_attribute(r, a)   do{ assert(cdp_record_has_data(r);  (r)->data.attribute.id = CDP_I(a); }while(0)
 
 static inline void cdp_record_delete_data(cdpRecord* record)        {if (cdp_record_has_data(record))  {cdp_data_del(record->data);   record->data  = NULL;}}
 static inline void cdp_record_delete_store(cdpRecord* record)       {if (cdp_record_has_store(record)) {cdp_store_del(record->store); record->store = NULL;}}
