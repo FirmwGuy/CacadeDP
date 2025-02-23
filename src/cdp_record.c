@@ -48,11 +48,11 @@ static inline int record_compare_by_name(const cdpRecord* restrict key, const cd
 /*
     Include child storage techs
 */
-#include "cdp_storage_linked_list.h"
-#include "cdp_storage_dynamic_array.h"
-#include "cdp_storage_packed_queue.h"
-#include "cdp_storage_red_black_tree.h"
-#include "cdp_storage_octree.h"
+#include "storage/cdp_linked_list.h"
+#include "storage/cdp_dynamic_array.h"
+#include "storage/cdp_packed_queue.h"
+#include "storage/cdp_red_black_tree.h"
+#include "storage/cdp_octree.h"
 
 
 

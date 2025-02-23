@@ -19,25 +19,25 @@
  *
  */
 
-#ifndef CDP_DOMAIN_TEXT_H
-#define CDP_DOMAIN_TEXT_H
+#ifndef CDP_TEXT_H
+#define CDP_TEXT_H
 
 
-#include "cdp_record.h"
+#include <cdp_record.h>
 
 
 CDP_ATTRIBUTE_STRUCT(
     cdpText,
-        encoding:   3,  // Text encoding (UTF8, Unicode, Latin1, etc).
-        heading:    3,  // Heading level value for titles (H1, H2, etc).
-        listing:    2,  // Type of listing for table/list (enumerated, definition, etc).
-        formating:  3,  // Text format (bold, italic, etc).
-        font:       3,  // Recommended font family to use for rendering.
-        alignment:  2,  // Recommended horizontal text alignment (left, center, etc).
-        language:   6,  // Language of content (including programming language for scripts).
-        media:      3,  // Embedded media type (image, video, etc).
-
-        _reserved: 25   // ToDO: expand to include DOM things?
+            encoding:   3,      // Text encoding (UTF8, Unicode, Latin1, etc).
+            heading:    3,      // Heading level value for titles (H1, H2, etc).
+            listing:    2,      // Type of listing for table/list (enumerated, definition, etc).
+            formating:  3,      // Text format (bold, italic, etc).
+            font:       3,      // Recommended font family to use for rendering.
+            laignment:  2,      // Recommended horizontal text alignment (left, center, etc).
+            language:   6,      // Language of content (including programming language for scripts).
+            media:      3,      // Embedded media type (image, video, etc).
+            
+            _reserved:  25      // ToDO: expand to include DOM things?
 );
 
 
@@ -131,27 +131,27 @@ enum _cdpTextMedia {
 
 
 // Domain
-#define CDP_WORD_TEXT         CDP_ID(0x0050B8A000000000)      /* "text"_______ */
-
-// Uses
-#define CDP_ACRON_URL         CDP_ID(0x0135CAC000000000)      /* "URL"------ */
+#define CDP_WORD_TEXT               CDP_IDC(0x0050B8A000000000)     /* "text"_______ */
+    
+// Uses 
+#define CDP_ACRON_URL               CDP_IDC(0x0135CAC000000000)     /* "URL"------ */
 
     //CDP_TXT_TAG_METADATA,      // Used for defining metadata, comments, or annotations within the text (e.g., <meta>, comments in markdown).
     //CDP_TXT_TAG_MEDIA,         // Represents media elements like images, videos, and embedded content (e.g., <img>, <iframe>).
     //CDP_TXT_TAG_SCRIPT,        // The (executable) code part of this document.
 
-#define CDP_WORD_CHARACTER    CDP_ID(0x000D01904742C800)      /* "character"__ */
-#define CDP_WORD_WORD         CDP_ID(0x005DF22000000000)      /* "word"_______ */
-#define CDP_WORD_LINE         CDP_ID(0x00312E2800000000)      /* "line"_______ */
-#define CDP_WORD_PARAGRAPH    CDP_ID(0x00403209E4182000)      /* "paragraph"__ */
-
-    //CDP_TXT_TAG_TABLE,
-    //CDP_TXT_TAG_FORMULA,
-    //CDP_TXT_TAG_FOOTNOTE,
-    //CDP_TXT_TAG_HEADER,
-
-#define CDP_WORD_TITLE        CDP_ID(0x0051346140000000)      /* "title"______ */
-
+#define CDP_WORD_CHARACTER          CDP_IDC(0x000D01904742C800)     /* "character"__ */
+#define CDP_WORD_WORD               CDP_IDC(0x005DF22000000000)     /* "word"_______ */
+#define CDP_WORD_LINE               CDP_IDC(0x00312E2800000000)     /* "line"_______ */
+#define CDP_WORD_PARAGRAPH          CDP_IDC(0x00403209E4182000)     /* "paragraph"__ */
+                                                                
+    //CDP_TXT_TAG_TABLE,                                           
+    //CDP_TXT_TAG_FORMULA,                                         
+    //CDP_TXT_TAG_FOOTNOTE,                                        
+    //CDP_TXT_TAG_HEADER,                                          
+                                                                
+#define CDP_WORD_TITLE              CDP_IDC(0x0051346140000000)     /* "title"______ */
+    
     //CDP_TXT_TAG_ABSTRACT,
     //CDP_TXT_TAG_BODY,
     //CDP_TXT_TAG_TOC,
@@ -169,29 +169,38 @@ enum _cdpTextMedia {
     //CDP_TXT_TAG_LICENSE,
 
 // Agencies
-#define CDP_WORD_TRANSFORM    CDP_ID(0x00524174CCF93400)      /* "transform"__ */
-
-// Selectors
-#define CDP_WORD_TRIM         CDP_ID(0x0052496800000000)      /* "trim"_______ */
-#define CDP_WORD_UPPERCASE    CDP_ID(0x0056102C86199400)      /* "uppercase"__ */
-#define CDP_WORD_LOWERCASE    CDP_ID(0x0031F72C86199400)      /* "lowercase"__ */
-#define CDP_WORD_CAPITALIZE   CDP_ID(0x000C304D02C4E8A0)      /* "capitalize"_ */
-
-
-// Characters
-
-#define CDP_TEXT_LINE                                                          \
-    ((cdpText) {                                                               \
-        .domain   = CDP_WORD_TEXT,                                             \
-        .tag      = CDP_WORD_LINE                                              \
-    })
+#define CDP_WORD_TRANSFORM          CDP_IDC(0x00524174CCF93400)     /* "transform"__ */
+    
+    // Selectors    
+    #define CDP_WORD_TRIM           CDP_IDC(0x0052496800000000)     /* "trim"_______ */
+    #define CDP_WORD_UPPERCASE      CDP_IDC(0x0056102C86199400)     /* "uppercase"__ */
+    #define CDP_WORD_LOWERCASE      CDP_IDC(0x0031F72C86199400)     /* "lowercase"__ */
+    #define CDP_WORD_CAPITALIZE     CDP_IDC(0x000C304D02C4E8A0)     /* "capitalize"_ */
 
 
-#define CDP_TEXT_PARAGRAPH                                                     \
-    ((cdpText) {                                                               \
-        .domain   = CDP_WORD_TEXT,                                             \
-        .tag      = CDP_WORD_PARAGRAPH                                         \
-    })
+// Data creation
+
+static inline cdpData* cdp_data_new_text_line(const char* value, size_t size) {
+    assert(value && *value && size);
+    return cdp_data_new_value(
+        CDP_WORD_TEXT,
+        CDP_WORD_LINE,
+        (cdpText){0},
+        size,
+        value
+    );
+}
+
+static inline cdpData* cdp_data_new_text_paragraph(const char* value, size_t size) {
+    assert(value && *value && size);
+    return cdp_data_new_value(
+        CDP_WORD_TEXT,
+        CDP_WORD_PARAGRAPH,
+        (cdpText){0},
+        size,
+        value
+    );
+}
 
 
 #endif

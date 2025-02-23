@@ -28,9 +28,9 @@
 
 
 
-#define CDP_WORD_STDIN      CDP_ID(0x004E844B80000000)      /* "stdin"       */
-#define CDP_WORD_ADDER      CDP_ID(0x0004842C80000000)      /* "adder"       */
-#define CDP_WORD_STDOUT     CDP_ID(0x004E847D68000000)      /* "stdout"      */
+#define CDP_WORD_STDIN      CDP_IDC(0x004E844B80000000)     /* "stdin"       */
+#define CDP_WORD_ADDER      CDP_IDC(0x0004842C80000000)     /* "adder"       */
+#define CDP_WORD_STDOUT     CDP_IDC(0x004E847D68000000)     /* "stdout"      */
 
 bool DONE;
 

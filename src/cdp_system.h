@@ -1,5 +1,6 @@
 /*
- *  Copyright (c) 2024 Victor M. Barrientos (https://github.com/FirmwGuy/CacadeDP)
+ *  Copyright (c) 2024-2025 Victor M. Barrientos
+ *  (https://github.com/FirmwGuy/CacadeDP)
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy of
  *  this software and associated documentation files (the "Software"), to deal in
@@ -196,35 +197,35 @@
 
 
 // Core directories
-#define CDP_WORD_DATA       CDP_ID(0x0010340800000000)      /* "data"_______ */
-#define CDP_WORD_NETWORK    CDP_ID(0x0038B4BBE4B00000)      /* "network"____ */
-#define CDP_WORD_PUBLIC     CDP_ID(0x0042A26246000000)      /* "public"_____ */
-#define CDP_WORD_PRIVATE    CDP_ID(0x004249B068500000)      /* "private"____ */
-#define CDP_WORD_SYSTEM     CDP_ID(0x004F33A15A000000)      /* "system"_____ */
-#define CDP_WORD_TEMP       CDP_ID(0x0050AD8000000000)      /* "temp"_______ */
-#define CDP_WORD_USER       CDP_ID(0x0056659000000000)      /* "user"_______ */
+#define CDP_WORD_DATA       CDP_IDC(0x0010340800000000)     /* "data"_______ */
+#define CDP_WORD_NETWORK    CDP_IDC(0x0038B4BBE4B00000)     /* "network"____ */
+#define CDP_WORD_PUBLIC     CDP_IDC(0x0042A26246000000)     /* "public"_____ */
+#define CDP_WORD_PRIVATE    CDP_IDC(0x004249B068500000)     /* "private"____ */
+#define CDP_WORD_SYSTEM     CDP_IDC(0x004F33A15A000000)     /* "system"_____ */
+#define CDP_WORD_TEMP       CDP_IDC(0x0050AD8000000000)     /* "temp"_______ */
+#define CDP_WORD_USER       CDP_IDC(0x0056659000000000)     /* "user"_______ */
 
 
 // Core sub-dirs
-#define CDP_WORD_AGENT      CDP_ID(0x0004E57500000000)      /* "agent"______ */
-#define CDP_WORD_CASCADE    CDP_ID(0x000C331848500000)      /* "cascade"____ */
-#define CDP_WORD_DOMAIN     CDP_ID(0x0011ED0A5C000000)      /* "domain"_____ */
-#define CDP_WORD_LIBRARY    CDP_ID(0x0031229065900000)      /* "library"____ */
+#define CDP_WORD_AGENT      CDP_IDC(0x0004E57500000000)     /* "agent"______ */
+#define CDP_WORD_CASCADE    CDP_IDC(0x000C331848500000)     /* "cascade"____ */
+#define CDP_WORD_DOMAIN     CDP_IDC(0x0011ED0A5C000000)     /* "domain"_____ */
+#define CDP_WORD_LIBRARY    CDP_IDC(0x0031229065900000)     /* "library"____ */
 
-#define CDP_WORD_STEP       CDP_ID(0x004E858000000000)      /* "step"_______ */
+#define CDP_WORD_STEP       CDP_IDC(0x004E858000000000)     /* "step"_______ */
 
 
 // Basic fields
-//#define CDP_WORD_PENDING    CDP_ID(0x0000000000000000)      /* "pending"     */
-//#define CDP_WORD_WORKING    CDP_ID(0x0000000000000000)      /* "working"     */
-//#define CDP_WORD_COMPLETED  CDP_ID(0x0000000000000000)      /* "completed"   */
-//#define CDP_WORD_FAILED     CDP_ID(0x0000000000000000)      /* "failed"      */
+//#define CDP_WORD_PENDING    CDP_IDC(0x0000000000000000)      /* "pending"     */
+//#define CDP_WORD_WORKING    CDP_IDC(0x0000000000000000)      /* "working"     */
+//#define CDP_WORD_COMPLETED  CDP_IDC(0x0000000000000000)      /* "completed"   */
+//#define CDP_WORD_FAILED     CDP_IDC(0x0000000000000000)      /* "failed"      */
 
 // Events
-//#define CDP_WORD_DEBUG      CDP_ID(0x0000000000000000)      /* "debug"       */
-//#define CDP_WORD_WARNING    CDP_ID(0x0000000000000000)      /* "warning"     */
-//#define CDP_WORD_ERROR      CDP_ID(0x0000000000000000)      /* "error"       */
-//#define CDP_WORD_FATAL      CDP_ID(0x0000000000000000)      /* "fatal"       */
+//#define CDP_WORD_DEBUG      CDP_IDC(0x0000000000000000)      /* "debug"       */
+//#define CDP_WORD_WARNING    CDP_IDC(0x0000000000000000)      /* "warning"     */
+//#define CDP_WORD_ERROR      CDP_IDC(0x0000000000000000)      /* "error"       */
+//#define CDP_WORD_FATAL      CDP_IDC(0x0000000000000000)      /* "fatal"       */
 
 
 void      cdp_system_register_agent(cdpID domain, cdpID tag, cdpAgent agent);

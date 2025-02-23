@@ -19,46 +19,46 @@
  *
  */
 
-#ifndef CDP_DOMAIN_MULTIMEDIA_H
-#define CDP_DOMAIN_MULTIMEDIA_H
+#ifndef CDP_MULTIMEDIA_H
+#define CDP_MULTIMEDIA_H
 
 
-#include "cdp_record.h"
+#include <cdp_record.h>
 
 
 CDP_ATTRIBUTE_STRUCT(
     cdpMultimedia,
-        container:    4,  // Container for data (file format).
-        audio:        4,  // Codec for audio data.
-        soundq:       3,  // Sound quality in audio/video.
-        sampling:     3,  // Audio sampling frequency.
-        video:        4,  // Codec for video data.
-        imageq:       3,  // Image/video quality.
-        icspace:      3,  // Image/video color space.
-        framerate:    3,  // Animation/video frames per second.
-        projection:   3,  // Projection for 360 image/video.
-        subtitle:     2,  // Subtitles encoding if available.
-        
-        _reserved:   18  
+            container:  4,     // Container for data (file format).
+            audio:      4,     // Codec for audio data.
+            soundq:     3,     // Sound quality in audio/video.
+            sampling:   3,     // Audio sampling frequency.
+            video:      4,     // Codec for video data.
+            imageq:     3,     // Image/video quality.
+            icspace:    3,     // Image/video color space.
+            framerate:  3,     // Animation/video frames per second.
+            projection: 3,     // Projection for 360 image/video.
+            subtitle:   2,     // Subtitles encoding if available.
+                       
+            _reserved:  18  
 );
 
 
 enum _cdpMultimediaContainer {
-    CDP_MM_COTNR_RAW,           // No container (plain data content).
+    CDP_MM_CONTAINER_RAW,       // No container (plain data content).
 
-    CDP_MM_COTNR_PNG,           // Losseless image compression.
-    CDP_MM_COTNR_JPG,           // Lossy image compression.
+    CDP_MM_CONTAINER_PNG,       // Losseless image compression.
+    CDP_MM_CONTAINER_JPG,       // Lossy image compression.
 
-    CDP_MM_COTNR_OGG,           // Open audio container.
-    CDP_MM_COTNR_MP3,           // Common audio container.
+    CDP_MM_CONTAINER_OGG,       // Open audio container.
+    CDP_MM_CONTAINER_MP3,       // Common audio container.
 
-    CDP_MM_COTNR_MKV,           // Open video container.
-    CDP_MM_COTNR_MP4,           // Common video container.
+    CDP_MM_CONTAINER_MKV,       // Open video container.
+    CDP_MM_CONTAINER_MP4,       // Common video container.
 
-    CDP_MM_COTNR_MTS,           // MPEG Transport Stream.
-    CDP_MM_COTNR_MOV,           // Apple streaming stuff.
+    CDP_MM_CONTAINER_MTS,       // MPEG Transport Stream.
+    CDP_MM_CONTAINER_MOV,       // Apple streaming stuff.
 
-    CDP_MM_COTNR_OTHER = 15
+    CDP_MM_CONTAINER_OTHER = 15
 };
 
 enum _cdpMultimediaAudio {
@@ -139,24 +139,24 @@ enum _cdpMultimediaColorSpace {
 };
 
 enum _cdpMultimediaFramerate {
-    CDP_MM_FR_NONE,             // Static image.
-    CDP_MM_FR_6,                // Used for animations.
-    CDP_MM_FR_12,               // Used for smoother animations.
-    CDP_MM_FR_24,               // Typical for old movies.
-    CDP_MM_FR_30,               // Console framerate.
-    CDP_MM_FR_60,               // Standard framerate.
-    CDP_MM_FR_120,              // High framerate.
+    CDP_MM_FRATE_NONE,          // Static image.
+    CDP_MM_FRATE_6,             // Used for animations.
+    CDP_MM_FRATE_12,            // Used for smoother animations.
+    CDP_MM_FRATE_24,            // Typical for old movies.
+    CDP_MM_FRATE_30,            // Console framerate.
+    CDP_MM_FRATE_60,            // Standard framerate.
+    CDP_MM_FRATE_120,           // High framerate.
 
-    CDP_MM_FR_OTHER = 7
+    CDP_MM_FRATE_OTHER = 7
 };
 
 enum _cdpMultimediaProjection {
-    CDP_MM_PROJ_NONE,           // Unprojected.
-    CDP_MM_PROJ_EQUIRECT,       // Equirectangular projection (the most common).
-    CDP_MM_PROJ_CUBEMAP,        // Skybox kind of projection.
-    CDP_MM_PROJ_EQUIANG,        // Equiangular (used by Google).
+    CDP_MM_PROJECTION_NONE,     // Unprojected.
+    CDP_MM_PROJECTION_EQUIRECT, // Equirectangular projection (the most common).
+    CDP_MM_PROJECTION_CUBEMAP,  // Skybox kind of projection.
+    CDP_MM_PROJECTION_EQUIANG,  // Equiangular (used by Google).
 
-    CDP_MM_PROJ_OTHER = 7
+    CDP_MM_PROJECTION_OTHER = 7
 };
 
 enum _cdpMultimediaSubtitle {
@@ -169,13 +169,13 @@ enum _cdpMultimediaSubtitle {
 
 
 // Domain
-#define CDP_WORD_MULTIMEDIA   CDP_ID(0x0036ACA25A522420)      /* "multimedia"_ */
-
-// Uses
-#define CDP_WORD_AUDIO        CDP_ID(0x0006A44BC0000000)      /* "audio"______ */
-#define CDP_WORD_IMAGE        CDP_ID(0x0025A13940000000)      /* "image"______ */
-#define CDP_WORD_ANIMATION    CDP_ID(0x0005C9686897B800)      /* "animation"__ */
-#define CDP_WORD_VIDEO        CDP_ID(0x0059242BC0000000)      /* "video"______ */
+#define CDP_WORD_MULTIMEDIA         CDP_IDC(0x0036ACA25A522420)      /* "multimedia"_ */
+    
+// Uses 
+#define CDP_WORD_AUDIO              CDP_IDC(0x0006A44BC0000000)      /* "audio"______ */
+#define CDP_WORD_IMAGE              CDP_IDC(0x0025A13940000000)      /* "image"______ */
+#define CDP_WORD_ANIMATION          CDP_IDC(0x0005C9686897B800)      /* "animation"__ */
+#define CDP_WORD_VIDEO              CDP_IDC(0x0059242BC0000000)      /* "video"______ */
 
     //CDP_MM_TAG_CAPTION,     // Textual overlay or subtitle.
 
@@ -199,10 +199,10 @@ enum _cdpMultimediaSubtitle {
     //CDP_MM_TAG_SPRITE_IDLE,
 
 // Children
-#define CDP_WORD_RESOLUTION   CDP_ID(0x0048B37B2B44BDC0)      /* "resolution"_ */
-#define CDP_WORD_DURATION     CDP_ID(0x0012B20D12F70000)      /* "duration"___ */
-#define CDP_WORD_FRAMES       CDP_ID(0x001A416966000000)      /* "frames"_____ */
-#define CDP_WORD_SAMPLES      CDP_ID(0x004C2D830B300000)      /* "samples"____ */
+#define CDP_WORD_RESOLUTION         CDP_IDC(0x0048B37B2B44BDC0)     /* "resolution"_ */
+#define CDP_WORD_DURATION           CDP_IDC(0x0012B20D12F70000)     /* "duration"___ */
+#define CDP_WORD_FRAMES             CDP_IDC(0x001A416966000000)     /* "frames"_____ */
+#define CDP_WORD_SAMPLES            CDP_IDC(0x004C2D830B300000)     /* "samples"____ */
 
     //CDP_MM_TAG_ANIM_NAME,       // Name/id of animations.
     //CDP_MM_TAG_ANIM_INDEX,      // Index of animation.
@@ -214,28 +214,27 @@ enum _cdpMultimediaSubtitle {
 
 
 // Agencies
-#define CDP_WORD_PLAYER       CDP_ID(0x004181C964000000)      /* "player"_____ */
-#define CDP_WORD_MIXER        CDP_ID(0x0035382C80000000)      /* "mixer"______ */
-#define CDP_WORD_FILTER       CDP_ID(0x00192CA164000000)      /* "filter"_____ */
-#define CDP_WORD_BLENDER      CDP_ID(0x000985710B200000)      /* "blender"____ */
-#define CDP_WORD_SCALER       CDP_ID(0x004C616164000000)      /* "scaler"_____ */
-
-// Selectors
+#define CDP_WORD_PLAYER             CDP_IDC(0x004181C964000000)     /* "player"_____ */
+#define CDP_WORD_MIXER              CDP_IDC(0x0035382C80000000)     /* "mixer"______ */
+#define CDP_WORD_FILTER             CDP_IDC(0x00192CA164000000)     /* "filter"_____ */
+#define CDP_WORD_BLENDER            CDP_IDC(0x000985710B200000)     /* "blender"____ */
+#define CDP_WORD_SCALER             CDP_IDC(0x004C616164000000)     /* "scaler"_____ */
+                                                                    
+// Selectors                                                      
+                                                                    
+// Events                                                         
+#define CDP_WORD_PLAY               CDP_IDC(0x004181C800000000)     /* "play"_______ */
+#define CDP_WORD_PAUSE              CDP_IDC(0x0040359940000000)     /* "pause"______ */
+#define CDP_WORD_REWIND             CDP_IDC(0x0048B74B88000000)     /* "rewind"_____ */
+#define CDP_WORD_FORWARD            CDP_IDC(0x0019F2B864400000)     /* "forward"____ */
+#define CDP_WORD_STOP               CDP_IDC(0x004E8F8000000000)     /* "stop"_______ */
+                                                                    
+#define CDP_WORD_END                CDP_IDC(0x0015C40000000000)     /* "end"________ */
 
     //CDP_MM_TAG_LOAD,
     //CDP_MM_TAG_UNLOAD,
     //CDP_MM_TAG_NEXT_PIXBUF,
     //CDP_MM_TAG_NEXT_AUDIOFRAME,
     //CDP_MM_TAG_CAN_REWIND,
-
-#define CDP_WORD_PLAY         CDP_ID(0x004181C800000000)      /* "play"_______ */
-#define CDP_WORD_PAUSE        CDP_ID(0x0040359940000000)      /* "pause"______ */
-#define CDP_WORD_REWIND       CDP_ID(0x0048B74B88000000)      /* "rewind"_____ */
-#define CDP_WORD_FORWARD      CDP_ID(0x0019F2B864400000)      /* "forward"____ */
-#define CDP_WORD_STOP         CDP_ID(0x004E8F8000000000)      /* "stop"_______ */
-
-// Events
-#define CDP_WORD_END          CDP_ID(0x0015C40000000000)      /* "end"________ */
-
 
 #endif

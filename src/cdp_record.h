@@ -26,9 +26,6 @@
 #include "cdp_util.h"
 
 
-static_assert(sizeof(void*) == sizeof(uint64_t), "32 bit is unsupported yet!");
-
-
 /*
     Cascade Data Processing System - Layer 1
     ------------------------------------------
@@ -138,7 +135,7 @@ typedef int (*cdpAgent)  (cdpRecord* client, void** returned, cdpRecord* self, u
 
 typedef uint64_t  cdpID;
 
-#define CDP_I(v)    ((cdpID)(v))
+#define CDP_ID(v)   ((cdpID)(v))
 
 #define CDP_NAME_BITS           58
 #define CDP_NAME_MAXVAL         (~(((cdpID)(-1)) << CDP_NAME_BITS))
@@ -217,14 +214,14 @@ cdpID  cdp_text_to_word(const char *s);
 size_t cdp_acronysm_to_text(cdpID acro, char s[10]);
 size_t cdp_word_to_text(cdpID coded, char s[12]);
 
-#define CDP_ID                  UINT64_C
+#define CDP_IDC                 UINT64_C
 
-#define CDP_WORD_ROOT           CDP_ID(0x007C000000000000)      /* "/"__________ */
-#define CDP_WORD_LIST           CDP_ID(0x003133A000000000)      /* "list"_______ */
-#define CDP_WORD_DICTIONARY     CDP_ID(0x001123A25EE0CB20)      /* "dictionary"_ */
-#define CDP_WORD_CATALOG        CDP_ID(0x000C340B1E700000)      /* "catalog"____ */
+#define CDP_WORD_ROOT           CDP_IDC(0x007C000000000000)     /* "/"__________ */
+#define CDP_WORD_LIST           CDP_IDC(0x003133A000000000)     /* "list"_______ */
+#define CDP_WORD_DICTIONARY     CDP_IDC(0x001123A25EE0CB20)     /* "dictionary"_ */
+#define CDP_WORD_CATALOG        CDP_IDC(0x000C340B1E700000)     /* "catalog"____ */
 
-#define CDP_ACRON_CDP           CDP_ID(0x0123930000000000)      /* "CDP"------ */
+#define CDP_ACRON_CDP           CDP_IDC(0x0123930000000000)     /* "CDP"------ */
 
 
 struct _cdpAgentList {
@@ -306,7 +303,8 @@ union _cdpValue {
             ;                                                                  \
         };                                                                     \
         cdpID         _id;                                                     \
-    } name; static_assert(sizeof(name) <= sizeof(cdpID))
+    } name;                                                                    \
+    static_assert(sizeof(name) == sizeof(cdpID), "Too many attribute flags!")
 
 enum _cdpThingType {
     CDP_THING_TYPE_VIRTUAL,
@@ -371,7 +369,7 @@ cdpData* cdp_data_new(  cdpID domain, cdpID tag,
 void     cdp_data_del(cdpData* data);
 void*    cdp_data(const cdpData* data);
 #define  cdp_data_valid(d)                      ((d) && (d)->capacity && cdp_id_text_valid((d)->domain) && cdp_id_text_valid((d)->tag))
-#define  cdp_data_new_value(d, t, a, z, value)  cdp_data_new(d, t, CDP_I(a), CDP_DATATYPE_VALUE, true, NULL, CDP_V(value), z, sizeof(cdpValue))
+#define  cdp_data_new_value(d, t, a, z, value)  cdp_data_new(d, t, CDP_ID(a), CDP_DATATYPE_VALUE, true, NULL, CDP_V(value), z, sizeof(cdpValue))
 
 static inline void cdp_data_add_agent(cdpData* data, cdpID domain, cdpID tag, cdpAgent agent) {
     assert(cdp_data_valid(data));
@@ -701,7 +699,7 @@ void*    cdp_record_data(const cdpRecord* record);
 
 void* cdp_record_update(cdpRecord* record, size_t size, size_t capacity, cdpValue value, bool swap);
 #define cdp_record_update_value(r, z, v)    cdp_record_update(r, (z), sizeof(cdpValue), CDP_V(v), false)
-#define cdp_record_update_attribute(r, a)   do{ assert(cdp_record_has_data(r);  (r)->data.attribute.id = CDP_I(a); }while(0)
+#define cdp_record_update_attribute(r, a)   do{ assert(cdp_record_has_data(r);  (r)->data.attribute.id = CDP_ID(a); }while(0)
 
 static inline void cdp_record_delete_data(cdpRecord* record)        {if (cdp_record_has_data(record))  {cdp_data_del(record->data);   record->data  = NULL;}}
 static inline void cdp_record_delete_store(cdpRecord* record)       {if (cdp_record_has_store(record)) {cdp_store_del(record->store); record->store = NULL;}}

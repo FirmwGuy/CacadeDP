@@ -19,11 +19,11 @@
  *
  */
 
-#ifndef CDP_DOMAIN_SIMULATION_H
-#define CDP_DOMAIN_SIMULATION_H
+#ifndef CDP_SIMULATION_H
+#define CDP_SIMULATION_H
 
 
-#include "cdp_record.h"
+#include <cdp_record.h>
 
 
 CDP_ATTRIBUTE_STRUCT(

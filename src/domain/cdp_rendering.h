@@ -1,5 +1,6 @@
 /*
- *  Copyright (c) 2024 Victor M. Barrientos (https://github.com/FirmwGuy/CacadeDP)
+ *  Copyright (c) 2024-2025 Victor M. Barrientos
+ *  (https://github.com/FirmwGuy/CacadeDP)
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy of
  *  this software and associated documentation files (the "Software"), to deal in
@@ -18,66 +19,67 @@
  *
  */
 
-#ifndef CDP_DOMAIN_RENDERING_H
-#define CDP_DOMAIN_RENDERING_H
+#ifndef CDP_RENDERING_H
+#define CDP_RENDERING_H
 
 
 #include "cdp_record.h"
 
 
-CDP_CHARACTER_STRUCT( cdpRendering,
-    // mesh
-    uv:             1,          // Mesh has UV texture coordinates.
-    normals:        1,          // Mesh has vertex normals.
-    tangents:       1,          // Mesh has vertex tangents.
-    lod:            3,          // Level of detail.
-    staticm:        1,          // Mesh is static.
-    skeleton:       1,          // Skeletal animation.
-    morph:          1,          // Morph target animation.
-    ik:             1,          // Inverse kinematics enabled.
+CDP_ATTRIBUTE_STRUCT( 
+    cdpRendering,
+            // mesh
+            uv:           1,    // Mesh has UV texture coordinates.
+            normals:      1,    // Mesh has vertex normals.
+            tangents:     1,    // Mesh has vertex tangents.
+            lod:          3,    // Level of detail.
+            staticm:      1,    // Mesh is static.
+            skeleton:     1,    // Skeletal animation.
+            morph:        1,    // Morph target animation.
+            ik:           1,    // Inverse kinematics enabled.
 
-    // texture
-    srgb:           1,          // Is in sRGB color space.
-    wrap:           2,          // Texture wrap mode.
-    filter:         3,          // Texture filtering mode.
-    mipmap:         1,          // Mipmaping enabled.
-    multitex:       1,          // Texture is an array of textures (animation/video).
-    compressed:     1,          // Texture compression.
+            // texture
+            srgb:         1,    // Is in sRGB color space.
+            wrap:         2,    // Texture wrap mode.
+            filter:       3,    // Texture filtering mode.
+            mipmap:       1,    // Mipmaping enabled.
+            multitex:     1,    // Texture is an array of textures (animation/video).
+            compressed:   1,    // Texture compression.
 
-    // material
-    pbr:            1,          // Material has PBR (physical based rendering).
-    transparency:   1,          // Material uses transparency.
-    doubles:        1,          // Material is double sided.
+            // material
+            pbr:          1,    // Material has PBR (physical based rendering).
+            transparency: 1,    // Material uses transparency.
+            doubles:      1,    // Material is double sided.
 
-    // shader
-    vertex:         1,          // Vertex shader is present.
-    fragment:       1,          // Fragment shader present.
-    //geometry:       1,          // Geometry shader present.
-    compute:        1,          // Compute shader present.
+            // shader
+            vertex:       1,    // Vertex shader is present.
+            fragment:     1,    // Fragment shader present.
+            //geometry:     1,    // Geometry shader present.
+            compute:      1,    // Compute shader present.
 
-    // light & shadows
-    shadow:         1,          // Object casts shadows.
-    light:          3,          // Type of light emitted by object.
+            // light & shadows
+            shadow:       1,    // Object casts shadows.
+            light:        3,    // Type of light emitted by object.
 
-    // room
-    hdri:           1,          // Room uses HDRI texture for lighting and reflections.
-    ssao:           1,          // Room has SSAO (screen-space ambient occlusion).
-    ssr:            1,          // Room has SSR (screen-space reflections).
-    rsq:            3,          // Shadow quality inside room.
-    cascades:       1,          // Enables cascaded shadows.
-    volumetric:     1,          // Volumetric clouds.
-    skybox:         1,          // Skybox texture.
-    cubemap:        1,          // Cube map for reflections (on/off).
-    decals:         1,          // Decals enabled in this room.
+            // room
+            hdri:         1,    // Room uses HDRI texture for lighting and reflections.
+            ssao:         1,    // Room has SSAO (screen-space ambient occlusion).
+            ssr:          1,    // Room has SSR (screen-space reflections).
+            rsq:          3,    // Shadow quality inside room.
+            cascades:     1,    // Enables cascaded shadows.
+            volumetric:   1,    // Volumetric clouds.
+            skybox:       1,    // Skybox texture.
+            cubemap:      1,    // Cube map for reflections (on/off).
+            decals:       1,    // Decals enabled in this room.
 
-    // camera
-    orthographic:   1,          // Camera projection (perspective or "0" is the default).
-    motionblur:     1,          // Motion blur enabled.
-    depth:          1,          // Depth of field enabled.
-    tonemap:        3,          // Tone mapping type.
-    type:           3,          // Rendering type.
+            // camera
+            orthographic: 1,    // Camera projection (perspective or "0" is the default).
+            motionblur:   1,    // Motion blur enabled.
+            depth:        1,    // Depth of field enabled.
+            tonemap:      3,    // Tone mapping type.
+            type:         3,    // Rendering type.
 
-    _reserved:      15
+            _reserved:    1
 );
 
 
@@ -93,7 +95,7 @@ enum _cdpRenderingFilter {
     CDP_RENDER_FILTER_NEAREST,  // Nearest neighbor.
     CDP_RENDER_FILTER_BILINEAR, // Bilinear (2x2 pixel) filtering.
     CDP_RENDER_FILTER_TRILINEAR,// Linear-mipmap-linear.
-    CDP_RENDER_FILTER_ANISOTROPIC,// Anisotropic x16.
+    CDP_RENDER_FILTER_ANISOTROPIC,      // Anisotropic x16.
     CDP_RENDER_FILTER_ANISOTX8, // Anisotropic x8.
     CDP_RENDER_FILTER_ANISOTX4, // Anisotropic x4.
     CDP_RENDER_FILTER_ANISOTX2, // Anisotropic x2.
