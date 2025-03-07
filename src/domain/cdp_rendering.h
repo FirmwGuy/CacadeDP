@@ -28,15 +28,12 @@
 
 CDP_ATTRIBUTE_STRUCT( 
     cdpRendering,
+            dynamic:      1,    // Static object rendering can be pre-rendered to textures.
+            
             // mesh
             uv:           1,    // Mesh has UV texture coordinates.
             normals:      1,    // Mesh has vertex normals.
             tangents:     1,    // Mesh has vertex tangents.
-            lod:          3,    // Level of detail.
-            staticm:      1,    // Mesh is static.
-            skeleton:     1,    // Skeletal animation.
-            morph:        1,    // Morph target animation.
-            ik:           1,    // Inverse kinematics enabled.
 
             // texture
             srgb:         1,    // Is in sRGB color space.
@@ -77,9 +74,9 @@ CDP_ATTRIBUTE_STRUCT(
             motionblur:   1,    // Motion blur enabled.
             depth:        1,    // Depth of field enabled.
             tonemap:      3,    // Tone mapping type.
-            type:         3,    // Rendering type.
+            rtype:        3,    // Rendering type.
 
-            _reserved:    1
+            _reserved:    8
 );
 
 
