@@ -9,6 +9,9 @@
  *  of the Software, and to permit persons to whom the Software is furnished to do
  *  so.
  *
+ *  The above copyright notice and this permission notice shall be included in all
+ *  copies or substantial portions of the Software.
+ *
  *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -93,6 +96,10 @@ enum _cdpBodyJoint {
 // Domain
 #define CDP_WORD_BODY               DP_IDC(__)      /* "body"        */
 
+// Encodings
+#define CDP_ACRON_GLVBO          CDP_IDC(0x0127B368AF000000)     /* "GLVBO"---- (OpenGL XYZ per-vertex array) */
+#define CDP_ACRON_GLVBOTEX       CDP_IDC(0x0127B368AFD25E00)     /* "GLVBOTEX"- (Same as GLVBO, but with added NXNYNZ normals and UV texture coord) */
+#define CDP_ACRON_GLVBOFULL      CDP_IDC(0x0127B368AF9B5B2C)     /* "GLVBOFULL" (Same as GLVBOTEX, but with added RGBA color values) */
 
 // Uses
 

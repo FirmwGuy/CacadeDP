@@ -9,6 +9,9 @@
  *  of the Software, and to permit persons to whom the Software is furnished to do
  *  so.
  *
+ *  The above copyright notice and this permission notice shall be included in all
+ *  copies or substantial portions of the Software.
+ *
  *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -328,8 +331,9 @@ struct _cdpData {
                         _reserved:  4,
                         tag:        CDP_NAME_BITS;  // Data tag.
     };
-
     cdpAttribute        attribute;      // Data attributes (it depends on domain).
+
+    cdpID               encoding;       // Binary encoding id.
     size_t              size;           // Data size in bytes.
     size_t              capacity;       // Buffer capacity in bytes.
 
@@ -397,14 +401,15 @@ struct _cdpStore {
         cdpID       storage:    3,              // Data structure for children storage (array, linked-list, etc).
                     indexing:   2,              // Indexing (sorting) criteria for children.
                     _unused:    1,
-                    domain:     CDP_NAME_BITS;  // Data domain.
+                    domain:     CDP_NAME_BITS;  // Structure domain.
     };
     struct {
         cdpID       writable:   1,              // If chidren can be added/deleted.
                     lock:       1,              // Lock on children operations.
                     _reserved:  4,
-                    tag:        CDP_NAME_BITS;  // Data tag.
+                    tag:        CDP_NAME_BITS;  // Structure tag.
     };
+    cdpAttribute    attribute;  // Structure attributes (it depends on domain). This is used *only* if record has no data (ie, as a pure directory).
 
     cdpRecord*      owner;      // Record owning this child storage.
     union {
@@ -477,7 +482,7 @@ typedef struct {
 
 
 struct _cdpRecord {
-    cdpMetarecord   metarecord; // Meta about this record entry (including id, etc).
+    cdpMetarecord   metarecord; // Meta about this record entry (including name, id, etc).
     cdpStore*       parent;     // Parent structure (list, array, etc) where this record is stored in.
 
     union {

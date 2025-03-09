@@ -9,6 +9,9 @@
  *  of the Software, and to permit persons to whom the Software is furnished to do
  *  so.
  *
+ *  The above copyright notice and this permission notice shall be included in all
+ *  copies or substantial portions of the Software.
+ *
  *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -32,11 +35,11 @@ CDP_ATTRIBUTE_STRUCT(
             sign:       1,      // Is it signed (1) or unsigned (0)?
             floating:   2,      // Floating point type.
             dimension:  3,      // Dimensions of data.
-                
+
             endianess:  1,      // Little endian (0) is the norm.
             compression:3,      // Type of compression used to pack content.
             encryption: 3,      // Encryption method.
-                
+
             _reserved:  31      // ToDo: expand to streams and communication related stuff.
 );
 
@@ -112,68 +115,81 @@ enum _cdpBinaryEncryption {
 
 
 // Domain
-#define CDP_WORD_BINARY             CDP_IDC(0x00092E0CB2000000)     /* "binary"      */
-    
-// Uses 
-#define CDP_ACRON_CDPID             CDP_IDC(0x0123930A64000000)     /* "CDPID"       */
-#define CDP_WORD_BOOLEAN            CDP_IDC(0x0009EF6142E00000)     /* "boolean"     */
-#define CDP_WORD_BYTE               CDP_IDC(0x000B342800000000)     /* "byte"        */
-    
-#define CDP_ACRON_UINT16            CDP_IDC(0x0135A6ED11580000)     /* "UINT16"      */
-#define CDP_ACRON_UINT32            CDP_IDC(0x0135A6ED13480000)     /* "UINT32"      */
-#define CDP_ACRON_UINT64            CDP_IDC(0x0135A6ED16500000)     /* "UINT64"      */
-    
-#define CDP_ACRON_INT16             CDP_IDC(0x0129BB4456000000)     /* "INT16"       */
-#define CDP_ACRON_INT32             CDP_IDC(0x0129BB44D2000000)     /* "INT32"       */
-#define CDP_ACRON_INT64             CDP_IDC(0x0129BB4594000000)     /* "INT64"       */
-    
-#define CDP_ACRON_FLOAT32           CDP_IDC(0x0126B2F8744D2000)     /* "FLOAT32"     */
-#define CDP_ACRON_FLOAT64           CDP_IDC(0x0126B2F874594000)     /* "FLOAT64"     */
-    
-#define CDP_ACRON_VECTOR2D          CDP_IDC(0x0136963D2FC92900)     /* "VECTOR2D"    */
-#define CDP_ACRON_VECTOR3D          CDP_IDC(0x0136963D2FC93900)     /* "VECTOR3D"    */
-#define CDP_ACRON_VECTOR4D          CDP_IDC(0x0136963D2FC94900)     /* "VECTOR4D"    */
-    
-#define CDP_ACRON_MATRIX2D          CDP_IDC(0x012D874CA9E12900)     /* "MATRIX2D"    */
-#define CDP_ACRON_MATRIX3D          CDP_IDC(0x012D874CA9E13900)     /* "MATRIX3D"    */
-#define CDP_ACRON_MATRIX4D          CDP_IDC(0x012D874CA9E14900)     /* "MATRIX4D"    */
-    
-// Children 
+#define CDP_WORD_BINARY             CDP_IDC(0x00092E0CB2000000)     /* "binary"_____ */
+
+// Encodings
+#define CDP_WORD_UNSIGNED           CDP_IDC(0x0055D349DC520000)     /* "unsigned"___ */
+#define CDP_WORD_SIGNED             CDP_IDC(0x004D277148000000)     /* "signed"_____ */
+#define CDP_ACRON_IEEE754           CDP_IDC(0x0129965957554000)     /* "IEEE754"-- (all floats)*/
+#define CDP_ACRON_C_COMPLEX         CDP_IDC(0x0123363BEDC2C978)     /* "C-COMPLEX" */
+#define CDP_ACRON_GMP               CDP_IDC(0x0127B70000000000)     /* "GMP"------ */
+#define CDP_ACRON_MPFR              CDP_IDC(0x012DC26C80000000)     /* "MPFR"----- */
+#define CDP_ACRON_MPC               CDP_IDC(0x012DC23000000000)     /* "MPC"------ */
+#define CDP_ACRON_MPDECIMAL         CDP_IDC(0x012DC24963A6D86C)     /* "MPDECIMAL" */
+#define CDP_ACRON_C_ARRAY           CDP_IDC(0x0123361CB2879000)     /* "C-ARRAY"-- (contiguous memory without meta) */
+#define CDP_ACRON_C_MATRIX          CDP_IDC(0x012336D874CA9E00)     /* "C-MATRIX"- (Row-Major Order: C/OpenGL/NumPy/TensorFlow style matrix) */
+#define CDP_ACRON_MATRIXCMO         CDP_IDC(0x012D874CA9E23B6F)     /* "MATRIXCMO" (Column-Major Order: Fortran/Matlab/BLAS/LAPACK style matrix) */
+
+ // Uses
+#define CDP_ACRON_CDPID             CDP_IDC(0x0123930A64000000)     /* "CDPID"     */
+#define CDP_WORD_BOOLEAN            CDP_IDC(0x0009EF6142E00000)     /* "boolean"____ */
+#define CDP_WORD_BYTE               CDP_IDC(0x000B342800000000)     /* "byte"_______ */
+
+#define CDP_ACRON_UINT16            CDP_IDC(0x0135A6ED11580000)     /* "UINT16"    */
+#define CDP_ACRON_UINT32            CDP_IDC(0x0135A6ED13480000)     /* "UINT32"    */
+#define CDP_ACRON_UINT64            CDP_IDC(0x0135A6ED16500000)     /* "UINT64"    */
+
+#define CDP_ACRON_INT16             CDP_IDC(0x0129BB4456000000)     /* "INT16"     */
+#define CDP_ACRON_INT32             CDP_IDC(0x0129BB44D2000000)     /* "INT32"     */
+#define CDP_ACRON_INT64             CDP_IDC(0x0129BB4594000000)     /* "INT64"     */
+
+#define CDP_ACRON_FLOAT32           CDP_IDC(0x0126B2F8744D2000)     /* "FLOAT32"   */
+#define CDP_ACRON_FLOAT64           CDP_IDC(0x0126B2F874594000)     /* "FLOAT64"   */
+
+#define CDP_ACRON_VECTOR2D          CDP_IDC(0x0136963D2FC92900)     /* "VECTOR2D"  */
+#define CDP_ACRON_VECTOR3D          CDP_IDC(0x0136963D2FC93900)     /* "VECTOR3D"  */
+#define CDP_ACRON_VECTOR4D          CDP_IDC(0x0136963D2FC94900)     /* "VECTOR4D"  */
+
+#define CDP_ACRON_MATRIX2D          CDP_IDC(0x012D874CA9E12900)     /* "MATRIX2D"  */
+#define CDP_ACRON_MATRIX3D          CDP_IDC(0x012D874CA9E13900)     /* "MATRIX3D"  */
+#define CDP_ACRON_MATRIX4D          CDP_IDC(0x012D874CA9E14900)     /* "MATRIX4D"  */
+
+// Children
 #define CDP_WORD_LENGTH             CDP_IDC(0x0000000000000000)     /* "length"      */
-#define CDP_ACRON_LENGTH2D          CDP_IDC(0x0000000000000000)     /* "LENGTH2D"    */
-#define CDP_ACRON_LENGTH3D          CDP_IDC(0x0000000000000000)     /* "LENGTH3D"    */
-#define CDP_ACRON_LENGTH4D          CDP_IDC(0x0000000000000000)     /* "LENGTH4D"    */
+#define CDP_ACRON_LENGTH2D          CDP_IDC(0x0000000000000000)     /* "LENGTH2D"- */
+#define CDP_ACRON_LENGTH3D          CDP_IDC(0x0000000000000000)     /* "LENGTH3D"- */
+#define CDP_ACRON_LENGTH4D          CDP_IDC(0x0000000000000000)     /* "LENGTH4D"- */
 #define CDP_WORD_TENSOR_ORD         CDP_IDC(0x0000000000000000)     /* "tensor-ord"  */
 #define CDP_WORD_TENSOR_LEN         CDP_IDC(0x0000000000000000)     /* "tensor-len"  */
-    
-// Agencies 
+
+// Agencies
 #define CDP_WORD_MATH               CDP_IDC(0x0000000000000000)     /* "math"        */
-    
-    // Selectors    
+
+    // Selectors
     #define CDP_WORD_AND            CDP_IDC(0x0000000000000000)     /* "and"         */
     #define CDP_WORD_OR             CDP_IDC(0x0000000000000000)     /* "or"          */
     #define CDP_WORD_NOT            CDP_IDC(0x0000000000000000)     /* "not"         */
-    
+
     #define CDP_WORD_BIT_AND        CDP_IDC(0x0000000000000000)     /* "bit-and"     */
     #define CDP_WORD_BIT_OR         CDP_IDC(0x0000000000000000)     /* "bit-or"      */
     #define CDP_WORD_BIT_NOT        CDP_IDC(0x0000000000000000)     /* "bit-not"     */
-    
+
     #define CDP_WORD_EQUAL          CDP_IDC(0x0000000000000000)     /* "equal"       */
     #define CDP_WORD_GREATER        CDP_IDC(0x0000000000000000)     /* "greater"     */
     #define CDP_WORD_LESSER         CDP_IDC(0x0000000000000000)     /* "lesser"      */
-    
+
     #define CDP_WORD_ADD            CDP_IDC(0x0000000000000000)     /* "add"         */
     #define CDP_WORD_SUBTRACT       CDP_IDC(0x0000000000000000)     /* "subtract"    */
     #define CDP_WORD_MULTIPLY       CDP_IDC(0x0000000000000000)     /* "multiply"    */
     #define CDP_WORD_DIVIDE         CDP_IDC(0x0000000000000000)     /* "divide"      */
-    
-    
-// Event Messages   
+
+
+// Event Messages
 #define CDP_WORD_PENDING            CDP_IDC(0x0000000000000000)     /* "pending"     */
 #define CDP_WORD_WORKING            CDP_IDC(0x0000000000000000)     /* "working"     */
 #define CDP_WORD_COMPLETED          CDP_IDC(0x0000000000000000)     /* "completed"   */
 #define CDP_WORD_FAILED             CDP_IDC(0x0000000000000000)     /* "failed"      */
-    
+
 #define CDP_WORD_DEBUG              CDP_IDC(0x0000000000000000)     /* "debug"       */
 #define CDP_WORD_WARNING            CDP_IDC(0x0000000000000000)     /* "warning"     */
 #define CDP_WORD_ERROR              CDP_IDC(0x0000000000000000)     /* "error"       */

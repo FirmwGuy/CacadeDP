@@ -9,6 +9,9 @@
  *  of the Software, and to permit persons to whom the Software is furnished to do
  *  so.
  *
+ *  The above copyright notice and this permission notice shall be included in all
+ *  copies or substantial portions of the Software.
+ *
  *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -38,8 +41,8 @@ CDP_ATTRIBUTE_STRUCT(
             framerate:  3,     // Animation/video frames per second.
             projection: 3,     // Projection for 360 image/video.
             subtitle:   2,     // Subtitles encoding if available.
-                       
-            _reserved:  18  
+
+            _reserved:  18
 );
 
 
@@ -142,7 +145,7 @@ enum _cdpMultimediaFramerate {
     CDP_MM_FRATE_NONE,          // Static image.
     CDP_MM_FRATE_6,             // Used for animations.
     CDP_MM_FRATE_12,            // Used for smoother animations.
-    CDP_MM_FRATE_24,            // Typical for old movies.
+    CDP_MM_FRATE_24,            // Typical from old movies.
     CDP_MM_FRATE_30,            // Console framerate.
     CDP_MM_FRATE_60,            // Standard framerate.
     CDP_MM_FRATE_120,           // High framerate.
@@ -170,8 +173,13 @@ enum _cdpMultimediaSubtitle {
 
 // Domain
 #define CDP_WORD_MULTIMEDIA         CDP_IDC(0x0036ACA25A522420)      /* "multimedia"_ */
-    
-// Uses 
+
+// Encodings
+#define CDP_ACRON_RAW_RGBA          CDP_IDC(0x01328773729E2840)     /* "RAW-RGBA"- */
+#define CDP_ACRON_RAW_PCM           CDP_IDC(0x01328773708ED000)     /* "RAW-PCM"-- */
+
+
+// Uses
 #define CDP_WORD_AUDIO              CDP_IDC(0x0006A44BC0000000)      /* "audio"______ */
 #define CDP_WORD_IMAGE              CDP_IDC(0x0025A13940000000)      /* "image"______ */
 #define CDP_WORD_ANIMATION          CDP_IDC(0x0005C9686897B800)      /* "animation"__ */
@@ -219,16 +227,16 @@ enum _cdpMultimediaSubtitle {
 #define CDP_WORD_FILTER             CDP_IDC(0x00192CA164000000)     /* "filter"_____ */
 #define CDP_WORD_BLENDER            CDP_IDC(0x000985710B200000)     /* "blender"____ */
 #define CDP_WORD_SCALER             CDP_IDC(0x004C616164000000)     /* "scaler"_____ */
-                                                                    
-// Selectors                                                      
-                                                                    
-// Events                                                         
+
+// Selectors
+
+// Events
 #define CDP_WORD_PLAY               CDP_IDC(0x004181C800000000)     /* "play"_______ */
 #define CDP_WORD_PAUSE              CDP_IDC(0x0040359940000000)     /* "pause"______ */
 #define CDP_WORD_REWIND             CDP_IDC(0x0048B74B88000000)     /* "rewind"_____ */
 #define CDP_WORD_FORWARD            CDP_IDC(0x0019F2B864400000)     /* "forward"____ */
 #define CDP_WORD_STOP               CDP_IDC(0x004E8F8000000000)     /* "stop"_______ */
-                                                                    
+
 #define CDP_WORD_END                CDP_IDC(0x0015C40000000000)     /* "end"________ */
 
     //CDP_MM_TAG_LOAD,

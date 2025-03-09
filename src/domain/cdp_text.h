@@ -8,6 +8,9 @@
  *  use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
  *  of the Software, and to permit persons to whom the Software is furnished to do
  *  so.
+ * 
+ *  The above copyright notice and this permission notice shall be included in all
+ *  copies or substantial portions of the Software.
  *
  *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -28,7 +31,6 @@
 
 CDP_ATTRIBUTE_STRUCT(
     cdpText,
-            encoding:   3,      // Text encoding (UTF8, Unicode, Latin1, etc).
             heading:    3,      // Heading level value for titles (H1, H2, etc).
             listing:    2,      // Type of listing for table/list (enumerated, definition, etc).
             formating:  3,      // Text format (bold, italic, etc).
@@ -36,24 +38,10 @@ CDP_ATTRIBUTE_STRUCT(
             laignment:  2,      // Recommended horizontal text alignment (left, center, etc).
             language:   6,      // Language of content (including programming language for scripts).
             media:      3,      // Embedded media type (image, video, etc).
-            
-            _reserved:  25      // ToDO: expand to include DOM things?
+
+            _reserved:  28      // ToDO: expand to include DOM things?
 );
 
-
-enum _cdpTextEncoding {
-    CDP_TXT_ENCOD_UTF8,         // The standard.
-    CDP_TXT_ENCOD_ASCII,        // Full ASCII text.
-    CDP_TXT_ENCOD_WORD,         // ASCII lowercase only word (length up to 11).
-    CDP_TXT_ENCOD_ACRONYSM,     // ASCII uppercase, numbers and symbols (length up to 9).
-    CDP_TXT_ENCOD_UNICODE,      // A 2-byte wide C string.
-    CDP_TXT_ENCOD_ISO8859,      // European (aka Latin1).
-    CDP_TXT_ENCOD_SHIFT_JIS,    // Japanse.
-    CDP_TXT_ENCOD_BIG5,         // Cantonese chinese.
-    CDP_TXT_ENCOD_GB18030,      // Simplified chinese.
-
-    CDP_TXT_ENCOD_OTHER = 15
-};
 
 enum _cdpTextHeding {
     CDP_TXT_HEADING_NONE,       // Normal text.
@@ -132,8 +120,18 @@ enum _cdpTextMedia {
 
 // Domain
 #define CDP_WORD_TEXT               CDP_IDC(0x0050B8A000000000)     /* "text"_______ */
-    
-// Uses 
+
+// Encodings
+#define CDP_ACRON_UTF8              CDP_IDC(0x0135D26600000000)     /* "UTF8"----- */
+#define CDP_ACRON_ASCII             CDP_IDC(0x0121CE3A69000000)     /* "ASCII"---- */
+#define CDP_WORD_UNICODE            CDP_IDC(0x0055C91BC8500000)     /* "unicode"____ */
+#define CDP_ACRON_ISO8859           CDP_IDC(0x0129CEF618559000)     /* "ISO8859"-- */
+
+//    CDP_TXT_ENCOD_SHIFT_JIS,    // Japanse.
+//    CDP_TXT_ENCOD_BIG5,         // Cantonese chinese.
+//    CDP_TXT_ENCOD_GB18030,      // Simplified chinese.
+
+// Uses
 #define CDP_ACRON_URL               CDP_IDC(0x0135CAC000000000)     /* "URL"------ */
 
     //CDP_TXT_TAG_METADATA,      // Used for defining metadata, comments, or annotations within the text (e.g., <meta>, comments in markdown).
@@ -144,14 +142,14 @@ enum _cdpTextMedia {
 #define CDP_WORD_WORD               CDP_IDC(0x005DF22000000000)     /* "word"_______ */
 #define CDP_WORD_LINE               CDP_IDC(0x00312E2800000000)     /* "line"_______ */
 #define CDP_WORD_PARAGRAPH          CDP_IDC(0x00403209E4182000)     /* "paragraph"__ */
-                                                                
-    //CDP_TXT_TAG_TABLE,                                           
-    //CDP_TXT_TAG_FORMULA,                                         
-    //CDP_TXT_TAG_FOOTNOTE,                                        
-    //CDP_TXT_TAG_HEADER,                                          
-                                                                
+
+    //CDP_TXT_TAG_TABLE,
+    //CDP_TXT_TAG_FORMULA,
+    //CDP_TXT_TAG_FOOTNOTE,
+    //CDP_TXT_TAG_HEADER,
+
 #define CDP_WORD_TITLE              CDP_IDC(0x0051346140000000)     /* "title"______ */
-    
+
     //CDP_TXT_TAG_ABSTRACT,
     //CDP_TXT_TAG_BODY,
     //CDP_TXT_TAG_TOC,
@@ -170,8 +168,8 @@ enum _cdpTextMedia {
 
 // Agencies
 #define CDP_WORD_TRANSFORM          CDP_IDC(0x00524174CCF93400)     /* "transform"__ */
-    
-    // Selectors    
+
+    // Selectors
     #define CDP_WORD_TRIM           CDP_IDC(0x0052496800000000)     /* "trim"_______ */
     #define CDP_WORD_UPPERCASE      CDP_IDC(0x0056102C86199400)     /* "uppercase"__ */
     #define CDP_WORD_LOWERCASE      CDP_IDC(0x0031F72C86199400)     /* "lowercase"__ */
