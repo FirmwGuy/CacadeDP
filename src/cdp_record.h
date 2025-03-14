@@ -49,9 +49,6 @@
 
     * Link: A record that points to another record.
 
-    * Agent: A record with the address of a callable agent function (able
-    to be activated on record events).
-
     * Metarecord: Each record contains meta, including flags that specify the
     record's characteristics, and a name identifier indicating the record's
     role or ID within its parent.
@@ -118,7 +115,7 @@
 
       Octree: Used for (3D) spatial indexing according to contained data.
       It only needs a comparation function able to determine if the record
-      fully fits in between a quadrant or not.
+      fully fits inside a quadrant or not.
 */
 
 
@@ -155,7 +152,8 @@ typedef struct {
 
               hidden:     1,    // Record won't appaear on listings (it can only be accesed directly).
               shadowing:  2,    // If record has shadowing records (links pointing to it).
-              task:       1,    // Record belongs to a task (which needs to be activated after I/O).
+              property:   1,    // Record is a property (not a child) of its parent.
+              //task:       1,    // Record belongs to a task (which needs to be activated after I/O).
 
               name:       CDP_NAME_BITS;    // Name id of this record instance (including naming convention).
     };
@@ -519,9 +517,9 @@ typedef bool (*cdpTraverse)(cdpEntry*, void*);
  */
 
 enum _cdpAction {
-    CDP_ACTION_GET_INLET,
-    CDP_ACTION_CONNECT,
-    CDP_ACTION_UNPLUG,
+    CDP_ACTION_CONTEXT_INLET,
+    CDP_ACTION_CONTEXT_CONNECT,
+    CDP_ACTION_CONTEXT_UNPLUG,
     //
     CDP_ACTION_DATA_NEW,
     CDP_ACTION_DATA_ATTRIBUTE,

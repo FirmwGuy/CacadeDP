@@ -8,7 +8,7 @@
  *  use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
  *  of the Software, and to permit persons to whom the Software is furnished to do
  *  so.
- * 
+ *
  *  The above copyright notice and this permission notice shall be included in all
  *  copies or substantial portions of the Software.
  *
@@ -69,13 +69,13 @@ static int agent_system_step(cdpRecord* client, void** returned, cdpRecord* self
         return CDP_STATUS_PROGRESS;
       }
 
-      case CDP_ACTION_CONNECT: {
+      case CDP_ACTION_CONTEXT_CONNECT: {
         cdpRecord* link = cdp_record_append_link(self, CDP_AUTOID, record);
         CDP_PTR_SEC_SET(returned, link);
         return CDP_STATUS_SUCCESS;
       }
 
-      case CDP_ACTION_UNPLUG: {
+      case CDP_ACTION_CONTEXT_UNPLUG: {
         assert(self == cdp_record_parent(record));
         cdp_record_remove(record, NULL);
         return CDP_STATUS_SUCCESS;

@@ -7,7 +7,7 @@
  *  use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
  *  of the Software, and to permit persons to whom the Software is furnished to do
  *  so.
- * 
+ *
  *  The above copyright notice and this permission notice shall be included in all
  *  copies or substantial portions of the Software.
  *
@@ -56,18 +56,18 @@ static int agent_stdin(cdpRecord* client, void** returned, cdpRecord* self, unsi
         return CDP_STATUS_PROGRESS;
       }
 
-      case CDP_ACTION_GET_INLET: {
+      case CDP_ACTION_CONTEXT_INLET: {
         assert_uint64(value.id, ==, cdp_text_to_word("tic"));
         CDP_PTR_SEC_SET(returned, self);
         return CDP_STATUS_SUCCESS;
       }
-      case CDP_ACTION_CONNECT: {
+      case CDP_ACTION_CONTEXT_CONNECT: {
         assert_uint64(value.id, ==, cdp_text_to_word("inp"));
         inp = cdp_dict_add_link(self, value.id, record);
         CDP_PTR_SEC_SET(returned, inp);
         return CDP_STATUS_SUCCESS;
       }
-      case CDP_ACTION_UNPLUG: {
+      case CDP_ACTION_CONTEXT_UNPLUG: {
         cdp_record_delete_children(self);
         inp = NULL;
         return CDP_STATUS_SUCCESS;
@@ -117,20 +117,20 @@ static int agent_adder(cdpRecord* client, void** returned, cdpRecord* self, unsi
         return CDP_STATUS_PROGRESS;
       }
 
-      case CDP_ACTION_GET_INLET: {
+      case CDP_ACTION_CONTEXT_INLET: {
         assert_uint64(value.id, ==, cdp_text_to_word("num"));
         num = cdp_dict_add_value(self, value.id, CDP_ACRON_CDP, CDP_WORD_ADDER, (cdpID)0, 0.0, sizeof(double), sizeof(double));
         cdp_data_add_agent(num->data, CDP_ACRON_CDP, CDP_WORD_ADDER, cdp_system_agent(CDP_ACRON_CDP, CDP_WORD_ADDER));
         CDP_PTR_SEC_SET(returned, num);
         return CDP_STATUS_SUCCESS;
       }
-      case CDP_ACTION_CONNECT: {
+      case CDP_ACTION_CONTEXT_CONNECT: {
         assert_uint64(value.id, ==, cdp_text_to_word("ans"));
         ans = cdp_dict_add_link(self, value.id, record);
         CDP_PTR_SEC_SET(returned, ans);
         return CDP_STATUS_SUCCESS;
       }
-      case CDP_ACTION_UNPLUG: {
+      case CDP_ACTION_CONTEXT_UNPLUG: {
         cdp_record_remove(num, NULL);
         num = NULL;
         return CDP_STATUS_SUCCESS;
@@ -164,7 +164,7 @@ static int agent_stdout(cdpRecord* client, void** returned, cdpRecord* self, uns
         return CDP_STATUS_PROGRESS;
       }
 
-      case CDP_ACTION_GET_INLET: {
+      case CDP_ACTION_CONTEXT_INLET: {
         assert_uint64(value.id, ==, cdp_text_to_acronysm("IN1"));
         CDP_PTR_SEC_SET(returned, self);
         return CDP_STATUS_SUCCESS;
@@ -217,22 +217,22 @@ MunitResult test_agents(const MunitParameter params[], void* user_data_or_fixtur
     cdpRecord* stdoutp = cdp_record_append(pipeline, false, cdp_cascade_record_new_simple(cdp_root(), &child, CDP_WORD_STDOUT, CDP_ACRON_CDP, CDP_WORD_STDOUT));    assert_not_null(stdoutp);   assert_false(cdp_record_is_empty(stdoutp));
 
     // Link pipeline in reverse (upstream) order
-    cdpRecord* in1; status = cdp_cascade_get_inlet(cdp_root(), &in1, stdoutp, cdp_text_to_acronysm("IN1"));    assert_int(status, >=, CDP_STATUS_OK);   assert_not_null(in1);
-    cdpRecord* num; status = cdp_cascade_get_inlet(cdp_root(), &num, adder,   cdp_text_to_word("num"));        assert_int(status, >=, CDP_STATUS_OK);   assert_not_null(num);
-    cdpRecord* tic; status = cdp_cascade_get_inlet(cdp_root(), &tic, stdinp,  cdp_text_to_word("tic"));        assert_int(status, >=, CDP_STATUS_OK);   assert_not_null(tic);
+    cdpRecord* in1; status = cdp_cascade_context_inlet(cdp_root(), &in1, stdoutp, cdp_text_to_acronysm("IN1"));    assert_int(status, >=, CDP_STATUS_OK);   assert_not_null(in1);
+    cdpRecord* num; status = cdp_cascade_context_inlet(cdp_root(), &num, adder,   cdp_text_to_word("num"));        assert_int(status, >=, CDP_STATUS_OK);   assert_not_null(num);
+    cdpRecord* tic; status = cdp_cascade_context_inlet(cdp_root(), &tic, stdinp,  cdp_text_to_word("tic"));        assert_int(status, >=, CDP_STATUS_OK);   assert_not_null(tic);
 
-    cdpRecord* ans; status = cdp_cascade_connect(cdp_root(), &ans, adder,             cdp_text_to_word("ans"), in1);    assert_int(status, >=, CDP_STATUS_OK);  assert_not_null(ans);
-    cdpRecord* inp; status = cdp_cascade_connect(cdp_root(), &inp, stdinp,            cdp_text_to_word("inp"), num);    assert_int(status, >=, CDP_STATUS_OK);  assert_not_null(inp);
-    cdpRecord* stc; status = cdp_cascade_connect(cdp_root(), &stc, cdp_agent_step(),  cdp_text_to_word("tic"), tic);    assert_int(status, >=, CDP_STATUS_OK);  assert_not_null(stc);
+    cdpRecord* ans; status = cdp_cascade_context_connect(cdp_root(), &ans, adder,             cdp_text_to_word("ans"), in1);    assert_int(status, >=, CDP_STATUS_OK);  assert_not_null(ans);
+    cdpRecord* inp; status = cdp_cascade_context_connect(cdp_root(), &inp, stdinp,            cdp_text_to_word("inp"), num);    assert_int(status, >=, CDP_STATUS_OK);  assert_not_null(inp);
+    cdpRecord* stc; status = cdp_cascade_context_connect(cdp_root(), &stc, cdp_agent_step(),  cdp_text_to_word("tic"), tic);    assert_int(status, >=, CDP_STATUS_OK);  assert_not_null(stc);
 
     // Execute pipeline
     while (!DONE) {
         cdp_system_step();
     }
 
-    cdp_cascade_unplug(cdp_root(), cdp_agent_step(), stc);
-    cdp_cascade_unplug(cdp_root(), stdinp, inp);
-    cdp_cascade_unplug(cdp_root(), adder, ans);
+    cdp_cascade_context_unplug(cdp_root(), cdp_agent_step(), stc);
+    cdp_cascade_context_unplug(cdp_root(), stdinp, inp);
+    cdp_cascade_context_unplug(cdp_root(), adder, ans);
 
     cdp_record_remove(pipeline, NULL);
 

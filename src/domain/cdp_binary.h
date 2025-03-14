@@ -48,7 +48,7 @@ enum _cdpBinaryType {
     CDP_BIN_TYPE_INTEGER,      // Signed integer.
     CDP_BIN_TYPE_DECIMAL,      // Decimal floating point.
     CDP_BIN_TYPE_FLOAT,        // Binary floating point.
-    CDP_BIN_TYPE_COMPLEX       // Binary with imaginary part.
+    CDP_BIN_TYPE_COMPLEX,      // Binary with imaginary part.
 
     CDP_BIN_TYPE_OTHER = 7
 };
@@ -210,7 +210,7 @@ enum _cdpBinaryEncryption {
 
 
 // Data creation
-
+/*
 static inline cdpData* cdp_data_new_bin_id(cdpID value) {
     return cdp_data_new_value(
         CDP_WORD_BINARY,
@@ -300,6 +300,6 @@ static inline cdpData* cdp_data_new_bin_vector3d(float* value) {
         value
     );
 }
-
+*/
 
 #endif

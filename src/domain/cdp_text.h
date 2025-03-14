@@ -177,7 +177,7 @@ enum _cdpTextMedia {
 
 
 // Data creation
-
+/*
 static inline cdpData* cdp_data_new_text_line(const char* value, size_t size) {
     assert(value && *value && size);
     return cdp_data_new_value(
@@ -199,6 +199,6 @@ static inline cdpData* cdp_data_new_text_paragraph(const char* value, size_t siz
         value
     );
 }
-
+*/
 
 #endif

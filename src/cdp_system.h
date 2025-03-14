@@ -8,7 +8,7 @@
  *  use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
  *  of the Software, and to permit persons to whom the Software is furnished to do
  *  so.
- * 
+ *
  *  The above copyright notice and this permission notice shall be included in all
  *  copies or substantial portions of the Software.
  *
@@ -33,40 +33,42 @@
     ### System Overview:
     CascadeDP Layer 1 implemented a record solution, intended to be used
     as the basis of a RAM file system (similar to Plan 9). This Layer 2
-    is designed to handle a distributed system, that is, data sharing
-    and service management across a network of devices.
+    is designed to handle a distributed execution, that is, data sharing
+    and propagation of user-provided routines across a network of devices.
 
     ### Agent:
-    An agent is a smart record that can receive, handle and send
-    tasks to other agents, processing events and information in
+    An agent is a "smart" record that can receive, handle and send
+    actions to other agents, processing events and information in
     behalf of the contained data (and may even propagate record
     instances all across the network). In a way, agents are executable
     functions that "travel" along the data they are bound to.
-
-    The agent system uses a factory pattern combined with dynamic type
-    specification and validation. This approach enables structured
-    creation of record and instances, ensuring adherence to defined
-    types while supporting graph-like relationships with multiple
-    parents.
-    - **Encapsulation**: Centralizes branched record creation logic.
-    - **Consistency**: Enforces structure and metadata for each record type.
-    - **Flexibility**: Facilitates adding new agents and dynamic creation.
-    - **Separation of Concerns**: Decouples creation from business logic.
-    - **Context-Aware Initialization**: Adapts structures based on
-    parent relationships and specific requirements.
 
     ### Action:
     Agents perform the action contained in the tasks they receive.
     Actions differ depending of the context they are called (or
     signaled). The context is specified by the role agents had in
-    assembled systems.
+    assembled systems. There are only a handfull of actions, but their
+    meaning depend on how the agent treats them:
+
+    - **Context Inlet**: Used by agents to report/create a named input record in
+    provided (self) context, suitable for future connections.
+    - **Context Connect**: Used by agents to link one of its named output records
+    to the provided context input (from posibly different agent) .
+    - **Context Unplug**: Used by agents to break/remove one of its connected outputs.
+    - **Data New**: Used by agents to report/create data in the context record.
+    - **Data Update**: Used by agents to update data in the context record.
+    - **Data Delete**: Used by agents to delete data in the context record.
+    - **Store New**: Used by agents to report/create a child store in the context record.
+    - **Store Add Item**: Used by agents to add a child record to context.
+    - **Store Remove Item**: Used by agents to remove a child record from context.
+    - **Store Delete**: Used by agents to delete child store and all children in t context.
 
     ### Cascade:
     A Cascade is a system of agents acting (signaling) over other
     agent's records. In the cascade, connections are made by linking
     some agent's record to another agent's record, in such a way that
     one single action will produce a sequence of actions (domino
-    effect style).
+    effect style) that propagates as needed to all connected context nodes.
 
     ### Directory Structure:
     The base agent system is shaped by an universal hierarchycal
@@ -244,13 +246,13 @@ static inline cdpRecord* cdp_void(void)  {extern cdpRecord* CDP_VOID; assert(CDP
 static inline cdpRecord* cdp_agent_step(void)  {extern cdpRecord* CDP_STEP; assert(CDP_STEP);  return CDP_STEP;}
 
 
-static inline int cdp_cascade_get_inlet(cdpRecord* client, cdpRecord** returned, cdpRecord* self, cdpID inlet) {
+static inline int cdp_cascade_context_inlet(cdpRecord* client, cdpRecord** returned, cdpRecord* self, cdpID inlet) {
     assert(!cdp_record_is_void(client) && !cdp_record_is_empty(self) && cdp_id_text_valid(inlet));
     int status;
 
     if (cdp_record_has_data(self)) {
         for (cdpAgentList* list = self->data->agent;  list;  list = list->next) {
-            status = list->agent(client, CDP_P(returned), self, CDP_ACTION_GET_INLET, NULL, CDP_V(inlet));
+            status = list->agent(client, CDP_P(returned), self, CDP_ACTION_CONTEXT_INLET, NULL, CDP_V(inlet));
             if (status != CDP_STATUS_OK)
                 return status;
         }
@@ -258,7 +260,7 @@ static inline int cdp_cascade_get_inlet(cdpRecord* client, cdpRecord** returned,
 
     if (cdp_record_has_store(self)) {
         for (cdpAgentList* list = self->store->agent;  list;  list = list->next) {
-            status = list->agent(client, CDP_P(returned), self, CDP_ACTION_GET_INLET, NULL, CDP_V(inlet));
+            status = list->agent(client, CDP_P(returned), self, CDP_ACTION_CONTEXT_INLET, NULL, CDP_V(inlet));
             if (status != CDP_STATUS_OK)
                 return status;
         }
@@ -268,13 +270,13 @@ static inline int cdp_cascade_get_inlet(cdpRecord* client, cdpRecord** returned,
 }
 
 
-static inline int cdp_cascade_connect(cdpRecord* client, cdpRecord** returned, cdpRecord* self, cdpID output, cdpRecord* inlet) {
+static inline int cdp_cascade_context_connect(cdpRecord* client, cdpRecord** returned, cdpRecord* self, cdpID output, cdpRecord* inlet) {
     assert(!cdp_record_is_void(client) && !cdp_record_is_unset(self) && cdp_id_text_valid(output) && !cdp_record_is_floating(inlet));
     int status;
 
     if (cdp_record_has_data(self)) {
         for (cdpAgentList* list = self->data->agent;  list;  list = list->next) {
-            status = list->agent(client, CDP_P(returned), self, CDP_ACTION_CONNECT, inlet, CDP_V(output));
+            status = list->agent(client, CDP_P(returned), self, CDP_ACTION_CONTEXT_CONNECT, inlet, CDP_V(output));
             if (status != CDP_STATUS_OK)
                 return status;
         }
@@ -282,7 +284,7 @@ static inline int cdp_cascade_connect(cdpRecord* client, cdpRecord** returned, c
 
     if (cdp_record_has_store(self)) {
         for (cdpAgentList* list = self->store->agent;  list;  list = list->next) {
-            status = list->agent(client, CDP_P(returned), self, CDP_ACTION_CONNECT, inlet, CDP_V(output));
+            status = list->agent(client, CDP_P(returned), self, CDP_ACTION_CONTEXT_CONNECT, inlet, CDP_V(output));
             if (status != CDP_STATUS_OK)
                 return status;
         }
@@ -292,13 +294,13 @@ static inline int cdp_cascade_connect(cdpRecord* client, cdpRecord** returned, c
 }
 
 
-static inline int cdp_cascade_unplug(cdpRecord* client, cdpRecord* self, cdpRecord* output) {
+static inline int cdp_cascade_context_unplug(cdpRecord* client, cdpRecord* self, cdpRecord* output) {
     assert(!cdp_record_is_void(client) && !cdp_record_is_empty(self) && !cdp_record_is_floating(output));
     int status;
 
     if (cdp_record_has_data(self)) {
         for (cdpAgentList* list = self->data->agent;  list;  list = list->next) {
-            status = list->agent(client, NULL, self, CDP_ACTION_UNPLUG, output, CDP_V(0));
+            status = list->agent(client, NULL, self, CDP_ACTION_CONTEXT_UNPLUG, output, CDP_V(0));
             if (status != CDP_STATUS_OK)
                 return status;
         }
@@ -306,7 +308,7 @@ static inline int cdp_cascade_unplug(cdpRecord* client, cdpRecord* self, cdpReco
 
     if (cdp_record_has_store(self)) {
         for (cdpAgentList* list = self->store->agent;  list;  list = list->next) {
-            status = list->agent(client, NULL, self, CDP_ACTION_UNPLUG, output, CDP_V(0));
+            status = list->agent(client, NULL, self, CDP_ACTION_CONTEXT_UNPLUG, output, CDP_V(0));
             if (status != CDP_STATUS_OK)
                 return status;
         }
