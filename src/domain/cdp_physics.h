@@ -22,25 +22,15 @@
  *
  */
 
-#ifndef CDP_BODY_H
-#define CDP_BODY_H
+#ifndef CDP_PHYSICS_H
+#define CDP_PHYSICS_H
 
 
 #include <cdp_record.h>
 
 
 CDP_ATTRIBUTE_STRUCT(
-    cdpBody,
-            is3d:       1,          // True if it is 3D (has volume), 2D (area only) otherwise.
-            primitive:  3,          // Primitive (brick) used for tessellating it.
-            concave:    1,          // True if concave polygon, convex otherwise.
-            holes:      1,          // It has holes.
-            lod:        3,          // Level of detail.
-
-            animated:   1,          // Key-frame interpolated (vertex) animation.
-            skeleton:   1,          // Skeletal animation.
-            morph:      1,          // Morph target animation.
-
+    cdpPhysics,
             physics:    3,          // Physic type.
             ik:         1,          // Inverse kinematics enabled.
             gravity:    1,          // True if gravity affects this body.
@@ -48,29 +38,12 @@ CDP_ATTRIBUTE_STRUCT(
             sleeping:   1,          // Allow sleeping.
             joint:      3,          // Type of joint to parent.
 
-            _reserved:  28
+            animated:   1,          // Key-frame interpolated (vertex) animation.
+            skeleton:   1,          // Skeletal animation.
+            morph:      1,          // Morph target animation.
+
+            _reserved:  37
 );
-
-
-enum _cdpBodyPrimitive {
-    CDP_BODY_PRIM_TRIANGLE,         // Composed of Triangles.
-    CDP_BODY_PRIM_QUAD,             // Composed of Quads.
-    CDP_BODY_PRIM_FAN,              // Composed by a Fan.
-    CDP_BODY_PRIM_STRIP,            // Composed by a Strip.
-    CDP_BODY_PRIM_MESH,             // Composed by a Mesh.
-
-    CDP_BODY_PRIM_OTHER = 7
-};
-
-
-enum _cdpBodyLOD {
-    CDP_BODY_LOD_HIGH,              // High level of detail (all vertices).
-    CDP_BODY_LOD_MEDIUM,            // Medium (50%) details.
-    CDP_BODY_LOD_LOW,               // Low (25%) details.
-    CDP_BODY_LOD_LOWEST,            // Lowest (10%) details possible.
-
-    CDP_BODY_LOD_OTHER = 7
-};
 
 
 enum _cdpBodyPhysics {
@@ -94,21 +67,15 @@ enum _cdpBodyJoint {
 
 
 // Domain
-#define CDP_WORD_BODY               DP_IDC(__)      /* "body"        */
+#define CDP_WORD_VIRTUAL         DP_IDC(0x005932A542C00000)      /* "virtual"____ */
 
 // Encodings
-#define CDP_ACRON_GLVBO          CDP_IDC(0x0127B368AF000000)     /* "GLVBO"---- (OpenGL XYZ per-vertex array) */
-#define CDP_ACRON_GLVBOTEX       CDP_IDC(0x0127B368AFD25E00)     /* "GLVBOTEX"- (Same as GLVBO, but with added NXNYNZ normals and UV texture coord) */
-#define CDP_ACRON_GLVBOFULL      CDP_IDC(0x0127B368AF9B5B2C)     /* "GLVBOFULL" (Same as GLVBOTEX, but with added RGBA color values) */
 
 // Uses
 
 
-// Children
-
-
 // Agencies
-#define CDP_WORD_CREATOR            CDP_IDC(0x000E450D1F200000)     /* "creator"____ */
+#define CDP_WORD_ORDERER         CDP_IDC(0x003E442C8B200000)     /* "orderer"____ */
 
 // Selectors
 

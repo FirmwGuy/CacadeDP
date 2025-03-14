@@ -8,7 +8,7 @@
  *  use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
  *  of the Software, and to permit persons to whom the Software is furnished to do
  *  so.
- * 
+ *
  *  The above copyright notice and this permission notice shall be included in all
  *  copies or substantial portions of the Software.
  *
@@ -26,13 +26,13 @@
 #define CDP_RENDERING_H
 
 
-#include "cdp_record.h"
+#include <cdp_record.h>
 
 
-CDP_ATTRIBUTE_STRUCT( 
+CDP_ATTRIBUTE_STRUCT(
     cdpRendering,
             dynamic:      1,    // Static object rendering can be pre-rendered to textures.
-            
+
             // mesh
             uv:           1,    // Mesh has UV texture coordinates.
             normals:      1,    // Mesh has vertex normals.
@@ -79,7 +79,7 @@ CDP_ATTRIBUTE_STRUCT(
             tonemap:      3,    // Tone mapping type.
             rtype:        3,    // Rendering type.
 
-            _reserved:    8
+            _reserved:    7
 );
 
 
@@ -175,6 +175,8 @@ enum _cdpRenderingType {
 #define CDP_ACRON_FOV         CDP_ID(0x0126BF6000000000)      /* "FOV"------ */
 #define CDP_WORD_INTENSITY    CDP_ID(0x0025D42BA69A6400)      /* "intensity"__ */
 #define CDP_WORD_EXPOSURE     CDP_ID(0x0017107CEB228000)      /* "exposure"___ */
+
+#define CDP_ACRON_LOD_MAX     CDP_IDC(0x012CBE436D878000)     /* "LOD-MAX" (maximum vertexs allowed at maximum LOD) */
 
 
 // Agencies

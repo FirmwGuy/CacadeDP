@@ -31,17 +31,27 @@
 
 CDP_ATTRIBUTE_STRUCT(
     cdpBinary,
+            type:       3,      // Binary data type.
             pow2:       4,      // Power of 2 exponent describing the element scalar size (in bytes).
-            sign:       1,      // Is it signed (1) or unsigned (0)?
-            floating:   2,      // Floating point type.
             dimension:  3,      // Dimensions of data.
 
             endianess:  1,      // Little endian (0) is the norm.
             compression:3,      // Type of compression used to pack content.
             encryption: 3,      // Encryption method.
 
-            _reserved:  31      // ToDo: expand to streams and communication related stuff.
+            _reserved:  33      // ToDo: expand to streams and communication related stuff.
 );
+
+
+enum _cdpBinaryType {
+    CDP_BIN_TYPE_UNSIGNED,     // Unsigned integer.
+    CDP_BIN_TYPE_INTEGER,      // Signed integer.
+    CDP_BIN_TYPE_DECIMAL,      // Decimal floating point.
+    CDP_BIN_TYPE_FLOAT,        // Binary floating point.
+    CDP_BIN_TYPE_COMPLEX       // Binary with imaginary part.
+
+    CDP_BIN_TYPE_OTHER = 7
+};
 
 
 enum _cdpBinaryPow2 {
@@ -56,13 +66,6 @@ enum _cdpBinaryPow2 {
     CDP_BIN_POW2_OTHER = 15
 };
 
-
-enum _cdpBinaryFloating {
-    CDP_BIN_FLOAT_NONE,         // Integer.
-    CDP_BIN_FLOAT_DECIMAL,      // Decimal floating point.
-    CDP_BIN_FLOAT_BINARY,       // Binary floating point.
-    CDP_BIN_FLOAT_COMPLEX       // Binary with imaginary part.
-};
 
 
 enum _cdpBinaryDimension {
@@ -146,11 +149,11 @@ enum _cdpBinaryEncryption {
 #define CDP_ACRON_FLOAT32           CDP_IDC(0x0126B2F8744D2000)     /* "FLOAT32"   */
 #define CDP_ACRON_FLOAT64           CDP_IDC(0x0126B2F874594000)     /* "FLOAT64"   */
 
-#define CDP_ACRON_VECTOR2D          CDP_IDC(0x0136963D2FC92900)     /* "VECTOR2D"  */
+#define CDP_ACRON_VECTOR2D          CDP_IDC(0x0136963D2FC92900)     /* "VECTOR2D"  (array of 2 floats) */
 #define CDP_ACRON_VECTOR3D          CDP_IDC(0x0136963D2FC93900)     /* "VECTOR3D"  */
 #define CDP_ACRON_VECTOR4D          CDP_IDC(0x0136963D2FC94900)     /* "VECTOR4D"  */
 
-#define CDP_ACRON_MATRIX2D          CDP_IDC(0x012D874CA9E12900)     /* "MATRIX2D"  */
+#define CDP_ACRON_MATRIX2D          CDP_IDC(0x012D874CA9E12900)     /* "MATRIX2D"  (matrix of 2x2 floats) */
 #define CDP_ACRON_MATRIX3D          CDP_IDC(0x012D874CA9E13900)     /* "MATRIX3D"  */
 #define CDP_ACRON_MATRIX4D          CDP_IDC(0x012D874CA9E14900)     /* "MATRIX4D"  */
 
@@ -163,7 +166,14 @@ enum _cdpBinaryEncryption {
 #define CDP_WORD_TENSOR_LEN         CDP_IDC(0x0000000000000000)     /* "tensor-len"  */
 
 // Agencies
-#define CDP_WORD_MATH               CDP_IDC(0x0000000000000000)     /* "math"        */
+#define CDP_WORD_BUFFER             CDP_IDC(0x000AA63164000000)     /* "buffer"      */
+#define CDP_WORD_CLONER             CDP_IDC(0x000D8F7164000000)     /* "cloner"      */
+#define CDP_WORD_CONVERTER          CDP_IDC(0x000DEEB16542C800)     /* "converter"   */
+#define CDP_WORD_MATH               CDP_IDC(0x0034344000000000)     /* "math"        */
+
+    // Modes
+    #define CDP_WORD_AUTOMATIC      CDP_IDC(0x0006B47B43448C00)     /* "automatic"   */
+    #define CDP_WORD_TRIGGER        CDP_IDC(0x00524939CB200000)     /* "trigger"     */
 
     // Selectors
     #define CDP_WORD_AND            CDP_IDC(0x0000000000000000)     /* "and"         */
@@ -182,6 +192,9 @@ enum _cdpBinaryEncryption {
     #define CDP_WORD_SUBTRACT       CDP_IDC(0x0000000000000000)     /* "subtract"    */
     #define CDP_WORD_MULTIPLY       CDP_IDC(0x0000000000000000)     /* "multiply"    */
     #define CDP_WORD_DIVIDE         CDP_IDC(0x0000000000000000)     /* "divide"      */
+
+    // Config
+    #define CDP_WORD_CAST           CDP_IDC(0x000C33A000000000)     /* "cast"        */
 
 
 // Event Messages
