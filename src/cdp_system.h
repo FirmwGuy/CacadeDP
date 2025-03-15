@@ -45,16 +45,18 @@
 
     ### Action:
     Agents perform the action contained in the tasks they receive.
-    Actions differ depending of the context they are called (or
-    signaled). The context is specified by the role agents had in
+    Actions differ depending of the instance they are called (or
+    signaled). The instance is specified by the role agents had in
     assembled systems. There are only a handfull of actions, but their
     meaning depend on how the agent treats them:
 
-    - **Context Inlet**: Used by agents to report/create a named input record in
+    - **Instance New**: Used by agents to create a new instance record.
+    - **Instance Validate**: Used by agents to validate an existing instance record.
+    - **Instance Inlet**: Used by agents to report/create a named input record in
     provided (self) context, suitable for future connections.
-    - **Context Connect**: Used by agents to link one of its named output records
+    - **Instance Connect**: Used by agents to link one of its named output records
     to the provided context input (from posibly different agent) .
-    - **Context Unplug**: Used by agents to break/remove one of its connected outputs.
+    - **Instance Unplug**: Used by agents to break/remove one of its connected outputs.
     - **Data New**: Used by agents to report/create data in the context record.
     - **Data Update**: Used by agents to update data in the context record.
     - **Data Delete**: Used by agents to delete data in the context record.
@@ -246,75 +248,99 @@ static inline cdpRecord* cdp_void(void)  {extern cdpRecord* CDP_VOID; assert(CDP
 static inline cdpRecord* cdp_agent_step(void)  {extern cdpRecord* CDP_STEP; assert(CDP_STEP);  return CDP_STEP;}
 
 
-static inline int cdp_cascade_context_inlet(cdpRecord* client, cdpRecord** returned, cdpRecord* self, cdpID inlet) {
+static inline cdpRecord* cdp_cascade_instance_new(cdpRecord* client, cdpRecord* self, cdpID name, cdpID domain, cdpID tag, cdpRecord* params, cdpValue value) {
+    assert(!cdp_record_is_void(client) && cdp_record_is_void(self));
+
+    cdpAgent agent = cdp_system_agent(domain, tag);
+    if (!agent)
+        return NULL;
+
+    cdp_record_initialize(self, CDP_TYPE_NORMAL, name, NULL, NULL);
+
+    int status = agent(client, NULL, self, CDP_ACTION_INSTANCE_NEW, params, value);
+    if (status < CDP_STATUS_OK) {
+        cdp_record_finalize(self);
+        return NULL;
+    }
+
+    if (cdp_record_has_data(self))
+        cdp_data_add_agent(self->data, domain, tag, agent);
+    if (cdp_record_has_store(self))
+        cdp_store_add_agent(self->store, domain, tag, agent);
+
+    return self;
+}
+
+
+static inline int cdp_cascade_instance_inlet(cdpRecord* client, cdpRecord** returned, cdpRecord* self, cdpID inlet) {
     assert(!cdp_record_is_void(client) && !cdp_record_is_empty(self) && cdp_id_text_valid(inlet));
     int status;
 
     if (cdp_record_has_data(self)) {
         for (cdpAgentList* list = self->data->agent;  list;  list = list->next) {
-            status = list->agent(client, CDP_P(returned), self, CDP_ACTION_CONTEXT_INLET, NULL, CDP_V(inlet));
-            if (status != CDP_STATUS_OK)
+            status = list->agent(client, CDP_P(returned), self, CDP_ACTION_INSTANCE_INLET, NULL, CDP_V(inlet));
+            if (status < CDP_STATUS_OK)
                 return status;
         }
     }
-
+    else // FixMe: check agent calling policy to avoid calling twice the same agent over the same instance!
     if (cdp_record_has_store(self)) {
         for (cdpAgentList* list = self->store->agent;  list;  list = list->next) {
-            status = list->agent(client, CDP_P(returned), self, CDP_ACTION_CONTEXT_INLET, NULL, CDP_V(inlet));
-            if (status != CDP_STATUS_OK)
+            status = list->agent(client, CDP_P(returned), self, CDP_ACTION_INSTANCE_INLET, NULL, CDP_V(inlet));
+            if (status < CDP_STATUS_OK)
                 return status;
         }
     }
 
-    return CDP_STATUS_ERROR;
+    return CDP_STATUS_OK;
 }
 
 
-static inline int cdp_cascade_context_connect(cdpRecord* client, cdpRecord** returned, cdpRecord* self, cdpID output, cdpRecord* inlet) {
+static inline int cdp_cascade_instance_connect(cdpRecord* client, cdpRecord** returned, cdpRecord* self, cdpID output, cdpRecord* inlet) {
     assert(!cdp_record_is_void(client) && !cdp_record_is_unset(self) && cdp_id_text_valid(output) && !cdp_record_is_floating(inlet));
     int status;
 
     if (cdp_record_has_data(self)) {
         for (cdpAgentList* list = self->data->agent;  list;  list = list->next) {
-            status = list->agent(client, CDP_P(returned), self, CDP_ACTION_CONTEXT_CONNECT, inlet, CDP_V(output));
-            if (status != CDP_STATUS_OK)
+            status = list->agent(client, CDP_P(returned), self, CDP_ACTION_INSTANCE_CONNECT, inlet, CDP_V(output));
+            if (status < CDP_STATUS_OK)
                 return status;
         }
     }
-
+    else // FixMe: check agent calling policy to avoid calling twice the same agent over the same instance!
     if (cdp_record_has_store(self)) {
         for (cdpAgentList* list = self->store->agent;  list;  list = list->next) {
-            status = list->agent(client, CDP_P(returned), self, CDP_ACTION_CONTEXT_CONNECT, inlet, CDP_V(output));
-            if (status != CDP_STATUS_OK)
+            status = list->agent(client, CDP_P(returned), self, CDP_ACTION_INSTANCE_CONNECT, inlet, CDP_V(output));
+            if (status < CDP_STATUS_OK)
                 return status;
         }
     }
 
-    return CDP_STATUS_ERROR;
+    return CDP_STATUS_OK;
 }
 
 
-static inline int cdp_cascade_context_unplug(cdpRecord* client, cdpRecord* self, cdpRecord* output) {
+static inline int cdp_cascade_instance_unplug(cdpRecord* client, cdpRecord* self, cdpRecord* output) {
     assert(!cdp_record_is_void(client) && !cdp_record_is_empty(self) && !cdp_record_is_floating(output));
     int status;
 
     if (cdp_record_has_data(self)) {
         for (cdpAgentList* list = self->data->agent;  list;  list = list->next) {
-            status = list->agent(client, NULL, self, CDP_ACTION_CONTEXT_UNPLUG, output, CDP_V(0));
-            if (status != CDP_STATUS_OK)
+            status = list->agent(client, NULL, self, CDP_ACTION_INSTANCE_UNPLUG, output, CDP_V(0));
+            if (status < CDP_STATUS_OK)
                 return status;
         }
     }
-
+    else // FixMe: check agent calling policy to avoid calling twice the same agent over the same instance!
     if (cdp_record_has_store(self)) {
         for (cdpAgentList* list = self->store->agent;  list;  list = list->next) {
-            status = list->agent(client, NULL, self, CDP_ACTION_CONTEXT_UNPLUG, output, CDP_V(0));
-            if (status != CDP_STATUS_OK)
+            status = list->agent(client, NULL, self, CDP_ACTION_INSTANCE_UNPLUG, output, CDP_V(0));
+            if (status < CDP_STATUS_OK)
                 return status;
         }
     }
 
-    return CDP_STATUS_ERROR;
+    return CDP_STATUS_OK;
 }
 
 
@@ -359,13 +385,13 @@ static inline int cdp_cascade_data_dalete(cdpRecord* client, cdpRecord* self) {
 
     for (cdpAgentList* list = self->data->agent;  list;  list = list->next) {
         status = list->agent(client, NULL, self, CDP_ACTION_DATA_UPDATE, NULL, CDP_V(0));
-        if (status != CDP_STATUS_OK)
+        if (status < CDP_STATUS_OK)
             return status;
     }
 
     cdp_record_delete_data(self);
 
-    return status;
+    return CDP_STATUS_OK;
 }
 
 
@@ -415,7 +441,7 @@ static inline int cdp_cascade_store_remove_item(cdpRecord* client, cdpRecord* se
 
     for (cdpAgentList* list = self->store->agent;  list;  list = list->next) {
         status = list->agent(client, NULL, self, CDP_ACTION_STORE_REMOVE_ITEM, child, CDP_V(0));
-        if (status != CDP_STATUS_OK)
+        if (status < CDP_STATUS_OK)
             return status;
     }
 
@@ -432,41 +458,14 @@ static inline int cdp_cascade_store_delete(cdpRecord* client, cdpRecord* self) {
 
     for (cdpAgentList* list = self->data->agent;  list;  list = list->next) {
         status = list->agent(client, NULL, self, CDP_ACTION_STORE_DELETE, NULL, CDP_V(0));
-        if (status != CDP_STATUS_OK)
+        if (status < CDP_STATUS_OK)
             return status;
     }
 
     cdp_record_delete_store(self);
 
-    return status;
+    return CDP_STATUS_OK;
 }
-
-
-static inline cdpRecord* cdp_cascade_record_new(  cdpRecord* client, cdpRecord* self,
-                                                  cdpID name, cdpID domain, cdpID tag,
-                                                  cdpRecord* dataParam, cdpValue dataValue,
-                                                  cdpRecord* storeParam, cdpValue storeValue  ) {
-    assert(!cdp_record_is_void(client) && cdp_record_is_void(self));
-
-    cdp_record_initialize(self, CDP_TYPE_NORMAL, name, NULL, NULL);
-
-    int statusData  = cdp_cascade_data_new (client, NULL, self, domain, tag, dataParam,  dataValue);
-    int statusStore = cdp_cascade_store_new(client, NULL, self, domain, tag, storeParam, storeValue);
-
-    if (statusData == CDP_STATUS_SUCCESS) {
-        assert(self->data);
-        return self;
-    }
-    if (statusStore == CDP_STATUS_SUCCESS) {
-        assert(self->store);
-        return self;
-    }
-
-    cdp_record_finalize(self);
-    return NULL;
-}
-
-#define cdp_cascade_record_new_simple(c, s, n, d, t)    cdp_cascade_record_new(c, s, n, d, t, NULL, CDP_V(0), NULL, CDP_V(0))
 
 
 #endif

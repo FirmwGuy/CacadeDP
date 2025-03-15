@@ -58,24 +58,19 @@ static int agent_system_step(cdpRecord* client, void** returned, cdpRecord* self
     assert(client && self);
 
     switch (action) {
-      case CDP_ACTION_DATA_NEW: {
+      case CDP_ACTION_INSTANCE_NEW: {
         cdp_record_set_data(self, cdp_data_new_value(CDP_ACRON_CDP, cdp_text_to_acronysm("UINT64"), (cdpID)0, sizeof(uint64_t), 0));
-        CDP_PTR_SEC_SET(returned, self->data);
-        return CDP_STATUS_PROGRESS;
-      }
-      case CDP_ACTION_STORE_NEW: {
         cdp_record_set_store(self, cdp_store_new(CDP_ACRON_CDP, CDP_WORD_LIST, CDP_STORAGE_LINKED_LIST, CDP_INDEX_BY_INSERTION));
-        CDP_PTR_SEC_SET(returned, self->store);
-        return CDP_STATUS_PROGRESS;
+        return CDP_STATUS_SUCCESS;
       }
 
-      case CDP_ACTION_CONTEXT_CONNECT: {
+      case CDP_ACTION_INSTANCE_CONNECT: {
         cdpRecord* link = cdp_record_append_link(self, CDP_AUTOID, record);
         CDP_PTR_SEC_SET(returned, link);
         return CDP_STATUS_SUCCESS;
       }
 
-      case CDP_ACTION_CONTEXT_UNPLUG: {
+      case CDP_ACTION_INSTANCE_UNPLUG: {
         assert(self == cdp_record_parent(record));
         cdp_record_remove(record, NULL);
         return CDP_STATUS_SUCCESS;
@@ -119,7 +114,7 @@ static void system_initiate(void) {
 
     // Initiate global records.
     cdpRecord step = {0};
-    cdp_cascade_record_new(cdp_root(), &step, CDP_WORD_STEP, CDP_ACRON_CDP, CDP_WORD_STEP, NULL, CDP_V(0), NULL, CDP_V(0));
+    cdp_cascade_instance_new(cdp_root(), &step, CDP_WORD_STEP, CDP_ACRON_CDP, CDP_WORD_STEP, NULL, CDP_V(0));
     CDP_STEP = cdp_dict_add(CASCADE, &step);
 
     //CDP_VOID = cdp_record_append_value(TEMP, CDP_WORD_VOID, CDP_ACRON_CDP, CDP_WORD_VOID, 0, 0, sizeof(bool), sizeof(bool));
