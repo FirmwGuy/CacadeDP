@@ -24,6 +24,7 @@
 
 
 #include "cdp_system.h"
+#include "domain/cdp_binary.h"
 
 
 extern cdpRecord CDP_ROOT;
@@ -44,6 +45,14 @@ cdpRecord* CDP_VOID;
 cdpAgentList* AGENT;
 
 
+/* Agent: 'System Step'
+ *
+ * It generates an output each time the system is ready for another execution
+ * step. Agents needing cooperative coroutine behaviour should connect to this.
+ * If a base time is specified in the instance then System Step will sleep the
+ * remaining time after completion (if any) to keep things in sync.
+ *
+ */
 struct _step {
     cdpRecord*  client;
     cdpValue    tic;
@@ -59,7 +68,7 @@ static int agent_system_step(cdpRecord* client, void** returned, cdpRecord* self
 
     switch (action) {
       case CDP_ACTION_INSTANCE_NEW: {
-        cdp_record_set_data(self, cdp_data_new_value(CDP_ACRON_CDP, cdp_text_to_acronysm("UINT64"), (cdpID)0, sizeof(uint64_t), 0));
+        cdp_record_set_data(self, cdp_data_new_bin_int64(0));
         cdp_record_set_store(self, cdp_store_new(CDP_ACRON_CDP, CDP_WORD_LIST, CDP_STORAGE_LINKED_LIST, CDP_INDEX_BY_INSERTION));
         return CDP_STATUS_SUCCESS;
       }

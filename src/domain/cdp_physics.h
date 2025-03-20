@@ -73,6 +73,7 @@ enum _cdpBodyJoint {
 
 // Uses
 
+// Properties
 
 // Agencies
 #define CDP_WORD_ORDERER         CDP_IDC(0x003E442C8B200000)     /* "orderer"____ */

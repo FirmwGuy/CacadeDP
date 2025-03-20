@@ -243,11 +243,6 @@ bool      cdp_system_step(void);
 void      cdp_system_shutdown(void);
 
 
-static inline cdpRecord* cdp_void(void)  {extern cdpRecord* CDP_VOID; assert(CDP_VOID);  return CDP_VOID;}
-
-static inline cdpRecord* cdp_agent_step(void)  {extern cdpRecord* CDP_STEP; assert(CDP_STEP);  return CDP_STEP;}
-
-
 static inline cdpRecord* cdp_cascade_instance_new(cdpRecord* client, cdpRecord* self, cdpID name, cdpID domain, cdpID tag, cdpRecord* params, cdpValue value) {
     assert(!cdp_record_is_void(client) && cdp_record_is_void(self));
 
@@ -466,6 +461,19 @@ static inline int cdp_cascade_store_delete(cdpRecord* client, cdpRecord* self) {
 
     return CDP_STATUS_OK;
 }
+
+
+/* Agencies */
+#define CDP_WORD_BUFFER             CDP_IDC(0x000AA63164000000)     /* "buffer" ____ */
+#define CDP_WORD_CLONER             CDP_IDC(0x000D8F7164000000)     /* "cloner" ____ */
+#define CDP_WORD_CONVERTER          CDP_IDC(0x000DEEB16542C800)     /* "converter"__ */
+#define CDP_WORD_STEP               CDP_IDC(0x004E858000000000)     /* "step"_______ */
+#define CDP_WORD_SYNCMASTER         CDP_IDC(0x004F2E1B433A1640)     /* "syncmaster"_ */
+
+
+static inline cdpRecord* cdp_void(void)  {extern cdpRecord* CDP_VOID; assert(CDP_VOID);  return CDP_VOID;}
+
+static inline cdpRecord* cdp_agent_step(void)  {extern cdpRecord* CDP_STEP; assert(CDP_STEP);  return CDP_STEP;}
 
 
 #endif

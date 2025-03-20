@@ -166,6 +166,8 @@ enum _cdpTextMedia {
     //CDP_TXT_TAG_COPYRIGHT,
     //CDP_TXT_TAG_LICENSE,
 
+// Properties
+
 // Agencies
 #define CDP_WORD_TRANSFORM          CDP_IDC(0x00524174CCF93400)     /* "transform"__ */
 

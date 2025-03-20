@@ -149,6 +149,13 @@ typedef void (*cdpDel)(void*);
 #define     cdp_is_set(v, f)          (((v) & (f)) != 0)
 
 
+/*
+ * Function Utilities
+ */
+
+#define  CDP_BEFORE_MAIN_(...)        __attribute__((constructor(__VA_ARGS__)))
+#define  CDP_AFTER_MAIN_(...)         __attribute__((destructor(__VA_ARGS__)))
+  
 #ifdef NDEBUG
   #define CDP_DEBUG()
 #else

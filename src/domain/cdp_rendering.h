@@ -166,7 +166,7 @@ enum _cdpRenderingType {
 #define CDP_WORD_ROOM         CDP_ID(0x0049EF6800000000)      /* "room"_______ */
 
 
-// Children
+// Properties
 #define CDP_WORD_MESH         CDP_ID(0x0034B34000000000)      /* "mesh"_______ */
 #define CDP_WORD_TEXTURE      CDP_ID(0x0050B8A564500000)      /* "texture"____ */
 #define CDP_WORD_COLOR        CDP_ID(0x000DEC7C80000000)      /* "color"______ */

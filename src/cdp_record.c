@@ -8,7 +8,7 @@
  *  use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
  *  of the Software, and to permit persons to whom the Software is furnished to do
  *  so.
- * 
+ *
  *  The above copyright notice and this permission notice shall be included in all
  *  copies or substantial portions of the Software.
  *
@@ -99,7 +99,8 @@ void cdp_record_system_shutdown(void) {
 #define DATA_HEAD_SIZE      (sizeof(cdpData) - VALUE_CAP_MIN)
 
 cdpData* cdp_data_new(  cdpID domain, cdpID tag,
-                        cdpID attribute, unsigned datatype, bool writable,
+                        cdpID encoding, cdpID attribute,
+                        unsigned datatype, bool writable,
                         void** dataloc, cdpValue value, ...  ) {
     assert(cdp_id_text_valid(domain) && cdp_id_text_valid(tag) && (datatype < CDP_DATATYPE_COUNT));
 
@@ -199,7 +200,8 @@ cdpData* cdp_data_new(  cdpID domain, cdpID tag,
     data->tag       = tag;
     data->datatype  = datatype;
     data->writable  = writable;
-    
+
+    data->encoding      = encoding;
     data->attribute._id = attribute;
 
     CDP_PTR_SEC_SET(dataloc, address);

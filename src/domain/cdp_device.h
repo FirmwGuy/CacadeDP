@@ -36,12 +36,8 @@ CDP_ATTRIBUTE_STRUCT(
             audiout:    3,      // Audio output.
             window:     3,      // Window system.
             graphics:   3,      // Graphics API.
-            mouse:      1,      // Mouse is present.
-            keyboard:   1,      // Keyboard present.
-            joystick:   1,      // Joystick present.
-            touchpad:   1,      // Touchpad/touchscreen available.
                         
-            _reserved:  31      // ToDo: .
+            _reserved:  35      // ToDo: .
 );                      
 
 
@@ -103,23 +99,31 @@ enum _cdpDeviceGraphics {
 
 // Uses
 
-
-// Children
-
+// Properties
+#define CDP_WORD_MOUSE              CDP_ID(0x005D2E23EE000000)      /* "mouse"______ */
+#define CDP_WORD_KEYBOARD           CDP_ID(0x005D2E23EE000000)      /* "keyboard"___ */
+#define CDP_WORD_JOYSTICK           CDP_ID(0x0029F99D12358000)      /* "joystick"___ */
+#define CDP_WORD_TOUCHPAD           CDP_ID(0x0051F51A20120000)      /* "touchpad"___ */
 
 // Agents
-#define CDP_WORD_WINDOW             CDP_ID(0x005D2E23EE000000)      /* "window"_____ */
 #define CDP_ACRON_OS                CDP_ID(0x012FCC0000000000)      /* "OS"------- */
+
+#define CDP_WORD_WINDOW             CDP_ID(0x005D2E23EE000000)      /* "window"_____ */
+    // Inlet
+    #define CDP_WORD_COMMAND        CDP_ID(0x000DED685C400000)      /* "command"____ */
+    // Output
+    #define CDP_WORD_EVENT          CDP_ID(0x0016C57500000000)      /* "event"______ */
 
 
 // Selectors
 
 // Events
-    //CDP_DEVICE_STATUS_AVAILABLE,
-    //CDP_DEVICE_STATUS_UNAVAILABLE,
-    //CDP_DEVICE_STATUS_UNSUPPORTED,
-    //CDP_DEVICE_STATUS_ACTIVE,
-    //CDP_DEVICE_STATUS_INACTIVE,
+//#define CDP_WORD_MAXIMIZE              CDP_ID(0x005D2E23EE000000)      /* "mouse"______ */
+//#define CDP_WORD_MINIMIZE              CDP_ID(0x005D2E23EE000000)      /* "mouse"______ */
+//#define CDP_WORD_GAIN_FOCUS              CDP_ID(0x005D2E23EE000000)      /* "mouse"______ */
+//#define CDP_WORD_LOOSE_FOCUS              CDP_ID(0x005D2E23EE000000)      /* "mouse"______ */
+//#define CDP_WORD_OPEN              CDP_ID(0x005D2E23EE000000)      /* "mouse"______ */
+//#define CDP_WORD_CLOSE              CDP_ID(0x005D2E23EE000000)      /* "mouse"______ */
 
 
 #endif

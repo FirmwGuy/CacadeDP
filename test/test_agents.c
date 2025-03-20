@@ -46,7 +46,7 @@ static int agent_stdin(cdpRecord* client, void** returned, cdpRecord* self, unsi
 
     switch (action) {
       case CDP_ACTION_INSTANCE_NEW: {
-        cdp_record_set_data(self, cdp_data_new_value(CDP_ACRON_CDP, cdp_text_to_acronysm("FLOAT64"), (cdpID)0, sizeof(double), 0.0));
+        cdp_record_set_data(self, cdp_data_new_value(CDP_ACRON_CDP, cdp_text_to_acronysm("FLOAT64"), (cdpID)0, (cdpID)0, sizeof(double), 0.0));
         cdp_record_set_store(self, cdp_store_new(CDP_ACRON_CDP, CDP_WORD_LIST, CDP_STORAGE_LINKED_LIST, CDP_INDEX_BY_NAME));
         return CDP_STATUS_SUCCESS;
       }
@@ -100,7 +100,7 @@ static int agent_adder(cdpRecord* client, void** returned, cdpRecord* self, unsi
 
     switch (action) {
       case CDP_ACTION_INSTANCE_NEW: {
-        cdp_record_set_data(self, cdp_data_new_value(CDP_ACRON_CDP, cdp_text_to_acronysm("FLOAT64"), (cdpID)0, sizeof(double), 0.0));
+        cdp_record_set_data(self, cdp_data_new_value(CDP_ACRON_CDP, cdp_text_to_acronysm("FLOAT64"), (cdpID)0, (cdpID)0, sizeof(double), 0.0));
 
         // FixMe! FixMe! FixMe!
         //cdp_record_set_store(self, cdp_store_new(CDP_ACRON_CDP, CDP_WORD_LIST, CDP_STORAGE_ARRAY, CDP_INDEX_BY_NAME, 2));
@@ -110,7 +110,7 @@ static int agent_adder(cdpRecord* client, void** returned, cdpRecord* self, unsi
 
       case CDP_ACTION_INSTANCE_INLET: {
         assert_uint64(value.id, ==, cdp_text_to_word("num"));
-        num = cdp_dict_add_value(self, value.id, CDP_ACRON_CDP, CDP_WORD_ADDER, (cdpID)0, 0.0, sizeof(double), sizeof(double));
+        num = cdp_dict_add_value(self, value.id, CDP_ACRON_CDP, CDP_WORD_ADDER, (cdpID)0, (cdpID)0, 0.0, sizeof(double), sizeof(double));
         cdp_data_add_agent(num->data, CDP_ACRON_CDP, CDP_WORD_ADDER, cdp_system_agent(CDP_ACRON_CDP, CDP_WORD_ADDER));
         CDP_PTR_SEC_SET(returned, num);
         return CDP_STATUS_SUCCESS;
@@ -150,7 +150,7 @@ static int agent_stdout(cdpRecord* client, void** returned, cdpRecord* self, uns
 
     switch (action) {
       case CDP_ACTION_INSTANCE_NEW: {
-        cdp_record_set_data(self, cdp_data_new_value(CDP_ACRON_CDP, cdp_text_to_acronysm("FLOAT64"), sizeof(double), (cdpID)0, 0.0));
+        cdp_record_set_data(self, cdp_data_new_value(CDP_ACRON_CDP, cdp_text_to_acronysm("FLOAT64"), (cdpID)0, (cdpID)0, sizeof(double), 0.0));
         return CDP_STATUS_SUCCESS;
       }
 

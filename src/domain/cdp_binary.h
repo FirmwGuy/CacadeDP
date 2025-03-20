@@ -122,7 +122,7 @@ enum _cdpBinaryEncryption {
 
 // Encodings
 #define CDP_WORD_UNSIGNED           CDP_IDC(0x0055D349DC520000)     /* "unsigned"___ */
-#define CDP_WORD_SIGNED             CDP_IDC(0x004D277148000000)     /* "signed"_____ */
+#define CDP_WORD_SIGNED             CDP_IDC(0x004D277148000000)     /* "signed"_____ (2's complement) */
 #define CDP_ACRON_IEEE754           CDP_IDC(0x0129965957554000)     /* "IEEE754"-- (all floats)*/
 #define CDP_ACRON_C_COMPLEX         CDP_IDC(0x0123363BEDC2C978)     /* "C-COMPLEX" */
 #define CDP_ACRON_GMP               CDP_IDC(0x0127B70000000000)     /* "GMP"------ */
@@ -157,8 +157,8 @@ enum _cdpBinaryEncryption {
 #define CDP_ACRON_MATRIX3D          CDP_IDC(0x012D874CA9E13900)     /* "MATRIX3D"  */
 #define CDP_ACRON_MATRIX4D          CDP_IDC(0x012D874CA9E14900)     /* "MATRIX4D"  */
 
-// Children
-#define CDP_WORD_LENGTH             CDP_IDC(0x0000000000000000)     /* "length"      */
+// Properties
+#define CDP_WORD_LENGTH             CDP_IDC(0x0030AE3D10000000)     /* "length"_____ (number of elements, *not* bytes) */
 #define CDP_ACRON_LENGTH2D          CDP_IDC(0x0000000000000000)     /* "LENGTH2D"- */
 #define CDP_ACRON_LENGTH3D          CDP_IDC(0x0000000000000000)     /* "LENGTH3D"- */
 #define CDP_ACRON_LENGTH4D          CDP_IDC(0x0000000000000000)     /* "LENGTH4D"- */
@@ -166,9 +166,6 @@ enum _cdpBinaryEncryption {
 #define CDP_WORD_TENSOR_LEN         CDP_IDC(0x0000000000000000)     /* "tensor-len"  */
 
 // Agencies
-#define CDP_WORD_BUFFER             CDP_IDC(0x000AA63164000000)     /* "buffer"      */
-#define CDP_WORD_CLONER             CDP_IDC(0x000D8F7164000000)     /* "cloner"      */
-#define CDP_WORD_CONVERTER          CDP_IDC(0x000DEEB16542C800)     /* "converter"   */
 #define CDP_WORD_MATH               CDP_IDC(0x0034344000000000)     /* "math"        */
 
     // Modes
@@ -210,14 +207,18 @@ enum _cdpBinaryEncryption {
 
 
 // Data creation
-/*
+
+#define CDP_BINARY(...)   ((cdpBinary){__VA_ARGS__}._id)
+
+
 static inline cdpData* cdp_data_new_bin_id(cdpID value) {
     return cdp_data_new_value(
         CDP_WORD_BINARY,
         CDP_ACRON_CDPID,
-        (cdpBinary){
+        CDP_WORD_UNSIGNED,
+        CDP_BINARY(
             .pow2 = cdp_ctz(sizeof(value))
-        },
+        ),
         sizeof(value),
         value
     );
@@ -227,7 +228,8 @@ static inline cdpData* cdp_data_new_bin_boolean(uint8_t value) {
     return cdp_data_new_value(
         CDP_WORD_BINARY,
         CDP_WORD_BOOLEAN,
-        (cdpBinary){0},
+        CDP_WORD_UNSIGNED,
+        0,
         sizeof(value),
         value
     );
@@ -237,9 +239,23 @@ static inline cdpData* cdp_data_new_bin_uint32(uint32_t value) {
     return cdp_data_new_value(
         CDP_WORD_BINARY,
         CDP_ACRON_UINT32,
-        (cdpBinary){
+        CDP_WORD_UNSIGNED,
+        CDP_BINARY(
             .pow2 = cdp_ctz(sizeof(value))
-        },
+        ),
+        sizeof(value),
+        value
+    );
+}
+
+static inline cdpData* cdp_data_new_bin_uint64(uint64_t value) {
+    return cdp_data_new_value(
+        CDP_WORD_BINARY,
+        CDP_ACRON_UINT64,
+        CDP_WORD_UNSIGNED,
+        CDP_BINARY(
+            .pow2 = cdp_ctz(sizeof(value))
+        ),
         sizeof(value),
         value
     );
@@ -249,10 +265,11 @@ static inline cdpData* cdp_data_new_bin_int64(int64_t value) {
     return cdp_data_new_value(
         CDP_WORD_BINARY,
         CDP_ACRON_INT64,
-        (cdpBinary){
+        CDP_WORD_SIGNED,
+        CDP_BINARY(
             .pow2 = cdp_ctz(sizeof(value)),
-            .sign = 1
-        },
+            .type = CDP_BIN_TYPE_INTEGER
+        ),
         sizeof(value),
         value
     );
@@ -262,11 +279,11 @@ static inline cdpData* cdp_data_new_bin_float32(float value) {
     return cdp_data_new_value(
         CDP_WORD_BINARY,
         CDP_ACRON_FLOAT32,
-        (cdpBinary){
-            .pow2     = cdp_ctz(sizeof(value)),
-            .sign     = 1,
-            .floating = CDP_BIN_FLOAT_BINARY
-        },
+        CDP_ACRON_IEEE754,
+        CDP_BINARY(
+            .pow2 = cdp_ctz(sizeof(value)),
+            .type = CDP_BIN_TYPE_FLOAT
+        ),
         sizeof(value),
         value
     );
@@ -276,11 +293,11 @@ static inline cdpData* cdp_data_new_bin_float64(double value) {
     return cdp_data_new_value(
         CDP_WORD_BINARY,
         CDP_ACRON_FLOAT64,
-        (cdpBinary){
-            .pow2     = cdp_ctz(sizeof(value)),
-            .sign     = 1,
-            .floating = CDP_BIN_FLOAT_BINARY
-        },
+        CDP_ACRON_IEEE754,
+        CDP_BINARY(
+            .pow2 = cdp_ctz(sizeof(value)),
+            .type = CDP_BIN_TYPE_FLOAT
+        ),
         sizeof(value),
         value
     );
@@ -289,17 +306,17 @@ static inline cdpData* cdp_data_new_bin_float64(double value) {
 static inline cdpData* cdp_data_new_bin_vector3d(float* value) {
     return cdp_data_new_value(
         CDP_WORD_BINARY,
-        CDP_ACRON_FLOAT64,
-        (cdpBinary){
+        CDP_ACRON_VECTOR3D,
+        CDP_ACRON_C_ARRAY,
+        CDP_BINARY(
             .pow2     = cdp_ctz(sizeof(value)),
-            .sign     = 1,
-            .floating = CDP_BIN_FLOAT_BINARY,
+            .type     = CDP_BIN_TYPE_FLOAT,
             .dimension= CDP_BIN_DIM_VECTOR3D
-        },
+        ),
         3 * sizeof(*value),
-        value
+        (void*)value
     );
 }
-*/
+
 
 #endif

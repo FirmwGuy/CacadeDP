@@ -206,7 +206,7 @@ enum _cdpMultimediaSubtitle {
     //CDP_MM_TAG_SPRITE_ACTION,
     //CDP_MM_TAG_SPRITE_IDLE,
 
-// Children
+// Properties
 #define CDP_WORD_RESOLUTION         CDP_IDC(0x0048B37B2B44BDC0)     /* "resolution"_ */
 #define CDP_WORD_DURATION           CDP_IDC(0x0012B20D12F70000)     /* "duration"___ */
 #define CDP_WORD_FRAMES             CDP_IDC(0x001A416966000000)     /* "frames"_____ */

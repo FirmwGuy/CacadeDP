@@ -151,7 +151,8 @@ enum _cdpVirtualCollision {
     //CDP_VIRT_TAG_COLOR,         // Color picker dialog.
     //CDP_VIRT_TAG_CALENDAR,      // Date selector dialog.
 
-// Children
+// Properties
+#define CDP_WORD_VIEW               CDP_IDC(0x005925B800000000)     /* "view"_______ */
 #define CDP_WORD_LAYER              CDP_IDC(0x0030392C80000000)     /* "layer"______ */
 #define CDP_WORD_POSITION           CDP_IDC(0x0041F34D12F70000)     /* "position"___ */
 #define CDP_WORD_CENTER             CDP_IDC(0x000CAEA164000000)     /* "center"_____ */
