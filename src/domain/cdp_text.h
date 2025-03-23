@@ -179,15 +179,30 @@ enum _cdpTextMedia {
 
 
 // Data creation
-/*
+
+#define CDP_TEXT(...)   ((cdpText){__VA_ARGS__}._id)
+
+static inline cdpData* cdp_data_new_text_title(const char* value, size_t size) {
+    assert(value && *value && size);
+    return cdp_data_new_value(
+        CDP_WORD_TEXT,
+        CDP_WORD_TITLE,
+        CDP_ACRON_UTF8,
+        CDP_TEXT(0),
+        size,
+        (void*)value
+    );
+}
+
 static inline cdpData* cdp_data_new_text_line(const char* value, size_t size) {
     assert(value && *value && size);
     return cdp_data_new_value(
         CDP_WORD_TEXT,
         CDP_WORD_LINE,
-        (cdpText){0},
+        CDP_ACRON_UTF8,
+        CDP_TEXT(0),
         size,
-        value
+        (void*)value
     );
 }
 
@@ -196,11 +211,12 @@ static inline cdpData* cdp_data_new_text_paragraph(const char* value, size_t siz
     return cdp_data_new_value(
         CDP_WORD_TEXT,
         CDP_WORD_PARAGRAPH,
-        (cdpText){0},
+        CDP_ACRON_UTF8,
+        CDP_TEXT(0),
         size,
-        value
+        (void*)value
     );
 }
-*/
+
 
 #endif

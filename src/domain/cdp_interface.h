@@ -175,6 +175,8 @@ enum _cdpVirtualCollision {
 
 // Agencies
 #define CDP_WORD_STAGER             CDP_IDC(0x004E813964000000)     /* "stager"_____ */
+    #define CDP_WORD_SCENE          CDP_IDC(0x004C657140000000)     /* "scene"______ */
+    
 
 // Selectors
 

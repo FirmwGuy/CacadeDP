@@ -153,8 +153,8 @@ typedef void (*cdpDel)(void*);
  * Function Utilities
  */
 
-#define  CDP_BEFORE_MAIN_(...)        __attribute__((constructor(__VA_ARGS__)))
-#define  CDP_AFTER_MAIN_(...)         __attribute__((destructor(__VA_ARGS__)))
+#define  CDP_AT_STARTUP_(...)         __attribute__((constructor(__VA_ARGS__)))
+#define  CDP_AT_SHUTDOWN_(...)        __attribute__((destructor(__VA_ARGS__)))
   
 #ifdef NDEBUG
   #define CDP_DEBUG()

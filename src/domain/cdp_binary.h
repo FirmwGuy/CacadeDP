@@ -211,7 +211,7 @@ enum _cdpBinaryEncryption {
 #define CDP_BINARY(...)   ((cdpBinary){__VA_ARGS__}._id)
 
 
-static inline cdpData* cdp_data_new_bin_id(cdpID value) {
+static inline cdpData* cdp_data_new_binary_id(cdpID value) {
     return cdp_data_new_value(
         CDP_WORD_BINARY,
         CDP_ACRON_CDPID,
@@ -224,7 +224,7 @@ static inline cdpData* cdp_data_new_bin_id(cdpID value) {
     );
 }
 
-static inline cdpData* cdp_data_new_bin_boolean(uint8_t value) {
+static inline cdpData* cdp_data_new_binary_boolean(uint8_t value) {
     return cdp_data_new_value(
         CDP_WORD_BINARY,
         CDP_WORD_BOOLEAN,
@@ -235,7 +235,7 @@ static inline cdpData* cdp_data_new_bin_boolean(uint8_t value) {
     );
 }
 
-static inline cdpData* cdp_data_new_bin_uint32(uint32_t value) {
+static inline cdpData* cdp_data_new_binary_uint32(uint32_t value) {
     return cdp_data_new_value(
         CDP_WORD_BINARY,
         CDP_ACRON_UINT32,
@@ -248,7 +248,7 @@ static inline cdpData* cdp_data_new_bin_uint32(uint32_t value) {
     );
 }
 
-static inline cdpData* cdp_data_new_bin_uint64(uint64_t value) {
+static inline cdpData* cdp_data_new_binary_uint64(uint64_t value) {
     return cdp_data_new_value(
         CDP_WORD_BINARY,
         CDP_ACRON_UINT64,
@@ -261,7 +261,7 @@ static inline cdpData* cdp_data_new_bin_uint64(uint64_t value) {
     );
 }
 
-static inline cdpData* cdp_data_new_bin_int64(int64_t value) {
+static inline cdpData* cdp_data_new_binary_int64(int64_t value) {
     return cdp_data_new_value(
         CDP_WORD_BINARY,
         CDP_ACRON_INT64,
@@ -275,7 +275,7 @@ static inline cdpData* cdp_data_new_bin_int64(int64_t value) {
     );
 }
 
-static inline cdpData* cdp_data_new_bin_float32(float value) {
+static inline cdpData* cdp_data_new_binary_float32(float value) {
     return cdp_data_new_value(
         CDP_WORD_BINARY,
         CDP_ACRON_FLOAT32,
@@ -289,7 +289,7 @@ static inline cdpData* cdp_data_new_bin_float32(float value) {
     );
 }
 
-static inline cdpData* cdp_data_new_bin_float64(double value) {
+static inline cdpData* cdp_data_new_binary_float64(double value) {
     return cdp_data_new_value(
         CDP_WORD_BINARY,
         CDP_ACRON_FLOAT64,
@@ -303,7 +303,7 @@ static inline cdpData* cdp_data_new_bin_float64(double value) {
     );
 }
 
-static inline cdpData* cdp_data_new_bin_vector3d(float* value) {
+static inline cdpData* cdp_data_new_binary_vector3d(float* value) {
     return cdp_data_new_value(
         CDP_WORD_BINARY,
         CDP_ACRON_VECTOR3D,
