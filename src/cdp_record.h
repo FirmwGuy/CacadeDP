@@ -215,15 +215,6 @@ cdpID  cdp_text_to_word(const char *s);
 size_t cdp_acronysm_to_text(cdpID acro, char s[10]);
 size_t cdp_word_to_text(cdpID coded, char s[12]);
 
-#define CDP_IDC                 UINT64_C
-
-#define CDP_WORD_ROOT           CDP_IDC(0x007C000000000000)     /* "/"__________ */
-#define CDP_WORD_LIST           CDP_IDC(0x003133A000000000)     /* "list"_______ */
-#define CDP_WORD_DICTIONARY     CDP_IDC(0x001123A25EE0CB20)     /* "dictionary"_ */
-#define CDP_WORD_CATALOG        CDP_IDC(0x000C340B1E700000)     /* "catalog"____ */
-
-#define CDP_ACRON_CDP           CDP_IDC(0x0123930000000000)     /* "CDP"------ */
-
 
 struct _cdpAgentList {
     cdpAgentList*   next;
@@ -661,6 +652,7 @@ cdpRecord* cdp_record_append(cdpRecord* record, bool prepend, cdpRecord* child);
 #define cdp_record_add_child(record, type, name, context, data, store)         \
     ({cdpRecord child__={0}; cdp_record_initialize(&child__, type, name, data, store); cdp_record_add(record, context, &child__);})
 
+#define cdp_record_add_empty(record, name, context)                                                                   cdp_record_add_child(record, CDP_TYPE_NORMAL, name, CDP_V(context), NULL, NULL)
 #define cdp_record_add_value(record, name, context, domain, tag, encoding, attrib, value, size, capacity)             cdp_record_add_child(record, CDP_TYPE_NORMAL, name, CDP_V(context), cdp_data_new(domain, tag, encoding, attrib, CDP_DATATYPE_VALUE, true, NULL, CDP_V(value), size, capacity), NULL)
 #define cdp_record_add_data(record, name, context, domain, tag, encoding, attrib, data, size, capacity, destructor)   cdp_record_add_child(record, CDP_TYPE_NORMAL, name, CDP_V(context), cdp_data_new(domain, tag, encoding, attrib, CDP_DATATYPE_DATA, true, NULL, CDP_V(data), size, capacity, destructor), NULL)
 
@@ -671,6 +663,7 @@ cdpRecord* cdp_record_append(cdpRecord* record, bool prepend, cdpRecord* child);
 #define cdp_record_add_link(record, name, context, source)                                                  cdp_record_add_child(record, CDP_TYPE_LINK,  name, CDP_V(context), CDP_P(source), NULL)
 
 #define cdp_dict_add(record, child)                                                                         cdp_record_add(record, CDP_V(0), child)
+#define cdp_dict_add_empty(record, name)                                                                    cdp_record_add_empty(record, name, 0)
 #define cdp_dict_add_value(record, name, domain, tag, encoding, attrib, value, size, capacity)              cdp_record_add_value(record, name, 0, domain, tag, encoding, attrib, value, size, capacity)
 #define cdp_dict_add_data(record, name, domain, tag, encoding, attrib, data, size, capacity, destructor)    cdp_record_add_data(record, name, 0, domain, tag, encoding, attrib, data, size, capacity, destructor)
 #define cdp_dict_add_list(record, name, domain, tag, storage, ...)                                          cdp_record_add_list(record, name, 0, domain, tag, storage, ##__VA_ARGS__)
@@ -681,6 +674,7 @@ cdpRecord* cdp_record_append(cdpRecord* record, bool prepend, cdpRecord* child);
 #define cdp_record_append_child(record, type, name, prepend, data, store)      \
     ({cdpRecord child__={0}; cdp_record_initialize(&child__, type, name, data, store); cdp_record_append(record, prepend, &child__);})
 
+#define cdp_record_append_empty(record, name)                                                                         cdp_record_append_child(record, CDP_TYPE_NORMAL, name, false, NULL, NULL)
 #define cdp_record_append_value(record, name, domain, tag, encoding, attrib, value, size, capacity)                   cdp_record_append_child(record, CDP_TYPE_NORMAL, name, false, cdp_data_new(domain, tag, encoding, attrib, CDP_DATATYPE_VALUE, true, NULL, CDP_V(value), size, capacity), NULL)
 #define cdp_record_append_data(record, name, domain, tag, encoding, attrib, data, size, capacity, destructor)         cdp_record_append_child(record, CDP_TYPE_NORMAL, name, false, cdp_data_new(domain, tag, encoding, attrib, CDP_DATATYPE_DATA, true, NULL, CDP_V(data), size, capacity, destructor), NULL)
 
@@ -690,6 +684,7 @@ cdpRecord* cdp_record_append(cdpRecord* record, bool prepend, cdpRecord* child);
 
 #define cdp_record_append_link(record, name, source)                                                        cdp_record_append_child(record, CDP_TYPE_LINK,  name, false, CDP_P(source), NULL)
 
+#define cdp_record_prepend_empty(record, name)                                                                        cdp_record_append_child(record, CDP_TYPE_NORMAL, name, true, NULL, NULL)
 #define cdp_record_prepend_value(record, name, domain, tag, encoding, attrib, value, size, capacity)                  cdp_record_append_child(record, CDP_TYPE_NORMAL, name, true, cdp_data_new(domain, tag, encoding, attrib, CDP_DATATYPE_VALUE, true, NULL, CDP_V(value), size, capacity), NULL)
 #define cdp_record_prepend_data(record, name, domain, tag, encoding, attrib, data, size, capacity, destructor)        cdp_record_append_child(record, CDP_TYPE_NORMAL, name, true, cdp_data_new(domain, tag, encoding, attrib, CDP_DATATYPE_DATA, true, NULL, CDP_V(data), size, capacity, destructor), NULL)
 
@@ -749,6 +744,88 @@ void cdp_record_remove(cdpRecord* record, cdpRecord* target);
 
 
 // Converting C text strings to/from cdpID
+#define CDP_WORD_MAX_CHARS      11
+#define CDP_ACRON_MAX_CHARS     9
+
+#define CDP_TEXT_TO_ACRONYSM_(name)                                            \
+    cdpID name(const char *s) {                                                \
+        assert(s && *s);                                                       \
+                                                                               \
+        while (*s == ' ') {                                                    \
+            s++;            /* Trim leading spaces. */                         \
+        }                                                                      \
+        if (!*s)                                                               \
+            return 0;                                                          \
+                                                                               \
+        size_t len = strlen(s);                                                \
+        while (len > 0  &&  s[len - 1] == ' ') {                               \
+            len--;          /* Trim trailing spaces. */                        \
+        }                                                                      \
+                                                                               \
+        if (len > CDP_ACRON_MAX_CHARS)                                         \
+            return 0;       /* Limit to max allowed characters. */             \
+                                                                               \
+        cdpID coded = 0;                                                       \
+        for (size_t n = 0; n < len; n++) {                                     \
+            char c = s[n];                                                     \
+                                                                               \
+            if (c < 0x20  ||  c > 0x5F)                                        \
+                return 0;   /* Uncodable characters. */                        \
+                                                                               \
+            coded |= (cdpID)(c - 0x20) << (6 * ((CDP_ACRON_MAX_CHARS - 1) - n));    /* Shift and encode each character. */\
+        }                                                                      \
+                                                                               \
+        return cdp_id_to_acronysm(coded);                                      \
+    }
+
+#define CDP_TEXT_TO_WORD_(name)                                                \
+    cdpID name(const char *s) {                                                \
+        assert(s && *s);                                                       \
+                                                                               \
+        while (*s == ' ') {                                                    \
+            s++;            /* Trim leading spaces. */                         \
+        }                                                                      \
+        if (!*s)                                                               \
+            return 0;                                                          \
+                                                                               \
+        size_t len = strlen(s);                                                \
+        while (len > 0  &&  s[len - 1] == ' ') {                               \
+            len--;          /* Trim trailing spaces. */                        \
+        }                                                                      \
+        if (len > CDP_WORD_MAX_CHARS)                                          \
+            return 0;       /* Limit to max allowed characters. */             \
+                                                                               \
+        cdpID coded = 0;                                                       \
+        for (size_t n = 0; n < len; n++) {                                     \
+            char c = s[n];                                                     \
+                                                                               \
+            uint8_t encoded_char;                                              \
+            if (c >= 0x61  &&  c <= 0x7A) {                                    \
+                encoded_char = c - 0x61 + 1;        /* Map 'a'-'z' to 1-26. */ \
+            } else switch (c) {                                                \
+              case ' ': encoded_char = 0;   break;  /* Treat space as 0. */    \
+              case ':': encoded_char = 27;  break;                             \
+              case '_': encoded_char = 28;  break;                             \
+              case '-': encoded_char = 29;  break;                             \
+              case '.': encoded_char = 30;  break;                             \
+              case '/': encoded_char = 31;  break;                             \
+                                                                               \
+              default:                                                         \
+                return 0;   /* Uncodable characters. */                        \
+            }                                                                  \
+                                                                               \
+            coded |= (cdpID)encoded_char << (5 * ((CDP_WORD_MAX_CHARS - 1) - n));  /* Shift and encode each character. */\
+        }                                                                      \
+                                                                               \
+        return cdp_id_to_word(coded);                                          \
+    }
+
+
+
+static inline CDP_CONST_FUNC CDP_TEXT_TO_ACRONYSM_(CDP_ACRO)
+static inline CDP_CONST_FUNC CDP_TEXT_TO_WORD_(CDP_WORD)
+
+
 cdpID  cdp_text_to_acronysm(const char *s);
 size_t cdp_acronysm_to_text(cdpID acro, char s[10]);
 

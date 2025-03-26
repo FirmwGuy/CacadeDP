@@ -7,7 +7,7 @@
  *  use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
  *  of the Software, and to permit persons to whom the Software is furnished to do
  *  so.
- * 
+ *
  *  The above copyright notice and this permission notice shall be included in all
  *  copies or substantial portions of the Software.
  *
@@ -155,7 +155,10 @@ typedef void (*cdpDel)(void*);
 
 #define  CDP_AT_STARTUP_(...)         __attribute__((constructor(__VA_ARGS__)))
 #define  CDP_AT_SHUTDOWN_(...)        __attribute__((destructor(__VA_ARGS__)))
-  
+
+#define  CDP_CONST_FUNC               __attribute__((const))
+
+
 #ifdef NDEBUG
   #define CDP_DEBUG()
 #else

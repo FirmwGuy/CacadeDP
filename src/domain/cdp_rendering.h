@@ -155,42 +155,38 @@ enum _cdpRenderingType {
 };
 
 
-// Domain
-#define CDP_WORD_RENDERING    CDP_ID(0x0048AE2164971C00)      /* "rendering"__ */
+/*
+    Domain:
+        'rendering'
 
+    Uses:
+        'model'
+        'light'
+        'camera'
+        'room'
 
-// Uses
-#define CDP_WORD_MODEL        CDP_ID(0x0035E42B00000000)      /* "model"______ */
-#define CDP_WORD_LIGHT        CDP_ID(0x000C2D2C82000000)      /* "light"______ */
-#define CDP_WORD_CAMERA       CDP_ID(0x0031274500000000)      /* "camera"_____ */
-#define CDP_WORD_ROOM         CDP_ID(0x0049EF6800000000)      /* "room"_______ */
+    Properties:
+        'mesh'
+        'texture'
+        'color'
+        'metal'
 
+        'FOV'
+        'intensity'
+        'exposure'
 
-// Properties
-#define CDP_WORD_MESH         CDP_ID(0x0034B34000000000)      /* "mesh"_______ */
-#define CDP_WORD_TEXTURE      CDP_ID(0x0050B8A564500000)      /* "texture"____ */
-#define CDP_WORD_COLOR        CDP_ID(0x000DEC7C80000000)      /* "color"______ */
-#define CDP_WORD_METAL        CDP_ID(0x0034B40B00000000)      /* "metal"______ */
+        'LOD-MAX': maximum vertexs allowed at maximum LOD.
 
-#define CDP_ACRON_FOV         CDP_ID(0x0126BF6000000000)      /* "FOV"------ */
-#define CDP_WORD_INTENSITY    CDP_ID(0x0025D42BA69A6400)      /* "intensity"__ */
-#define CDP_WORD_EXPOSURE     CDP_ID(0x0017107CEB228000)      /* "exposure"___ */
+    Agencies:
+        'renderer'
 
-#define CDP_ACRON_LOD_MAX     CDP_IDC(0x012CBE436D878000)     /* "LOD-MAX" (maximum vertexs allowed at maximum LOD) */
+    Events:
+        'refresh'
 
-
-// Agencies
-#define CDP_WORD_RENDERER     CDP_ID(0x0048AE2164590000)      /* "renderer"___ */
-
-
-// Events
-#define CDP_WORD_REFRESH      CDP_ID(0x0048A69166800000)      /* "refresh"____ */
-
-
-// Selector
-#define CDP_ACRON_VBUFFERX2   CDP_ID(0x01368B59A6972E12)      /* "VBUFFERX2" */
-#define CDP_ACRON_VBUFFERX3   CDP_ID(0x01368B59A6972E13)      /* "VBUFFERX3" */
-#define CDP_ACRON_VSYNC       CDP_ID(0x0136CF9BA3000000)      /* "VSYNC"---- */
+    //#define CDP_ACRON_VBUFFERX2
+    //#define CDP_ACRON_VBUFFERX3
+    //#define CDP_ACRON_VSYNC
+*/
 
 
 #endif

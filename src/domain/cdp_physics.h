@@ -66,21 +66,21 @@ enum _cdpBodyJoint {
 };
 
 
-// Domain
-#define CDP_WORD_VIRTUAL         DP_IDC(0x005932A542C00000)      /* "virtual"____ */
+/*
+    Domain:
+        'virtual'
 
-// Encodings
+    Encodings
 
-// Uses
+    Uses
 
-// Properties
+    Properties
 
-// Agencies
-#define CDP_WORD_ORDERER         CDP_IDC(0x003E442C8B200000)     /* "orderer"____ */
+    Agencies:
+        'orderer'
 
-// Selectors
+    Events
+*/
 
-
-// Events
 
 #endif

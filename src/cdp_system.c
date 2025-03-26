@@ -52,6 +52,12 @@ cdpAgentList* AGENT;
  * If a base time is specified in the instance then System Step will sleep the
  * remaining time after completion (if any) to keep things in sync.
  *
+ * Output:
+ *      CDPID: a dynamically named event output.
+ *
+ * Config:
+ *      'base-time':
+ *
  */
 struct _step {
     cdpRecord*  client;
@@ -69,7 +75,7 @@ static int agent_system_step(cdpRecord* client, void** returned, cdpRecord* self
     switch (action) {
       case CDP_ACTION_INSTANCE_NEW: {
         cdp_record_set_data(self, cdp_data_new_binary_uint64(0));
-        cdp_record_set_store(self, cdp_store_new(CDP_ACRON_CDP, CDP_WORD_LIST, CDP_STORAGE_LINKED_LIST, CDP_INDEX_BY_INSERTION));
+        cdp_record_set_store(self, cdp_store_new(CDP_ACRO("CDP"), CDP_WORD("list"), CDP_STORAGE_LINKED_LIST, CDP_INDEX_BY_INSERTION));
         return CDP_STATUS_SUCCESS;
       }
 
@@ -104,29 +110,29 @@ static void system_initiate(void) {
     cdp_record_system_initiate();
 
     // Initiate root structure
-    cdpRecord* system  = cdp_dict_add_dictionary(&CDP_ROOT, CDP_WORD_SYSTEM,  CDP_ACRON_CDP, CDP_WORD_DICTIONARY, CDP_STORAGE_ARRAY, 4);
+    cdpRecord* system  = cdp_dict_add_dictionary(&CDP_ROOT, CDP_WORD("system"),  CDP_ACRO("CDP"), CDP_WORD("dictionary"), CDP_STORAGE_ARRAY, 4);
 
-    USER    = cdp_dict_add_dictionary(&CDP_ROOT, CDP_WORD_USER,    CDP_ACRON_CDP, CDP_WORD_DICTIONARY, CDP_STORAGE_RED_BLACK_T);
-    PUBLIC  = cdp_dict_add_dictionary(&CDP_ROOT, CDP_WORD_PUBLIC,  CDP_ACRON_CDP, CDP_WORD_DICTIONARY, CDP_STORAGE_RED_BLACK_T);
-    DATA    = cdp_dict_add_dictionary(&CDP_ROOT, CDP_WORD_DATA,    CDP_ACRON_CDP, CDP_WORD_DICTIONARY, CDP_STORAGE_RED_BLACK_T);
-    NETWORK = cdp_dict_add_dictionary(&CDP_ROOT, CDP_WORD_NETWORK, CDP_ACRON_CDP, CDP_WORD_DICTIONARY, CDP_STORAGE_RED_BLACK_T);
+    USER    = cdp_dict_add_dictionary(&CDP_ROOT, CDP_WORD("user"),    CDP_ACRO("CDP"), CDP_WORD("dictionary"), CDP_STORAGE_RED_BLACK_T);
+    PUBLIC  = cdp_dict_add_dictionary(&CDP_ROOT, CDP_WORD("public"),  CDP_ACRO("CDP"), CDP_WORD("dictionary"), CDP_STORAGE_RED_BLACK_T);
+    DATA    = cdp_dict_add_dictionary(&CDP_ROOT, CDP_WORD("data"),    CDP_ACRO("CDP"), CDP_WORD("dictionary"), CDP_STORAGE_RED_BLACK_T);
+    NETWORK = cdp_dict_add_dictionary(&CDP_ROOT, CDP_WORD("network"), CDP_ACRO("CDP"), CDP_WORD("dictionary"), CDP_STORAGE_RED_BLACK_T);
 
-    TEMP    = cdp_dict_add_list(&CDP_ROOT, CDP_WORD_TEMP,    CDP_ACRON_CDP, CDP_WORD_LIST, CDP_STORAGE_LINKED_LIST);
+    TEMP    = cdp_dict_add_list(&CDP_ROOT, CDP_WORD("temp"), CDP_ACRO("CDP"), CDP_WORD("list"), CDP_STORAGE_LINKED_LIST);
 
     // Initiate system structure
-    //DOMAIN  = cdp_dict_add_dictionary(system, CDP_WORD_AGENCY,  CDP_ACRON_CDP, CDP_WORD_DICTIONARY, CDP_STORAGE_RED_BLACK_T);
-    CASCADE = cdp_dict_add_dictionary(system, CDP_WORD_CASCADE, CDP_ACRON_CDP, CDP_WORD_DICTIONARY, CDP_STORAGE_RED_BLACK_T);
-    //LIBRARY = cdp_dict_add_dictionary(system, CDP_WORD_LIBRARY, CDP_ACRON_CDP, CDP_WORD_DICTIONARY, CDP_STORAGE_RED_BLACK_T);
+    //DOMAIN  = cdp_dict_add_dictionary(system, CDP_WORD_AGENCY,  CDP_ACRO("CDP"), CDP_WORD("dictionary"), CDP_STORAGE_RED_BLACK_T);
+    CASCADE = cdp_dict_add_dictionary(system, CDP_WORD("cascade"), CDP_ACRO("CDP"), CDP_WORD("dictionary"), CDP_STORAGE_RED_BLACK_T);
+    //LIBRARY = cdp_dict_add_dictionary(system, CDP_WORD_LIBRARY, CDP_ACRO("CDP"), CDP_WORD("dictionary"), CDP_STORAGE_RED_BLACK_T);
 
     // Add system agents
-    cdp_system_register_agent(CDP_ACRON_CDP, CDP_WORD_STEP, agent_system_step);
+    cdp_system_register_agent(CDP_ACRO("CDP"), CDP_WORD("step"), agent_system_step);
 
     // Initiate global records.
     cdpRecord step = {0};
-    cdp_cascade_instance_new(cdp_root(), &step, CDP_WORD_STEP, CDP_ACRON_CDP, CDP_WORD_STEP, NULL, CDP_V(0));
+    cdp_cascade_instance_new(cdp_root(), &step, CDP_WORD("step"), CDP_ACRO("CDP"), CDP_WORD("step"), NULL, CDP_V(0));
     CDP_STEP = cdp_dict_add(CASCADE, &step);
 
-    //CDP_VOID = cdp_record_append_value(TEMP, CDP_WORD_VOID, CDP_ACRON_CDP, CDP_WORD_VOID, 0, 0, sizeof(bool), sizeof(bool));
+    //CDP_VOID = cdp_record_append_value(TEMP, CDP_WORD_VOID, CDP_ACRO("CDP"), CDP_WORD_VOID, 0, 0, sizeof(bool), sizeof(bool));
     //CDP_VOID->data->writable = false;
 }
 

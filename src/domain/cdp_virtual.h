@@ -62,30 +62,29 @@ enum _cdpBodyPrimitive {
 };
 
 
-// Domain
-#define CDP_WORD_VIRTUAL            DP_IDC(0x005932A542C00000)      /* "virtual"____ */
+/*
+    Domain:
+        'virtual'
 
-// Encodings
-#define CDP_ACRON_GLVBO             CDP_IDC(0x0127B368AF000000)     /* "GLVBO"---- (OpenGL XYZ per-vertex array) */
-#define CDP_ACRON_GLVBOTEX          CDP_IDC(0x0127B368AFD25E00)     /* "GLVBOTEX"- (Same as GLVBO, but with added NXNYNZ normals and UV texture coord) */
-#define CDP_ACRON_GLVBOFULL         CDP_IDC(0x0127B368AF9B5B2C)     /* "GLVBOFULL" (Same as GLVBOTEX, but with added RGBA color values) */
+    Encodings:
+        'GLVBO': OpenGL XYZ per-vertex array.
+        'GLVBOTEX': Same as GLVBO, but with added NXNYNZ normals and UV texture coord.
+        'GLVBOFULL': Same as GLVBOTEX, but with added RGBA color values.
 
-// Uses
+    Uses
 
-// Properties
-#define CDP_WORD_CENTER             CDP_IDC(0x000CAEA164000000)     /* "center"_____ */
-#define CDP_WORD_RADIUS             CDP_IDC(0x0048244D66000000)     /* "radius"_____ */
-//#define CDP_ACRON_BBOX          CDP_IDC(0x01228AFE00000000)     /* "BBOX"----- */
-//#define CDP_ACRON_BCUBE         CDP_IDC(0x01228F58A5000000)     /* "BCUBE"---- */
-
-
-// Agencies
-#define CDP_WORD_DRAFTER            CDP_IDC(0x001241350B200000)     /* "drafter"____ */
+    Properties:
+        'center'
+        'radius'
+        //#define CDP_ACRON_BBOX
+        //#define CDP_ACRON_BCUBE
 
 
-// Selectors
+    Agencies:
+        'drafter'
 
+    Events
+*/
 
-// Events
 
 #endif

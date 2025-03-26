@@ -8,7 +8,7 @@
  *  use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
  *  of the Software, and to permit persons to whom the Software is furnished to do
  *  so.
- * 
+ *
  *  The above copyright notice and this permission notice shall be included in all
  *  copies or substantial portions of the Software.
  *
@@ -118,64 +118,66 @@ enum _cdpTextMedia {
 };
 
 
-// Domain
-#define CDP_WORD_TEXT               CDP_IDC(0x0050B8A000000000)     /* "text"_______ */
+/*
+    Domain:
+        'text'
 
-// Encodings
-#define CDP_ACRON_UTF8              CDP_IDC(0x0135D26600000000)     /* "UTF8"----- */
-#define CDP_ACRON_ASCII             CDP_IDC(0x0121CE3A69000000)     /* "ASCII"---- */
-#define CDP_WORD_UNICODE            CDP_IDC(0x0055C91BC8500000)     /* "unicode"____ */
-#define CDP_ACRON_ISO8859           CDP_IDC(0x0129CEF618559000)     /* "ISO8859"-- */
+    Encodings:
+        'UTF8'
+        'ASCII'
+        'unicode'
+        'ISO8859'
 
-//    CDP_TXT_ENCOD_SHIFT_JIS,    // Japanse.
-//    CDP_TXT_ENCOD_BIG5,         // Cantonese chinese.
-//    CDP_TXT_ENCOD_GB18030,      // Simplified chinese.
+        //    CDP_TXT_ENCOD_SHIFT_JIS,    // Japanse.
+        //    CDP_TXT_ENCOD_BIG5,         // Cantonese chinese.
+        //    CDP_TXT_ENCOD_GB18030,      // Simplified chinese.
 
-// Uses
-#define CDP_ACRON_URL               CDP_IDC(0x0135CAC000000000)     /* "URL"------ */
+    Uses:
+        'URL'
 
-    //CDP_TXT_TAG_METADATA,      // Used for defining metadata, comments, or annotations within the text (e.g., <meta>, comments in markdown).
-    //CDP_TXT_TAG_MEDIA,         // Represents media elements like images, videos, and embedded content (e.g., <img>, <iframe>).
-    //CDP_TXT_TAG_SCRIPT,        // The (executable) code part of this document.
+        //CDP_TXT_TAG_METADATA,      // Used for defining metadata, comments, or annotations within the text (e.g., <meta>, comments in markdown).
+        //CDP_TXT_TAG_MEDIA,         // Represents media elements like images, videos, and embedded content (e.g., <img>, <iframe>).
+        //CDP_TXT_TAG_SCRIPT,        // The (executable) code part of this document.
 
-#define CDP_WORD_CHARACTER          CDP_IDC(0x000D01904742C800)     /* "character"__ */
-#define CDP_WORD_WORD               CDP_IDC(0x005DF22000000000)     /* "word"_______ */
-#define CDP_WORD_LINE               CDP_IDC(0x00312E2800000000)     /* "line"_______ */
-#define CDP_WORD_PARAGRAPH          CDP_IDC(0x00403209E4182000)     /* "paragraph"__ */
+        'character'
+        'word'
+        'line'
+        'paragraph'
 
-    //CDP_TXT_TAG_TABLE,
-    //CDP_TXT_TAG_FORMULA,
-    //CDP_TXT_TAG_FOOTNOTE,
-    //CDP_TXT_TAG_HEADER,
+        //CDP_TXT_TAG_TABLE,
+        //CDP_TXT_TAG_FORMULA,
+        //CDP_TXT_TAG_FOOTNOTE,
+        //CDP_TXT_TAG_HEADER,
 
-#define CDP_WORD_TITLE              CDP_IDC(0x0051346140000000)     /* "title"______ */
+        'title'
 
-    //CDP_TXT_TAG_ABSTRACT,
-    //CDP_TXT_TAG_BODY,
-    //CDP_TXT_TAG_TOC,
-    //CDP_TXT_TAG_CHAPTER,
-    //CDP_TXT_TAG_SECTION,
-    //CDP_TXT_TAG_CONCLUSION,
-    //CDP_TXT_TAG_AKNOWLEDGMENT,
-    //CDP_TXT_TAG_APPENDICE,
-    //CDP_TXT_TAG_GLOSSARY,
+        //CDP_TXT_TAG_ABSTRACT,
+        //CDP_TXT_TAG_BODY,
+        //CDP_TXT_TAG_TOC,
+        //CDP_TXT_TAG_CHAPTER,
+        //CDP_TXT_TAG_SECTION,
+        //CDP_TXT_TAG_CONCLUSION,
+        //CDP_TXT_TAG_AKNOWLEDGMENT,
+        //CDP_TXT_TAG_APPENDICE,
+        //CDP_TXT_TAG_GLOSSARY,
 
-    //CDP_TXT_TAG_AUTHOR,
-    //CDP_TXT_TAG_DATE,
-    //CDP_TXT_TAG_VERSION,
-    //CDP_TXT_TAG_COPYRIGHT,
-    //CDP_TXT_TAG_LICENSE,
+        //CDP_TXT_TAG_AUTHOR,
+        //CDP_TXT_TAG_DATE,
+        //CDP_TXT_TAG_VERSION,
+        //CDP_TXT_TAG_COPYRIGHT,
+        //CDP_TXT_TAG_LICENSE,
 
-// Properties
+    Properties
 
-// Agencies
-#define CDP_WORD_TRANSFORM          CDP_IDC(0x00524174CCF93400)     /* "transform"__ */
+    Agencies:
+        'transform'
 
-    // Selectors
-    #define CDP_WORD_TRIM           CDP_IDC(0x0052496800000000)     /* "trim"_______ */
-    #define CDP_WORD_UPPERCASE      CDP_IDC(0x0056102C86199400)     /* "uppercase"__ */
-    #define CDP_WORD_LOWERCASE      CDP_IDC(0x0031F72C86199400)     /* "lowercase"__ */
-    #define CDP_WORD_CAPITALIZE     CDP_IDC(0x000C304D02C4E8A0)     /* "capitalize"_ */
+        Selectors:
+            'trim'
+            'uppercase'
+            'lowercase'
+            'capitalize'
+*/
 
 
 // Data creation
@@ -185,9 +187,9 @@ enum _cdpTextMedia {
 static inline cdpData* cdp_data_new_text_title(const char* value, size_t size) {
     assert(value && *value && size);
     return cdp_data_new_value(
-        CDP_WORD_TEXT,
-        CDP_WORD_TITLE,
-        CDP_ACRON_UTF8,
+        CDP_WORD("text"),
+        CDP_WORD("title"),
+        CDP_ACRO("UTF8"),
         CDP_TEXT(0),
         size,
         (void*)value
@@ -197,9 +199,9 @@ static inline cdpData* cdp_data_new_text_title(const char* value, size_t size) {
 static inline cdpData* cdp_data_new_text_line(const char* value, size_t size) {
     assert(value && *value && size);
     return cdp_data_new_value(
-        CDP_WORD_TEXT,
-        CDP_WORD_LINE,
-        CDP_ACRON_UTF8,
+        CDP_WORD("text"),
+        CDP_WORD("line"),
+        CDP_ACRO("UTF8"),
         CDP_TEXT(0),
         size,
         (void*)value
@@ -209,9 +211,9 @@ static inline cdpData* cdp_data_new_text_line(const char* value, size_t size) {
 static inline cdpData* cdp_data_new_text_paragraph(const char* value, size_t size) {
     assert(value && *value && size);
     return cdp_data_new_value(
-        CDP_WORD_TEXT,
-        CDP_WORD_PARAGRAPH,
-        CDP_ACRON_UTF8,
+        CDP_WORD("text"),
+        CDP_WORD("paragraph"),
+        CDP_ACRO("UTF8"),
         CDP_TEXT(0),
         size,
         (void*)value

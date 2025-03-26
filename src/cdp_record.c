@@ -75,8 +75,9 @@ cdpRecord CDP_ROOT;   // The root record.
 */
 void cdp_record_system_initiate(void) {
     cdp_record_initialize_dictionary(   &CDP_ROOT,
-                                        CDP_WORD_ROOT,
-                                        CDP_ACRON_CDP, CDP_WORD_DICTIONARY,
+                                        CDP_WORD("/"),
+                                        CDP_ACRO("CDP"),
+                                        CDP_WORD("dictionary"),
                                         CDP_STORAGE_RED_BLACK_T );      // The root dictionary is the same as "/" in text paths.
 }
 
@@ -1547,48 +1548,17 @@ void cdp_record_remove(cdpRecord* record, cdpRecord* target) {
 
 
 /*
-    Encoding of names into 6-bit values.
+    Encoding of names to/from 6-bit values.
 */
-#define ACRON_MAX_CHARS     9
-
-cdpID cdp_text_to_acronysm(const char *s) {
-    assert(s && *s);
-
-    while (*s == ' ') {
-        s++;            // Trim leading spaces.
-    }
-    if (!*s)
-        return 0;
-
-    size_t len = strlen(s);
-    while (len > 0  &&  s[len - 1] == ' ') {
-        len--;          // Trim trailing spaces.
-    }
-
-    if (len > ACRON_MAX_CHARS)
-        return 0;       // Limit to max allowed characters.
-
-    cdpID coded = 0;
-    for (size_t n = 0; n < len; n++) {
-        char c = s[n];
-
-        if (c < 0x20  ||  c > 0x5F)
-            return 0;   // Uncodable characters.
-
-        coded |= (cdpID)(c - 0x20) << (6 * ((ACRON_MAX_CHARS - 1) - n));    // Shift and encode each character.
-    }
-
-    return cdp_id_to_acronysm(coded);
-}
-
+CDP_TEXT_TO_ACRONYSM_(cdp_text_to_acronysm)
 
 size_t cdp_acronysm_to_text(cdpID acro, char s[10]) {
     assert(cdp_id_text_valid(acro));
     cdpID coded = cdp_id(acro);
 
     unsigned length;
-    for (length = 0; length < ACRON_MAX_CHARS; length++) {
-        char c = (char)((coded >> (6 * ((ACRON_MAX_CHARS - 1) - length))) & 0x3F);  // Extract 6 bits for each character (starting from the highest bits).
+    for (length = 0; length < CDP_ACRON_MAX_CHARS; length++) {
+        char c = (char)((coded >> (6 * ((CDP_ACRON_MAX_CHARS - 1) - length))) & 0x3F);  // Extract 6 bits for each character (starting from the highest bits).
 
         s[length] = c + 0x20;   // Restore the original ASCII character.
     }
@@ -1605,50 +1575,9 @@ size_t cdp_acronysm_to_text(cdpID acro, char s[10]) {
 
 
 /*
-    Encoding of names into 5-bit values.
+    Encoding of names to/from 5-bit values.
 */
-#define WORD_MAX_CHARS      11
-
-cdpID cdp_text_to_word(const char *s) {
-    assert(s && *s);
-
-    while (*s == ' ') {
-        s++;            // Trim leading spaces.
-    }
-    if (!*s)
-        return 0;
-
-    size_t len = strlen(s);
-    while (len > 0  &&  s[len - 1] == ' ') {
-        len--;          // Trim trailing spaces.
-    }
-    if (len > WORD_MAX_CHARS)
-        return 0;       // Limit to max allowed characters.
-
-    cdpID coded = 0;
-    for (size_t n = 0; n < len; n++) {
-        char c = s[n];
-
-        uint8_t encoded_char;
-        if (c >= 0x61  &&  c <= 0x7A) {
-            encoded_char = c - 0x61 + 1;        // Map 'a'-'z' to 1-26.
-        } else switch (c) {
-          case ' ': encoded_char = 0;   break;  // Treat space as 0.
-          case ':': encoded_char = 27;  break;
-          case '_': encoded_char = 28;  break;
-          case '-': encoded_char = 29;  break;
-          case '.': encoded_char = 30;  break;
-          case '/': encoded_char = 31;  break;
-
-          default:
-            return 0;   // Uncodable characters.
-        }
-
-        coded |= (cdpID)encoded_char << (5 * ((WORD_MAX_CHARS - 1) - n));  // Shift and encode each character.
-    }
-
-    return cdp_id_to_word(coded);
-}
+CDP_TEXT_TO_WORD_(cdp_text_to_word)
 
 
 size_t cdp_word_to_text(cdpID word, char s[12]) {
@@ -1657,8 +1586,8 @@ size_t cdp_word_to_text(cdpID word, char s[12]) {
 
     const char* translation_table = ":_-./";    // Reverse translation table for values 27-31.
     unsigned length;
-    for (length = 0; length < WORD_MAX_CHARS; length++) {
-        uint8_t encoded_char = (coded >> (5 * ((WORD_MAX_CHARS - 1) - length))) & 0x1F; // Extract each 5-bit segment, starting from the most significant bits.
+    for (length = 0; length < CDP_WORD_MAX_CHARS; length++) {
+        uint8_t encoded_char = (coded >> (5 * ((CDP_WORD_MAX_CHARS - 1) - length))) & 0x1F; // Extract each 5-bit segment, starting from the most significant bits.
 
         if (encoded_char >= 1  &&  encoded_char <= 26) {
             s[length] = (char)(encoded_char - 1 + 0x61);            // 'a' - 'z'.

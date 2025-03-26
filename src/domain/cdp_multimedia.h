@@ -171,78 +171,79 @@ enum _cdpMultimediaSubtitle {
 };
 
 
-// Domain
-#define CDP_WORD_MULTIMEDIA         CDP_IDC(0x0036ACA25A522420)      /* "multimedia"_ */
+/*
+    Domain:
+        'multimedia'
 
-// Encodings
-#define CDP_ACRON_RAW_RGBA          CDP_IDC(0x01328773729E2840)     /* "RAW-RGBA"- */
-#define CDP_ACRON_RAW_PCM           CDP_IDC(0x01328773708ED000)     /* "RAW-PCM"-- */
+    Encodings:
+        'RAW-RGBA'
+        'RAW-PCM'
+
+    Uses:
+        'audio'
+        'image'
+        'animation'
+        'video'
+
+        //CDP_MM_TAG_CAPTION,     // Textual overlay or subtitle.
+
+        //CDP_MM_TAG_ICON,
+        //CDP_MM_TAG_THUMBNAIL,
+        //CDP_MM_TAG_PREVIEW,
+        //CDP_MM_TAG_BACKGROUND,
+        //CDP_MM_TAG_SCREENSHOT,
+
+        //CDP_MM_TAG_SOUND_EFFECT,
+        //CDP_MM_TAG_DIALOG,
+        //CDP_MM_TAG_MUSIC,
+        //CDP_MM_TAG_LOOP,
+        //CDP_MM_TAG_A_RECORDING,
+
+        //CDP_MM_TAG_MOVIE,
+        //CDP_MM_TAG_CLIP,
+        //CDP_MM_TAG_SCREEN_VCAP,
+
+        //CDP_MM_TAG_SPRITE_ACTION,
+        //CDP_MM_TAG_SPRITE_IDLE,
+
+    Properties:
+        'resolution'
+        'duration'
+        'frames'
+        'samples'
+
+        //CDP_MM_TAG_ANIM_NAME,       // Name/id of animations.
+        //CDP_MM_TAG_ANIM_INDEX,      // Index of animation.
+
+        //CDP_MM_TAG_METADATA         // Anex information related to media (eg, copywrite, license, etc).
+
+        //CDP_MM_TAG_LANGUAGE,        // A list of per-language audio tracks.
+        //CDP_MM_TAG_SUBTITLE,        // A list of per-language subtitle tracks.
+
+    Agencies:
+        'player'
+        'mixer'
+        'filter'
+        'scaler'
+        'muxer'
+        'demuxer'
 
 
-// Uses
-#define CDP_WORD_AUDIO              CDP_IDC(0x0006A44BC0000000)      /* "audio"______ */
-#define CDP_WORD_IMAGE              CDP_IDC(0x0025A13940000000)      /* "image"______ */
-#define CDP_WORD_ANIMATION          CDP_IDC(0x0005C9686897B800)      /* "animation"__ */
-#define CDP_WORD_VIDEO              CDP_IDC(0x0059242BC0000000)      /* "video"______ */
+    Events:
+        'play'
+        'pause'
+        'rewind'
+        'forward'
+        'stop'
 
-    //CDP_MM_TAG_CAPTION,     // Textual overlay or subtitle.
-
-    //CDP_MM_TAG_ICON,
-    //CDP_MM_TAG_THUMBNAIL,
-    //CDP_MM_TAG_PREVIEW,
-    //CDP_MM_TAG_BACKGROUND,
-    //CDP_MM_TAG_SCREENSHOT,
-
-    //CDP_MM_TAG_SOUND_EFFECT,
-    //CDP_MM_TAG_DIALOG,
-    //CDP_MM_TAG_MUSIC,
-    //CDP_MM_TAG_LOOP,
-    //CDP_MM_TAG_A_RECORDING,
-
-    //CDP_MM_TAG_MOVIE,
-    //CDP_MM_TAG_CLIP,
-    //CDP_MM_TAG_SCREEN_VCAP,
-
-    //CDP_MM_TAG_SPRITE_ACTION,
-    //CDP_MM_TAG_SPRITE_IDLE,
-
-// Properties
-#define CDP_WORD_RESOLUTION         CDP_IDC(0x0048B37B2B44BDC0)     /* "resolution"_ */
-#define CDP_WORD_DURATION           CDP_IDC(0x0012B20D12F70000)     /* "duration"___ */
-#define CDP_WORD_FRAMES             CDP_IDC(0x001A416966000000)     /* "frames"_____ */
-#define CDP_WORD_SAMPLES            CDP_IDC(0x004C2D830B300000)     /* "samples"____ */
-
-    //CDP_MM_TAG_ANIM_NAME,       // Name/id of animations.
-    //CDP_MM_TAG_ANIM_INDEX,      // Index of animation.
-
-    //CDP_MM_TAG_METADATA         // Anex information related to media (eg, copywrite, license, etc).
-
-    //CDP_MM_TAG_LANGUAGE,        // A list of per-language audio tracks.
-    //CDP_MM_TAG_SUBTITLE,        // A list of per-language subtitle tracks.
-
-
-// Agencies
-#define CDP_WORD_PLAYER             CDP_IDC(0x004181C964000000)     /* "player"_____ */
-#define CDP_WORD_MIXER              CDP_IDC(0x0035382C80000000)     /* "mixer"______ */
-#define CDP_WORD_FILTER             CDP_IDC(0x00192CA164000000)     /* "filter"_____ */
-#define CDP_WORD_BLENDER            CDP_IDC(0x000985710B200000)     /* "blender"____ */
-#define CDP_WORD_SCALER             CDP_IDC(0x004C616164000000)     /* "scaler"_____ */
-
-// Selectors
-
-// Events
-#define CDP_WORD_PLAY               CDP_IDC(0x004181C800000000)     /* "play"_______ */
-#define CDP_WORD_PAUSE              CDP_IDC(0x0040359940000000)     /* "pause"______ */
-#define CDP_WORD_REWIND             CDP_IDC(0x0048B74B88000000)     /* "rewind"_____ */
-#define CDP_WORD_FORWARD            CDP_IDC(0x0019F2B864400000)     /* "forward"____ */
-#define CDP_WORD_STOP               CDP_IDC(0x004E8F8000000000)     /* "stop"_______ */
-
-#define CDP_WORD_END                CDP_IDC(0x0015C40000000000)     /* "end"________ */
+        'end'
 
     //CDP_MM_TAG_LOAD,
     //CDP_MM_TAG_UNLOAD,
     //CDP_MM_TAG_NEXT_PIXBUF,
     //CDP_MM_TAG_NEXT_AUDIOFRAME,
     //CDP_MM_TAG_CAN_REWIND,
+*/
+
 
 #endif

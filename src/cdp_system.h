@@ -203,36 +203,40 @@
 #include "cdp_record.h"
 
 
-// Core directories
-#define CDP_WORD_DATA       CDP_IDC(0x0010340800000000)     /* "data"_______ */
-#define CDP_WORD_NETWORK    CDP_IDC(0x0038B4BBE4B00000)     /* "network"____ */
-#define CDP_WORD_PUBLIC     CDP_IDC(0x0042A26246000000)     /* "public"_____ */
-#define CDP_WORD_PRIVATE    CDP_IDC(0x004249B068500000)     /* "private"____ */
-#define CDP_WORD_SYSTEM     CDP_IDC(0x004F33A15A000000)     /* "system"_____ */
-#define CDP_WORD_TEMP       CDP_IDC(0x0050AD8000000000)     /* "temp"_______ */
-#define CDP_WORD_USER       CDP_IDC(0x0056659000000000)     /* "user"_______ */
+/*
+    Core directories:
+        'data'
+        'network'
+        'public'
+        'private'
+        'system'
+            'agent'
+            'cascade'
+            'domain'
+            'library'
+        'temp'
+        'user'
 
+    Agencies:
+        'step'
+        'buffer'
+        'cloner'
+        'converter'
+        'step'
+        'synchronizer'
 
-// Core sub-dirs
-#define CDP_WORD_AGENT      CDP_IDC(0x0004E57500000000)     /* "agent"______ */
-#define CDP_WORD_CASCADE    CDP_IDC(0x000C331848500000)     /* "cascade"____ */
-#define CDP_WORD_DOMAIN     CDP_IDC(0x0011ED0A5C000000)     /* "domain"_____ */
-#define CDP_WORD_LIBRARY    CDP_IDC(0x0031229065900000)     /* "library"____ */
+    Statuses:
+        'pending'
+        'working'
+        'completed'
+        'failed'
 
-#define CDP_WORD_STEP       CDP_IDC(0x004E858000000000)     /* "step"_______ */
-
-
-// Basic fields
-//#define CDP_WORD_PENDING    CDP_IDC(0x0000000000000000)      /* "pending"     */
-//#define CDP_WORD_WORKING    CDP_IDC(0x0000000000000000)      /* "working"     */
-//#define CDP_WORD_COMPLETED  CDP_IDC(0x0000000000000000)      /* "completed"   */
-//#define CDP_WORD_FAILED     CDP_IDC(0x0000000000000000)      /* "failed"      */
-
-// Events
-//#define CDP_WORD_DEBUG      CDP_IDC(0x0000000000000000)      /* "debug"       */
-//#define CDP_WORD_WARNING    CDP_IDC(0x0000000000000000)      /* "warning"     */
-//#define CDP_WORD_ERROR      CDP_IDC(0x0000000000000000)      /* "error"       */
-//#define CDP_WORD_FATAL      CDP_IDC(0x0000000000000000)      /* "fatal"       */
+    Events:
+        'debug'
+        'warning'
+        'error'
+        'fatal'
+*/
 
 
 void      cdp_system_register_agent(cdpID domain, cdpID tag, cdpAgent agent);
@@ -461,14 +465,6 @@ static inline int cdp_cascade_store_delete(cdpRecord* client, cdpRecord* self) {
 
     return CDP_STATUS_OK;
 }
-
-
-/* Agencies */
-#define CDP_WORD_BUFFER             CDP_IDC(0x000AA63164000000)     /* "buffer" ____ */
-#define CDP_WORD_CLONER             CDP_IDC(0x000D8F7164000000)     /* "cloner" ____ */
-#define CDP_WORD_CONVERTER          CDP_IDC(0x000DEEB16542C800)     /* "converter"__ */
-#define CDP_WORD_STEP               CDP_IDC(0x004E858000000000)     /* "step"_______ */
-#define CDP_WORD_SYNCMASTER         CDP_IDC(0x004F2E1B433A1640)     /* "syncmaster"_ */
 
 
 static inline cdpRecord* cdp_void(void)  {extern cdpRecord* CDP_VOID; assert(CDP_VOID);  return CDP_VOID;}
