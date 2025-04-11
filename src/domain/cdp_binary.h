@@ -136,6 +136,7 @@ enum _cdpBinaryEncryption {
 
     Uses:
         'CDPID'
+        'agent'
         'boolean'
         'byte'
 
@@ -226,6 +227,21 @@ static inline cdpData* cdp_data_new_binary_id(cdpID value) {
     );
 }
 #define cdp_dict_add_binary_id(record, name, value)         cdp_record_add_child(record, CDP_TYPE_NORMAL, name, CDP_V(0), cdp_data_new_binary_id(value), NULL)
+
+
+static inline cdpData* cdp_data_new_binary_agent(cdpAgent value) {
+    return cdp_data_new_value(
+        CDP_WORD("binary"),
+        CDP_ACRO("agent"),
+        CDP_WORD("unsigned"),
+        CDP_BINARY(
+            .pow2 = cdp_ctz(sizeof(value))
+        ),
+        sizeof(value),
+        value
+    );
+}
+#define cdp_dict_add_binary_agent(record, name, value)         cdp_record_add_child(record, CDP_TYPE_NORMAL, name, CDP_V(0), cdp_data_new_binary_agent(value), NULL)
 
 
 static inline cdpData* cdp_data_new_binary_boolean(uint8_t value) {

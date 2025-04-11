@@ -102,7 +102,7 @@ void cdp_record_system_shutdown(void) {
 cdpData* cdp_data_new(  cdpID domain, cdpID tag,
                         cdpID encoding, cdpID attribute,
                         unsigned datatype, bool writable,
-                        void** dataloc, cdpValue value, ...  ) {
+                        void** dataloc, void* value, ...  ) {
     assert(cdp_id_text_valid(domain) && cdp_id_text_valid(tag) && (datatype < CDP_DATATYPE_COUNT));
 
     cdpData* data;
@@ -120,14 +120,9 @@ cdpData* cdp_data_new(  cdpID domain, cdpID tag,
         size_t alocz = DATA_HEAD_SIZE + dmax;
 
         if (size) {
-            if (capacity > VALUE_CAP_MIN) {
-                data = cdp_malloc(alocz);
-                memset(data, 0, DATA_HEAD_SIZE);
-                memcpy(data->value, value.pointer, size);
-            } else {
-                data = cdp_malloc0(alocz);
-                data->value[0] = value;
-            }
+            data = cdp_malloc(alocz);
+            memset(data, 0, DATA_HEAD_SIZE);
+            memcpy(data->value, value, size);
         } else {
             data = cdp_malloc0(alocz);
             size = capacity;
@@ -148,12 +143,12 @@ cdpData* cdp_data_new(  cdpID domain, cdpID tag,
         data = cdp_malloc0(sizeof(cdpData));
 
         if (destructor) {
-            data->data       = value.pointer;
+            data->data       = value;
             data->destructor = destructor;
         } else {
             if (size) {
                 data->data = cdp_malloc(capacity);
-                memcpy(data->data, value.pointer, size);
+                memcpy(data->data, value, size);
             } else {
                 data->data = cdp_malloc0(capacity);
             }
@@ -267,7 +262,7 @@ void* cdp_data(const cdpData* data) {
 /*
    Updates the data
 */
-static inline void* cdp_data_update(cdpData* data, size_t size, size_t capacity, cdpValue value, bool swap) {
+static inline void* cdp_data_update(cdpData* data, size_t size, size_t capacity, void* value, bool swap) {
     assert(cdp_data_valid(data) && size && capacity);
 
     if (!data->writable)
@@ -276,21 +271,21 @@ static inline void* cdp_data_update(cdpData* data, size_t size, size_t capacity,
     switch (data->datatype) {
       case CDP_DATATYPE_VALUE: {
         assert(data->capacity >= capacity);
-        data->value[0] = value;
+        memcpy(data->value, value, size);
         data->size = size;
         return data->value;
       }
 
       case CDP_DATATYPE_DATA: {
-        assert(value.pointer);
+        assert(value);
         if (swap) {
             if (data->destructor)
                 data->destructor(data->data);
-            data->data = value.pointer;
+            data->data     = value;
             data->capacity = capacity;
         } else {
             assert(data->capacity >= capacity);
-            memcpy(data->data, value.pointer, size);
+            memcpy(data->data, value, size);
         }
         data->size = size;
         return data->data;
@@ -310,7 +305,7 @@ static inline void* cdp_data_update(cdpData* data, size_t size, size_t capacity,
 
 
 /*
-    Creates a new children store for records
+    Creates a new child store for records
 */
 cdpStore* cdp_store_new(cdpID domain, cdpID tag, unsigned storage, unsigned indexing, ...) {
     assert(cdp_id_text_valid(domain) && cdp_id_text_valid(tag) && (storage < CDP_STORAGE_COUNT) && (indexing < CDP_INDEX_COUNT));
@@ -342,11 +337,11 @@ cdpStore* cdp_store_new(cdpID domain, cdpID tag, unsigned storage, unsigned inde
         break;
       }
       case CDP_STORAGE_OCTREE: {
-        float*   center  = va_arg(args, float*);
-        cdpValue subwide = va_arg(args, cdpValue);
+        float* center  = va_arg(args, float*);
+        float  subwide = va_arg(args, double);
         assert(center  &&  (indexing == CDP_INDEX_BY_FUNCTION));
         cdpOctreeBound bound;
-        bound.subwide = subwide.float32;
+        bound.subwide = subwide;
         memcpy(&bound.center, center, sizeof(bound.center));
         store = (cdpStore*) octree_new(&bound);
         break;
@@ -460,7 +455,7 @@ static inline void store_check_auto_id(cdpStore* store, cdpRecord* child) {
 /*
     Adds/inserts a *copy* of the specified record into a store
 */
-cdpRecord* cdp_store_add_child(cdpStore* store, cdpValue context, cdpRecord* child) {
+cdpRecord* cdp_store_add_child(cdpStore* store, uintptr_t context, cdpRecord* child) {
     assert(cdp_store_valid(store) && !cdp_record_is_void(child));
 
     if (!store->writable)
@@ -471,15 +466,15 @@ cdpRecord* cdp_store_add_child(cdpStore* store, cdpValue context, cdpRecord* chi
     switch (store->indexing) {
       case CDP_INDEX_BY_INSERTION:
       {
-        assert(store->chdCount >= context.size);
+        assert(store->chdCount >= (size_t)context);
 
         switch (store->storage) {
           case CDP_STORAGE_LINKED_LIST: {
-            record = list_insert((cdpList*) store, child, context.size);
+            record = list_insert((cdpList*) store, child, (size_t)context);
             break;
           }
           case CDP_STORAGE_ARRAY: {
-            record = array_insert((cdpArray*) store, child, context.size);
+            record = array_insert((cdpArray*) store, child, (size_t)context);
             break;
           }
           default: {
@@ -518,11 +513,11 @@ cdpRecord* cdp_store_add_child(cdpStore* store, cdpValue context, cdpRecord* chi
       {
         switch (store->storage) {
           case CDP_STORAGE_LINKED_LIST: {
-            record = list_sorted_insert((cdpList*) store, child, store->compare, context.pointer);
+            record = list_sorted_insert((cdpList*) store, child, store->compare, (void*)context);
             break;
           }
           case CDP_STORAGE_ARRAY: {
-            record = array_sorted_insert((cdpArray*) store, child, store->compare, context.pointer);
+            record = array_sorted_insert((cdpArray*) store, child, store->compare, (void*)context);
             break;
           }
           case CDP_STORAGE_PACKED_QUEUE: {
@@ -530,11 +525,11 @@ cdpRecord* cdp_store_add_child(cdpStore* store, cdpValue context, cdpRecord* chi
             return NULL;
           }
           case CDP_STORAGE_RED_BLACK_T: {
-            record = rb_tree_sorted_insert((cdpRbTree*) store, child, store->compare, context.pointer);
+            record = rb_tree_sorted_insert((cdpRbTree*) store, child, store->compare, (void*)context);
             break;
           }
           case CDP_STORAGE_OCTREE: {
-            record = octree_sorted_insert((cdpOctree*) store, child, store->compare, context.pointer);
+            record = octree_sorted_insert((cdpOctree*) store, child, store->compare, (void*)context);
             break;
           }
         }
@@ -1170,7 +1165,7 @@ void cdp_record_finalize(cdpRecord* record) {
 /*
     Adds/inserts a *copy* of the specified record into another record
 */
-cdpRecord* cdp_record_add(cdpRecord* record, cdpValue context, cdpRecord* child) {
+cdpRecord* cdp_record_add(cdpRecord* record, uintptr_t context, cdpRecord* child) {
     RECORD_FOLLOW_LINK_TO_STORE(record, store, NULL);
     return cdp_store_add_child(store, context, child);
 }
@@ -1206,7 +1201,7 @@ void* cdp_record_data(const cdpRecord* record) {
 /*
    Updates the data of a record
 */
-void* cdp_record_update(cdpRecord* record, size_t size, size_t capacity, cdpValue value, bool swap) {
+void* cdp_record_update(cdpRecord* record, size_t size, size_t capacity, void* value, bool swap) {
     assert(!cdp_record_is_void(record) && size && capacity);
 
     record = cdp_link_pull(record);

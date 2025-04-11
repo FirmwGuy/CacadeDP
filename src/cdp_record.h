@@ -119,14 +119,12 @@
 */
 
 
-typedef union  _cdpValue      cdpValue;
 typedef struct _cdpData       cdpData;
 typedef struct _cdpStore      cdpStore;
 typedef struct _cdpRecord     cdpRecord;
 typedef struct _cdpAgentList  cdpAgentList;
 
 typedef int (*cdpCompare)(const cdpRecord* restrict, const cdpRecord* restrict, void*);
-typedef int (*cdpAgent)  (cdpRecord* client, void** returned, cdpRecord* self, unsigned action, cdpRecord* record, cdpValue value);
 
 
 /*
@@ -210,69 +208,100 @@ enum _cdpRecordNaming {
 #define cdp_id_naming(name)             (((name) >> CDP_AUTOID_BITS) & 3)
 
 
+// Converting C text strings to/from cdpID
+
+#define CDP_WORD_MAX_CHARS      11
+#define CDP_ACRON_MAX_CHARS     9
+
+#define CDP_TEXT_TO_ACRONYSM_(name)                                            \
+    cdpID name(const char *s) {                                                \
+        assert(s && *s);                                                       \
+                                                                               \
+        while (*s == ' ') {                                                    \
+            s++;            /* Trim leading spaces. */                         \
+        }                                                                      \
+        if (!*s)                                                               \
+            return 0;                                                          \
+                                                                               \
+        size_t len = strlen(s);                                                \
+        while (len > 0  &&  s[len - 1] == ' ') {                               \
+            len--;          /* Trim trailing spaces. */                        \
+        }                                                                      \
+                                                                               \
+        if (len > CDP_ACRON_MAX_CHARS)                                         \
+            return 0;       /* Limit to max allowed characters. */             \
+                                                                               \
+        cdpID coded = 0;                                                       \
+        for (size_t n = 0; n < len; n++) {                                     \
+            char c = s[n];                                                     \
+                                                                               \
+            if (c < 0x20  ||  c > 0x5F)                                        \
+                return 0;   /* Uncodable characters. */                        \
+                                                                               \
+            coded |= (cdpID)(c - 0x20) << (6 * ((CDP_ACRON_MAX_CHARS - 1) - n));    /* Shift and encode each character. */\
+        }                                                                      \
+                                                                               \
+        return cdp_id_to_acronysm(coded);                                      \
+    }
+
+#define CDP_TEXT_TO_WORD_(name)                                                \
+    cdpID name(const char *s) {                                                \
+        assert(s && *s);                                                       \
+                                                                               \
+        while (*s == ' ') {                                                    \
+            s++;            /* Trim leading spaces. */                         \
+        }                                                                      \
+        if (!*s)                                                               \
+            return 0;                                                          \
+                                                                               \
+        size_t len = strlen(s);                                                \
+        while (len > 0  &&  s[len - 1] == ' ') {                               \
+            len--;          /* Trim trailing spaces. */                        \
+        }                                                                      \
+        if (len > CDP_WORD_MAX_CHARS)                                          \
+            return 0;       /* Limit to max allowed characters. */             \
+                                                                               \
+        cdpID coded = 0;                                                       \
+        for (size_t n = 0; n < len; n++) {                                     \
+            char c = s[n];                                                     \
+                                                                               \
+            uint8_t encoded_char;                                              \
+            if (c >= 0x61  &&  c <= 0x7A) {                                    \
+                encoded_char = c - 0x61 + 1;        /* Map 'a'-'z' to 1-26. */ \
+            } else switch (c) {                                                \
+              case ' ': encoded_char = 0;   break;  /* Treat space as 0. */    \
+              case ':': encoded_char = 27;  break;                             \
+              case '_': encoded_char = 28;  break;                             \
+              case '-': encoded_char = 29;  break;                             \
+              case '.': encoded_char = 30;  break;                             \
+              case '/': encoded_char = 31;  break;                             \
+                                                                               \
+              default:                                                         \
+                return 0;   /* Uncodable characters. */                        \
+            }                                                                  \
+                                                                               \
+            coded |= (cdpID)encoded_char << (5 * ((CDP_WORD_MAX_CHARS - 1) - n));  /* Shift and encode each character. */\
+        }                                                                      \
+                                                                               \
+        return cdp_id_to_word(coded);                                          \
+    }
+
+static inline CDP_CONST_FUNC CDP_TEXT_TO_ACRONYSM_(CDP_ACRO_constant)
+static inline CDP_CONST_FUNC CDP_TEXT_TO_WORD_(CDP_WORD_constant)
+
+#define CDP_ACRO(s)     ({_Static_assert(strlen(s) > 0 && strlen(s) <= 9, "Acronysm IDs must be 9 characters or less!"); CDP_ACRO_constant(s);})
+#define CDP_WORD(s)     ({_Static_assert(strlen(s) > 0 && strlen(s) <= 11, "Word IDs must be 11 characters or less!"); CDP_WORD_constant(s);})
+
 cdpID  cdp_text_to_acronysm(const char *s);
-cdpID  cdp_text_to_word(const char *s);
 size_t cdp_acronysm_to_text(cdpID acro, char s[10]);
+
+cdpID  cdp_text_to_word(const char *s);
 size_t cdp_word_to_text(cdpID coded, char s[12]);
-
-
-struct _cdpAgentList {
-    cdpAgentList*   next;
-    cdpAgent        agent;
-    struct {
-        cdpID       _unused:    6,
-                    domain:     CDP_NAME_BITS;
-        cdpID       _reserved:  6,
-                    tag:        CDP_NAME_BITS;
-    };
-};
-
-static inline cdpAgentList* cdp_agent_list_new(cdpID domain, cdpID tag, cdpAgent agent) {
-    assert(cdp_id_text_valid(domain) && cdp_id_text_valid(tag) && agent);
-
-    CDP_NEW(cdpAgentList, list);
-    list->domain = domain;
-    list->tag    = tag;
-    list->agent  = agent;
-
-    return list;
-}
-
-#define cdp_agent_list_del    cdp_free
 
 
 /*
     Record Data
 */
-
-union _cdpValue {
-    uint8_t     byte;
-    uint8_t     _byte[8];
-    uint16_t    uint16;
-    uint16_t    _uint16[4];
-    uint32_t    uint32;
-    uint32_t    _uint32[2];
-    uint64_t    uint64;
-
-    int16_t     int16;
-    int16_t     _int16[4];
-    int32_t     int32;
-    int32_t     _int32[2];
-    int64_t     int64;
-
-    float       float32;
-    float       _float32[2];
-    double      float64;
-
-    size_t      size;
-    void*       pointer;
-
-    cdpID       id;
-    cdpRecord*  record;
-};
-
-#define CDP_V(v)    ((cdpValue)(v))
-
 
 #define CDP_ATTRIBUTE_STRUCT(name, ...)                                        \
     typedef union {                                                            \
@@ -327,9 +356,12 @@ struct _cdpData {
     size_t              capacity;       // Buffer capacity in bytes.
 
     cdpData*            next;           // Pointer to next data representation (if available).
-    cdpAgentList*       agent;          // List of agents to be run on data modification.
+    union {
+        cdpID           agency;         // Agency ID (if remote?).
+        cdpRecord*      ragency;        // Local agency.
+    };
 
-    cdpValue            hash;           // Hash value of content.
+    uint64_t            hash;           // Hash value of content.
     union {
         struct {
             void*       data;           // Points to container of data value.
@@ -342,7 +374,7 @@ struct _cdpData {
           };
           cdpRecord*    library;        // Library where the resource is located.
         };
-        cdpValue        value[(2 * sizeof(void*)) / sizeof(cdpValue)];  // Data value may start from here.
+        uint8_t         value[2 * sizeof(void*)];  // Data value may start from here.
     };
 };
 
@@ -359,13 +391,13 @@ enum _cdpDataType {
 cdpData* cdp_data_new(  cdpID domain, cdpID tag,
                         cdpID encoding, cdpID attribute,
                         unsigned datatype, bool writable,
-                        void** dataloc, cdpValue value, ...  );
+                        void** dataloc, void* value, ...  );
 void     cdp_data_del(cdpData* data);
 void*    cdp_data(const cdpData* data);
-#define  cdp_data_valid(d)                      ((d) && (d)->capacity && cdp_id_text_valid((d)->domain) && cdp_id_text_valid((d)->tag))
-#define  cdp_data_new_value(d, t, e, a, z, value)  cdp_data_new(d, t, e, CDP_ID(a), CDP_DATATYPE_VALUE, true, NULL, CDP_V(value), z, sizeof(cdpValue))
+#define  cdp_data_valid(d)                                      ((d) && (d)->capacity && cdp_id_text_valid((d)->domain) && cdp_id_text_valid((d)->tag))
+#define  cdp_data_new_value(d, t, e, a, value, z, capacity)     cdp_data_new(d, t, e, CDP_ID(a), CDP_DATATYPE_VALUE, true, NULL, value, z, capacity)
 
-static inline void cdp_data_add_agent(cdpData* data, cdpID domain, cdpID tag, cdpAgent agent) {
+static inline void cdp_data_add_agent(cdpData* data, cdpID domain, cdpID tag, void* agent) {
     assert(cdp_data_valid(data));
 
     cdpAgentList* list = cdp_agent_list_new(domain, tag, agent);
@@ -407,8 +439,11 @@ struct _cdpStore {
         cdpShadow*  shadow;     // Shadow structure (if record has children).
     };
 
-    //cdpStore*       next;       // Next index/storage (requires hard links).
-    cdpAgentList*   agent;      // List of agents to be run on child updates.
+    cdpStore*       next;       // Next attribute/index/storage (requires hard links?).
+    union {
+        cdpID       agency;     // Agency ID (if remote?).
+        cdpRecord*  ragency;    // local agency.
+    };
 
     size_t          chdCount;   // Number of child records.
     cdpCompare      compare;    // Compare function for indexing children.
@@ -448,10 +483,10 @@ static inline bool cdp_store_is_f_sorted(cdpStore* store)     {assert(cdp_store_
 static inline bool cdp_store_is_sorted(cdpStore* store)       {assert(cdp_store_valid(store));  return (store->indexing != CDP_INDEX_BY_INSERTION);}
 static inline bool cdp_store_is_empty(cdpStore* store)        {assert(cdp_store_valid(store));  return !store->chdCount;}
 
-cdpRecord* cdp_store_add_child(cdpStore* store, cdpValue context, cdpRecord* child);
+cdpRecord* cdp_store_add_child(cdpStore* store, uintptr_t context, cdpRecord* child);
 cdpRecord* cdp_store_append_child(cdpStore* store, bool prepend, cdpRecord* child);
 
-static inline void cdp_store_add_agent(cdpStore* store, cdpID domain, cdpID tag, cdpAgent agent) {
+static inline void cdp_store_add_agent(cdpStore* store, cdpID domain, cdpID tag, void* agent) {
     assert(cdp_store_valid(store));
     cdpAgentList* list = cdp_agent_list_new(domain, tag, agent);
     if (store->agent)
@@ -487,7 +522,7 @@ struct _cdpRecord {
         cdpRecord*  linked;     // A linked shadow record (if no children, see in cdpStore otherwise).
         cdpShadow*  shadow;     // Structure for multiple linked records (if no children).
 
-        cdpPath*    target;     // Path to linked target (if record is a Link).
+        cdpRecord*  instance;   // Agent instance this record belongs to (if record is a Link).
     };
 };
 
@@ -508,48 +543,13 @@ typedef bool (*cdpTraverse)(cdpEntry*, void*);
  * Record Operations
  */
 
-enum _cdpAction {
-    CDP_ACTION_INSTANCE_NEW,
-    CDP_ACTION_INSTANCE_VALIDATE,
-    CDP_ACTION_INSTANCE_INLET,
-    CDP_ACTION_INSTANCE_CONNECT,
-    CDP_ACTION_INSTANCE_UNPLUG,
-    CDP_ACTION_INSTANCE_DEL,
-    //
-    CDP_ACTION_DATA_NEW,
-    CDP_ACTION_DATA_ATTRIBUTE,
-    CDP_ACTION_DATA_UPDATE,
-    CDP_ACTION_DATA_DELETE,
-    //
-    CDP_ACTION_STORE_NEW,
-    CDP_ACTION_STORE_ADD_ITEM,
-    CDP_ACTION_STORE_REMOVE_ITEM,
-    CDP_ACTION_STORE_DELETE,
-
-    CDP_ACTION_COUNT
-};
-
-enum _cdpStatus {
-    CDP_STATUS_FAIL = -2,
-    CDP_STATUS_ERROR,
-    CDP_STATUS_OK,
-    CDP_STATUS_PROGRESS,
-    CDP_STATUS_SUCCESS
-};
-
-
-// Initiate and shutdown record system
-void cdp_record_system_initiate(void);
-void cdp_record_system_shutdown(void);
-
-
 // Initiate records
 void cdp_record_initialize(cdpRecord* record, unsigned type, cdpID name, cdpData* data, cdpStore* store);
 void cdp_record_initialize_clone(cdpRecord* newClone, cdpID nameID, cdpRecord* record);
 void cdp_record_finalize(cdpRecord* record);
 
-#define cdp_record_initialize_value(r, name, domain, tag, encoding, attrib, value, size, capacity)              cdp_record_initialize(r, CDP_TYPE_NORMAL, name, cdp_data_new(domain, tag, encoding, attrib, CDP_DATATYPE_VALUE, true, NULL, CDP_V(value), size, capacity), NULL)
-#define cdp_record_initialize_data(r, name, domain, tag, encoding, attrib, data, size, capacity, destructor)    cdp_record_initialize(r, CDP_TYPE_NORMAL, name, cdp_data_new(domain, tag, encoding, attrib, CDP_DATATYPE_DATA,  true, NULL, CDP_V(data),  size, capacity, destructor), NULL)
+#define cdp_record_initialize_value(r, name, domain, tag, encoding, attrib, value, size, capacity)               cdp_record_initialize(r, CDP_TYPE_NORMAL, name, cdp_data_new(domain, tag, encoding, attrib, CDP_DATATYPE_VALUE, true, NULL, value, size, capacity), NULL)
+#define cdp_record_initialize_data(r, name, domain, tag, encoding, attrib, value, size, capacity, destructor)    cdp_record_initialize(r, CDP_TYPE_NORMAL, name, cdp_data_new(domain, tag, encoding, attrib, CDP_DATATYPE_DATA,  true, NULL, value, size, capacity, destructor), NULL)
 
 #define cdp_record_initialize_list(r, name, domain, tag, storage, ...)                  cdp_record_initialize(r, CDP_TYPE_NORMAL, name, NULL, cdp_store_new(domain, tag, storage, CDP_INDEX_BY_INSERTION, ##__VA_ARGS__))
 #define cdp_record_initialize_dictionary(r, name, domain, tag, storage, ...)            cdp_record_initialize(r, CDP_TYPE_NORMAL, name, NULL, cdp_store_new(domain, tag, storage, CDP_INDEX_BY_NAME, ##__VA_ARGS__))
@@ -646,26 +646,26 @@ static inline bool cdp_record_is_floating(cdpRecord* record)    {assert(record);
 
 
 // Appends/prepends or inserts a (copy of) record into another record
-cdpRecord* cdp_record_add(cdpRecord* record, cdpValue context, cdpRecord* child);
+cdpRecord* cdp_record_add(cdpRecord* record, uintptr_t context, cdpRecord* child);
 cdpRecord* cdp_record_append(cdpRecord* record, bool prepend, cdpRecord* child);
 
 #define cdp_record_add_child(record, type, name, context, data, store)         \
     ({cdpRecord child__={0}; cdp_record_initialize(&child__, type, name, data, store); cdp_record_add(record, context, &child__);})
 
-#define cdp_record_add_empty(record, name, context)                                                                   cdp_record_add_child(record, CDP_TYPE_NORMAL, name, CDP_V(context), NULL, NULL)
-#define cdp_record_add_value(record, name, context, domain, tag, encoding, attrib, value, size, capacity)             cdp_record_add_child(record, CDP_TYPE_NORMAL, name, CDP_V(context), cdp_data_new(domain, tag, encoding, attrib, CDP_DATATYPE_VALUE, true, NULL, CDP_V(value), size, capacity), NULL)
-#define cdp_record_add_data(record, name, context, domain, tag, encoding, attrib, data, size, capacity, destructor)   cdp_record_add_child(record, CDP_TYPE_NORMAL, name, CDP_V(context), cdp_data_new(domain, tag, encoding, attrib, CDP_DATATYPE_DATA, true, NULL, CDP_V(data), size, capacity, destructor), NULL)
+#define cdp_record_add_empty(record, name, context)                                                                   cdp_record_add_child(record, CDP_TYPE_NORMAL, name, (uintptr_t)(context), NULL, NULL)
+#define cdp_record_add_value(record, name, context, domain, tag, encoding, attrib, value, size, capacity)             cdp_record_add_child(record, CDP_TYPE_NORMAL, name, (uintptr_t)(context), cdp_data_new(domain, tag, encoding, attrib, CDP_DATATYPE_VALUE, true, NULL, value, size, capacity), NULL)
+#define cdp_record_add_data(record, name, context, domain, tag, encoding, attrib, value, size, capacity, destructor)  cdp_record_add_child(record, CDP_TYPE_NORMAL, name, (uintptr_t)(context), cdp_data_new(domain, tag, encoding, attrib, CDP_DATATYPE_DATA,  true, NULL, value, size, capacity, destructor), NULL)
 
-#define cdp_record_add_list(record, name, context, domain, tag, storage, ...)                               cdp_record_add_child(record, CDP_TYPE_NORMAL, name, CDP_V(context), NULL, cdp_store_new(domain, tag, storage, CDP_INDEX_BY_INSERTION, ##__VA_ARGS__))
-#define cdp_record_add_dictionary(record, name, context, domain, tag, storage, ...)                         cdp_record_add_child(record, CDP_TYPE_NORMAL, name, CDP_V(context), NULL, cdp_store_new(domain, tag, storage, CDP_INDEX_BY_NAME, ##__VA_ARGS__))
-#define cdp_record_add_catalog(record, name, context, domain, tag, storage, ...)                            cdp_record_add_child(record, CDP_TYPE_NORMAL, name, CDP_V(context), NULL, cdp_store_new(domain, tag, storage, CDP_INDEX_BY_FUNCTION, ##__VA_ARGS__))
+#define cdp_record_add_list(record, name, context, domain, tag, storage, ...)                               cdp_record_add_child(record, CDP_TYPE_NORMAL, name, (uintptr_t)(context), NULL, cdp_store_new(domain, tag, storage, CDP_INDEX_BY_INSERTION, ##__VA_ARGS__))
+#define cdp_record_add_dictionary(record, name, context, domain, tag, storage, ...)                         cdp_record_add_child(record, CDP_TYPE_NORMAL, name, (uintptr_t)(context), NULL, cdp_store_new(domain, tag, storage, CDP_INDEX_BY_NAME, ##__VA_ARGS__))
+#define cdp_record_add_catalog(record, name, context, domain, tag, storage, ...)                            cdp_record_add_child(record, CDP_TYPE_NORMAL, name, (uintptr_t)(context), NULL, cdp_store_new(domain, tag, storage, CDP_INDEX_BY_FUNCTION, ##__VA_ARGS__))
 
-#define cdp_record_add_link(record, name, context, source)                                                  cdp_record_add_child(record, CDP_TYPE_LINK,  name, CDP_V(context), CDP_P(source), NULL)
+#define cdp_record_add_link(record, name, context, source)                                                  cdp_record_add_child(record, CDP_TYPE_LINK,  name, (uintptr_t)(context), CDP_P(source), NULL)
 
-#define cdp_dict_add(record, child)                                                                         cdp_record_add(record, CDP_V(0), child)
+#define cdp_dict_add(record, child)                                                                         cdp_record_add(record, 0, child)
 #define cdp_dict_add_empty(record, name)                                                                    cdp_record_add_empty(record, name, 0)
 #define cdp_dict_add_value(record, name, domain, tag, encoding, attrib, value, size, capacity)              cdp_record_add_value(record, name, 0, domain, tag, encoding, attrib, value, size, capacity)
-#define cdp_dict_add_data(record, name, domain, tag, encoding, attrib, data, size, capacity, destructor)    cdp_record_add_data(record, name, 0, domain, tag, encoding, attrib, data, size, capacity, destructor)
+#define cdp_dict_add_data(record, name, domain, tag, encoding, attrib, value, size, capacity, destructor)   cdp_record_add_data(record, name, 0, domain, tag, encoding, attrib, value, size, capacity, destructor)
 #define cdp_dict_add_list(record, name, domain, tag, storage, ...)                                          cdp_record_add_list(record, name, 0, domain, tag, storage, ##__VA_ARGS__)
 #define cdp_dict_add_dictionary(record, name, domain, tag, storage, ...)                                    cdp_record_add_dictionary(record, name, 0, domain, tag, storage, ##__VA_ARGS__)
 #define cdp_dict_add_catalog(record, name, domain, tag, storage, ...)                                       cdp_record_add_catalog(record, name, 0, domain, tag, storage, ##__VA_ARGS__)
@@ -675,8 +675,8 @@ cdpRecord* cdp_record_append(cdpRecord* record, bool prepend, cdpRecord* child);
     ({cdpRecord child__={0}; cdp_record_initialize(&child__, type, name, data, store); cdp_record_append(record, prepend, &child__);})
 
 #define cdp_record_append_empty(record, name)                                                                         cdp_record_append_child(record, CDP_TYPE_NORMAL, name, false, NULL, NULL)
-#define cdp_record_append_value(record, name, domain, tag, encoding, attrib, value, size, capacity)                   cdp_record_append_child(record, CDP_TYPE_NORMAL, name, false, cdp_data_new(domain, tag, encoding, attrib, CDP_DATATYPE_VALUE, true, NULL, CDP_V(value), size, capacity), NULL)
-#define cdp_record_append_data(record, name, domain, tag, encoding, attrib, data, size, capacity, destructor)         cdp_record_append_child(record, CDP_TYPE_NORMAL, name, false, cdp_data_new(domain, tag, encoding, attrib, CDP_DATATYPE_DATA, true, NULL, CDP_V(data), size, capacity, destructor), NULL)
+#define cdp_record_append_value(record, name, domain, tag, encoding, attrib, value, size, capacity)                   cdp_record_append_child(record, CDP_TYPE_NORMAL, name, false, cdp_data_new(domain, tag, encoding, attrib, CDP_DATATYPE_VALUE, true, NULL, value, size, capacity), NULL)
+#define cdp_record_append_data(record, name, domain, tag, encoding, attrib, value, size, capacity, destructor)        cdp_record_append_child(record, CDP_TYPE_NORMAL, name, false, cdp_data_new(domain, tag, encoding, attrib, CDP_DATATYPE_DATA,  true, NULL, value, size, capacity, destructor), NULL)
 
 #define cdp_record_append_list(record, name, domain, tag, storage, ...)                                     cdp_record_append_child(record, CDP_TYPE_NORMAL, name, false, NULL, cdp_store_new(domain, tag, storage, CDP_INDEX_BY_INSERTION, ##__VA_ARGS__))
 #define cdp_record_append_dictionary(record, name, domain, tag, storage, ...)                               cdp_record_append_child(record, CDP_TYPE_NORMAL, name, false, NULL, cdp_store_new(domain, tag, storage, CDP_INDEX_BY_NAME, ##__VA_ARGS__))
@@ -685,8 +685,8 @@ cdpRecord* cdp_record_append(cdpRecord* record, bool prepend, cdpRecord* child);
 #define cdp_record_append_link(record, name, source)                                                        cdp_record_append_child(record, CDP_TYPE_LINK,  name, false, CDP_P(source), NULL)
 
 #define cdp_record_prepend_empty(record, name)                                                                        cdp_record_append_child(record, CDP_TYPE_NORMAL, name, true, NULL, NULL)
-#define cdp_record_prepend_value(record, name, domain, tag, encoding, attrib, value, size, capacity)                  cdp_record_append_child(record, CDP_TYPE_NORMAL, name, true, cdp_data_new(domain, tag, encoding, attrib, CDP_DATATYPE_VALUE, true, NULL, CDP_V(value), size, capacity), NULL)
-#define cdp_record_prepend_data(record, name, domain, tag, encoding, attrib, data, size, capacity, destructor)        cdp_record_append_child(record, CDP_TYPE_NORMAL, name, true, cdp_data_new(domain, tag, encoding, attrib, CDP_DATATYPE_DATA, true, NULL, CDP_V(data), size, capacity, destructor), NULL)
+#define cdp_record_prepend_value(record, name, domain, tag, encoding, attrib, value, size, capacity)                  cdp_record_append_child(record, CDP_TYPE_NORMAL, name, true, cdp_data_new(domain, tag, encoding, attrib, CDP_DATATYPE_VALUE, true, NULL, value, size, capacity), NULL)
+#define cdp_record_prepend_data(record, name, domain, tag, encoding, attrib, value, size, capacity, destructor)       cdp_record_append_child(record, CDP_TYPE_NORMAL, name, true, cdp_data_new(domain, tag, encoding, attrib, CDP_DATATYPE_DATA,  true, NULL, value, size, capacity, destructor), NULL)
 
 #define cdp_record_prepend_list(record, name, domain, tag, storage, ...)                                    cdp_record_append_child(record, CDP_TYPE_NORMAL, name, true, NULL, cdp_store_new(domain, tag, storage, CDP_INDEX_BY_INSERTION, ##__VA_ARGS__))
 #define cdp_record_prepend_dictionary(record, name, domain, tag, storage, ...)                              cdp_record_append_child(record, CDP_TYPE_NORMAL, name, true, NULL, cdp_store_new(domain, tag, storage, CDP_INDEX_BY_NAME, ##__VA_ARGS__))
@@ -696,11 +696,10 @@ cdpRecord* cdp_record_append(cdpRecord* record, bool prepend, cdpRecord* child);
 
 
 // Accessing data
-void*    cdp_record_data(const cdpRecord* record);
-#define  cdp_record_value(r)       (*(cdpValue*)cdp_record_data(r))
+void* cdp_record_data(const cdpRecord* record);
 
-void* cdp_record_update(cdpRecord* record, size_t size, size_t capacity, cdpValue value, bool swap);
-#define cdp_record_update_value(r, z, v)    cdp_record_update(r, (z), sizeof(cdpValue), CDP_V(v), false)
+void* cdp_record_update(cdpRecord* record, size_t size, size_t capacity, void* value, bool swap);
+#define cdp_record_update_value(r, z, v)    cdp_record_update(r, (z), sizeof(*(v)), v, false)
 #define cdp_record_update_attribute(r, a)   do{ assert(cdp_record_has_data(r);  (r)->data.attribute.id = CDP_ID(a); }while(0)
 
 static inline void cdp_record_delete_data(cdpRecord* record)        {if (cdp_record_has_data(record))  {cdp_data_del(record->data);   record->data  = NULL;}}
@@ -743,94 +742,9 @@ bool cdp_record_child_pop(cdpRecord* record, cdpRecord* target);
 void cdp_record_remove(cdpRecord* record, cdpRecord* target);
 
 
-// Converting C text strings to/from cdpID
-#define CDP_WORD_MAX_CHARS      11
-#define CDP_ACRON_MAX_CHARS     9
-
-#define CDP_TEXT_TO_ACRONYSM_(name)                                            \
-    cdpID name(const char *s) {                                                \
-        assert(s && *s);                                                       \
-                                                                               \
-        while (*s == ' ') {                                                    \
-            s++;            /* Trim leading spaces. */                         \
-        }                                                                      \
-        if (!*s)                                                               \
-            return 0;                                                          \
-                                                                               \
-        size_t len = strlen(s);                                                \
-        while (len > 0  &&  s[len - 1] == ' ') {                               \
-            len--;          /* Trim trailing spaces. */                        \
-        }                                                                      \
-                                                                               \
-        if (len > CDP_ACRON_MAX_CHARS)                                         \
-            return 0;       /* Limit to max allowed characters. */             \
-                                                                               \
-        cdpID coded = 0;                                                       \
-        for (size_t n = 0; n < len; n++) {                                     \
-            char c = s[n];                                                     \
-                                                                               \
-            if (c < 0x20  ||  c > 0x5F)                                        \
-                return 0;   /* Uncodable characters. */                        \
-                                                                               \
-            coded |= (cdpID)(c - 0x20) << (6 * ((CDP_ACRON_MAX_CHARS - 1) - n));    /* Shift and encode each character. */\
-        }                                                                      \
-                                                                               \
-        return cdp_id_to_acronysm(coded);                                      \
-    }
-
-#define CDP_TEXT_TO_WORD_(name)                                                \
-    cdpID name(const char *s) {                                                \
-        assert(s && *s);                                                       \
-                                                                               \
-        while (*s == ' ') {                                                    \
-            s++;            /* Trim leading spaces. */                         \
-        }                                                                      \
-        if (!*s)                                                               \
-            return 0;                                                          \
-                                                                               \
-        size_t len = strlen(s);                                                \
-        while (len > 0  &&  s[len - 1] == ' ') {                               \
-            len--;          /* Trim trailing spaces. */                        \
-        }                                                                      \
-        if (len > CDP_WORD_MAX_CHARS)                                          \
-            return 0;       /* Limit to max allowed characters. */             \
-                                                                               \
-        cdpID coded = 0;                                                       \
-        for (size_t n = 0; n < len; n++) {                                     \
-            char c = s[n];                                                     \
-                                                                               \
-            uint8_t encoded_char;                                              \
-            if (c >= 0x61  &&  c <= 0x7A) {                                    \
-                encoded_char = c - 0x61 + 1;        /* Map 'a'-'z' to 1-26. */ \
-            } else switch (c) {                                                \
-              case ' ': encoded_char = 0;   break;  /* Treat space as 0. */    \
-              case ':': encoded_char = 27;  break;                             \
-              case '_': encoded_char = 28;  break;                             \
-              case '-': encoded_char = 29;  break;                             \
-              case '.': encoded_char = 30;  break;                             \
-              case '/': encoded_char = 31;  break;                             \
-                                                                               \
-              default:                                                         \
-                return 0;   /* Uncodable characters. */                        \
-            }                                                                  \
-                                                                               \
-            coded |= (cdpID)encoded_char << (5 * ((CDP_WORD_MAX_CHARS - 1) - n));  /* Shift and encode each character. */\
-        }                                                                      \
-                                                                               \
-        return cdp_id_to_word(coded);                                          \
-    }
-
-
-
-static inline CDP_CONST_FUNC CDP_TEXT_TO_ACRONYSM_(CDP_ACRO)
-static inline CDP_CONST_FUNC CDP_TEXT_TO_WORD_(CDP_WORD)
-
-
-cdpID  cdp_text_to_acronysm(const char *s);
-size_t cdp_acronysm_to_text(cdpID acro, char s[10]);
-
-cdpID  cdp_text_to_word(const char *s);
-size_t cdp_word_to_text(cdpID coded, char s[12]);
+// Initiate and shutdown record system
+void cdp_record_system_initiate(void);
+void cdp_record_system_shutdown(void);
 
 
 /*
