@@ -229,6 +229,23 @@ static inline cdpData* cdp_data_new_binary_id(cdpID value) {
 #define cdp_dict_add_binary_id(record, name, value)         cdp_record_add_child(record, CDP_TYPE_NORMAL, name, CDP_V(0), cdp_data_new_binary_id(value), NULL)
 
 
+static inline cdpData* cdp_data_new_binary_long_id(cdpID domain, cdpID value) {
+    cdpID dv[2] = {domain, value};
+    return cdp_data_new_value(
+        CDP_WORD("binary"),
+        CDP_ACRO("CDPID"),
+        CDP_WORD("unsigned"),
+        CDP_BINARY(
+            .pow2      = cdp_ctz(sizeof(value)),
+            .dimension = CDP_BIN_DIM_VECTOR2D
+        ),
+        sizeof(dv),
+        &dv
+    );
+}
+#define cdp_dict_add_binary_long_id(record, domain, name, value)    cdp_record_add_child(record, CDP_TYPE_NORMAL, name, CDP_ V(0), cdp_data_new_binary_long_id(domain, value), NULL)
+
+
 static inline cdpData* cdp_data_new_binary_agent(cdpAgent value) {
     return cdp_data_new_value(
         CDP_WORD("binary"),

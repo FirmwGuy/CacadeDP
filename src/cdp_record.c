@@ -209,13 +209,6 @@ cdpData* cdp_data_new(  cdpID domain, cdpID tag,
 void cdp_data_del(cdpData* data) {
     assert(data);
 
-    cdpAgentList* list = data->agent;
-    while (list) {
-        cdpAgentList* next = list->next;
-        cdp_agent_list_del(list);
-        list = next;
-    }
-
     switch (data->datatype) {
       case CDP_DATATYPE_DATA: {
         if (data->destructor)
@@ -372,13 +365,6 @@ void cdp_store_del(cdpStore* store) {
     assert(cdp_store_valid(store));
 
     // ToDo: cleanup shadows.
-
-    cdpAgentList* list = store->agent;
-    while (list) {
-        cdpAgentList* next = list->next;
-        cdp_agent_list_del(list);
-        list = next;
-    }
 
     switch (store->storage) {
       case CDP_STORAGE_LINKED_LIST: {

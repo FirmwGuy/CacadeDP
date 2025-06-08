@@ -215,6 +215,10 @@
         'step'
         'synchronizer'
 
+        'data-update'
+        'store-add'
+        'store-append'
+
     Statuses:
         'pending'
         'working'
@@ -291,19 +295,34 @@
 typedef bool (*cdpAgent)(cdpRecord* instance, cdpRecord* call);
 
 
-void      cdp_system_register_agent(cdpID domain, cdpID agency, cdpID action, cdpAgent agent);
-cdpAgent  cdp_system_agent(cdpID domain, cdpID tag);
-
-bool      cdp_system_startup(void);
-bool      cdp_system_step(void);
-void      cdp_system_shutdown(void);
-
-void      cdp_system_log(cdpRecord instance, const char* message);
+bool  cdp_system_startup(void);
+bool  cdp_system_step(void);
+void  cdp_system_shutdown(void);
 
 
-static inline cdpRecord* cdp_void(void)  {extern cdpRecord* CDP_VOID; assert(CDP_VOID);  return CDP_VOID;}
+bool cdp_agency_set_agent(cdpID domain, cdpID agency, cdpID consumption, cdpAgent agent);
+bool cdp_agency_set_produ(cdpID domain, cdpID agency, cdpID product);
 
-static inline cdpRecord* cdp_agent_step(void)  {extern cdpRecord* CDP_STEP; assert(CDP_STEP);  return CDP_STEP;}
+cdpRecord* cdp_record_add_agency_instance(  cdpRecord* record, cdpID name, uintptr_t context,
+                                            cdpID domain, cdpID agency,
+                                            cdpRecord* customerI );
+#define cdp_dict_add_agency_instance(dict, name, domain, agency, customerI)     cdp_record_add_agency_instance(dict, name, 0, domain, agency, customerI)
+
+void cdp_agency_instance_dispose(cdpRecord* instance);
+bool cdp_agency_instance_request(cdpRecord* instance, cdpID type, cdpRecord* message);
+
+bool cdp_agency_pipeline_create(cdpRecord* selfI, cdpID name);
+bool cdp_agency_pipeline_state(cdpRecord* selfI, cdpID pipeline, cdpID state);
+bool cdp_agency_pipeline_dispose(cdpRecord* selfI, cdpID pipeline);
+
+bool cdp_agency_product_connect(cdpRecord* selfI, cdpID pipeline, cdpRecord* providerI, cdpID product, cdpRecord* consumerI, cdpID consumption);
+bool cdp_agency_product_deliver(cdpRecord* selfI, cdpID product, cdpRecord* content);
+
+bool cdp_agency_customer_answer(cdpRecord* selfI, cdpID type, cdpRecord* answer);
+bool cdp_agency_customer_log(cdpRecord* selfI, cdpID type, cdpRecord* log);
+//static inline cdpRecord* cdp_void(void)  {extern cdpRecord* CDP_VOID; assert(CDP_VOID);  return CDP_VOID;}
+
+//static inline cdpRecord* cdp_agent_step(void)  {extern cdpRecord* CDP_STEP; assert(CDP_STEP);  return CDP_STEP;}
 
 
 #endif

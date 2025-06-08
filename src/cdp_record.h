@@ -122,7 +122,6 @@
 typedef struct _cdpData       cdpData;
 typedef struct _cdpStore      cdpStore;
 typedef struct _cdpRecord     cdpRecord;
-typedef struct _cdpAgentList  cdpAgentList;
 
 typedef int (*cdpCompare)(const cdpRecord* restrict, const cdpRecord* restrict, void*);
 
@@ -356,10 +355,6 @@ struct _cdpData {
     size_t              capacity;       // Buffer capacity in bytes.
 
     cdpData*            next;           // Pointer to next data representation (if available).
-    union {
-        cdpID           agency;         // Agency ID (if remote?).
-        cdpRecord*      ragency;        // Local agency.
-    };
 
     uint64_t            hash;           // Hash value of content.
     union {
@@ -397,15 +392,6 @@ void*    cdp_data(const cdpData* data);
 #define  cdp_data_valid(d)                                      ((d) && (d)->capacity && cdp_id_text_valid((d)->domain) && cdp_id_text_valid((d)->tag))
 #define  cdp_data_new_value(d, t, e, a, value, z, capacity)     cdp_data_new(d, t, e, CDP_ID(a), CDP_DATATYPE_VALUE, true, NULL, value, z, capacity)
 
-static inline void cdp_data_add_agent(cdpData* data, cdpID domain, cdpID tag, void* agent) {
-    assert(cdp_data_valid(data));
-
-    cdpAgentList* list = cdp_agent_list_new(domain, tag, agent);
-    if (data->agent)
-        list->next = data->agent;
-    data->agent = list;
-}
-
 
 /*
     Record Storage (for children)
@@ -423,13 +409,13 @@ struct _cdpStore {
         cdpID       storage:    3,              // Data structure for children storage (array, linked-list, etc).
                     indexing:   2,              // Indexing (sorting) criteria for children.
                     _unused:    1,
-                    domain:     CDP_NAME_BITS;  // Structure domain.
+                    domain:     CDP_NAME_BITS;  // Domain of name organization this child record belongs to.
     };
     struct {
         cdpID       writable:   1,              // If chidren can be added/deleted.
                     lock:       1,              // Lock on children operations.
                     _reserved:  4,
-                    tag:        CDP_NAME_BITS;  // Structure tag.
+                    tag:        CDP_NAME_BITS;  // Tag of name organization this child record belongs to.
     };
     cdpAttribute    attribute;  // Structure attributes (it depends on domain). This is used *only* if record has no data (ie, as a pure directory).
 
@@ -440,10 +426,6 @@ struct _cdpStore {
     };
 
     cdpStore*       next;       // Next attribute/index/storage (requires hard links?).
-    union {
-        cdpID       agency;     // Agency ID (if remote?).
-        cdpRecord*  ragency;    // local agency.
-    };
 
     size_t          chdCount;   // Number of child records.
     cdpCompare      compare;    // Compare function for indexing children.
@@ -486,14 +468,6 @@ static inline bool cdp_store_is_empty(cdpStore* store)        {assert(cdp_store_
 cdpRecord* cdp_store_add_child(cdpStore* store, uintptr_t context, cdpRecord* child);
 cdpRecord* cdp_store_append_child(cdpStore* store, bool prepend, cdpRecord* child);
 
-static inline void cdp_store_add_agent(cdpStore* store, cdpID domain, cdpID tag, void* agent) {
-    assert(cdp_store_valid(store));
-    cdpAgentList* list = cdp_agent_list_new(domain, tag, agent);
-    if (store->agent)
-        list->next = store->agent;
-    store->agent = list;
-}
-
 
 /*
     Record
@@ -522,7 +496,7 @@ struct _cdpRecord {
         cdpRecord*  linked;     // A linked shadow record (if no children, see in cdpStore otherwise).
         cdpShadow*  shadow;     // Structure for multiple linked records (if no children).
 
-        cdpRecord*  instance;   // Agent instance this record belongs to (if record is a Link).
+        //cdpRecord*  instance;   // Agent instance this record belongs to (if record is a Link).
     };
 };
 

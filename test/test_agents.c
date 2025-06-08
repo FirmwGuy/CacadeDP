@@ -171,9 +171,13 @@ static int agent_stdout(cdpRecord* client, void** returned, cdpRecord* self, uns
 
 
 void* test_agents_setup(const MunitParameter params[], void* user_data) {
-    cdp_system_register_agent(CDP_ACRO("CDP"), CDP_WORD("stdin"),  agent_stdin);
-    cdp_system_register_agent(CDP_ACRO("CDP"), CDP_WORD("adder"),  agent_adder);
-    cdp_system_register_agent(CDP_ACRO("CDP"), CDP_WORD("stdout"), agent_stdout);
+    cdp_agency_set_agent(CDP_WORD("test"), CDP_WORD("stdin"), CDP_WORD("system-step"), agent_stdin);
+    cdp_agency_set_produ(CDP_WORD("test"), CDP_WORD("stdin"), CDP_WORD("number"));
+
+    cdp_agency_set_agent(CDP_WORD("test"), CDP_WORD("adder"), CDP_WORD("operand"), agent_adder);
+    cdp_agency_set_produ(CDP_WORD("test"), CDP_WORD("adder"), CDP_WORD("answer"));
+
+    cdp_agency_set_agent(CDP_WORD("test"), CDP_WORD("stdout"), CDP_WORD("number"), agent_stdout);
 
     cdp_system_startup();
 
@@ -194,23 +198,25 @@ MunitResult test_agents(const MunitParameter params[], void* user_data_or_fixtur
     extern cdpRecord* CASCADE;
 
     // Instance initiation
-    cdpRecord* pipeline = cdp_dict_add_list(CASCADE, CDP_AUTOID, CDP_ACRO("CDP"), CDP_WORD("list"), CDP_STORAGE_LINKED_LIST);   assert_not_null(pipeline);
+    cdpRecord* instances = cdp_dict_add_list(CASCADE, CDP_AUTOID, CDP_ACRO("CDP"), CDP_WORD("list"), CDP_STORAGE_LINKED_LIST);       assert_not_null(instances);
 
-    cdpRecord  child = {0};
-    int status;
+    cdpRecord* self    = cdp_dict_add_agency_instance(instances, CDP_ACRO("INST00"), CDP_ACRO("CDP"), CDP_WORD("self"),   NULL);     assert_not_null(stdinp);
 
-    cdpRecord* stdinp  = cdp_record_append(pipeline, false, cdp_instance_new(cdp_root(), &child, CDP_WORD("stdin"),  CDP_ACRO("CDP"), CDP_WORD("stdin"),  NULL, CDP_V(0)));    assert_not_null(stdinp);    assert_false(cdp_record_is_empty(stdinp));
-    cdpRecord* adder   = cdp_record_append(pipeline, false, cdp_instance_new(cdp_root(), &child, CDP_WORD("adder"),  CDP_ACRO("CDP"), CDP_WORD("adder"),  NULL, CDP_V(0)));    assert_not_null(adder);     assert_false(cdp_record_is_empty(adder));
-    cdpRecord* stdoutp = cdp_record_append(pipeline, false, cdp_instance_new(cdp_root(), &child, CDP_WORD("stdout"), CDP_ACRO("CDP"), CDP_WORD("stdout"), NULL, CDP_V(0)));    assert_not_null(stdoutp);   assert_false(cdp_record_is_empty(stdoutp));
+    cdpRecord* stdinp  = cdp_dict_add_agency_instance(instances, CDP_ACRO("INST01"), CDP_ACRO("CDP"), CDP_WORD("stdin"),  NULL);     assert_not_null(stdinp);
+    cdpRecord* adder   = cdp_dict_add_agency_instance(instances, CDP_ACRO("INST02"), CDP_ACRO("CDP"), CDP_WORD("adder"),  NULL);     assert_not_null(adder);
+    cdpRecord* stdoutp = cdp_dict_add_agency_instance(instances, CDP_ACRO("INST03"), CDP_ACRO("CDP"), CDP_WORD("stdout"), NULL));    assert_not_null(stdoutp);
 
-    // Link pipeline in reverse (upstream) order
-    cdpRecord* in1; status = cdp_instance_inlet(cdp_root(), &in1, stdoutp, CDP_ACRO("IN1"));    assert_int(status, >=, CDP_STATUS_OK);   assert_not_null(in1);
-    cdpRecord* num; status = cdp_instance_inlet(cdp_root(), &num, adder,   CDP_WORD("num"));     assert_int(status, >=, CDP_STATUS_OK);   assert_not_null(num);
-    cdpRecord* tic; status = cdp_instance_inlet(cdp_root(), &tic, stdinp,  CDP_WORD("tic"));     assert_int(status, >=, CDP_STATUS_OK);   assert_not_null(tic);
+    // Link pipeline
+    bool status;
+    cdpRecord* systep = cdp_system_step_instance();
 
-    cdpRecord* ans; status = cdp_instance_connect(cdp_root(), &ans, adder,             CDP_WORD("ans"), in1);    assert_int(status, >=, CDP_STATUS_OK);  assert_not_null(ans);
-    cdpRecord* inp; status = cdp_instance_connect(cdp_root(), &inp, stdinp,            CDP_WORD("inp"), num);    assert_int(status, >=, CDP_STATUS_OK);  assert_not_null(inp);
-    cdpRecord* stc; status = cdp_instance_connect(cdp_root(), &stc, cdp_agent_step(),  CDP_WORD("tic"), tic);    assert_int(status, >=, CDP_STATUS_OK);  assert_not_null(stc);
+    cdp_agency_pipeline_create(self, CDP_WORD("my_pipeline"));
+
+    status = cdp_agency_product_connect(self, CDP_WORD("my_pipeline"), systep, CDP_WORD("system-step"), stdinp, CDP_WORD("system-step"));   assert_true(status);
+    status = cdp_agency_product_connect(self, CDP_WORD("my_pipeline"), stdinp, CDP_WORD("number"),      adder,  CDP_WORD("operand"));       assert_true(status);
+    status = cdp_agency_product_connect(self, CDP_WORD("my_pipeline"), adder,  CDP_WORD("answer"),      stdout, CDP_WORD("number"));        assert_true(status);
+
+    cdp_agency_pipeline_state(self, CDP_WORD("my_pipeline"), CDP_WORD("start"));
 
     // Execute pipeline
     while (!DONE) {
@@ -221,11 +227,9 @@ MunitResult test_agents(const MunitParameter params[], void* user_data_or_fixtur
         }
     }
 
-    cdp_instance_unplug(cdp_root(), cdp_agent_step(), stc);
-    cdp_instance_unplug(cdp_root(), stdinp, inp);
-    cdp_instance_unplug(cdp_root(), adder, ans);
-
-    cdp_record_remove(pipeline, NULL);
+    // Terminate instances
+    cdp_agency_pipeline_dispose(self, CDP_WORD("my_pipeline"));
+    cdp_record_delete(instances);
 
     return MUNIT_OK;
 }

@@ -74,45 +74,6 @@ static void system_initiate(void) {
 }
 
 
-void cdp_system_register_agent(cdpID domain, cdpID agency, cdpID action, cdpAgent agent) {
-    assert(cdp_id_valid(domain) && cdp_id_valid(tag) && cdp_id_valid(agency) && cdp_id_valid(action) && agent);
-
-    if (!DOMAIN)
-        system_initiate();
-
-    cdpRecord* rdomain = cdp_record_find_by_name(DOMAIN, domain);
-    if (!rdomain)
-        rdomain = cdp_dict_add_dictionary(DOMAIN, domain, CDP_ACRO("CDP"), CDP_WORD("dictionary"), CDP_STORAGE_RED_BLACK_T);
-
-    cdpRecord* ragency = cdp_record_find_by_name(rdomain, agency);
-    if (!ragency)
-        ragency = cdp_dict_add_dictionary(rdomain, agency, CDP_ACRO("CDP"), CDP_WORD("dictionary"), CDP_STORAGE_ARRAY, 3);
-
-    cdpRecord* raction = cdp_record_find_by_name(ragency, CDP_WORD("action"));
-    if (!raction)
-        raction = cdp_dict_add_dictionary(ragency, CDP_WORD("action"), CDP_ACRO("CDP"), CDP_WORD("dictionary"), CDP_STORAGE_ARRAY, 32);     // ToDo: better agent number estimation.
-
-    cdpRecord* ragent = cdp_record_find_by_name(raction, action);
-    if (ragent)
-        //cdp_record_update(ragent, agent);
-    else
-        cdp_dict_add_binary_agent(raction, action, agent);
-}
-
-
-cdpAgent cdp_system_agent(cdpID domain, cdpID tag) {
-    if (!AGENT)
-        return NULL;
-
-    for (cdpAgentList* list = AGENT;  list;  list = list->next) {
-        if (list->domain == domain  &&  list->tag == tag)
-            return list->agent;
-    }
-
-    return NULL;
-}
-
-
 bool cdp_system_startup(void) {
     assert(DOMAIN);
     // ToDo: Traverse all records. On each record, call the "startup" agency.
@@ -146,9 +107,218 @@ void cdp_system_shutdown(void) {
 }
 
 
-void cdp_system_log(cdpRecord* instance, const char* message) {
-    // ToDo: pass evemt to (registered) interface.
+
+
+bool cdp_agency_set_agent(cdpID domain, cdpID agency, cdpID consumption, cdpAgent agent) {
+    assert(cdp_id_valid(domain) && cdp_id_valid(agency) && cdp_id_valid(name) && agent);
+
+    if (!DOMAIN)
+        system_initiate();
+
+    cdpRecord* rdomain = cdp_record_find_by_name(DOMAIN, domain);
+    if (!rdomain)
+        rdomain = cdp_dict_add_dictionary(DOMAIN, domain, CDP_ACRO("CDP"), CDP_WORD("dictionary"), CDP_STORAGE_RED_BLACK_T);
+
+    cdpRecord* ragency = cdp_record_find_by_name(rdomain, agency);
+    if (!ragency)
+        ragency = cdp_dict_add_dictionary(rdomain, agency, CDP_ACRO("CDP"), CDP_WORD("dictionary"), CDP_STORAGE_ARRAY, 4);
+
+    cdpRecord* ragents = cdp_record_find_by_name(ragency, CDP_WORD("agents"));
+    if (!ragents)
+        ragents = cdp_dict_add_dictionary(ragency, CDP_WORD("agents"), CDP_ACRO("CDP"), CDP_WORD("dictionary"), CDP_STORAGE_ARRAY, 32);     // ToDo: better agent number estimation.
+
+    cdpRecord* ragent = cdp_record_find_by_name(ragents, consumption);
+    if (ragent)
+        return false;
+
+    cdp_dict_add_binary_agent(ragents, consumption, agent);
+
+    return true;
 }
+
+
+bool cdp_agency_set_produ(cdpID domain, cdpID agency, cdpID product) {
+    assert(cdp_id_valid(domain) && cdp_id_valid(agency) && cdp_id_valid(product));
+
+    if (!DOMAIN)
+        system_initiate();
+
+    cdpRecord* rdomain = cdp_record_find_by_name(DOMAIN, domain);
+    if (!rdomain)
+        rdomain = cdp_dict_add_dictionary(DOMAIN, domain, CDP_ACRO("CDP"), CDP_WORD("dictionary"), CDP_STORAGE_RED_BLACK_T);
+
+    cdpRecord* ragency = cdp_record_find_by_name(rdomain, agency);
+    if (!ragency)
+        ragency = cdp_dict_add_dictionary(rdomain, agency, CDP_ACRO("CDP"), CDP_WORD("dictionary"), CDP_STORAGE_ARRAY, 4);
+
+    cdpRecord* rproduction = cdp_record_find_by_name(ragency, CDP_WORD("production"));
+    if (!rproduction)
+        rproduction = cdp_dict_add_dictionary(ragency, CDP_WORD("production"), CDP_ACRO("CDP"), CDP_WORD("dictionary"), CDP_STORAGE_ARRAY, 32);     // ToDo: better agent number estimation.
+
+    cdpRecord* rproduct = cdp_record_find_by_name(rproduction, product);
+    if (rproduct)
+        return false;
+
+    cdp_dict_add_binary_boolean(rproduction, product, false);
+
+    return true;
+}
+
+
+bool cdp_agency_call(cdpRecord* instance, cdpRecord* message) {
+    cdpRecord* rdomain = cdp_record_find_by_name(DOMAIN, cdp_id(instance->store.domain));
+    if (rdomain) {
+        cdpRecord* ragency = cdp_record_find_by_name(rdomain, cdp_id(instance->store.tag));
+        if (ragency) {
+            cdpRecord* ragents = cdp_record_find_by_name(ragency, CDP_WORD("agents"));
+            if (ragents) {
+                cdpRecord* ragent = cdp_record_find_by_name(ragents, CDP_WORD("CDP:DISP"));
+                if (ragent) {
+                    agent = cdp_data(ragent);
+                    if (agent) {
+                        cdpRecord* rtask = cdp_record_find_by_name(ragency, CDP_WORD("task"));
+                        if (!rtask)
+                            rtask = cdp_dict_add_list(ragency, CDP_WORD("task"), CDP_ACRO("CDP"), CDP_WORD("dictionary"), CDP_STORAGE_LINKED_LIST);
+
+                        // ToDo: create a new message record with agent and message.
+                        //cdp_record_append_child(rtask, CDP_WORD("task"), CDP_ACRO("CDP"), CDP_WORD("dictionary"), );
+
+                        return true;
+                    }
+                }
+            }
+        }
+    }
+
+    return false;
+}
+
+
+cdpRecord* cdp_record_add_agency_instance(  cdpRecord* record, cdpID name, uintptr_t context,
+                                            cdpID domain, cdpID agency,
+                                            cdpRecord* customer ) {
+    assert(!cdp_record_is_floating(record) && cdp_id_valid(name) && cdp_id_valid(domain) && cdp_id_valid(agency) && !cdp_record_is_floating(customer));
+
+    if (!DOMAIN)
+        return false;
+
+    cdpRecord* instance = cdp_record_add_dictionary(record, name, context, domain, agency,  CDP_STORAGE_ARRAY, 4); {
+        cdp_dict_add_link(instance, CDP_WORD("customer"), customer);
+        cdp_dict_add_dictionary(instance, CDP_WORD("persistent"), CDP_ACRO("CDP"), CDP_WORD("dictionary"), CDP_STORAGE_RED_BLACK_T);
+        cdp_dict_add_dictionary(instance, CDP_WORD("pipeline"),   CDP_ACRO("CDP"), CDP_WORD("dictionary"), CDP_STORAGE_RED_BLACK_T);
+        cdp_dict_add_dictionary(instance, CDP_WORD("production"), CDP_ACRO("CDP"), CDP_WORD("dictionary"), CDP_STORAGE_RED_BLACK_T);
+    }
+
+    cdp_agency_call(instance, ... );
+
+    return instance;
+}
+
+#define cdp_agency_instance_valid(instance)     (!cdp_record_is_floating(instance) && cdp_store_is_dictionary(instance))
+
+
+void cdp_agency_instance_dispose(cdpRecord* instance) {
+    assert(cdp_agency_instance_valid(instance));
+
+    cdp_agency_call(instance, CDP_WORD("CDP:DISP"), NULL);
+
+    cdp_record_delete(instance);
+}
+
+
+bool cdp_agency_instance_request(cdpRecord* instance, cdpID type, cdpRecord* message) {
+    assert(cdp_agency_instance_valid(instance));
+
+    return true;
+}
+
+bool cdp_agency_pipeline_create(cdpRecord* selfI, cdpID name) {
+    assert(cdp_agency_instance_valid(selfI));
+
+    cdpRecord* pipelines = cdp_record_find_by_name(selfI, CDP_WORD("pipeline"));
+    cdpRecord* previous  = cdp_record_find_by_name(pipelines, name);
+    if (!previous)
+        cdp_dict_add_catalog(pipelines, name, CDP_ACRO("CDP"), CDP_WORD("catalog"), CDP_STORAGE_RED_BLACK_T); // FixMe: cataloging function!
+
+    return true;
+}
+
+
+bool cdp_agency_pipeline_state(cdpRecord* selfI, cdpID pipeline, cdpID state) {
+    cdpRecord* plField = cdp_record_find_by_name(selfI, CDP_WORD("pipeline"));
+    cdpRecord* plEntry = cdp_record_find_by_name(plField, pipeline);
+    if (!plEntry)
+        return false;
+
+    // ToDo: send a signal to each unique instance
+
+    return true;
+}
+
+
+
+bool cdp_agency_pipeline_dispose(cdpRecord* selfI, cdpID pipeline) {
+    cdpRecord* plField = cdp_record_find_by_name(selfI, CDP_WORD("pipeline"));
+    cdpRecord* plEntry = cdp_record_find_by_name(plField, pipeline);
+    if (!plEntry)
+        return false;
+
+    // ToDo: send a signal to each unique instance
+
+    cdp_record_delete(plEntry);
+
+    return true;
+}
+
+
+bool cdp_agency_product_connect(    cdpRecord* selfI, cdpID pipeline,
+                                    cdpRecord* providerI, cdpID product,
+                                    cdpRecord* consumerI, cdpID consumption ) {
+    cdpRecord* plField = cdp_record_find_by_name(selfI, CDP_WORD("pipeline"));
+    cdpRecord* plEntry = cdp_record_find_by_name(plField, pipeline);
+    if (!plEntry)
+        return false;
+
+    //ToDo: convert product entry in list (with a FLEX record).
+    //ToDo: actually check entries exist.
+
+    cdpRecord* product = cdp_record_find_by_name(provider,);
+    cdpRecord* product = cdp_record_find_by_name(provider,);
+
+    // ToDo: create msg record with consumer (arget) link and agent id.
+
+            // ToDo: add an entry for each registered product
+            bool on_each_product(cdpEntry* entry, void* p) {
+                cdp_dict_add_
+            }
+            cdpEntry entry = {0};
+            cdp_record_traverse(rproduction, on_each_product, NULL, &entry);
+
+    cdpRecord* msg = ;
+
+    cdp_agency_call(instance, CDP_WORD("CDP:CONN"), msg);
+
+    return true;
+}
+
+
+bool cdp_agency_product_deliver(cdpRecord* selfI, cdpID product, cdpRecord* content) {
+    // ToDo: find consumer link and agent id in production records.
+    cdp_agency_call(consumer, agent, content);
+    return true;
+}
+
+
+bool cdp_agency_customer_answer(cdpRecord* selfI, cdpID type, cdpRecord* answer) {
+    // Send any requested answer to creator instance
+    return true;
+}
+
+
+bool cdp_agency_customer_log(cdpRecord* selfI, cdpID type, cdpRecord* log) {
+    return true;
+}
+
 
 
 
@@ -434,6 +604,8 @@ static inline int cdp_instance_store_delete(cdpRecord* client, cdpRecord* self) 
 
     return CDP_STATUS_OK;
 }
+
+
 
 
 /* Agent: 'System Step'
