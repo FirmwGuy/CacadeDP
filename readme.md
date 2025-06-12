@@ -1,296 +1,330 @@
 Cascade Data Processing
 =======================
 
-CascadeDP is MIT licensed distributed execution solution targeted to all
-kind of platforms, including microcontrollers and embedded systems.
+**Cascade Data Processing (CDP)** is a distributed execution solution designed 
+to run on a wide range of platforms, from powerful servers down to 
+microcontrollers and embedded systems. CDP is open source, released under the 
+MIT license.
 
-**This project is under active development in experimental state and not ready
-for utilization yet!**
+> **Note:**
+> This project is under active development, currently in an experimental state
+and **not yet ready for production use**!
 
-Inspired by Plan 9, everything is mapped into a virtual record system. The
-underlying grouping is made of flexible data structures (poly-structure) that
-may be switched on the fly according to run-time profiling. For example, a
-dictionary may be set to use a linked list, an array or a red-black binary tree
-as a record container.
-
-Cascade processing is done using agents that act in behalf of a specific
-organization of data and records. Agents may process local or remote records
-and advertise their availability in the distributed network.
-
-Remote public records are mapped (mounted) as local ones as they become
-available. In this way no external central authority is needed.
+---
 
 
-Records
--------
+Overview
+--------
 
-Records are the fundamental data unit and may contain other records as
-children. Records always have a name which make them suitable for indexing in a
-dictionary kind of storing if needed. Names may be text or numbers. Names may
-also be set arbitrarily or may be automatically assigned by the system. Since
-records have names and may contain other records, a tree like hierarchy is
-naturally achieved.
+CDP is inspired by the Plan 9 philosophy—**everything is represented as a 
+virtual record system**. The core of CDP is a highly flexible, distributed data 
+and processing framework based on "records" (data units) and "agents" 
+(processing units). This abstraction allows CDP to unify data storage and 
+computation under a modular umbrella.
 
-Records may also point to other records (links) so a graph kind of topology is
-also possible. Local links always imply backward linking, so a record pointing
-to another record means that the other record has link table with an entry
-pointing back. In this manner broken links are prevented.
+**Key Features:**
 
-Records are binary data agnostic, so they may hold data of all kinds requiring
-only a "domain" and a "tag" to identify the content. Data structuring is done
-by using naming protocols and parent-child relationships, but there is no
-enforcing in having a rigid structure since parent records may have all kinds
-of children records.
+* Flexible and dynamic data storage structures, selectable at runtime.
 
-This lack of structure enforcement for children allows great flexibility, since
-one record may be used in several contexts where different processors look for
-those children satisfying their own needs.
+* Distributed and decentralized—no central authority required.
 
-Besides having a full (name) path, all local (intra-machine) records have a
-unique binary identifier that is automatically converted into a UUID in case of
-inter-machine record transfers. This way, records always have a known address
-and an unique ID in the network.
+* Modular, agent-based execution pipeline.
+
+* Designed for portability, including embedded and resource-constrained 
+environments.
+
+These features aim to make CDP scalable and adaptable to diverse application 
+domains.
+
+---
 
 
-Agents
-------
+Core Concepts
+-------------
 
-Agents are executable code selected by a domain-tag pair (DT) of a specific
-queue, and become active (run) when the queue has a task to be processed. Tasks
-are messages that contain an agency instance ID, a DT telling the input queue
-and a record with information about the task to be performed.
+To understand CDP's architecture, it is crucial to grasp its fundamental 
+concepts. These include Records, the data containers; Agents and Agencies, the 
+processing units; and Tasks, the vehicles of computation. The following 
+sections describe these in detail.
 
-A named instance input is the DT specified queue where tasks are stored. Each
-input queue may have several "channels" connected to it but no the other way
-around. Each channel is just an associated named output in some other agency
-instance.
+### Records
 
-The task may generate result records which become available in a DT specified
-output. From the point of view of the agent handling the task, an output is
-just a name used to send results of the processing. I reality, the output is a
-input queue where tasks are sent, so each output result becomes the task of
-another agent, and so the data cascading takes effect.
+* **Definition:**
+  Records are the fundamental data unit in CDP. A record can contain binary 
+  data, metadata, and may also contain other records as children. This 
+  recursive structure enables complex, hierarchical data models.
 
-When several agents are grouped together to implement a group logic over
-different input queues they become an agency. Agencies are just a set of agents
-(per-input executable code) grouped under the same DT. Execution instances are
-records shared by all agents associated with such instance, so they are defined
-in a per-agency basis. Records set by an agent are available to all other
-agents using that same instance.
+* **Naming & Hierarchy:**
+  Every record has a name (text or number), enabling dictionary-like storage 
+  and natural tree hierarchies. The user (or the CDP system) can assign names. 
+  This naming system supports intuitive data navigation and organization.
 
-The typical processing pipeline configuration implies the creation (or loading)
-of agency instances for the agencies to be used (a pipeline may have several
-instances of the same agency DT). Then, all agency instances are connected as
-needed so each named instance output become linked to another named instance
-input.
+* **Links:**
+  Records can link to other records (creating graph structures). Intra-machine 
+  (local) links are bidirectional to help avoid broken references, although 
+  this protection is only within the same machine. These links enable the 
+  modeling of non-tree relationships such as cross-references and bidirectional 
+  pointers.
 
-Finally a signal is sent to the pipeline so the data generators may start
-feeding the other agents with tasks to process. Since agencies and agents may
-have their own pipelines the data flow becomes nested.
+* **Identification:**
+  Each local record is identified by its memory address (RAM address). But, 
+  when transferred between machines (e.g., via serialization), records are 
+  assigned a UUID to ensure global uniqueness. This mechanism supports 
+  consistency in distributed environments.
 
-
-Tasks
------
-
-Tasks are created when an agent sends a result to one of its DT named outputs.
-Then the system routes that result record to the connected input queue in that
-pipeline.
-
-Since tasks are verified by the system once for all agencies there is a
-coherent execution of all tasks, where new tasks are never executed at the same
-pass that previous tasks are, instead the new tasks are scheduled for the next
-verification phase.
-
-Also, since tasks are bound to an agency instance, any agent (located anywhere
-in the network) may pick up one task and process it under such instance.
-Parallelism happens effortless.
-
-Tasks are always stored as part of the local record hierarchy, so they always
-have a full address and ID.
+* **Structure Flexibility:**
+  CDP does not enforce a strict structure for child records. This grants great 
+  flexibility, but **it is up to the programmer** to define and document the 
+  conventions and protocols required by each agency (see Agencies).
 
 
-Execution
----------
+#### Record Data
 
-The system checks all agency queues for new tasks. When one is found it look up
-the DT name of the targeted input; we call this input the "consumption". Next,
-the agent registered to that DT name is called and executed (in a new thread if
-possible) passing the agency instance, the consumption name and the task as
-arguments.
-
-The same agent (code) may be executed to carry several tasks, while a single
-task may delegate the work to sub-routines according to the content of the
-received record. There is no other obligation in the implementation of agents
-other than register them at system start up.
-
-If no agent is found for that consumption, the task is just ignored. Also, each
-agent is free to just ignore any processing task at will.
+Records are binary data agnostic—any type of data may be stored, described only 
+by a "domain" and "tag" (DT). Typical data types include binary numbers 
+(various sizes), vectors, and UTF-8 text. This generic approach enables CDP to 
+support a wide variety of applications without being tied to specific data 
+formats.
 
 
-Data Processing
+### Poly-Structure: Dynamic Storage
+
+Different applications have different storage needs. CDP provides multiple data 
+structures to store records, allowing optimal choices based on usage patterns.
+
+CDP uses multiple data structure types to store collections of records. The
+optimal storage can be selected at runtime or load-time, and switched according
+to profiling.
+
+* **Linked List:** Doubly-linked list for efficient insert/remove.
+
+* **Dynamic Array:** Auto-growing, contiguous for fast lookups.
+
+* **Packed Queue:** Fixed-length array chunks linked together; cache-friendly 
+FIFO.
+
+* **Red-Black Binary Tree:** Optimal for unpredictable dictionary sizes.
+
+* **Simple Octree:** For spatial or catalog-type indexing.
+
+The choice depends on the usage pattern and is transparent to the 
+agent/programmer. This flexibility enhances performance tuning and scalability.
+
+---
+
+
+### Agents and Agencies
+
+CDP processes data through modular, distributed components called Agents and 
+their organizational groups called Agencies.
+
+
+#### Agents
+
+* **Definition:**
+  Agents are executable code modules that process tasks from queues. Each agent 
+  is registered with a specific **domain-tag (DT) pair** indicating the data 
+  type or protocol it handles.
+
+* **Inputs & Outputs:**
+  Each agent receives tasks via an input queue and produces results via 
+  outputs. An output is a generic term for sending results; CDP’s concrete 
+  implementation is called **production** (the process of converting results 
+  into new tasks).
+
+* **Task Handling:**
+  Agents process tasks as they arrive. If no agent matches a task, the system 
+  discards it. Agents are also free to ignore tasks as needed.
+
+Agents encapsulate logic in a highly modular way, promoting code reuse, 
+parallelism, and easier reasoning about system behavior.
+
+
+#### Agencies
+
+* **Definition:**
+  An agency is a group of agents working together, typically sharing a DT and 
+  handling related input queues. Each **agency instance** (or execution 
+  instance) represents a single configuration of these agents, sharing certain 
+  records and execution context.
+
+* **Pipelines:**
+  Agencies are linked into pipelines, where outputs of one agency become the 
+  inputs of another, forming a cascading chain of processing steps.
+
+* **Channels:**
+  In CDP, a **channel** is any connection between agencies (i.e., between an 
+  output and an input). Channels are managed by the CDP system—the user only 
+  needs to use the API to connect the desired outputs and inputs.
+
+This abstraction enables the creation of complex processing networks with 
+minimal manual coordination.
+
+---
+
+
+### Tasks
+
+The execution of work in CDP revolves around the concept of tasks. 
+Understanding how tasks are formed, scheduled, and executed is critical to 
+grasping the flow of data and logic through the system.
+
+* **Definition:**
+  A task is a message containing an agency instance ID, a DT specifying the 
+  target input queue, and the record (data) to process.
+
+* **Lifecycle:**
+  Agents send results to outputs, which are then routed as new tasks to input 
+  queues elsewhere in the pipeline.
+
+* **Scheduling:**
+  CDP operates in discrete passes. In each pass, all task queues are verified 
+  for new tasks. Any new tasks generated are scheduled for the **next** 
+  verification phase—never within the current pass. This enforces coherent, 
+  deterministic execution and makes parallelism easy.
+
+* **Storage:**
+  Tasks and instances are themselves part of the local record hierarchy, with 
+  unique addresses and IDs.
+
+This design enforces predictability and simplifies debugging by ensuring that 
+each execution step is cleanly separated from the next.
+
+---
+
+
+Execution Model
 ---------------
 
-Once a task is being handled by an agent it may produce a result, that is, the
-creation of new records and their distribution to any connected agency down the
-pipeline. We call this output channels the "production". They must be unique
-according to a defined protocol so any other agent in the agency may use them
-as well.
+The following describes CDP's event-driven and pipeline-oriented execution 
+strategy.
 
-When a result record is created it is stored in the agency instance until it is
-ready to be sent to a specific production. Once this is done, the system search
-for any agency connected to such production (if not found, the record is just
-discarded). Then, creates a new task with required information including the
-target agency instance and the new outbound record. The task will be processed
-at later system passes.
+* The CDP system scans all agency input queues in each pass.
 
-The agent (executable) processing the task has no need to know anything about
-the topology of the pipeline. It only needs to know which production to use for
-resulting records.
+* When a task is found, the relevant agent (matched by DT) is invoked in a new 
+thread if possible, receiving the agency instance, consumption name, and the 
+task.
 
+* Agents may delegate to subroutines, and can be registered at startup or 
+dynamically.
 
-Inter-pipeline Communication
-----------------------------
+* If an agent produces a result, it creates new records for **production** 
+(output), which are routed to downstream agencies as new tasks.
 
-Since nested pipelines are possible, agents that created nested instance agents
-need a way to command them, while them in turn need a way to report status
-information back to their masters. We call the creator agents the "client".
+* Agents are oblivious to the global pipeline topology—they simply name which 
+production to use for each result, and that's it.
 
-Clients may send commands such as "start", "pause" or "abort", while nested
-agents may send responses such as "error", "log" or "fatal". Such messages are
-really tasks added to the respective agent, so they follow the same route as
-conventional tasks.
-
-When a client send a command it may be broadcast to all or just some of the
-nested agents. Sub-agents (agents created by nested agents) will not be
-notified, so proper command cascading down the processing hierarchy need to be
-explicitly implemented.
-
-In a similar fashion, reports coming from nested agents toward the client will
-only reach that client. If that report is required to go upward to the
-super-client it needs an explicit client implementation.
-
-Both commands and responses are quite arbitrary so they need to be part of a
-pre-defined set specified in the agency documentation.
+This modular execution model facilitates deployment across heterogeneous 
+systems.
 
 
-System Internals
-----------------
+### Inter-Pipeline Communication (IPC)
 
-Cascade Data Processing is implemented in C to maximize its portability across
-different platforms. It is intended to be used with GCC for such effect.
+Modern applications often need nested, hierarchical workflows. Sometimes, 
+agents need to command pipelines they have spawned ("clients" and "owned 
+pipelines"), or receive status updates from these nested agents. CDP supports 
+this by allowing pipelines to communicate and manage sub-pipelines in a 
+structured way.
 
-Record themselves are just entries in some parent store, using a
-poly-structure. The record is minimal to enhance look up time, having only a
-name ID, some metadata and a couple of pointers to the actual data.
+* **Command Tasks:**
+  A client agent may send control commands such as "start", "pause", or "abort" 
+  to its owned pipeline. Each agency in that pipeline receives the command as a 
+  task. **However,** sub-agencies or further-nested pipelines will not 
+  automatically propagate these commands unless the programmer implements this 
+  behavior explicitly.
 
-### Poly-structure
+* **Response Tasks:**
+  Nested agents may report "error", "log", or "fatal" events back to their 
+  direct client via response tasks. If propagation up the hierarchy is needed, 
+  explicit programming is required at each layer.
 
-The record system is implemented using any of the following storage techniques.
+* **Protocols:**
+  Both commands and responses should follow a pre-defined set, documented by 
+  each agency or application.
 
-* A linked list: a double linked list queue targeted to efficient push, pop
-and arbitrary remove operations.
+This system of structured messaging provides the necessary hooks for building 
+hierarchical control architectures.
 
-* An array: a dynamic (automatically growing) array of continuous records,
-ideal for static collections and fast look ups.
+---
 
-* A packed queue: a fixed-length array that may be linked to other chunks
-forming a sequence, making it more cache friendly for sequential FIFO
-processing than linked lists.
 
-* A red-black binary tree: the best choice for dictionaries of unknown length.
+CDP System Internals
+--------------------
 
-* A simple octree: a very simple spatial indexing for catalog type of look-ups.
+This section delves into implementation details, offering insight into CDP's 
+internal architecture and how it achieves its performance and flexibility.
 
-The choice of record storage type depends of the intended use of such records.
-It may also be selected at run/load time using record access profiling.
+* **Implementation:**
+  CDP is implemented in C for maximum portability (target: GCC).
 
-### Parent Stores
+* **Record Storage:**
+  Records are minimal, featuring only a name ID, metadata, and pointers to 
+  actual data—efficient for rapid lookup and low memory use.
 
-Any record may have children records. This is achieved by adding a parent store
-information to such record, including a poly-structure type, current number of
-children, etc.
 
-The child record itself may have a DT indicating the protocol it belongs to, so
-when accessing the parent record proper casting may filter out other brother
-records with the same name (if any) but different meaning.
+### Specialized Structures
 
-### Binary Data
+* **Queues:**
+  Records are sorted by insertion order using linked lists, arrays, or packed 
+  queues. Multiple records with the same name but different content are 
+  allowed.
 
-Any record may also have data, that is, opaque binary data whose meaning and
-handling is responsibility of the respective accessing agent. A DT indicates
-the type of data, while other binary metadata indicate its size and whether
-it may be modified or not.
+* **Dictionaries:**
+  Records are sorted by name using linked lists, arrays, or RB-trees. Duplicate 
+  names overwrite previous entries.
 
-Typical data types provided by the system include native binary numbers (integers
-and floats of several bit sizes), vectors of numbers (contiguous memory
-regions) and text coded in UTF8.
+* **Catalogs:**
+  Collections of records sorted by a user function, with octrees available for 
+  spatial indexing.
 
-### Queues
+These internal strategies support the high-performance needs of real-time and 
+resource-constrained environments.
 
-Queues are implemented by sorting records by their insertion order. Only linked
-lists, arrays and packed queues are used for this. Records with the same name
-but different content are allowed.
-
-### Dictionaries
-
-Dictionaries are automatically implemented by sorting the records by their
-name. Only linked lists, arrays and RB-trees are used for this. If a record
-with the same name is found at insertion time, it is overwritten.
-
-### Catalogs
-
-Catalogs are collections of records sorted by a user-provided function. The
-poly-structure requirements are similar to dictionaries, with the added benefit
-of having octrees.
-
-Users needing sorting-by-key are required to store such keys somewhere inside
-the respective record.
+---
 
 
 Road Map
 --------
 
-1. Basic record system.  
-   Done.
+| Step                             | Status |
+| -------------------------------- | ------ |
+| Basic record system              | ✅      |
+| Unit testing for record system   | ✅      |
+| Number and text naming           | ✅      |
+| Dictionaries                     | ✅      |
+| Catalogs                         | ✅      |
+| Octree spatial indexing          | ✅      |
+| Binary data types                | ✅      |
+| Agency system (tasks & handling) | ⏳      |
+| System agents                    | ⏳      |
+| Record serialization             | ⏳      |
+| File I/O XML storage             | ⏳      |
+| LMDB storage integration         | ⏳      |
+| Network implementation           | ⏳      |
+| Network synchronization          | ⏳      |
+| Access profiling & auditing      | ⏳      |
+| Export to Emscripten             | ⏳      |
+| Export to ESP32                  | ⏳      |
+| Export to Arduino                | ⏳      |
 
-2. Unit testing for record system.  
-   Done.
-
-3. Number and text record naming convention.  
-   Done.
-
-4. Dictionaries.   
-   Done.
-
-5. Catalogs.   
-   Done.
-
-6. Octree spatial indexing.
-   Done.
-   
-7. Binary data types.
-   Done.
-
-8. Agency system with task execution and handling.
-
-9. System agents, such as: 'system-step', 'buffer', 'cloner' or 'synchronizer'.
-
-10. Record serialization.
-
-11. File I/O storage for records using XML.
-
-12. LMDB storage for records.
-
-13. Network implementation, with advertising and connection.
-
-14. Push/pull network data synchronization.
-
-15. Record access profiling: create (optional) access time entries on each
-record to keep track of access time. Audit such records in a regular basis and
-write that information in a access log file.
+---
 
 
+Glossary
+--------
 
+For quick reference, here are brief definitions of the most important terms 
+used throughout this document.
 
-
+* **Agent:** Executable code that processes tasks from input queues.
+* **Agency:** Group of agents working together, sharing context.
+* **Channel:** System-managed connection between two agencies.
+* **Consumption:** A named input for receiving new tasks.
+* **DT (Domain-Tag):** Pair that identifies the type/protocol of records.
+* **Instance:** A specific configuration/context of an agency.
+* **Output:** Generic term for agent results.
+* **Production:** a named output to be linked to another agency.
+* **Pipeline:** Linked sequence of agencies/agents processing data.
+* **Record:** Fundamental data unit, can contain data and child records.
+* **Task:** Message representing a unit of work for an agent.
 
