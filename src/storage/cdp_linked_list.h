@@ -178,9 +178,9 @@ static inline cdpRecord* list_last(cdpList* list) {
 }
 
 
-static inline cdpRecord* list_find_by_name(cdpList* list, cdpID name) {
+static inline cdpRecord* list_find_by_name(cdpList* list, const cdpDT* name) {
     for (cdpListNode* node = list->head;  node;  node = node->next) {
-        if (node->record.metarecord.name == name)
+        if (cdp_record_name_is(&node->record, name))
             return &node->record;
     }
     return NULL;
@@ -220,10 +220,10 @@ static inline cdpRecord* list_next(const cdpRecord* record) {
 }
 
 
-static inline cdpRecord* list_next_by_name(cdpList* list, cdpID name, cdpListNode** prev) {
+static inline cdpRecord* list_next_by_name(cdpList* list, cdpDT* name, cdpListNode** prev) {
     cdpListNode* node = *prev?  (*prev)->next:  list->head;
     while (node) {
-        if (node->record.metarecord.name == name) {
+        if (cdp_record_name_is(&node->record, name)) {
             *prev = node;
             return &node->record;
         }

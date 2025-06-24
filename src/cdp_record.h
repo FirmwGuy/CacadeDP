@@ -63,25 +63,6 @@
     reconstructing paths within the data hierarchy based on field identifiers
     in parent records.
 
-    Goals
-    -----
-
-    * Flexibility: To accommodate diverse data models, from strictly
-    structured to loosely defined, allowing for dynamic schema changes.
-
-    * Efficiency: To ensure data structures are compact, minimizing
-    memory usage and optimizing for cache access patterns.
-
-    * Navigability: To allow easy traversal of the hierarchical data
-    structure, facilitating operations like queries, updates, and path
-    reconstruction.
-
-    The system is adept at managing hierarchical data structures through a
-    variety of storage techniques, encapsulated within each store. This
-    flexibility allows the system to adapt to different use cases and
-    optimization requirements, particularly focusing on cache efficiency and
-    operation speed for insertions, deletions, and lookups.
-
     Children Storage Techniques
     ---------------------------
 
@@ -127,7 +108,7 @@ typedef int (*cdpCompare)(const cdpRecord* restrict, const cdpRecord* restrict, 
 
 
 /*
- *  Record Metadata
+ *  Domain-Tag (DT) Naming
  */
 
 typedef uint64_t  cdpID;
@@ -142,20 +123,60 @@ typedef uint64_t  cdpID;
 #define CDP_AUTOID_MAX          (CDP_AUTOID_MAXVAL - 1)
 
 typedef struct {
-  union {
-    cdpID     _id;
     struct {
-      cdpID   type:       2,    // Type of record (dictionary, link, etc).
+        cdpID           _sysbits1:  6,  // Used by other parts of CDP system.
+                        domain:     CDP_NAME_BITS;
+    };
+    struct {
+        cdpID           _sysbits2:  6,  // Used by other parts of CDP system.
+                        tag:        CDP_NAME_BITS;
+    };
+} cdpDT;
 
-              hidden:     1,    // Record won't appaear on listings (it can only be accesed directly).
-              shadowing:  2,    // If record has shadowing records (links pointing to it).
-              property:   1,    // Record is a property (not a child) of its parent.
-              //task:       1,    // Record belongs to a task (which needs to be activated after I/O).
+#define CDP_DT(p)       ((cdpDT*)(p))
 
-              name:       CDP_NAME_BITS;    // Name id of this record instance (including naming convention).
+static inline int cdp_dt_compare(const cdpDT* restrict key, const cdpDT* restrict dt)
+{
+    if (key->domain > dt->domain)
+        return 1;
+    if (key->domain < dt->domain)
+        return -1;
+    if (key->tag > dt->tag)
+        return 1;
+    if (key->tag < dt->tag)
+        return -1;
+    
+    return 0;
+}
+
+
+/*
+ *  Record Meta
+ */
+
+typedef struct {
+  union {
+    cdpDT       _dt;
+    
+    struct {
+      struct {
+        cdpID   type:       2,    // Type of record (dictionary, link, etc).
+                hidden:     1,    // Record won't appear on listings (it can only be accessed directly).
+                shadowing:  2,    // If record has shadowing records (links pointing to it).
+                _unused:    1,
+
+                domain:     CDP_NAME_BITS;
+      };
+      struct {
+        cdpID   _reserved:  6,
+                tag:        CDP_NAME_BITS;
+      };
     };
   };
 } cdpMetarecord;
+
+static_assert(sizeof(cdpMetarecord) == sizeof(cdpDT), "System bits can't exceed 2 pairs of 6 bits!");
+
 
 enum _cdpRecordType {
     CDP_TYPE_VOID,              // A void (uninitialized) record.
@@ -174,7 +195,7 @@ enum _cdpRecordShadowing {
 
 enum _cdpRecordNaming {
     CDP_NAMING_WORD,            // Lowercase text value, 11 chars max (it must be the first in this enum!).
-    CDP_NAMING_ACRONYSM,        // Uppercase/numeric text, 9 characters maximum.
+    CDP_NAMING_ACRONYM,        // Uppercase/numeric text, 9 characters maximum.
     CDP_NAMING_REFERENCE,       // Numerical reference to text record (a pointer in 32bit systems).
     CDP_NAMING_NUMERIC,         // Per-parent numerical ID.
 
@@ -186,7 +207,7 @@ enum _cdpRecordNaming {
 #define CDP_NAMING_MASK                 cdp_id_from_naming(3)
 
 #define cdp_id_to_word(word)            ((word) | cdp_id_from_naming(CDP_NAMING_WORD))
-#define cdp_id_to_acronysm(acro)        ((acro) | cdp_id_from_naming(CDP_NAMING_ACRONYSM))
+#define cdp_id_to_acronym(acro)         ((acro) | cdp_id_from_naming(CDP_NAMING_ACRONYM))
 #define cdp_id_to_reference(ref)        ((ref)  | cdp_id_from_naming(CDP_NAMING_REFERENCE))
 #define cdp_id_to_numeric(numb)         ((numb) | cdp_id_from_naming(CDP_NAMING_NUMERIC))
 
@@ -198,7 +219,7 @@ enum _cdpRecordNaming {
 
 #define cdp_id_is_auto(name)            ((name) == CDP_AUTOID)
 #define cdp_id_is_word(name)            ((CDP_NAMING_MASK & (name)) == cdp_id_from_naming(CDP_NAMING_WORD))
-#define cdp_id_is_acronysm(name)        ((CDP_NAMING_MASK & (name)) == cdp_id_from_naming(CDP_NAMING_ACRONYSM))
+#define cdp_id_is_acronym(name)         ((CDP_NAMING_MASK & (name)) == cdp_id_from_naming(CDP_NAMING_ACRONYM))
 #define cdp_id_is_reference(name)       ((CDP_NAMING_MASK & (name)) == cdp_id_from_naming(CDP_NAMING_REFERENCE))
 #define cdp_id_is_numeric(name)         ((CDP_NAMING_MASK & (name)) == cdp_id_from_naming(CDP_NAMING_NUMERIC))
 
@@ -206,13 +227,22 @@ enum _cdpRecordNaming {
 #define cdp_id_text_valid(name)         (cdp_id(name) && !cdp_id_is_numeric(name))
 #define cdp_id_naming(name)             (((name) >> CDP_AUTOID_BITS) & 3)
 
+#define cdp_dt_valid(dt)                (cdp_id_text_valid((dt)->domain) && cdp_id_valid((dt)->tag))
+
 
 // Converting C text strings to/from cdpID
 
-#define CDP_WORD_MAX_CHARS      11
+/* Acronym character chart (ASCII lower set):
+ H \  0   1   2   3   4   5   6   7   8   9   A   B   C   D   E   F
+ - -  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+2x \  SP  !   "   #   $   %   &   '   (   )   *   +   ,   -   .   /
+3x \  0   1   2   3   4   5   6   7   8   9   :   ;   <   =   >   ?
+4x \  @   A   B   C   D   E   F   G   H   I   J   K   L   M   N   O
+5x \  P   Q   R   S   T   U   V   W   X   Y   Z   [   \   ]   ^   _
+*/
 #define CDP_ACRON_MAX_CHARS     9
 
-#define CDP_TEXT_TO_ACRONYSM_(name)                                            \
+#define CDP_TEXT_TO_ACRONYM_(name)                                             \
     cdpID name(const char *s) {                                                \
         assert(s && *s);                                                       \
                                                                                \
@@ -237,11 +267,22 @@ enum _cdpRecordNaming {
             if (c < 0x20  ||  c > 0x5F)                                        \
                 return 0;   /* Uncodable characters. */                        \
                                                                                \
-            coded |= (cdpID)(c - 0x20) << (6 * ((CDP_ACRON_MAX_CHARS - 1) - n));    /* Shift and encode each character. */\
+            /* Shift and encode each character: */                             \
+            coded |= (cdpID)(c - 0x20) << (6 * ((CDP_ACRON_MAX_CHARS-1) - n)); \
         }                                                                      \
                                                                                \
-        return cdp_id_to_acronysm(coded);                                      \
+        return cdp_id_to_acronym(coded);                                       \
     }
+
+
+/* Word character chart (ASCII upper set):
+ H \  0   1   2   3   4   5   6   7   8   9   A   B   C   D   E   F
+ - -  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+6x \ [SP] a   b   c   d   e   f   g   h   i   j   k   l   m   n   o
+7x \  p   q   r   s   t   u   v   w   x   y   z  [:] [_] [-] [.] [/]
+    Note: characters in square brackets replacing originals.
+*/
+#define CDP_WORD_MAX_CHARS      11
 
 #define CDP_TEXT_TO_WORD_(name)                                                \
     cdpID name(const char *s) {                                                \
@@ -260,6 +301,7 @@ enum _cdpRecordNaming {
         if (len > CDP_WORD_MAX_CHARS)                                          \
             return 0;       /* Limit to max allowed characters. */             \
                                                                                \
+        bool hasLowercase = false;                                             \
         cdpID coded = 0;                                                       \
         for (size_t n = 0; n < len; n++) {                                     \
             char c = s[n];                                                     \
@@ -267,8 +309,9 @@ enum _cdpRecordNaming {
             uint8_t encoded_char;                                              \
             if (c >= 0x61  &&  c <= 0x7A) {                                    \
                 encoded_char = c - 0x61 + 1;        /* Map 'a'-'z' to 1-26. */ \
+                hasLowercase = true;                                           \
             } else switch (c) {                                                \
-              case ' ': encoded_char = 0;   break;  /* Treat space as 0. */    \
+              case ' ': encoded_char = 0;   break;  /* Encode space as 0. */   \
               case ':': encoded_char = 27;  break;                             \
               case '_': encoded_char = 28;  break;                             \
               case '-': encoded_char = 29;  break;                             \
@@ -279,20 +322,29 @@ enum _cdpRecordNaming {
                 return 0;   /* Uncodable characters. */                        \
             }                                                                  \
                                                                                \
-            coded |= (cdpID)encoded_char << (5 * ((CDP_WORD_MAX_CHARS - 1) - n));  /* Shift and encode each character. */\
+            /* Shift and encode each character: */                             \
+            coded |= (cdpID)encoded_char << (5 * ((CDP_WORD_MAX_CHARS-1) - n));\
         }                                                                      \
+        if (!hasLowercase)                                                     \
+            return 0;       /* Can't be a pure symbolic word. */               \
                                                                                \
         return cdp_id_to_word(coded);                                          \
     }
 
-static inline CDP_CONST_FUNC CDP_TEXT_TO_ACRONYSM_(CDP_ACRO_constant)
+static inline CDP_CONST_FUNC CDP_TEXT_TO_ACRONYM_(CDP_ACRO_constant)
 static inline CDP_CONST_FUNC CDP_TEXT_TO_WORD_(CDP_WORD_constant)
 
-#define CDP_ACRO(s)     ({_Static_assert(strlen(s) > 0 && strlen(s) <= 9, "Acronysm IDs must be 9 characters or less!"); CDP_ACRO_constant(s);})
-#define CDP_WORD(s)     ({_Static_assert(strlen(s) > 0 && strlen(s) <= 11, "Word IDs must be 11 characters or less!"); CDP_WORD_constant(s);})
+#define CDP_ACRO(s)     ({static_assert(strlen(s) > 0 && strlen(s) <= 9,  "Acronym IDs must be 9 characters or less!"); CDP_ACRO_constant(s);})
+#define CDP_WORD(s)     ({static_assert(strlen(s) > 0 && strlen(s) <= 11, "Word IDs must be 11 characters or less!"); CDP_WORD_constant(s);})
 
-cdpID  cdp_text_to_acronysm(const char *s);
-size_t cdp_acronysm_to_text(cdpID acro, char s[10]);
+#define CDP_DTS(d, t)   (&(cdpDT){.domain=(d), .tag=(t)})
+#define CDP_DTWW(d, t)  CDP_DTS(CDP_WORD(d), CDP_WORD(t))
+#define CDP_DTWA(d, t)  CDP_DTS(CDP_WORD(d), CDP_ACRO(t))
+#define CDP_DTAA(d, t)  CDP_DTS(CDP_ACRO(d), CDP_ACRO(t))
+#define CDP_DTAW(d, t)  CDP_DTS(CDP_ACRO(d), CDP_WORD(t))
+
+cdpID  cdp_text_to_acronym(const char *s);
+size_t cdp_acronym_to_text(cdpID acro, char s[10]);
 
 cdpID  cdp_text_to_word(const char *s);
 size_t cdp_word_to_text(cdpID coded, char s[12]);
@@ -337,17 +389,26 @@ CDP_ATTRIBUTE_STRUCT(cdpAttribute, _domain_flags: 50);
 
 
 struct _cdpData {
-    struct {
-        cdpID           datatype:   2,  // Type of data (see _cdpDataType).
+    union {
+      cdpDT             _dt;
+      
+      struct {
+        struct {
+          cdpID         datatype:   2,  // Type of data (see _cdpDataType).
                         _unused:    4,
-                        domain:     CDP_NAME_BITS;  // Data domain.
-    };
-    struct {
-        cdpID           writable:   1,  // If data can be updated.
+
+                        domain:     CDP_NAME_BITS;
+        };
+        struct {
+          cdpID         writable:   1,  // If data can be updated.
                         lock:       1,  // Lock on data content.
                         _reserved:  4,
-                        tag:        CDP_NAME_BITS;  // Data tag.
+                        
+                        tag:        CDP_NAME_BITS;
+        };
+      };
     };
+
     cdpAttribute        attribute;      // Data attributes (it depends on domain).
 
     cdpID               encoding;       // Binary encoding id.
@@ -383,14 +444,13 @@ enum _cdpDataType {
 };
 
 
-cdpData* cdp_data_new(  cdpID domain, cdpID tag,
-                        cdpID encoding, cdpID attribute,
+cdpData* cdp_data_new(  cdpDT* dt, cdpID encoding, cdpID attribute,
                         unsigned datatype, bool writable,
                         void** dataloc, void* value, ...  );
 void     cdp_data_del(cdpData* data);
 void*    cdp_data(const cdpData* data);
-#define  cdp_data_valid(d)                                      ((d) && (d)->capacity && cdp_id_text_valid((d)->domain) && cdp_id_text_valid((d)->tag))
-#define  cdp_data_new_value(d, t, e, a, value, z, capacity)     cdp_data_new(d, t, e, CDP_ID(a), CDP_DATATYPE_VALUE, true, NULL, value, z, capacity)
+#define  cdp_data_valid(d)                                      ((d) && (d)->capacity && cdp_dt_valid(CDP_DT(d)))
+#define  cdp_data_new_value(dt, e, a, value, z, capacity)       cdp_data_new(dt, e, CDP_ID(a), CDP_DATATYPE_VALUE, true, NULL, value, z, capacity)
 
 
 /*
@@ -405,18 +465,27 @@ typedef struct {
 
 
 struct _cdpStore {
-    struct {
+    union {
+      cdpDT         _dt;
+      
+      struct {
+        struct {
         cdpID       storage:    3,              // Data structure for children storage (array, linked-list, etc).
                     indexing:   2,              // Indexing (sorting) criteria for children.
                     _unused:    1,
-                    domain:     CDP_NAME_BITS;  // Domain of name organization this child record belongs to.
-    };
-    struct {
+
+                    domain:     CDP_NAME_BITS;
+        };
+        struct {
         cdpID       writable:   1,              // If chidren can be added/deleted.
                     lock:       1,              // Lock on children operations.
                     _reserved:  4,
-                    tag:        CDP_NAME_BITS;  // Tag of name organization this child record belongs to.
+
+                    tag:        CDP_NAME_BITS;
+        };
+      };
     };
+
     cdpAttribute    attribute;  // Structure attributes (it depends on domain). This is used *only* if record has no data (ie, as a pure directory).
 
     cdpRecord*      owner;      // Record owning this child storage.
@@ -454,10 +523,10 @@ enum _cdpRecordIndexing {
 };
 
 
-cdpStore* cdp_store_new(cdpID domain, cdpID tag, unsigned storage, unsigned indexing, ...);
+cdpStore* cdp_store_new(cdpDT* dt, unsigned storage, unsigned indexing, ...);
 void      cdp_store_del(cdpStore* store);
 void      cdp_store_delete_children(cdpStore* store);
-#define   cdp_store_valid(s)      ((s) && cdp_id_text_valid((s)->domain) && cdp_id_text_valid((s)->tag))
+#define   cdp_store_valid(s)      ((s) && cdp_dt_valid(CDP_DT(s)))
 
 static inline bool cdp_store_is_insertable(cdpStore* store)   {assert(cdp_store_valid(store));  return (store->indexing == CDP_INDEX_BY_INSERTION);}
 static inline bool cdp_store_is_dictionary(cdpStore* store)   {assert(cdp_store_valid(store));  return (store->indexing == CDP_INDEX_BY_NAME);}
@@ -476,12 +545,12 @@ cdpRecord* cdp_store_append_child(cdpStore* store, bool prepend, cdpRecord* chil
 typedef struct {
     unsigned        length;
     unsigned        capacity;
-    cdpID           id[];
+    cdpDT           dt[];
 } cdpPath;
 
 
 struct _cdpRecord {
-    cdpMetarecord   metarecord; // Meta about this record entry (including name, id, etc).
+    cdpMetarecord   metarecord; // Meta about this record entry (including name (DT), system bits, etc).
     cdpStore*       parent;     // Parent structure (list, array, etc) where this record is stored in.
 
     union {
@@ -518,24 +587,24 @@ typedef bool (*cdpTraverse)(cdpEntry*, void*);
  */
 
 // Initiate records
-void cdp_record_initialize(cdpRecord* record, unsigned type, cdpID name, cdpData* data, cdpStore* store);
-void cdp_record_initialize_clone(cdpRecord* newClone, cdpID nameID, cdpRecord* record);
+void cdp_record_initialize(cdpRecord* record, unsigned type, cdpDT* name, cdpData* data, cdpStore* store);
+void cdp_record_initialize_clone(cdpRecord* newClone, cdpDT* name, cdpRecord* record);
 void cdp_record_finalize(cdpRecord* record);
 
-#define cdp_record_initialize_value(r, name, domain, tag, encoding, attrib, value, size, capacity)               cdp_record_initialize(r, CDP_TYPE_NORMAL, name, cdp_data_new(domain, tag, encoding, attrib, CDP_DATATYPE_VALUE, true, NULL, value, size, capacity), NULL)
-#define cdp_record_initialize_data(r, name, domain, tag, encoding, attrib, value, size, capacity, destructor)    cdp_record_initialize(r, CDP_TYPE_NORMAL, name, cdp_data_new(domain, tag, encoding, attrib, CDP_DATATYPE_DATA,  true, NULL, value, size, capacity, destructor), NULL)
+#define cdp_record_initialize_value(r, name, dt, encoding, attrib, value, size, capacity)               cdp_record_initialize(r, CDP_TYPE_NORMAL, name, cdp_data_new(dt, encoding, attrib, CDP_DATATYPE_VALUE, true, NULL, value, size, capacity), NULL)
+#define cdp_record_initialize_data(r, name, dt, encoding, attrib, value, size, capacity, destructor)    cdp_record_initialize(r, CDP_TYPE_NORMAL, name, cdp_data_new(dt, encoding, attrib, CDP_DATATYPE_DATA,  true, NULL, value, size, capacity, destructor), NULL)
 
-#define cdp_record_initialize_list(r, name, domain, tag, storage, ...)                  cdp_record_initialize(r, CDP_TYPE_NORMAL, name, NULL, cdp_store_new(domain, tag, storage, CDP_INDEX_BY_INSERTION, ##__VA_ARGS__))
-#define cdp_record_initialize_dictionary(r, name, domain, tag, storage, ...)            cdp_record_initialize(r, CDP_TYPE_NORMAL, name, NULL, cdp_store_new(domain, tag, storage, CDP_INDEX_BY_NAME, ##__VA_ARGS__))
-#define cdp_record_initialize_catalog(r, name, domain, tag, storage, ...)               cdp_record_initialize(r, CDP_TYPE_NORMAL, name, NULL, cdp_store_new(domain, tag, storage, CDP_INDEX_BY_FUNCTION, ##__VA_ARGS__))
-#define cdp_record_initialize_spatial(r, name, domain, tag, center, subwide, compare)   cdp_record_initialize(r, CDP_TYPE_NORMAL, name, NULL, cdp_store_new(domain, tag, CDP_STORAGE_OCTREE, CDP_INDEX_BY_FUNCTION, center, subwide, compare))
+#define cdp_record_initialize_list(r, name, dt, storage, ...)                  cdp_record_initialize(r, CDP_TYPE_NORMAL, name, NULL, cdp_store_new(dt, storage, CDP_INDEX_BY_INSERTION, ##__VA_ARGS__))
+#define cdp_record_initialize_dictionary(r, name, dt, storage, ...)            cdp_record_initialize(r, CDP_TYPE_NORMAL, name, NULL, cdp_store_new(dt, storage, CDP_INDEX_BY_NAME, ##__VA_ARGS__))
+#define cdp_record_initialize_catalog(r, name, dt, storage, ...)               cdp_record_initialize(r, CDP_TYPE_NORMAL, name, NULL, cdp_store_new(dt, storage, CDP_INDEX_BY_FUNCTION, ##__VA_ARGS__))
+#define cdp_record_initialize_spatial(r, name, dt, center, subwide, compare)   cdp_record_initialize(r, CDP_TYPE_NORMAL, name, NULL, cdp_store_new(dt, CDP_STORAGE_OCTREE, CDP_INDEX_BY_FUNCTION, center, subwide, compare))
 
-static inline void  cdp_record_set_id(cdpRecord* record, cdpID id)      {assert(record && cdp_id_valid(id));  CDP_ID_SET(record->metarecord.name, id);}
-static inline void  cdp_record_set_name(cdpRecord* record, cdpID name)  {assert(record && cdp_id_text_valid(name));  record->metarecord.name = name;}    // FixMe: mask 'name' before assignation.
-static inline cdpID cdp_record_get_name(const cdpRecord* record)        {assert(record);  return record->metarecord.name;}
-#define cdp_record_get_id(r)    cdp_id(cdp_record_get_name(r))
+static inline void  cdp_record_set_tag_id(cdpRecord* record, cdpID id)      {assert(record && cdp_id_valid(id));  CDP_ID_SET(record->metarecord.tag, id);}
+static inline void  cdp_record_set_name(cdpRecord* record, cdpDT* name)     {assert(record && cdp_dt_valid(name));  record->metarecord.domain = name->domain; record->metarecord.tag = name->tag;}    // FixMe: mask 'name->tag' before assignation.
+//static inline cdpDT cdp_record_get_name(const cdpRecord* record)        {assert(record);  return record->metarecord.name;}
+#define cdp_record_get_tag_id(r)    cdp_id(CDP_DT(r)->tag)
 
-#define cdp_record_is_void(r)       (((r)->metarecord.type == CDP_TYPE_VOID) || !cdp_id_valid((r)->metarecord.name))
+#define cdp_record_is_void(r)       (((r)->metarecord.type == CDP_TYPE_VOID) || !cdp_dt_valid(&(r)->metarecord._dt))
 #define cdp_record_is_normal(r)     ((r)->metarecord.type == CDP_TYPE_NORMAL)
 #define cdp_record_is_flex(r)       ((r)->metarecord.type == CDP_TYPE_FLEX)
 #define cdp_record_is_link(r)       ((r)->metarecord.type == CDP_TYPE_LINK)
@@ -554,12 +623,15 @@ static inline cdpRecord* cdp_record_parent  (const cdpRecord* record)   {assert(
 static inline size_t     cdp_record_siblings(const cdpRecord* record)   {assert(record);  return CDP_EXPECT_PTR(record->parent)? record->parent->chdCount: 0;}
 static inline size_t     cdp_record_children(const cdpRecord* record)   {assert(record);  return cdp_record_has_store(record)? record->store->chdCount: 0;}
 
-#define cdp_record_id_is_pending(r)   cdp_id_is_auto((r)->metarecord.name)
+#define cdp_record_id_is_pending(r)   cdp_id_is_auto((r)->metarecord.tag)
 static inline void  cdp_record_set_autoid(const cdpRecord* record, cdpID id)  {assert(cdp_record_has_store(record) && (record->store->autoid < id)  &&  (id <= CDP_AUTOID_MAX)); record->store->autoid = id;}
 static inline cdpID cdp_record_get_autoid(const cdpRecord* record)            {assert(cdp_record_has_store(record));  return record->store->autoid;}
 
+#define cdp_record_name_is(record, name)        (0 == cdp_dt_compare(CDP_DT(&(record)->metarecord), CDP_DT(name)))
+#define cdp_record_get_name(record)             (&(record)->metarecord._dt)     /* FixMe: filter sysbits out? */
 
-static inline void cdp_record_relink_storage(cdpRecord* record)     {assert(cdp_record_has_store(record));  record->store->owner = record;}     // Re-link record with its own children storage.
+
+static inline void cdp_record_relink_storage(cdpRecord* record)     {assert(cdp_record_has_store(record));  record->store->owner = record;}     // Re-links record with its own children storage.
 
 static inline void cdp_record_transfer(cdpRecord* src, cdpRecord* dst) {
     assert(!cdp_record_is_void(src) && dst);
@@ -594,7 +666,7 @@ static inline void cdp_link_set(cdpRecord* link, cdpRecord* target) {
     // ToDo: remove link from target's shadows.
 }
 
-static inline void cdp_link_initialize(cdpRecord* link, cdpID name, cdpRecord* target) {
+static inline void cdp_link_initialize(cdpRecord* link, cdpDT* name, cdpRecord* target) {
     assert(link);
     cdp_record_initialize(link, CDP_TYPE_LINK, name, NULL, NULL);
     if (target)
@@ -626,47 +698,47 @@ cdpRecord* cdp_record_append(cdpRecord* record, bool prepend, cdpRecord* child);
 #define cdp_record_add_child(record, type, name, context, data, store)         \
     ({cdpRecord child__={0}; cdp_record_initialize(&child__, type, name, data, store); cdp_record_add(record, context, &child__);})
 
-#define cdp_record_add_empty(record, name, context)                                                                   cdp_record_add_child(record, CDP_TYPE_NORMAL, name, (uintptr_t)(context), NULL, NULL)
-#define cdp_record_add_value(record, name, context, domain, tag, encoding, attrib, value, size, capacity)             cdp_record_add_child(record, CDP_TYPE_NORMAL, name, (uintptr_t)(context), cdp_data_new(domain, tag, encoding, attrib, CDP_DATATYPE_VALUE, true, NULL, value, size, capacity), NULL)
-#define cdp_record_add_data(record, name, context, domain, tag, encoding, attrib, value, size, capacity, destructor)  cdp_record_add_child(record, CDP_TYPE_NORMAL, name, (uintptr_t)(context), cdp_data_new(domain, tag, encoding, attrib, CDP_DATATYPE_DATA,  true, NULL, value, size, capacity, destructor), NULL)
+#define cdp_record_add_empty(record, name, context)                                                             cdp_record_add_child(record, CDP_TYPE_NORMAL, name, (uintptr_t)(context), NULL, NULL)
+#define cdp_record_add_value(record, name, context, dt, encoding, attrib, value, size, capacity)                cdp_record_add_child(record, CDP_TYPE_NORMAL, name, (uintptr_t)(context), cdp_data_new(dt, encoding, attrib, CDP_DATATYPE_VALUE, true, NULL, value, size, capacity), NULL)
+#define cdp_record_add_data(record, name, context, dt, encoding, attrib, value, size, capacity, destructor)     cdp_record_add_child(record, CDP_TYPE_NORMAL, name, (uintptr_t)(context), cdp_data_new(dt, encoding, attrib, CDP_DATATYPE_DATA,  true, NULL, value, size, capacity, destructor), NULL)
 
-#define cdp_record_add_list(record, name, context, domain, tag, storage, ...)                               cdp_record_add_child(record, CDP_TYPE_NORMAL, name, (uintptr_t)(context), NULL, cdp_store_new(domain, tag, storage, CDP_INDEX_BY_INSERTION, ##__VA_ARGS__))
-#define cdp_record_add_dictionary(record, name, context, domain, tag, storage, ...)                         cdp_record_add_child(record, CDP_TYPE_NORMAL, name, (uintptr_t)(context), NULL, cdp_store_new(domain, tag, storage, CDP_INDEX_BY_NAME, ##__VA_ARGS__))
-#define cdp_record_add_catalog(record, name, context, domain, tag, storage, ...)                            cdp_record_add_child(record, CDP_TYPE_NORMAL, name, (uintptr_t)(context), NULL, cdp_store_new(domain, tag, storage, CDP_INDEX_BY_FUNCTION, ##__VA_ARGS__))
+#define cdp_record_add_list(record, name, context, dt, storage, ...)                                        cdp_record_add_child(record, CDP_TYPE_NORMAL, name, (uintptr_t)(context), NULL, cdp_store_new(dt, storage, CDP_INDEX_BY_INSERTION, ##__VA_ARGS__))
+#define cdp_record_add_dictionary(record, name, context, dt, storage, ...)                                  cdp_record_add_child(record, CDP_TYPE_NORMAL, name, (uintptr_t)(context), NULL, cdp_store_new(dt, storage, CDP_INDEX_BY_NAME, ##__VA_ARGS__))
+#define cdp_record_add_catalog(record, name, context, dt, storage, ...)                                     cdp_record_add_child(record, CDP_TYPE_NORMAL, name, (uintptr_t)(context), NULL, cdp_store_new(dt, storage, CDP_INDEX_BY_FUNCTION, ##__VA_ARGS__))
 
-#define cdp_record_add_link(record, name, context, source)                                                  cdp_record_add_child(record, CDP_TYPE_LINK,  name, (uintptr_t)(context), CDP_P(source), NULL)
+#define cdp_record_add_link(record, name, context, source)                                                  cdp_record_add_child(record, CDP_TYPE_LINK, name, (uintptr_t)(context), CDP_P(source), NULL)
 
 #define cdp_dict_add(record, child)                                                                         cdp_record_add(record, 0, child)
 #define cdp_dict_add_empty(record, name)                                                                    cdp_record_add_empty(record, name, 0)
-#define cdp_dict_add_value(record, name, domain, tag, encoding, attrib, value, size, capacity)              cdp_record_add_value(record, name, 0, domain, tag, encoding, attrib, value, size, capacity)
-#define cdp_dict_add_data(record, name, domain, tag, encoding, attrib, value, size, capacity, destructor)   cdp_record_add_data(record, name, 0, domain, tag, encoding, attrib, value, size, capacity, destructor)
-#define cdp_dict_add_list(record, name, domain, tag, storage, ...)                                          cdp_record_add_list(record, name, 0, domain, tag, storage, ##__VA_ARGS__)
-#define cdp_dict_add_dictionary(record, name, domain, tag, storage, ...)                                    cdp_record_add_dictionary(record, name, 0, domain, tag, storage, ##__VA_ARGS__)
-#define cdp_dict_add_catalog(record, name, domain, tag, storage, ...)                                       cdp_record_add_catalog(record, name, 0, domain, tag, storage, ##__VA_ARGS__)
+#define cdp_dict_add_value(record, name, dt, encoding, attrib, value, size, capacity)                       cdp_record_add_value(record, name, 0, dt, encoding, attrib, value, size, capacity)
+#define cdp_dict_add_data(record, name, dt, encoding, attrib, value, size, capacity, destructor)            cdp_record_add_data(record, name, 0, dt, encoding, attrib, value, size, capacity, destructor)
+#define cdp_dict_add_list(record, name, dt, storage, ...)                                                   cdp_record_add_list(record, name, 0, dt, storage, ##__VA_ARGS__)
+#define cdp_dict_add_dictionary(record, name, dt, storage, ...)                                             cdp_record_add_dictionary(record, name, 0, dt, storage, ##__VA_ARGS__)
+#define cdp_dict_add_catalog(record, name, dt, storage, ...)                                                cdp_record_add_catalog(record, name, 0, dt, storage, ##__VA_ARGS__)
 #define cdp_dict_add_link(record, name, source)                                                             cdp_record_add_link(record, name, 0, source)
 
 #define cdp_record_append_child(record, type, name, prepend, data, store)      \
     ({cdpRecord child__={0}; cdp_record_initialize(&child__, type, name, data, store); cdp_record_append(record, prepend, &child__);})
 
-#define cdp_record_append_empty(record, name)                                                                         cdp_record_append_child(record, CDP_TYPE_NORMAL, name, false, NULL, NULL)
-#define cdp_record_append_value(record, name, domain, tag, encoding, attrib, value, size, capacity)                   cdp_record_append_child(record, CDP_TYPE_NORMAL, name, false, cdp_data_new(domain, tag, encoding, attrib, CDP_DATATYPE_VALUE, true, NULL, value, size, capacity), NULL)
-#define cdp_record_append_data(record, name, domain, tag, encoding, attrib, value, size, capacity, destructor)        cdp_record_append_child(record, CDP_TYPE_NORMAL, name, false, cdp_data_new(domain, tag, encoding, attrib, CDP_DATATYPE_DATA,  true, NULL, value, size, capacity, destructor), NULL)
+#define cdp_record_append_empty(record, name)                                                               cdp_record_append_child(record, CDP_TYPE_NORMAL, name, false, NULL, NULL)
+#define cdp_record_append_value(record, name, dt, encoding, attrib, value, size, capacity)                  cdp_record_append_child(record, CDP_TYPE_NORMAL, name, false, cdp_data_new(dt, encoding, attrib, CDP_DATATYPE_VALUE, true, NULL, value, size, capacity), NULL)
+#define cdp_record_append_data(record, name, dt, encoding, attrib, value, size, capacity, destructor)       cdp_record_append_child(record, CDP_TYPE_NORMAL, name, false, cdp_data_new(dt, encoding, attrib, CDP_DATATYPE_DATA,  true, NULL, value, size, capacity, destructor), NULL)
 
-#define cdp_record_append_list(record, name, domain, tag, storage, ...)                                     cdp_record_append_child(record, CDP_TYPE_NORMAL, name, false, NULL, cdp_store_new(domain, tag, storage, CDP_INDEX_BY_INSERTION, ##__VA_ARGS__))
-#define cdp_record_append_dictionary(record, name, domain, tag, storage, ...)                               cdp_record_append_child(record, CDP_TYPE_NORMAL, name, false, NULL, cdp_store_new(domain, tag, storage, CDP_INDEX_BY_NAME, ##__VA_ARGS__))
-#define cdp_record_append_catalog(record, name, domain, tag, storage, ...)                                  cdp_record_append_child(record, CDP_TYPE_NORMAL, name, false, NULL, cdp_store_new(domain, tag, storage, CDP_INDEX_BY_FUNCTION, ##__VA_ARGS__))
+#define cdp_record_append_list(record, name, dt, storage, ...)                                              cdp_record_append_child(record, CDP_TYPE_NORMAL, name, false, NULL, cdp_store_new(dt, storage, CDP_INDEX_BY_INSERTION, ##__VA_ARGS__))
+#define cdp_record_append_dictionary(record, name, dt, storage, ...)                                        cdp_record_append_child(record, CDP_TYPE_NORMAL, name, false, NULL, cdp_store_new(dt, storage, CDP_INDEX_BY_NAME, ##__VA_ARGS__))
+#define cdp_record_append_catalog(record, name, dt, storage, ...)                                           cdp_record_append_child(record, CDP_TYPE_NORMAL, name, false, NULL, cdp_store_new(dt, storage, CDP_INDEX_BY_FUNCTION, ##__VA_ARGS__))
 
-#define cdp_record_append_link(record, name, source)                                                        cdp_record_append_child(record, CDP_TYPE_LINK,  name, false, CDP_P(source), NULL)
+#define cdp_record_append_link(record, name, source)                                                        cdp_record_append_child(record, CDP_TYPE_LINK, name, false, CDP_P(source), NULL)
 
-#define cdp_record_prepend_empty(record, name)                                                                        cdp_record_append_child(record, CDP_TYPE_NORMAL, name, true, NULL, NULL)
-#define cdp_record_prepend_value(record, name, domain, tag, encoding, attrib, value, size, capacity)                  cdp_record_append_child(record, CDP_TYPE_NORMAL, name, true, cdp_data_new(domain, tag, encoding, attrib, CDP_DATATYPE_VALUE, true, NULL, value, size, capacity), NULL)
-#define cdp_record_prepend_data(record, name, domain, tag, encoding, attrib, value, size, capacity, destructor)       cdp_record_append_child(record, CDP_TYPE_NORMAL, name, true, cdp_data_new(domain, tag, encoding, attrib, CDP_DATATYPE_DATA,  true, NULL, value, size, capacity, destructor), NULL)
+#define cdp_record_prepend_empty(record, name)                                                              cdp_record_append_child(record, CDP_TYPE_NORMAL, name, true, NULL, NULL)
+#define cdp_record_prepend_value(record, name, dt, encoding, attrib, value, size, capacity)                 cdp_record_append_child(record, CDP_TYPE_NORMAL, name, true, cdp_data_new(dt, encoding, attrib, CDP_DATATYPE_VALUE, true, NULL, value, size, capacity), NULL)
+#define cdp_record_prepend_data(record, name, dt, encoding, attrib, value, size, capacity, destructor)      cdp_record_append_child(record, CDP_TYPE_NORMAL, name, true, cdp_data_new(dt, encoding, attrib, CDP_DATATYPE_DATA,  true, NULL, value, size, capacity, destructor), NULL)
 
-#define cdp_record_prepend_list(record, name, domain, tag, storage, ...)                                    cdp_record_append_child(record, CDP_TYPE_NORMAL, name, true, NULL, cdp_store_new(domain, tag, storage, CDP_INDEX_BY_INSERTION, ##__VA_ARGS__))
-#define cdp_record_prepend_dictionary(record, name, domain, tag, storage, ...)                              cdp_record_append_child(record, CDP_TYPE_NORMAL, name, true, NULL, cdp_store_new(domain, tag, storage, CDP_INDEX_BY_NAME, ##__VA_ARGS__))
-#define cdp_record_prepend_catalog(record, name, domain, tag, storage, ...)                                 cdp_record_append_child(record, CDP_TYPE_NORMAL, name, true, NULL, cdp_store_new(domain, tag, storage, CDP_INDEX_BY_FUNCTION, ##__VA_ARGS__))
+#define cdp_record_prepend_list(record, name, dt, storage, ...)                                             cdp_record_append_child(record, CDP_TYPE_NORMAL, name, true, NULL, cdp_store_new(dt, storage, CDP_INDEX_BY_INSERTION, ##__VA_ARGS__))
+#define cdp_record_prepend_dictionary(record, name, dt, storage, ...)                                       cdp_record_append_child(record, CDP_TYPE_NORMAL, name, true, NULL, cdp_store_new(dt, storage, CDP_INDEX_BY_NAME, ##__VA_ARGS__))
+#define cdp_record_prepend_catalog(record, name, dt, storage, ...)                                          cdp_record_append_child(record, CDP_TYPE_NORMAL, name, true, NULL, cdp_store_new(dt, storage, CDP_INDEX_BY_FUNCTION, ##__VA_ARGS__))
 
-#define cdp_record_prepend_link(record, name, source)                                                       cdp_record_append_child(record, CDP_TYPE_LINK,  name, true, CDP_P(source), NULL)
+#define cdp_record_prepend_link(record, name, source)                                                       cdp_record_append_child(record, CDP_TYPE_LINK, name, true, CDP_P(source), NULL)
 
 
 // Accessing data
@@ -690,7 +762,7 @@ bool cdp_record_path(const cdpRecord* record, cdpPath** path);
 cdpRecord* cdp_record_first(const cdpRecord* record);
 cdpRecord* cdp_record_last (const cdpRecord* record);
 
-cdpRecord* cdp_record_find_by_name(const cdpRecord* record, cdpID name);
+cdpRecord* cdp_record_find_by_name(const cdpRecord* record, const cdpDT* name);
 cdpRecord* cdp_record_find_by_key(const cdpRecord* record, cdpRecord* key, cdpCompare compare, void* context);
 cdpRecord* cdp_record_find_by_position(const cdpRecord* record, size_t position);
 cdpRecord* cdp_record_find_by_path(const cdpRecord* start, const cdpPath* path);
@@ -698,7 +770,7 @@ cdpRecord* cdp_record_find_by_path(const cdpRecord* start, const cdpPath* path);
 cdpRecord* cdp_record_prev(const cdpRecord* record, cdpRecord* child);
 cdpRecord* cdp_record_next(const cdpRecord* record, cdpRecord* child);
 
-cdpRecord* cdp_record_find_next_by_name(const cdpRecord* record, cdpID id, uintptr_t* childIdx);
+cdpRecord* cdp_record_find_next_by_name(const cdpRecord* record, cdpDT* name, uintptr_t* childIdx);
 cdpRecord* cdp_record_find_next_by_path(const cdpRecord* start, cdpPath* path, uintptr_t* prev);
 
 bool cdp_record_traverse     (cdpRecord* record, cdpTraverse func, void* context, cdpEntry* entry);

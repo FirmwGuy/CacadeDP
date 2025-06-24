@@ -120,10 +120,10 @@ static inline cdpRecord* packed_q_last(cdpPackedQ* pkdq) {
 }
 
 
-static inline cdpRecord* packed_q_find_by_name(cdpPackedQ* pkdq, cdpID name) {
+static inline cdpRecord* packed_q_find_by_name(cdpPackedQ* pkdq, const cdpDT* name) {
     for (cdpPackedQNode* pNode = pkdq->pHead;  pNode;  pNode = pNode->pNext) {
         for (cdpRecord* record = pNode->first;  record <= pNode->last;  record++) {
-            if (record->metarecord.name == name)
+            if (cdp_record_name_is(record, name))
                 return record;
         }
     }
@@ -162,10 +162,10 @@ static inline cdpRecord* packed_q_next(cdpPackedQ* pkdq, cdpRecord* record) {
 }
 
 
-static inline cdpRecord* packed_q_next_by_name(cdpPackedQ* pkdq, cdpID name, cdpPackedQNode** prev) {
+static inline cdpRecord* packed_q_next_by_name(cdpPackedQ* pkdq, cdpDT* name, cdpPackedQNode** prev) {
     for (cdpPackedQNode* pNode = prev? (*prev)->pNext: pkdq->pHead;  pNode;  pNode = pNode->pNext) {
         for (cdpRecord* record = pNode->first;  record <= pNode->last;  record++) {
-            if (record->metarecord.name == name)
+            if (cdp_record_name_is(record, name))
                 return record;
         }
     }

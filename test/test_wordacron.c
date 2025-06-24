@@ -31,7 +31,7 @@
 
 static int test_wordacron_text(const char* text) {
     cdpID word  = cdp_text_to_word(text);
-    cdpID acron = cdp_text_to_acronysm(text);
+    cdpID acron = cdp_text_to_acronym(text);
 
     if (!word && !acron)
         return MUNIT_ERROR;
@@ -45,7 +45,7 @@ static int test_wordacron_text(const char* text) {
 
         printf("WORD  (%zu): \"%s\" = 0x%016"PRIX64"\n", decoded_length, text, word);
     } else {
-        size_t decoded_length = cdp_acronysm_to_text(acron, decoded);
+        size_t decoded_length = cdp_acronym_to_text(acron, decoded);
         assert_size(decoded_length, ==, strlen(text));
         assert_string_equal(text, decoded);
 
@@ -69,14 +69,16 @@ static inline size_t get_trimmed_length(const char* s) {
 #define PRINTABLE_MIN   5
 
 static void test_wordacron_coding(void) {
-    const char* acronysm_tests[] = {
+    const char* acronym_tests[] = {
         " ",
         "TOOLONGNAMEEXCEEDS",
 
+        // Codable min:
         " TEST",
         "SPACE X   ",
         "TRIMMED   ",
-
+    
+        // Printable min:
         "HELLO",
         "WORLD!",
         "?",
@@ -87,13 +89,15 @@ static void test_wordacron_coding(void) {
         " ",
         "toolongtoencodeproperly",
 
+        // Codable min:
         " with space",
         "trailing     ",
         "    trimthis   ",
 
+        // Printable min:
         "hello",
         "world.",
-        ":",
+        "a",
         "valid_word",
         "punctu-ated"
     };
@@ -102,16 +106,16 @@ static void test_wordacron_coding(void) {
     cdpID  encoded;
     size_t decoded_length;
 
-    for (size_t i = 0;  i < cdp_lengthof(acronysm_tests);  i++) {
-        encoded = cdp_text_to_acronysm(acronysm_tests[i]);
+    for (size_t i = 0;  i < cdp_lengthof(acronym_tests);  i++) {
+        encoded = cdp_text_to_acronym(acronym_tests[i]);
         if (encoded) {
-            decoded_length = cdp_acronysm_to_text(encoded, decoded);
+            decoded_length = cdp_acronym_to_text(encoded, decoded);
 
-            assert_size(decoded_length, ==, get_trimmed_length(acronysm_tests[i]));
+            assert_size(decoded_length, ==, get_trimmed_length(acronym_tests[i]));
             if (i < PRINTABLE_MIN)
-                assert_string_not_equal(decoded, acronysm_tests[i]);
+                assert_string_not_equal(decoded, acronym_tests[i]);
             else
-                assert_string_equal(decoded, acronysm_tests[i]);
+                assert_string_equal(decoded, acronym_tests[i]);
         } else {
             assert_size(i, <=, CODABLE_MIN);
         }

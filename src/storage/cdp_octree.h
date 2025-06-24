@@ -287,9 +287,9 @@ static inline bool octree_traverse(cdpOctree* octree, cdpTraverse func, void* co
 }
 
 
-static inline cdpRecord* octree_find_by_name(cdpOctree* octree, cdpID id) {
+static inline cdpRecord* octree_find_by_name(cdpOctree* octree, const cdpDT* name) {
     cdpEntry entry = {0};
-    if (!octree_traverse(octree, (cdpFunc) rb_traverse_func_break_at_name, cdp_v2p(id), &entry))
+    if (!octree_traverse(octree, (cdpFunc) rb_traverse_func_break_at_name, cdp_v2p(name), &entry))
         return entry.record;
     return NULL;
 }

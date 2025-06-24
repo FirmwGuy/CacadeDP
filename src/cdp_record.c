@@ -40,9 +40,7 @@ unsigned MAX_DEPTH = CDP_MAX_FAST_STACK_DEPTH;     // FixMe: (used by path/trave
 
 
 static inline int record_compare_by_name(const cdpRecord* restrict key, const cdpRecord* restrict rec, void* unused) {
-    cdpID keyName = cdp_record_get_id(key);
-    cdpID recName = cdp_record_get_id(rec);
-    return (keyName < recName)? -1: (keyName > recName);
+    return cdp_dt_compare(CDP_DT(key), CDP_DT(rec));
 }
 
 
@@ -62,7 +60,7 @@ static inline int record_compare_by_name(const cdpRecord* restrict key, const cd
 
 /***********************************************
  *                                             *
- * CascadeDP Layer 1 Record API starts here... *
+ * CascadeDP Layer 1: Records                  *
  *                                             *
  ***********************************************/
 
@@ -74,10 +72,9 @@ cdpRecord CDP_ROOT;   // The root record.
     Initiates the record system
 */
 void cdp_record_system_initiate(void) {
-    cdp_record_initialize_dictionary(   &CDP_ROOT,
-                                        CDP_WORD("/"),
-                                        CDP_ACRO("CDP"),
-                                        CDP_WORD("dictionary"),
+    cdp_record_initialize_dictionary(   &CDP_ROOT,                      // Record.
+                                        CDP_DTAA("CDP", "/"),           // Name.
+                                        CDP_DTAW("CDP", "dictionary"),  // Type.
                                         CDP_STORAGE_RED_BLACK_T );      // The root dictionary is the same as "/" in text paths.
 }
 
@@ -99,11 +96,10 @@ void cdp_record_system_shutdown(void) {
 #define VALUE_CAP_MIN       (sizeof((cdpData){}.value))
 #define DATA_HEAD_SIZE      (sizeof(cdpData) - VALUE_CAP_MIN)
 
-cdpData* cdp_data_new(  cdpID domain, cdpID tag,
-                        cdpID encoding, cdpID attribute,
+cdpData* cdp_data_new(  cdpDT* dt, cdpID encoding, cdpID attribute,
                         unsigned datatype, bool writable,
                         void** dataloc, void* value, ...  ) {
-    assert(cdp_id_text_valid(domain) && cdp_id_text_valid(tag) && (datatype < CDP_DATATYPE_COUNT));
+    assert(cdp_dt_valid(dt) && (datatype < CDP_DATATYPE_COUNT));
 
     cdpData* data;
     void*    address;
@@ -192,8 +188,8 @@ cdpData* cdp_data_new(  cdpID domain, cdpID tag,
 
     va_end(args);
 
-    data->domain    = domain;
-    data->tag       = tag;
+    data->domain    = dt->domain;
+    data->tag       = dt->tag;
     data->datatype  = datatype;
     data->writable  = writable;
 
@@ -300,8 +296,8 @@ static inline void* cdp_data_update(cdpData* data, size_t size, size_t capacity,
 /*
     Creates a new child store for records
 */
-cdpStore* cdp_store_new(cdpID domain, cdpID tag, unsigned storage, unsigned indexing, ...) {
-    assert(cdp_id_text_valid(domain) && cdp_id_text_valid(tag) && (storage < CDP_STORAGE_COUNT) && (indexing < CDP_INDEX_COUNT));
+cdpStore* cdp_store_new(cdpDT* dt, unsigned storage, unsigned indexing, ...) {
+    assert(cdp_dt_valid(dt) && (storage < CDP_STORAGE_COUNT) && (indexing < CDP_INDEX_COUNT));
 
     cdpStore* store;
     va_list  args;
@@ -350,8 +346,8 @@ cdpStore* cdp_store_new(cdpID domain, cdpID tag, unsigned storage, unsigned inde
 
     va_end(args);
 
-    store->domain   = domain;
-    store->tag      = tag;
+    store->domain   = dt->domain;
+    store->tag      = dt->tag;
     store->storage  = storage;
     store->indexing = indexing;
     store->writable = true;
@@ -432,7 +428,7 @@ void cdp_store_delete_children(cdpStore* store) {
 */
 static inline void store_check_auto_id(cdpStore* store, cdpRecord* child) {
     if (cdp_record_id_is_pending(child)) {
-        child->metarecord.name = cdp_id_to_numeric(store->autoid++);
+        child->metarecord.tag = cdp_id_to_numeric(store->autoid++);
     }
     // FixMe: if otherwise.
 }
@@ -645,8 +641,8 @@ static inline cdpRecord* store_last_child(const cdpStore* store) {
 /*
     Retrieves a child record by its ID
 */
-static inline cdpRecord* store_find_child_by_name(const cdpStore* store, cdpID name) {
-    assert(cdp_store_valid(store) && cdp_id_valid(name));
+static inline cdpRecord* store_find_child_by_name(const cdpStore* store, const cdpDT* name) {
+    assert(cdp_store_valid(store) && cdp_dt_valid(name));
 
     if (!store->chdCount)
         return NULL;
@@ -796,26 +792,26 @@ static inline cdpRecord* store_next_child(const cdpStore* store, cdpRecord* chil
 /*
     Retrieves the first/next child record by its ID
 */
-static inline cdpRecord* store_find_next_child_by_name(const cdpStore* store, cdpID id, uintptr_t* childIdx) {
-    assert(cdp_store_valid(store) && cdp_id_valid(id));
+static inline cdpRecord* store_find_next_child_by_name(const cdpStore* store, cdpDT* name, uintptr_t* childIdx) {
+    assert(cdp_store_valid(store) && cdp_dt_valid(name));
 
     if (!store->chdCount)
         return NULL;
 
     if (store->indexing == CDP_INDEX_BY_NAME  ||  !childIdx) {
         CDP_PTR_SEC_SET(childIdx, 0);
-        return store_find_child_by_name(store, id);
+        return store_find_child_by_name(store, name);
     }
 
     switch (store->storage) {
       case CDP_STORAGE_LINKED_LIST: {
-        return list_next_by_name((cdpList*) store, id, (cdpListNode**)childIdx);
+        return list_next_by_name((cdpList*) store, name, (cdpListNode**)childIdx);
       }
       case CDP_STORAGE_ARRAY: {
-        return array_next_by_name((cdpArray*) store, id, childIdx);
+        return array_next_by_name((cdpArray*) store, name, childIdx);
       }
       case CDP_STORAGE_PACKED_QUEUE: {
-        return packed_q_next_by_name((cdpPackedQ*) store, id, (cdpPackedQNode**)childIdx);
+        return packed_q_next_by_name((cdpPackedQ*) store, name, (cdpPackedQNode**)childIdx);
       }
       case CDP_STORAGE_RED_BLACK_T: {    // Unused.
         break;
@@ -1066,15 +1062,16 @@ static inline void store_remove_child(cdpStore* store, cdpRecord* record, cdpRec
 /*
     Initiates a record structure
 */
-void cdp_record_initialize(cdpRecord* record, unsigned type, cdpID name, cdpData* data, cdpStore* store) {
-    assert(record && cdp_id_valid(name) && (type && type < CDP_TYPE_COUNT));
+void cdp_record_initialize(cdpRecord* record, unsigned type, cdpDT* name, cdpData* data, cdpStore* store) {
+    assert(record && cdp_dt_valid(name) && (type && type < CDP_TYPE_COUNT));
     bool isLink = (type == CDP_TYPE_LINK);
     assert(isLink?  true:  ((data? cdp_data_valid(data): true)  &&  (store? cdp_store_valid(store): true)));
 
     //CDP_0(record);
 
-    record->metarecord.type = type;
-    record->metarecord.name = name;
+    record->metarecord.domain = name->domain;
+    record->metarecord.tag    = name->tag;
+    record->metarecord.type   = type;
     record->data  = data;
     record->store = store;
     if (!isLink && store)
@@ -1085,7 +1082,7 @@ void cdp_record_initialize(cdpRecord* record, unsigned type, cdpID name, cdpData
 /*
     Creates a deep copy of record and all its data
 */
-void cdp_record_initialize_clone(cdpRecord* clone, cdpID nameID, cdpRecord* record) {
+void cdp_record_initialize_clone(cdpRecord* clone, cdpDT* name, cdpRecord* record) {
     assert(clone && cdp_record_is_normal(record));
 
     assert(!cdp_record_has_data(record) && !cdp_record_has_store(record));
@@ -1216,7 +1213,7 @@ bool cdp_record_path(const cdpRecord* record, cdpPath** path) {
         tempPath = *path;
         assert(tempPath->capacity);
     } else {
-        tempPath = cdp_dyn_malloc(cdpPath, cdpID, MAX_DEPTH);
+        tempPath = cdp_dyn_malloc(cdpPath, cdpDT, MAX_DEPTH);
         tempPath->capacity = MAX_DEPTH;
         *path = tempPath;
     }
@@ -1226,9 +1223,9 @@ bool cdp_record_path(const cdpRecord* record, cdpPath** path) {
     for (const cdpRecord* current = record;  current;  current = cdp_record_parent(current)) {  // FixMe: assuming single parenthood for now.
         if (tempPath->length >= tempPath->capacity) {
             unsigned newCapacity = tempPath->capacity * 2;
-            cdpPath* newPath = cdp_dyn_malloc(cdpPath, cdpID, newCapacity);     // FixMe: use realloc.
+            cdpPath* newPath = cdp_dyn_malloc(cdpPath, cdpDT, newCapacity);     // FixMe: use realloc.
 
-            memcpy(&newPath->id[tempPath->capacity], tempPath->id, tempPath->capacity);
+            memcpy(&newPath->dt[tempPath->capacity], tempPath->dt, tempPath->capacity);
 
             newPath->length   = tempPath->capacity;
             newPath->capacity = newCapacity;
@@ -1237,7 +1234,10 @@ bool cdp_record_path(const cdpRecord* record, cdpPath** path) {
         }
 
         // Prepend the current record's id to the path
-        tempPath->id[tempPath->capacity - tempPath->length - 1] = current->metarecord.name;
+        cdpDT* dt = &tempPath->dt[tempPath->capacity - tempPath->length - 1];
+        dt->domain = current->metarecord.domain;
+        dt->tag    = current->metarecord.tag;
+        
         tempPath->length++;
     }
 
@@ -1268,7 +1268,7 @@ cdpRecord* cdp_record_last(const cdpRecord* record) {
 /*
     Retrieves a child record by its ID
 */
-cdpRecord* cdp_record_find_by_name(const cdpRecord* record, cdpID name) {
+cdpRecord* cdp_record_find_by_name(const cdpRecord* record, const cdpDT* name) {
     RECORD_FOLLOW_LINK_TO_STORE(record, store, NULL);
     return store_find_child_by_name(store, name);
 }
@@ -1279,6 +1279,8 @@ cdpRecord* cdp_record_find_by_name(const cdpRecord* record, cdpID name) {
 */
 cdpRecord* cdp_record_find_by_key(const cdpRecord* record, cdpRecord* key, cdpCompare compare, void* context) {
     RECORD_FOLLOW_LINK_TO_STORE(record, store, NULL);
+    
+    // FixMe: use store->compare instead of provided compare?
     return store_find_child_by_key(store, key, compare, context);
 }
 
@@ -1302,7 +1304,7 @@ cdpRecord* cdp_record_find_by_path(const cdpRecord* start, const cdpPath* path) 
     cdpRecord* record = CDP_P(start);
 
     for (unsigned depth = 0;  depth < path->length;  depth++) {
-        record = cdp_record_find_by_name(record, path->id[depth]);
+        record = cdp_record_find_by_name(record, &path->dt[depth]);
         if (!record)
             return NULL;
     }
@@ -1340,9 +1342,9 @@ cdpRecord* cdp_record_next(const cdpRecord* record, cdpRecord* child) {
 /*
     Retrieves the first/next child record by its ID
 */
-cdpRecord* cdp_record_find_next_by_name(const cdpRecord* record, cdpID id, uintptr_t* childIdx) {
+cdpRecord* cdp_record_find_next_by_name(const cdpRecord* record, cdpDT* name, uintptr_t* childIdx) {
     RECORD_FOLLOW_LINK_TO_STORE(record, store, NULL);
-    return store_find_next_child_by_name(store, id, childIdx);
+    return store_find_next_child_by_name(store, name, childIdx);
 }
 
 
@@ -1357,7 +1359,7 @@ cdpRecord* cdp_record_find_next_by_path(const cdpRecord* start, cdpPath* path, u
     for (unsigned depth = 0;  depth < path->length;  depth++) {
         // FixMe: depth must be stored in a stack as well!
         // ...(pending)
-        record = cdp_record_find_next_by_name(record, path->id[depth], prev);
+        record = cdp_record_find_next_by_name(record, &path->dt[depth], prev);
         if (!record)
             return NULL;
     }
@@ -1531,9 +1533,9 @@ void cdp_record_remove(cdpRecord* record, cdpRecord* target) {
 /*
     Encoding of names to/from 6-bit values.
 */
-CDP_TEXT_TO_ACRONYSM_(cdp_text_to_acronysm)
+CDP_TEXT_TO_ACRONYM_(cdp_text_to_acronym)
 
-size_t cdp_acronysm_to_text(cdpID acro, char s[10]) {
+size_t cdp_acronym_to_text(cdpID acro, char s[10]) {
     assert(cdp_id_text_valid(acro));
     cdpID coded = cdp_id(acro);
 

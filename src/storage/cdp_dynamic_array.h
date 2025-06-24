@@ -202,14 +202,14 @@ static inline cdpRecord* array_last(cdpArray* array) {
 }
 
 
-static inline cdpRecord* array_find_by_name(cdpArray* array, cdpID name) {
+static inline cdpRecord* array_find_by_name(cdpArray* array, const cdpDT* name) {
     if (cdp_store_is_dictionary(&array->store)) {
-        cdpRecord key = {.metarecord.name = name};
+        cdpRecord key = {.metarecord.domain = name->domain, .metarecord.tag = name->tag};
         return array_search(array, &key, record_compare_by_name, NULL, NULL);
     } else {
         cdpRecord* record = array->record;
         for (size_t i = 0; i < array->store.chdCount; i++, record++) {
-            if (record->metarecord.name == name)
+            if (cdp_record_name_is(record, name))
                 return record;
         }
     }
@@ -238,10 +238,10 @@ static inline cdpRecord* array_next(cdpArray* array, cdpRecord* record) {
 }
 
 
-static inline cdpRecord* array_next_by_name(cdpArray* array, cdpID name, uintptr_t* prev) {
+static inline cdpRecord* array_next_by_name(cdpArray* array, cdpDT* name, uintptr_t* prev) {
     cdpRecord* record = array->record;
     for (size_t i = prev? (*prev + 1): 0;  i < array->store.chdCount;  i++, record++){
-        if (record->metarecord.name == name)
+        if (cdp_record_name_is(record, name))
             return record;
     }
     return NULL;

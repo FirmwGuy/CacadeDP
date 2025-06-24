@@ -238,12 +238,12 @@ static inline bool rb_tree_traverse(cdpRbTree* tree, unsigned maxDepth, cdpTrave
 
 
 static inline int rb_traverse_func_break_at_name(cdpEntry* entry, uintptr_t name) {
-    return (entry->record->metarecord.name != name);
+    return !cdp_record_name_is(entry->record, name);
 }
 
 
-static inline cdpRecord* rb_tree_find_by_id(cdpRbTree* tree, cdpID name) {
-    cdpRecord key = {.metarecord.name = name};
+static inline cdpRecord* rb_tree_find_by_dt(cdpRbTree* tree, const cdpDT* dt) {
+    cdpRecord key = {.metarecord.domain = dt->domain, .metarecord.tag = dt->tag};
     cdpRbTreeNode* tnode = tree->root;
     do {
         int cmp = record_compare_by_name(&key, &tnode->record, NULL);
@@ -259,12 +259,12 @@ static inline cdpRecord* rb_tree_find_by_id(cdpRbTree* tree, cdpID name) {
 }
 
 
-static inline cdpRecord* rb_tree_find_by_name(cdpRbTree* tree, cdpID id) {
+static inline cdpRecord* rb_tree_find_by_name(cdpRbTree* tree, const cdpDT* name) {
     if (cdp_store_is_dictionary(&tree->store)) {
-        return rb_tree_find_by_id(tree, id);
+        return rb_tree_find_by_dt(tree, name);
     } else {
         cdpEntry entry = {0};
-        if (!rb_tree_traverse(tree, cdp_bitson(tree->store.chdCount) + 2, (cdpFunc) rb_traverse_func_break_at_name, cdp_v2p(id), &entry))
+        if (!rb_tree_traverse(tree, cdp_bitson(tree->store.chdCount) + 2, (cdpFunc) rb_traverse_func_break_at_name, cdp_v2p(name), &entry))
             return entry.record;
     }
     return NULL;
