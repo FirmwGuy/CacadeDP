@@ -126,26 +126,30 @@ bool  cdp_system_step(void);
 void  cdp_system_shutdown(void);
 
 
-bool cdp_agency_set_agent(cdpID domain, cdpID agency, cdpID consumption, cdpAgent agent);
-bool cdp_agency_set_produ(cdpID domain, cdpID agency, cdpID product);
+bool cdp_agency_set_agent(cdpDT* agency, cdpDT* input, cdpAgent agent);
+bool cdp_agency_set_output(cdpDT* agency, cdpDT* output);
 
-cdpRecord* cdp_record_add_agency_instance(  cdpRecord* record, cdpID name, uintptr_t context,
-                                            cdpID domain, cdpID agency,
-                                            cdpRecord* clientI, cdpRecord* argument );
-#define cdp_dict_add_agency_instance(dict, name, domain, agency, clientI)     cdp_record_add_agency_instance(dict, name, 0, domain, agency, clientI)
+cdpRecord* cdp_record_add_agency_instance(  cdpRecord* record, cdpDT* name, uintptr_t context,
+                                            cdpDT* agency, cdpRecord* args, cdpRecord* client   );
+#define cdp_dict_add_agency_instance(dict, name, agency, args, client)      cdp_record_add_agency_instance(dict, name, 0, agency, args, client)
 
+bool cdp_agency_instance_message(cdpRecord* instance, cdpDT* input, cdpRecord* message);
 void cdp_agency_instance_dispose(cdpRecord* instance);
-bool cdp_agency_instance_message(cdpRecord* instance, cdpID inpDomain, cdpID inpTag, cdpRecord* message);
 
-bool cdp_agency_pipeline_create(cdpRecord* selfI, cdpID name);
-bool cdp_agency_pipeline_state(cdpRecord* selfI, cdpID pipeline, cdpID state);
-bool cdp_agency_pipeline_dispose(cdpRecord* selfI, cdpID pipeline);
+bool cdp_agency_pipeline_create(cdpRecord* selfI, cdpDT* name);
+bool cdp_agency_pipeline_message(cdpRecord* selfI, cdpDT* pipeline, cdpDT* input, cdpRecord* message);
+bool cdp_agency_pipeline_dispose(cdpRecord* selfI, cdpDT* pipeline);
 
-bool cdp_agency_product_connect(cdpRecord* selfI, cdpID pipeline, cdpRecord* providerI, cdpID product, cdpRecord* consumerI, cdpID consumption);
-bool cdp_agency_product_deliver(cdpRecord* selfI, cdpID product, cdpRecord* content);
+bool cdp_agency_client_message(cdpRecord* selfI, cdpDT* input, cdpRecord* message);
 
-bool cdp_agency_client_answer(cdpRecord* selfI, cdpID type, cdpRecord* answer);
-bool cdp_agency_client_log(cdpRecord* selfI, cdpID type, cdpRecord* log);
+bool cdp_agency_output_connect( cdpRecord* selfI, cdpDT* pipeline, 
+                                cdpRecord* sourceI, cdpDT* output,
+                                cdpRecord* targetI, cdpDT* input    );
+bool cdp_agency_output_message(cdpRecord* selfI, cdpDT* output, cdpRecord* message);
+
+#define cdp_agency_instance_valid(instance)     (!cdp_record_is_floating(instance) && cdp_store_is_dictionary(instance))
+
+
 //static inline cdpRecord* cdp_void(void)  {extern cdpRecord* CDP_VOID; assert(CDP_VOID);  return CDP_VOID;}
 
 //static inline cdpRecord* cdp_agent_step(void)  {extern cdpRecord* CDP_STEP; assert(CDP_STEP);  return CDP_STEP;}

@@ -227,7 +227,7 @@ enum _cdpRecordNaming {
 #define cdp_id_text_valid(name)         (cdp_id(name) && !cdp_id_is_numeric(name))
 #define cdp_id_naming(name)             (((name) >> CDP_AUTOID_BITS) & 3)
 
-#define cdp_dt_valid(dt)                (cdp_id_text_valid((dt)->domain) && cdp_id_valid((dt)->tag))
+#define cdp_dt_valid(dt)                ((dt) && cdp_id_text_valid((dt)->domain) && cdp_id_valid((dt)->tag))
 
 
 // Converting C text strings to/from cdpID
@@ -449,7 +449,7 @@ cdpData* cdp_data_new(  cdpDT* dt, cdpID encoding, cdpID attribute,
                         void** dataloc, void* value, ...  );
 void     cdp_data_del(cdpData* data);
 void*    cdp_data(const cdpData* data);
-#define  cdp_data_valid(d)                                      ((d) && (d)->capacity && cdp_dt_valid(CDP_DT(d)))
+#define  cdp_data_valid(d)                                      ((d) && (d)->capacity && cdp_dt_valid((d)->_dt))
 #define  cdp_data_new_value(dt, e, a, value, z, capacity)       cdp_data_new(dt, e, CDP_ID(a), CDP_DATATYPE_VALUE, true, NULL, value, z, capacity)
 
 
@@ -526,7 +526,7 @@ enum _cdpRecordIndexing {
 cdpStore* cdp_store_new(cdpDT* dt, unsigned storage, unsigned indexing, ...);
 void      cdp_store_del(cdpStore* store);
 void      cdp_store_delete_children(cdpStore* store);
-#define   cdp_store_valid(s)      ((s) && cdp_dt_valid(CDP_DT(s)))
+#define   cdp_store_valid(s)      ((s) && cdp_dt_valid((s)->_dt))
 
 static inline bool cdp_store_is_insertable(cdpStore* store)   {assert(cdp_store_valid(store));  return (store->indexing == CDP_INDEX_BY_INSERTION);}
 static inline bool cdp_store_is_dictionary(cdpStore* store)   {assert(cdp_store_valid(store));  return (store->indexing == CDP_INDEX_BY_NAME);}
@@ -591,6 +591,7 @@ void cdp_record_initialize(cdpRecord* record, unsigned type, cdpDT* name, cdpDat
 void cdp_record_initialize_clone(cdpRecord* newClone, cdpDT* name, cdpRecord* record);
 void cdp_record_finalize(cdpRecord* record);
 
+#define cdp_record_initialize_empty(r, name)                                                            cdp_record_initialize(r, CDP_TYPE_NORMAL, name, NULL, NULL)
 #define cdp_record_initialize_value(r, name, dt, encoding, attrib, value, size, capacity)               cdp_record_initialize(r, CDP_TYPE_NORMAL, name, cdp_data_new(dt, encoding, attrib, CDP_DATATYPE_VALUE, true, NULL, value, size, capacity), NULL)
 #define cdp_record_initialize_data(r, name, dt, encoding, attrib, value, size, capacity, destructor)    cdp_record_initialize(r, CDP_TYPE_NORMAL, name, cdp_data_new(dt, encoding, attrib, CDP_DATATYPE_DATA,  true, NULL, value, size, capacity, destructor), NULL)
 
@@ -688,7 +689,8 @@ static inline bool cdp_record_is_sorted(cdpRecord* record)      {assert(cdp_reco
 
 static inline bool cdp_record_is_empty(cdpRecord* record)       {assert(cdp_record_is_normal(record));  return (!record->data && !cdp_record_children(record));}
 static inline bool cdp_record_is_unset(cdpRecord* record)       {assert(cdp_record_is_normal(record));  return (!record->data && !record->store);}
-static inline bool cdp_record_is_floating(cdpRecord* record)    {assert(record);  return (cdp_record_is_void(record)  ||  (!cdp_record_parent(record) && (record != cdp_root())));}
+static inline bool cdp_record_is_root(cdpRecord* record)        {assert(record);  return (record == cdp_root());}
+static inline bool cdp_record_is_floating(cdpRecord* record)    {assert(record);  return (cdp_record_is_void(record)  ||  (!cdp_record_parent(record) && !cdp_record_is_root()));}
 
 
 // Appends/prepends or inserts a (copy of) record into another record
@@ -744,6 +746,16 @@ cdpRecord* cdp_record_append(cdpRecord* record, bool prepend, cdpRecord* child);
 // Accessing data
 void* cdp_record_data(const cdpRecord* record);
 
+static inline void* cdp_record_data_find_by_name(const cdpRecord* record, cdpDT* name) {
+    assert(!cdp_record_is_void(record) && cdp_dt_valid(name));
+    
+    cdpRecord* found = cdp_record_find_by_name(record, name);
+    if (!found)
+        return NULL;
+    
+    return cdp_record_data(found);
+}
+
 void* cdp_record_update(cdpRecord* record, size_t size, size_t capacity, void* value, bool swap);
 #define cdp_record_update_value(r, z, v)    cdp_record_update(r, (z), sizeof(*(v)), v, false)
 #define cdp_record_update_attribute(r, a)   do{ assert(cdp_record_has_data(r);  (r)->data.attribute.id = CDP_ID(a); }while(0)
@@ -751,6 +763,7 @@ void* cdp_record_update(cdpRecord* record, size_t size, size_t capacity, void* v
 static inline void cdp_record_delete_data(cdpRecord* record)        {if (cdp_record_has_data(record))  {cdp_data_del(record->data);   record->data  = NULL;}}
 static inline void cdp_record_delete_store(cdpRecord* record)       {if (cdp_record_has_store(record)) {cdp_store_del(record->store); record->store = NULL;}}
 static inline void cdp_record_delete_children(cdpRecord* record)    {assert(cdp_record_has_store(record));  cdp_store_delete_children(record->store);}
+static inline void cdp_record_dispose(cdpRecord* record)            {if (record && !cdp_record_is_void(record) && !cdp_record_is_root(record))  {if (cdp_record_parent(record)) cdp_record_remove(record, NULL); else cdp_record_finalize(record);}}
 #define cdp_record_delete(r)    cdp_record_remove(r, NULL)
 
 
@@ -795,6 +808,7 @@ void cdp_record_system_shutdown(void);
 
 /*
     TODO:
+    - Implement a 'one-member only' dictionary, intended for organizational purposes.
     - Implement range queries (between a minimum and a maximum key) for records.
     - Implement clone (deep copy) records.
     - Traverse book in internal (stoTech) order.

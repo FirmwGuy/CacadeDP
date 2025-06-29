@@ -1190,10 +1190,8 @@ void* cdp_record_update(cdpRecord* record, size_t size, size_t capacity, void* v
     record = cdp_link_pull(record);
 
     cdpData* data = record->data;
-    if (!data) {
-        assert(data);
+    if CDP_NOT_ASSERT(data)
         return NULL;
-    }
 
     return cdp_data_update(data, size, capacity, value, swap);
 }
@@ -1521,7 +1519,7 @@ bool cdp_record_child_pop(cdpRecord* record, cdpRecord* target) {
     Deletes a record and all its children re-organizing (sibling) storage
 */
 void cdp_record_remove(cdpRecord* record, cdpRecord* target) {
-    assert(record && record != &CDP_ROOT);
+    assert(record && !cdp_record_is_root(record));
     cdpStore* store = record->parent;
     store_remove_child(store, record, target);
 }

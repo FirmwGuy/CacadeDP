@@ -216,8 +216,7 @@ enum _cdpBinaryEncryption {
 
 static inline cdpData* cdp_data_new_binary_id(cdpID value) {
     return cdp_data_new_value(
-        CDP_WORD("binary"),
-        CDP_ACRO("CDPID"),
+        CDP_DTWA("binary", "CDPID"),
         CDP_WORD("unsigned"),
         CDP_BINARY(
             .pow2 = cdp_ctz(sizeof(value))
@@ -229,27 +228,27 @@ static inline cdpData* cdp_data_new_binary_id(cdpID value) {
 #define cdp_dict_add_binary_id(record, name, value)         cdp_record_add_child(record, CDP_TYPE_NORMAL, name, CDP_V(0), cdp_data_new_binary_id(value), NULL)
 
 
-static inline cdpData* cdp_data_new_binary_dt(cdpID domain, cdpID tag) {
-    cdpID dv[2] = {domain, tag};
+static inline cdpData* cdp_data_new_binary_dt(cdpDT* dt) {
+    assert(cdp_dt_valid(dt));
+    
+    cdpDT dt = {.domain = dt->domain, .tag = dt->tag};
     return cdp_data_new_value(
-        CDP_WORD("binary"),
-        CDP_ACRO("CDPID"),
+        CDP_DTWA("binary", "CDPDT"),
         CDP_WORD("unsigned"),
         CDP_BINARY(
-            .pow2      = cdp_ctz(sizeof(tag)),
+            .pow2      = cdp_ctz(sizeof(cdpID)),
             .dimension = CDP_BIN_DIM_VECTOR2D
         ),
-        sizeof(dv),
-        &dv
+        sizeof(dt),
+        &dt
     );
 }
-#define cdp_dict_add_binary_long_id(record, domain, name, value)    cdp_record_add_child(record, CDP_TYPE_NORMAL, name, CDP_ V(0), cdp_data_new_binary_long_id(domain, value), NULL)
+#define cdp_dict_add_binary_dt(record, name, dt)            cdp_record_add_child(record, CDP_TYPE_NORMAL, name, CDP_ V(0), cdp_data_new_binary_dt(dt), NULL)
 
 
 static inline cdpData* cdp_data_new_binary_agent(cdpAgent value) {
     return cdp_data_new_value(
-        CDP_WORD("binary"),
-        CDP_ACRO("agent"),
+        CDP_DTWW("binary", "agent"),
         CDP_WORD("unsigned"),
         CDP_BINARY(
             .pow2 = cdp_ctz(sizeof(value))
@@ -258,13 +257,12 @@ static inline cdpData* cdp_data_new_binary_agent(cdpAgent value) {
         value
     );
 }
-#define cdp_dict_add_binary_agent(record, name, value)         cdp_record_add_child(record, CDP_TYPE_NORMAL, name, CDP_V(0), cdp_data_new_binary_agent(value), NULL)
+#define cdp_dict_add_binary_agent(record, name, value)      cdp_record_add_child(record, CDP_TYPE_NORMAL, name, CDP_V(0), cdp_data_new_binary_agent(value), NULL)
 
 
 static inline cdpData* cdp_data_new_binary_boolean(uint8_t value) {
     return cdp_data_new_value(
-        CDP_WORD("binary"),
-        CDP_WORD("boolean"),
+        CDP_DTWW("binary", "boolean"),
         CDP_WORD("unsigned"),
         CDP_BINARY(0),
         sizeof(value),
@@ -275,8 +273,7 @@ static inline cdpData* cdp_data_new_binary_boolean(uint8_t value) {
 
 static inline cdpData* cdp_data_new_binary_uint32(uint32_t value) {
     return cdp_data_new_value(
-        CDP_WORD("binary"),
-        CDP_ACRO("UINT32"),
+        CDP_DTWA("binary", "UINT32"),
         CDP_WORD("unsigned"),
         CDP_BINARY(
             .pow2 = cdp_ctz(sizeof(value))
@@ -289,8 +286,7 @@ static inline cdpData* cdp_data_new_binary_uint32(uint32_t value) {
 
 static inline cdpData* cdp_data_new_binary_uint64(uint64_t value) {
     return cdp_data_new_value(
-        CDP_WORD("binary"),
-        CDP_ACRO("UINT64"),
+        CDP_DTWA("binary", "UINT64"),
         CDP_WORD("unsigned"),
         CDP_BINARY(
             .pow2 = cdp_ctz(sizeof(value))
@@ -303,8 +299,7 @@ static inline cdpData* cdp_data_new_binary_uint64(uint64_t value) {
 
 static inline cdpData* cdp_data_new_binary_int64(int64_t value) {
     return cdp_data_new_value(
-        CDP_WORD("binary"),
-        CDP_ACRO("INT64"),
+        CDP_DTWA("binary", "INT64"),
         CDP_WORD("signed"),
         CDP_BINARY(
             .pow2 = cdp_ctz(sizeof(value)),
@@ -318,8 +313,7 @@ static inline cdpData* cdp_data_new_binary_int64(int64_t value) {
 
 static inline cdpData* cdp_data_new_binary_float32(float value) {
     return cdp_data_new_value(
-        CDP_WORD("binary"),
-        CDP_ACRO("FLOAT32"),
+        CDP_DTWA("binary", "FLOAT32"),
         CDP_ACRO("IEEE754"),
         CDP_BINARY(
             .pow2 = cdp_ctz(sizeof(value)),
@@ -333,8 +327,7 @@ static inline cdpData* cdp_data_new_binary_float32(float value) {
 
 static inline cdpData* cdp_data_new_binary_float64(double value) {
     return cdp_data_new_value(
-        CDP_WORD("binary"),
-        CDP_ACRO("FLOAT64"),
+        CDP_DTWA("binary", "FLOAT64"),
         CDP_ACRO("IEEE754"),
         CDP_BINARY(
             .pow2 = cdp_ctz(sizeof(value)),
@@ -348,8 +341,7 @@ static inline cdpData* cdp_data_new_binary_float64(double value) {
 
 static inline cdpData* cdp_data_new_binary_vector3d(float* value) {
     return cdp_data_new_value(
-        CDP_WORD("binary"),
-        CDP_ACRO("VECTOR3D"),
+        CDP_DTWA("binary", "VECTOR3D"),
         CDP_ACRO("C_ARRAY"),
         CDP_BINARY(
             .pow2     = cdp_ctz(sizeof(value)),
