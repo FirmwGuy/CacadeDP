@@ -155,22 +155,20 @@
   ## Agencies
   
   Agencies are registered by creating a record entry in the /system/agency 
-  catalog with the domain-tag (DT) of such agency as a key; the domain is used 
-  as record name and tag is stored as binary "CDPID" data.
+  dictionary with the DT of such agency as name.
   
-  Agents are stored by their unique DT (input name) in the "input" 
-  dictionary record inside each agency entry. Since the domain is the same as 
-  the parent agency, only the tag is used as unique name. The C callback 
-  function is stored as binary "agent" data.
+  Agents are stored by their unique DT (input name) in the "inputs" dictionary 
+  record inside each agency entry. The C callback function is stored as binary 
+  "agent" data.
     
   In a similar way, agent outputs (named outputs) are registered by storing 
-  such records in the "input" dictionary. Productions are only used for 
+  such records in the "outputs" dictionary. Those entries are only used for 
   checking channel connection configuration and then creating respective 
   pipeline links.
   
-  Tasks are stored in the "task" FIFO queue inside the respective agency. The 
+  Tasks are stored in the "tasks" FIFO queue inside the respective agency. The 
   name of the task correspond to agency input. Tasks have an agency 
-  instance link in "instance" record and "message" field with necessary task 
+  instance link in "instance" and a "message" field with necessary task 
   data (if any).
   
     ```
@@ -198,24 +196,19 @@
   from machine to machine in the network. Instances are accessed only through 
   tasks.
   
-  Client instance (the one owning this pipeline) is indicated by the "client"
-  link.
+  Client instance (the one owning the current pipeline) is indicated by the 
+  "client" link.
   
-  Owned pipelines are stored inside client instances in their "pipeline" queue. 
-  Each pipeline is not a collection of instances, but rather is a dictionary of 
-  channels defining which agency instance named output becomes the named input 
-  of which other instance.
+  Owned pipelines or owned instances are **not** saved by the CDP system, so 
+  the user must explicitly store such information in the persistent or similar 
+  field.
   
-  Here, instances are just links to actual agency instances, while output 
-  and input are refered only by their DT. Channel names are arbitrary and 
-  may be set by the user or automatically by the CDP system.
+  The instance own output linkage is stored in "outputs" dictionary, with each 
+  (output) name having the target input as "CDPID" data and the target instance 
+  as link. This way lookup of channels based in local output names is 
+  efficient.
   
-  The instance own output linkage (as defined by its parent client pipeline) is 
-  stored in "output" dictionary, with each (output) name having the target 
-  input as "CDPID" data and the target instance as link. This way lookup of 
-  channels based in local output names is efficient.
-  
-  Finally, agency records are stored in "persistent" dictionary.
+  Finally, agency own records are stored in "persistent" dictionary.
   
     ```
     /public/
@@ -224,22 +217,10 @@
             client -> instance_20
             outputs/
                 my_output_03
-                    agency: "my_agency01"
-                    input: "input_02"
                     instance -> instance_01
+                    input: "input_02"
             persistent/
                 measurements/
-            pipelines/
-                child-pipe-05/
-                    instances/
-                        my_instance01 -> instance_02
-                        my_instance02 -> instance_03
-                    channels/
-                        channel_06/
-                            source -> instance_02
-                            output: "output_01"
-                            target -> instance_03
-                            input: "input_01"
     ```
 
 */
@@ -267,7 +248,7 @@ static void system_initiate(void) {
 
     /* Create root structure
     */
-    cdpRecord* system  = cdp_dict_add_dictionary(&CDP_ROOT, CDP_DTAW("CDP", "system"),  CDP_DTAW("CDP", "dictionary"), CDP_STORAGE_ARRAY, 4);
+    cdpRecord* system = cdp_dict_add_dictionary(&CDP_ROOT, CDP_DTAW("CDP", "system"), CDP_DTAW("CDP", "dictionary"), CDP_STORAGE_ARRAY, 4);
 
     USER    = cdp_dict_add_dictionary(&CDP_ROOT, CDP_DTAW("CDP", "user"),    CDP_DTAW("CDP", "dictionary"), CDP_STORAGE_RED_BLACK_T);
     PUBLIC  = cdp_dict_add_dictionary(&CDP_ROOT, CDP_DTAW("CDP", "public"),  CDP_DTAW("CDP", "dictionary"), CDP_STORAGE_RED_BLACK_T);
@@ -277,7 +258,7 @@ static void system_initiate(void) {
     TEMP    = cdp_dict_add_list(&CDP_ROOT, CDP_DTAW("CDP", "temp"), CDP_DTAW("CDP", "list"), CDP_STORAGE_LINKED_LIST);
 
     // Initiate system structure
-    AGENCIES = cdp_record_add_dictionary(system, CDP_DTAW("CDP", "agencies"), 0, CDP_DTAW("CDP", "dictionary"), CDP_STORAGE_RED_BLACK_T);
+    AGENCIES = cdp_dict_add_dictionary(system, CDP_DTAW("CDP", "agencies"), CDP_DTAW("CDP", "dictionary"), CDP_STORAGE_RED_BLACK_T);
     //LIBRARY = cdp_dict_add_dictionary(system, CDP_WORD_LIBRARY, CDP_ACRO("CDP"), CDP_WORD("dictionary"), CDP_STORAGE_RED_BLACK_T);
 
     // Add system agents
@@ -285,7 +266,7 @@ static void system_initiate(void) {
 
     // Initiate global records.
     //cdpRecord step = {0};
-    // cdp_instance_new(cdp_root(), &step, CDP_WORD("step"), CDP_ACRO("CDP"), CDP_WORD("step"), NULL, CDP_V(0));
+    // cdp_instance_new(cdp_root(), &step, CDP_WORD("step"), CDP_ACRO("CDP"), CDP_WORD("step"), NULL, 0);
     //CDP_STEP = cdp_dict_add(AGENCIES, &step);
 
     //CDP_VOID = cdp_record_append_value(TEMP, CDP_WORD_VOID, CDP_ACRO("CDP"), CDP_WORD_VOID, 0, 0, sizeof(bool), sizeof(bool));
@@ -332,7 +313,7 @@ void cdp_system_shutdown(void) {
  * Agency API
  */
 
-bool cdp_agency_set_agent(cdpDT* agency, cdpDT* input, cdpAgent agent) {
+bool cdp_agency_register_agent(cdpDT* agency, cdpDT* input, cdpAgent agent) {
     assert(cdp_dt_valid(agency) && cdp_dt_valid(input) && agent);
 
     if (!AGENCIES)
@@ -349,6 +330,7 @@ bool cdp_agency_set_agent(cdpDT* agency, cdpDT* input, cdpAgent agent) {
     }
 
     cdpRecord* rinputs = cdp_record_find_by_name(ragencies, CDP_DTAW("CDP", "inputs"));     // We get 'rinputs' here because 'ragencies' is an array ('rinputs' address may become invalidated after insertions).
+    
     // ToDo: check if "input" agent already exists.
     
     cdp_dict_add_binary_agent(rinputs, input, agent);
@@ -366,11 +348,10 @@ bool cdp_agency_set_output(cdpDT* agency, cdpDT* output) {
     if CDP_NOT_ASSERT(ragencies)
         return false;
         
-    routputs = cdp_record_find_by_name(ragencies, CDP_DTAW("CDP", "outputs"));
+    cdpRecord* routputs = cdp_record_find_by_name(ragencies, CDP_DTAW("CDP", "outputs"));
 
-    // Outputs are just present by name; no data or agent pointer is needed here.
     if (!cdp_record_find_by_name(routputs, output)) {
-        cdp_dict_add_empty(routputs, output);
+        cdp_dict_add_empty(routputs, output);       // Outputs are just present by name (no other data is needed present so far).
     }
 
     return true;
@@ -384,12 +365,11 @@ cdpRecord* cdp_record_add_agency_instance(  cdpRecord* record, cdpDT* name, uint
         return NULL;
 
     // Create instance structure
-    cdpRecord* instance = cdp_record_add_dictionary(record, name, context, CDP_DTAW("CDP", "instance"), CDP_STORAGE_ARRAY, 5); {
+    cdpRecord* instance = cdp_record_add_dictionary(record, name, context, CDP_DTAW("CDP", "instance"), CDP_STORAGE_ARRAY, 4); {
         cdp_dict_add_binary_dt (instance, CDP_DTAW("CDP", "agency"),     agency);
         cdp_dict_add_link      (instance, CDP_DTAW("CDP", "client"),     client);
         cdp_dict_add_dictionary(instance, CDP_DTAW("CDP", "outputs"),    CDP_DTAW("CDP", "dictionary"), CDP_STORAGE_RED_BLACK_T);
         cdp_dict_add_dictionary(instance, CDP_DTAW("CDP", "persistent"), CDP_DTAW("CDP", "dictionary"), CDP_STORAGE_RED_BLACK_T);
-        cdp_dict_add_dictionary(instance, CDP_DTAW("CDP", "pipelines"),  CDP_DTAW("CDP", "dictionary"), CDP_STORAGE_RED_BLACK_T);
     }
 
     cdp_agency_instance_message(instance, CDP_DTAW("CDP", "initialize"), args);
@@ -407,11 +387,11 @@ bool cdp_agency_instance_message(cdpRecord* instance, cdpDT* input, cdpRecord* m
     if CDP_NOT_ASSERT(agency)
         return false;
     
-    cdpRecord* ragencies = cdp_record_find_by_name(AGENCIES, agency);
-    if CDP_NOT_ASSERT(ragencies)
+    cdpRecord* ragency = cdp_record_find_by_name(AGENCIES, agency);
+    if CDP_NOT_ASSERT(ragency)
         return false;
                 
-    cdpRecord* rtasks = cdp_record_find_by_name(ragencies, CDP_DTAW("CDP", "tasks"));
+    cdpRecord* rtasks = cdp_record_find_by_name(ragency, CDP_DTAW("CDP", "tasks"));
     if CDP_NOT_ASSERT(rtasks)
         return false;
     
@@ -419,9 +399,10 @@ bool cdp_agency_instance_message(cdpRecord* instance, cdpDT* input, cdpRecord* m
     cdpRecord task = {0};
     cdp_record_initialize_dictionary(&task, input, CDP_DTAW("CDP", "task"), CDP_STORAGE_ARRAY, 2); {
         cdp_dict_add_link(&task, CDP_DTAW("CDP", "instance"), instance);
-        cdpRecord* rmessage = cdp_dict_add_list(&task, CDP_DTAW("CDP", "message"), CDP_DTAW("CDP", "list"), CDP_STORAGE_LINKED_LIST);
-        if (message)
-            cdp_record_append(rmessage, false, message);
+        cdpRecord* rmessage = cdp_dict_add_list(&task, CDP_DTAW("CDP", "message"), CDP_DTAW("CDP", "list"), CDP_STORAGE_LINKED_LIST); {
+            if (message)
+                cdp_record_append(rmessage, false, message);
+        }
     }
     
     cdp_record_append(rtasks, false, &task);
@@ -439,79 +420,6 @@ void cdp_agency_instance_dispose(cdpRecord* instance) {
 }
 
 
-bool cdp_agency_pipeline_create(cdpRecord* selfI, cdpDT* name) {
-    assert(cdp_agency_instance_valid(selfI) && cdp_dt_valid(name));
-
-    cdpRecord* rpipelines = cdp_record_find_by_name(selfI, CDP_DTAW("CDP", "pipelines"));
-    if CDP_NOT_ASSERT(rpipelines)
-        return false;
-        
-    cdpRecord* previous = cdp_record_find_by_name(rpipelines, name);
-    if (!previous) {
-        // Create pipeline structure
-        cdpRecord* pl = cdp_dict_add_dictionary(rpipelines, name, CDP_DTAW("CDP", "dictionary"), CDP_STORAGE_RED_BLACK_T); {
-            cdp_dict_add_dictionary(pl, CDP_DTAW("CDP", "instances"), CDP_DTAW("CDP", "list"), CDP_STORAGE_LINKED_LIST);
-            cdp_dict_add_dictionary(pl, CDP_DTAW("CDP", "channels"),  CDP_DTAW("CDP", "list"), CDP_STORAGE_LINKED_LIST);
-        }
-    }
-
-    return true;
-}
-
-
-struct _IM {
-    cdpDT*      input;
-    cdpRecord*  message;
-};
-
-static inline bool agency_pipeline_traverse(cdpEntry* entry, struct _IM* im) {
-    
-    cdpRecord* instance = ;
-    
-    return cdp_agency_instance_message(instance, im->input, im->message);
-}
-
-bool cdp_agency_pipeline_message(cdpRecord* selfI, cdpDT* pipeline, cdpDT* input, cdpRecord* message) {
-    assert(cdp_agency_instance_valid(selfI) && cdp_dt_valid(pipeline) && cdp_dt_valid(input));
-
-    cdpRecord* rpipelines = cdp_record_find_by_name(selfI, CDP_DTAW("CDP", "pipelines"));
-    if (!rpipelines)
-        return false;
-
-    cdpRecord* pl = cdp_record_find_by_name(rpipelines, pipeline);
-    if (!pl)
-        return false;
-
-    struct _SM sm = {.input = input, .message = message};
-    cdpEntry entry = {0};
-    cdp_record_traverse(pl, agency_pipeline_traverse, &sm, &entry);
-
-    return true;
-}
-
-
-bool cdp_agency_pipeline_dispose(cdpRecord* selfI, cdpDT* pipeline) {
-    assert(cdp_agency_instance_valid(selfI) && cdp_dt_valid(pipeline));
-
-    cdpRecord* rpipelines = cdp_record_find_by_name(selfI, CDP_DTAW("CDP", "pipelines"));
-    if (!rpipelines)
-        return false;
-
-    cdpRecord* pl = cdp_record_find_by_name(rpipelines, pipeline);
-    if (!pl)
-        return false;
-    
-    // ToDo: send a signal to each unique instance
-    {
-        cdp_agency_instance_dispose(instance);
-    }
-
-    cdp_record_delete(pl);
-
-    return true;
-}
-
-
 bool cdp_agency_client_message(cdpRecord* selfI, cdpDT* input, cdpRecord* message) {
     assert(cdp_agency_instance_valid(selfI));
     
@@ -523,55 +431,19 @@ bool cdp_agency_client_message(cdpRecord* selfI, cdpDT* input, cdpRecord* messag
 }
 
 
-bool cdp_agency_output_connect( cdpRecord* selfI, cdpDT* pipeline, 
-                                cdpRecord* sourceI, cdpDT* output,
-                                cdpRecord* targetI, cdpDT* input    ) {
-    assert(cdp_agency_instance_valid(selfI) && cdp_agency_instance_valid(sourceI) && cdp_agency_instance_valid(targetI));
-    assert(cdp_dt_valid(pipeline) && cdp_dt_valid(output) && cdp_dt_valid(input));
-    
-    cdpRecord* rpipelines = cdp_record_find_by_name(selfI, CDP_DTAW("CDP", "pipelines"));
-    if CDP_NOT_ASSERT(rpipelines)
-        return false;
+bool cdp_agency_output_connect(cdpRecord* sourceI, cdpDT* output, cdpRecord* targetI, cdpDT* input) {
+    assert(cdp_agency_instance_valid(sourceI) && cdp_agency_instance_valid(targetI));
+    assert(cdp_dt_valid(output) && cdp_dt_valid(input));
 
-    cdpRecord* pl = cdp_record_find_by_name(rpipelines, pipeline);
-    if CDP_NOT_ASSERT(pl)
-        return false;
-
-    cdpRecord* rinstances = cdp_record_find_by_name(pl, CDP_DTAW("CDP", "instances"));
-    if CDP_NOT_ASSERT(rinstances)
-        return false;
-    
-    cdpRecord* instance = cdp_record_find_by_name(pl, CDP_DTAW("CDP", "instances"));
-    if (!instance)
-        cdp_record_add_link(rinstances, , 0, sourceI);
-    
-    instance = cdp_record_find_by_name(pl, CDP_DTAW("CDP", "instances"));
-    if (!instance)
-        cdp_record_add_link(rinstances, , 0, targetI);
-
-    cdpRecord* rchannels = cdp_record_find_by_name(pl, CDP_DTAW("CDP", "channels"));
-    if CDP_NOT_ASSERT(rchannels)
-        return false;
-    
-    // ToDo: check if instances are already connected (same I/O).
-            
-    // Create channel structure
-   cdpRecord* channel = cdp_dict_add_dictionary(rchannels, CDP_AUTOID, CDP_DTAW("CDP", "channel"), CDP_STORAGE_ARRAY, 4); {
+    // Create channel structure (message):
+    cdpRecord channel = {0};
+    cdp_record_initialize_dictionary(&channel, CDP_DTAW("CDP", "channel"), CDP_DTAW("CDP", "channel"), CDP_STORAGE_ARRAY, 3); {
         cdp_dict_add_binary_dt(&channel, CDP_DTAW("CDP", "input"),  input);
         cdp_dict_add_binary_dt(&channel, CDP_DTAW("CDP", "output"), output);
-        cdp_dict_add_link     (&channel, CDP_DTAW("CDP", "source"), sourceI);
         cdp_dict_add_link     (&channel, CDP_DTAW("CDP", "target"), targetI);
     }
 
-    // Create connection structure (almost the same as channel)
-    cdpRecord* connection = {0};
-    cdp_record_initialize_dictionary(&connection, CDP_DTAW("CDP", "channel"), CDP_DTAW("CDP", "dictionary"), CDP_STORAGE_ARRAY, 3); {
-        cdp_dict_add_binary_dt(&connection, CDP_DTAW("CDP", "input"),  input);
-        cdp_dict_add_binary_dt(&connection, CDP_DTAW("CDP", "output"), output);
-        cdp_dict_add_link     (&connection, CDP_DTAW("CDP", "target"), targetI);
-    }
-
-    cdp_agency_instance_message(sourceI, CDP_DTAW("CDP", "connect"), connection);
+    cdp_agency_instance_message(sourceI, CDP_DTAW("CDP", "connect"), &channel);
 
     // ToDo: convert output entry in list (with a FLEX record).
     
@@ -585,10 +457,8 @@ bool cdp_agency_output_message(cdpRecord* selfI, cdpDT* output, cdpRecord* messa
     assert(cdp_agency_instance_valid(selfI) && cdp_dt_valid(output));
 
     cdpRecord* routputs = cdp_record_find_by_name(selfI, CDP_DTAW("CDP", "outputs"));
-    if (!routputs) {
-        assert(routputs);
+    if CDP_NOT_ASSERT(routputs)
         return false;
-    }
     
     cdpRecord* out = cdp_record_find_by_name(routputs, output);
     if (!out) {
@@ -596,11 +466,17 @@ bool cdp_agency_output_message(cdpRecord* selfI, cdpDT* output, cdpRecord* messa
         return true;
     }
     
+    cdpDT* input = cdp_record_data_find_by_name(out, CDP_DTAW("CDP", "input"));
+    if CDP_NOT_ASSERT(input)
+        return false;
+    
     cdpRecord* rtarget = cdp_record_find_by_name(out, CDP_DTAW("CDP", "target"));
+    if CDP_NOT_ASSERT(rtarget)
+        return false;
+        
     cdpRecord* target = cdp_link_pull(rtarget);
     
-    cdpRecord* rinput = cdp_record_find_by_name(out, CDP_DTAW("CDP", "input"));
-    cdpDT* input = cdp_record_data(rinput);
+    // ToDo: handle multiple outputs.
     
     return cdp_agency_instance_message(target, input, message);
 }
@@ -622,48 +498,11 @@ bool cdp_agency_output_message(cdpRecord* selfI, cdpDT* output, cdpRecord* messa
  *      'base-time':
  *
  */
-struct _step {
-    cdpRecord*  client;
-    cdpValue    tic;
-};
 
-static inline bool agent_step_on_each_output(cdpEntry* entry, struct _step* step){
-    cdp_instance_data_update(step->client, entry->record, sizeof(step->tic), sizeof(step->tic), step->tic);
-    return false;
-}
+static bool system_agent_step(cdpRecord* instance, cdpDT* input, cdpRecord* message) {
+    
 
-static int agent_system_step(cdpRecord* pipeline, cdpRecord* instance, cdpRecord* record, unsigned action) {
-    assert(client && self);
-
-    switch (action) {
-      case CDP_ACTION_INSTANCE_NEW: {
-        cdp_record_set_data(self, cdp_data_new_binary_uint64(0));
-        cdp_record_set_store(self, cdp_store_new(CDP_ACRO("CDP"), CDP_WORD("list"), CDP_STORAGE_LINKED_LIST, CDP_INDEX_BY_INSERTION));
-        return CDP_STATUS_SUCCESS;
-      }
-
-      case CDP_ACTION_INSTANCE_CONNECT: {
-        cdpRecord* link = cdp_record_append_link(self, CDP_AUTOID, record);
-        CDP_PTR_SEC_SET(returned, link);
-        return CDP_STATUS_SUCCESS;
-      }
-
-      case CDP_ACTION_INSTANCE_UNPLUG: {
-        assert(self == cdp_record_parent(record));
-        cdp_record_remove(record, NULL);
-        return CDP_STATUS_SUCCESS;
-      }
-
-      case CDP_ACTION_DATA_UPDATE: {
-        struct _step step = {.client = self, .tic = value};
-        cdpEntry entry = {0};
-        if (true == cdp_record_traverse(self, (cdpTraverse) agent_step_on_each_output, &step, &entry))
-            return CDP_STATUS_FAIL;
-        return CDP_STATUS_SUCCESS;
-      }
-    }
-
-    return CDP_STATUS_OK;
+    return true;
 }
 
 

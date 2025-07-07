@@ -118,7 +118,7 @@
 */
 
 
-typedef bool (*cdpAgent)(cdpRecord* instance, cdpRecord* call);
+typedef bool (*cdpAgent)(cdpRecord* instance, cdpDT* input, cdpRecord* message);
 
 
 bool  cdp_system_startup(void);
@@ -126,7 +126,7 @@ bool  cdp_system_step(void);
 void  cdp_system_shutdown(void);
 
 
-bool cdp_agency_set_agent(cdpDT* agency, cdpDT* input, cdpAgent agent);
+bool cdp_agency_register_agent(cdpDT* agency, cdpDT* input, cdpAgent agent);
 bool cdp_agency_set_output(cdpDT* agency, cdpDT* output);
 
 cdpRecord* cdp_record_add_agency_instance(  cdpRecord* record, cdpDT* name, uintptr_t context,
@@ -136,18 +136,12 @@ cdpRecord* cdp_record_add_agency_instance(  cdpRecord* record, cdpDT* name, uint
 bool cdp_agency_instance_message(cdpRecord* instance, cdpDT* input, cdpRecord* message);
 void cdp_agency_instance_dispose(cdpRecord* instance);
 
-bool cdp_agency_pipeline_create(cdpRecord* selfI, cdpDT* name);
-bool cdp_agency_pipeline_message(cdpRecord* selfI, cdpDT* pipeline, cdpDT* input, cdpRecord* message);
-bool cdp_agency_pipeline_dispose(cdpRecord* selfI, cdpDT* pipeline);
-
 bool cdp_agency_client_message(cdpRecord* selfI, cdpDT* input, cdpRecord* message);
 
-bool cdp_agency_output_connect( cdpRecord* selfI, cdpDT* pipeline, 
-                                cdpRecord* sourceI, cdpDT* output,
-                                cdpRecord* targetI, cdpDT* input    );
+bool cdp_agency_output_connect(cdpRecord* sourceI, cdpDT* output, cdpRecord* targetI, cdpDT* input);
 bool cdp_agency_output_message(cdpRecord* selfI, cdpDT* output, cdpRecord* message);
 
-#define cdp_agency_instance_valid(instance)     (!cdp_record_is_floating(instance) && cdp_store_is_dictionary(instance))
+#define cdp_agency_instance_valid(instance)     (!cdp_record_is_floating(instance) && cdp_record_is_dictionary(instance))
 
 
 //static inline cdpRecord* cdp_void(void)  {extern cdpRecord* CDP_VOID; assert(CDP_VOID);  return CDP_VOID;}

@@ -42,7 +42,7 @@ domains.
 Core Concepts
 -------------
 
-To understand CDP's architecture, it is crucial to grasp its fundamental 
+To understand CDP's architecture, it is necessary to grasp its fundamental 
 concepts. These include Records, the data containers; Agents and Agencies, the 
 processing units; and Tasks, the vehicles of computation. The following 
 sections describe these in detail.
@@ -54,10 +54,15 @@ sections describe these in detail.
   data, metadata, and may also contain other records as children. This 
   recursive structure enables complex, hierarchical data models.
 
-* **Naming & Hierarchy:**
+* **Naming:**
   Every record has a name (text or number), enabling dictionary-like storage 
-  and natural tree hierarchies. The user (or the CDP system) can assign names. 
-  This naming system supports intuitive data navigation and organization.
+  and natural tree hierarchies. The names are bi-dimensional, having two parts: 
+  a "domain" and a "tag" (DT).
+
+* **Naming & Hierarchy:**
+  The user (or the CDP system) can assign names. Those DT may be used to query 
+  a record about selected children with the same domain, tag, or both. This 
+  naming system supports straightforward data navigation and organization.
 
 * **Links:**
   Records can link to other records (creating graph structures). Intra-machine 
@@ -81,10 +86,9 @@ sections describe these in detail.
 #### Record Data
 
 Records are binary data agnostic—any type of data may be stored, described only 
-by a "domain" and "tag" (DT). Typical data types include binary numbers 
-(various sizes), vectors, and UTF-8 text. This generic approach enables CDP to 
-support a wide variety of applications without being tied to specific data 
-formats.
+by a DT. Typical data types include binary numbers (various sizes), vectors, 
+and UTF-8 text. This generic approach enables CDP to support a wide variety of 
+applications without being tied to specific data formats.
 
 
 ### Poly-Structure: Dynamic Storage
@@ -92,9 +96,9 @@ formats.
 Different applications have different storage needs. CDP provides multiple data 
 structures to store records, allowing optimal choices based on usage patterns.
 
-CDP uses multiple data structure types to store collections of records. The
-optimal storage can be selected at runtime or load-time, and switched according
-to profiling.
+CDP uses multiple data structure types to store collections of records. The 
+optimal storage for each record can be selected at runtime or load-time, and 
+switched according to profiling.
 
 * **Linked List:** Doubly-linked list for efficient insert/remove.
 
@@ -108,7 +112,7 @@ FIFO.
 * **Simple Octree:** For spatial or catalog-type indexing.
 
 The choice depends on the usage pattern and is transparent to the 
-agent/programmer. This flexibility enhances performance tuning and scalability.
+agent/programmer.
 
 ---
 
@@ -123,18 +127,16 @@ their organizational groups called Agencies.
 
 * **Definition:**
   Agents are executable code modules that process tasks from queues. Each agent 
-  is registered with a specific **domain-tag (DT) pair** indicating the data 
-  type or protocol it handles.
+  is registered with a specific **name (DT)** indicating the input it handles.
 
 * **Inputs & Outputs:**
   Each agent receives tasks via an input queue and produces results via 
-  outputs. An output is a generic term for sending results; CDP’s concrete 
-  implementation is called **production** (the process of converting results 
-  into new tasks).
+  outputs. An output is a generic term for sending results (the process of 
+  converting results into new tasks).
 
 * **Task Handling:**
-  Agents process tasks as they arrive. If no agent matches a task, the system 
-  discards it. Agents are also free to ignore tasks as needed.
+  Agents process tasks as they arrive. If no agent matches a task name, the 
+  system discards it. Agents are also free to ignore tasks as needed.
 
 Agents encapsulate logic in a highly modular way, promoting code reuse, 
 parallelism, and easier reasoning about system behavior.
@@ -170,8 +172,9 @@ Understanding how tasks are formed, scheduled, and executed is critical to
 grasping the flow of data and logic through the system.
 
 * **Definition:**
-  A task is a message containing an agency instance ID, a DT specifying the 
-  target input queue, and the record (data) to process.
+  A task is a message containing a target agency DT, an instance ID, an agent 
+  DT (specifying the target input), and an optional record (message data) to 
+  process.
 
 * **Lifecycle:**
   Agents send results to outputs, which are then routed as new tasks to input 
@@ -202,36 +205,34 @@ strategy.
 * The CDP system scans all agency input queues in each pass.
 
 * When a task is found, the relevant agent (matched by DT) is invoked in a new 
-thread if possible, receiving the agency instance, consumption name, and the 
-task.
+thread if possible, receiving the agency instance, input (agent) name, and the 
+task data.
 
 * Agents may delegate to subroutines, and can be registered at startup or 
 dynamically.
 
-* If an agent produces a result, it creates new records for **production** 
-(output), which are routed to downstream agencies as new tasks.
+* If an agent produces a result, it creates new records for **output**, which 
+are routed to downstream agencies as new tasks.
 
 * Agents are oblivious to the global pipeline topology—they simply name which 
-production to use for each result, and that's it.
+output to use for each result, and that's it.
 
 This modular execution model facilitates deployment across heterogeneous 
 systems.
 
 
-### Inter-Pipeline Communication (IPC)
+### Inter-Pipeline Communication (IPLC)
 
-Modern applications often need nested, hierarchical workflows. Sometimes, 
-agents need to command pipelines they have spawned ("clients" and "owned 
-pipelines"), or receive status updates from these nested agents. CDP supports 
-this by allowing pipelines to communicate and manage sub-pipelines in a 
-structured way.
+Applications often need nested, hierarchical workflows. Sometimes, agents 
+(clients) need to command pipelines they have spawned (owned pipelines), or 
+receive status updates from these nested agents. CDP supports this by allowing 
+pipelines to communicate and manage sub-pipelines in a structured way.
 
 * **Command Tasks:**
   A client agent may send control commands such as "start", "pause", or "abort" 
-  to its owned pipeline. Each agency in that pipeline receives the command as a 
-  task. **However,** sub-agencies or further-nested pipelines will not 
-  automatically propagate these commands unless the programmer implements this 
-  behavior explicitly.
+  to its owned pipeline by sending a message (task) to a specific instance. 
+  **However,** sub-agencies or further-nested pipelines will not automatically 
+  propagate these commands unless this behaviour is explicitly implemented.
 
 * **Response Tasks:**
   Nested agents may report "error", "log", or "fatal" events back to their 
@@ -258,8 +259,8 @@ internal architecture and how it achieves its performance and flexibility.
   CDP is implemented in C for maximum portability (target: GCC).
 
 * **Record Storage:**
-  Records are minimal, featuring only a name ID, metadata, and pointers to 
-  actual data—efficient for rapid lookup and low memory use.
+  Records are minimal, featuring only a domain-tag name ID, metadata, and 
+  pointers to actual data—efficient for rapid lookup and low memory use.
 
 
 ### Specialized Structures
@@ -317,13 +318,12 @@ For quick reference, here are brief definitions of the most important terms
 used throughout this document.
 
 * **Agent:** Executable code that processes tasks from input queues.
-* **Agency:** Group of agents working together, sharing context.
+* **Agency:** Group of agents working together, sharing instance/context.
 * **Channel:** System-managed connection between two agencies.
-* **Consumption:** A named input for receiving new tasks.
-* **DT (Domain-Tag):** Pair that identifies the type/protocol of records.
+* **Input:** A named task used for triggering a specific agent.
+* **DT (Domain-Tag):** Pair that identifies the name/type/protocol of records.
 * **Instance:** A specific configuration/context of an agency.
-* **Output:** Generic term for agent results.
-* **Production:** a named output to be linked to another agency.
+* **Output:** A DT name for results, to be linked to another agency.
 * **Pipeline:** Linked sequence of agencies/agents processing data.
 * **Record:** Fundamental data unit, can contain data and child records.
 * **Task:** Message representing a unit of work for an agent.

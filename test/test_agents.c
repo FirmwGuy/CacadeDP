@@ -172,13 +172,13 @@ static int agent_stdout(cdpRecord* client, void** returned, cdpRecord* self, uns
 
 void* test_agents_setup(const MunitParameter params[], void* user_data) {
   #if 0
-    cdp_agency_set_agent(CDP_WORD("test"), CDP_WORD("stdin"), CDP_WORD("system-step"), agent_stdin);
+    cdp_agency_register_agent(CDP_WORD("test"), CDP_WORD("stdin"), CDP_WORD("system-step"), agent_stdin);
     cdp_agency_set_output(CDP_WORD("test"), CDP_WORD("stdin"), CDP_WORD("number"));
 
-    cdp_agency_set_agent(CDP_WORD("test"), CDP_WORD("adder"), CDP_WORD("operand"), agent_adder);
+    cdp_agency_register_agent(CDP_WORD("test"), CDP_WORD("adder"), CDP_WORD("operand"), agent_adder);
     cdp_agency_set_output(CDP_WORD("test"), CDP_WORD("adder"), CDP_WORD("answer"));
 
-    cdp_agency_set_agent(CDP_WORD("test"), CDP_WORD("stdout"), CDP_WORD("number"), agent_stdout);
+    cdp_agency_register_agent(CDP_WORD("test"), CDP_WORD("stdout"), CDP_WORD("number"), agent_stdout);
 
     cdp_system_startup();
   #endif

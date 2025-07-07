@@ -449,8 +449,8 @@ cdpData* cdp_data_new(  cdpDT* dt, cdpID encoding, cdpID attribute,
                         void** dataloc, void* value, ...  );
 void     cdp_data_del(cdpData* data);
 void*    cdp_data(const cdpData* data);
-#define  cdp_data_valid(d)                                      ((d) && (d)->capacity && cdp_dt_valid((d)->_dt))
-#define  cdp_data_new_value(dt, e, a, value, z, capacity)       cdp_data_new(dt, e, CDP_ID(a), CDP_DATATYPE_VALUE, true, NULL, value, z, capacity)
+#define  cdp_data_valid(d)                                      ((d) && (d)->capacity && cdp_dt_valid(&(d)->_dt))
+#define  cdp_data_new_value(dt, e, a, value, z)                 ({size_t _z = z;  cdp_data_new(dt, e, CDP_ID(a), CDP_DATATYPE_VALUE, true, NULL, value, _z, _z);})
 
 
 /*
@@ -526,7 +526,7 @@ enum _cdpRecordIndexing {
 cdpStore* cdp_store_new(cdpDT* dt, unsigned storage, unsigned indexing, ...);
 void      cdp_store_del(cdpStore* store);
 void      cdp_store_delete_children(cdpStore* store);
-#define   cdp_store_valid(s)      ((s) && cdp_dt_valid((s)->_dt))
+#define   cdp_store_valid(s)      ((s) && cdp_dt_valid(&(s)->_dt))
 
 static inline bool cdp_store_is_insertable(cdpStore* store)   {assert(cdp_store_valid(store));  return (store->indexing == CDP_INDEX_BY_INSERTION);}
 static inline bool cdp_store_is_dictionary(cdpStore* store)   {assert(cdp_store_valid(store));  return (store->indexing == CDP_INDEX_BY_NAME);}
@@ -690,7 +690,7 @@ static inline bool cdp_record_is_sorted(cdpRecord* record)      {assert(cdp_reco
 static inline bool cdp_record_is_empty(cdpRecord* record)       {assert(cdp_record_is_normal(record));  return (!record->data && !cdp_record_children(record));}
 static inline bool cdp_record_is_unset(cdpRecord* record)       {assert(cdp_record_is_normal(record));  return (!record->data && !record->store);}
 static inline bool cdp_record_is_root(cdpRecord* record)        {assert(record);  return (record == cdp_root());}
-static inline bool cdp_record_is_floating(cdpRecord* record)    {assert(record);  return (cdp_record_is_void(record)  ||  (!cdp_record_parent(record) && !cdp_record_is_root()));}
+static inline bool cdp_record_is_floating(cdpRecord* record)    {assert(record);  return (cdp_record_is_void(record)  ||  (!cdp_record_parent(record) && !cdp_record_is_root(record)));}
 
 
 // Appends/prepends or inserts a (copy of) record into another record
@@ -743,6 +743,35 @@ cdpRecord* cdp_record_append(cdpRecord* record, bool prepend, cdpRecord* child);
 #define cdp_record_prepend_link(record, name, source)                                                       cdp_record_append_child(record, CDP_TYPE_LINK, name, true, CDP_P(source), NULL)
 
 
+// Constructs the full path (sequence of ids) for a given record, returning the depth
+bool cdp_record_path(const cdpRecord* record, cdpPath** path);
+
+
+// Accessing branched records
+cdpRecord* cdp_record_first(const cdpRecord* record);
+cdpRecord* cdp_record_last (const cdpRecord* record);
+
+cdpRecord* cdp_record_find_by_name(const cdpRecord* record, const cdpDT* name);
+cdpRecord* cdp_record_find_by_key(const cdpRecord* record, cdpRecord* key, cdpCompare compare, void* context);
+cdpRecord* cdp_record_find_by_position(const cdpRecord* record, size_t position);
+cdpRecord* cdp_record_find_by_path(const cdpRecord* start, const cdpPath* path);
+
+cdpRecord* cdp_record_prev(const cdpRecord* record, cdpRecord* child);
+cdpRecord* cdp_record_next(const cdpRecord* record, cdpRecord* child);
+
+cdpRecord* cdp_record_find_next_by_name(const cdpRecord* record, cdpDT* name, uintptr_t* childIdx);
+cdpRecord* cdp_record_find_next_by_path(const cdpRecord* start, cdpPath* path, uintptr_t* prev);
+
+bool cdp_record_traverse     (cdpRecord* record, cdpTraverse func, void* context, cdpEntry* entry);
+bool cdp_record_deep_traverse(cdpRecord* record, cdpTraverse func, cdpTraverse listEnd, void* context, cdpEntry* entry);
+
+
+// Removing records
+bool cdp_record_child_take(cdpRecord* record, cdpRecord* target);
+bool cdp_record_child_pop(cdpRecord* record, cdpRecord* target);
+void cdp_record_remove(cdpRecord* record, cdpRecord* target);
+
+
 // Accessing data
 void* cdp_record_data(const cdpRecord* record);
 
@@ -767,38 +796,9 @@ static inline void cdp_record_dispose(cdpRecord* record)            {if (record 
 #define cdp_record_delete(r)    cdp_record_remove(r, NULL)
 
 
-// Constructs the full path (sequence of ids) for a given record, returning the depth
-bool cdp_record_path(const cdpRecord* record, cdpPath** path);
-
-
-// Accessing branched records
-cdpRecord* cdp_record_first(const cdpRecord* record);
-cdpRecord* cdp_record_last (const cdpRecord* record);
-
-cdpRecord* cdp_record_find_by_name(const cdpRecord* record, const cdpDT* name);
-cdpRecord* cdp_record_find_by_key(const cdpRecord* record, cdpRecord* key, cdpCompare compare, void* context);
-cdpRecord* cdp_record_find_by_position(const cdpRecord* record, size_t position);
-cdpRecord* cdp_record_find_by_path(const cdpRecord* start, const cdpPath* path);
-
-cdpRecord* cdp_record_prev(const cdpRecord* record, cdpRecord* child);
-cdpRecord* cdp_record_next(const cdpRecord* record, cdpRecord* child);
-
-cdpRecord* cdp_record_find_next_by_name(const cdpRecord* record, cdpDT* name, uintptr_t* childIdx);
-cdpRecord* cdp_record_find_next_by_path(const cdpRecord* start, cdpPath* path, uintptr_t* prev);
-
-bool cdp_record_traverse     (cdpRecord* record, cdpTraverse func, void* context, cdpEntry* entry);
-bool cdp_record_deep_traverse(cdpRecord* record, cdpTraverse func, cdpTraverse listEnd, void* context, cdpEntry* entry);
-
-
 // Converts an unsorted record into a sorted one
 void cdp_record_to_dictionary(cdpRecord* record);
 void cdp_record_sort(cdpRecord* record, cdpCompare compare, void* context);
-
-
-// Removing records
-bool cdp_record_child_take(cdpRecord* record, cdpRecord* target);
-bool cdp_record_child_pop(cdpRecord* record, cdpRecord* target);
-void cdp_record_remove(cdpRecord* record, cdpRecord* target);
 
 
 // Initiate and shutdown record system
