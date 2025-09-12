@@ -7,8 +7,8 @@ microcontrollers and embedded systems. CDP is open source, released under the
 MIT license.
 
 > **Note:**
-> This project is under active development, currently in an experimental state
-and **not yet ready for production use**!
+> This project evolved into CEP; all new work will continue there!
+Please see [`CEP`] (https://github.com/FirmwGuy/CEP) for more detail.
 
 ---
 
