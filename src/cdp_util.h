@@ -162,12 +162,11 @@ typedef void (*cdpDel)(void*);
 #ifdef NDEBUG
   #define CDP_DEBUG()
   #define CDP_ASSERT(exp)       (exp)
-  #define CDP_NOT_ASSERT(exp)   (!(exp))
 #else
   #define CDP_DEBUG(code)       do{code;}while(0)
-  #define CDP_ASSERT(exp)       (({bool e = (exp);  if (!e) {assert(exp);    assert(false);}   e;}))
-  #define CDP_NOT_ASSERT(exp)   (({bool e = (exp);  if (e)  {assert(!(exp)); assert(false);}  !e;}))
+  #define CDP_ASSERT(exp)       (({bool e = (bool)(exp);  if (!e) assert(#exp && e);  e;}))
 #endif
+#define   CDP_NOT_ASSERT(exp)   (!CDP_ASSERT(exp))
 
 
 #endif
